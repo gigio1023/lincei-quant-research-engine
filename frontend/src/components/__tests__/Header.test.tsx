@@ -16,9 +16,7 @@ describe('Header Component', () => {
   it('renders header with description', () => {
     renderWithRouter(<Header />);
 
-    expect(
-      screen.getByText('AI 기반 투자 리포트 분석'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('AI 기반 투자 리포트 분석')).toBeInTheDocument();
   });
 
   it('renders navigation links', () => {

@@ -122,7 +122,6 @@ describe('API Service', () => {
       });
     });
 
-
     describe('error handling', () => {
       it('should throw error when API call fails', async () => {
         const errorMessage = 'Network Error';
@@ -130,7 +129,6 @@ describe('API Service', () => {
 
         await expect(reportsApi.getReports()).rejects.toThrow(errorMessage);
       });
-
     });
   });
 
@@ -139,7 +137,7 @@ describe('API Service', () => {
       // Since testing the axios.create call directly is complex due to module loading,
       // we verify that the configuration values are as expected
       const expectedBaseURL =
-        process.env.REACT_APP_API_URL || 'http://localhost:3001';
+        process.env.REACT_APP_API_URL ?? 'http://localhost:3001';
       const expectedTimeout = 10000;
 
       expect(expectedBaseURL).toBe('http://localhost:3001');
