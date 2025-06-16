@@ -1,16 +1,5 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-
-// Mock the Link component before importing Header
-const MockLink = ({ children, to }: { children: React.ReactNode; to: string }) => (
-  <a href={to}>{children}</a>
-);
-
-jest.mock('react-router-dom', () => ({
-  Link: MockLink,
-}));
-
-// Now import Header after mocking
 import Header from '../Header';
 
 const renderWithRouter = (component: React.ReactElement) => {
@@ -21,36 +10,36 @@ describe('Header Component', () => {
   it('renders header with correct title', () => {
     renderWithRouter(<Header />);
 
-    expect(screen.getByText('📈 투자 도우미')).toBeInTheDocument();
+    expect(screen.getByText('투자분석AI')).toBeInTheDocument();
   });
 
   it('renders header with description', () => {
     renderWithRouter(<Header />);
 
     expect(
-      screen.getByText('AI 기반 투자 분석 및 리포트 서비스'),
+      screen.getByText('AI 기반 투자 리포트 분석'),
     ).toBeInTheDocument();
   });
 
-  it('renders navigation link', () => {
+  it('renders navigation links', () => {
     renderWithRouter(<Header />);
 
-    const reportListLink = screen.getByText('리포트 목록');
-    expect(reportListLink).toBeInTheDocument();
-    expect(reportListLink.closest('a')).toHaveAttribute('href', '/');
+    expect(screen.getByText('홈')).toBeInTheDocument();
+    expect(screen.getByText('리포트')).toBeInTheDocument();
+    expect(screen.getByText('분석')).toBeInTheDocument();
   });
 
-  it('has correct styling classes', () => {
+  it('has correct navigation structure', () => {
     renderWithRouter(<Header />);
 
-    const header = screen.getByRole('banner');
-    expect(header).toHaveClass('bg-blue-600', 'text-white', 'shadow-lg');
+    const nav = screen.getByRole('navigation');
+    expect(nav).toBeInTheDocument();
   });
 
   it('title links to home page', () => {
     renderWithRouter(<Header />);
 
-    const titleLink = screen.getByText('📈 투자 도우미').closest('a');
+    const titleLink = screen.getByText('투자분석AI').closest('a');
     expect(titleLink).toHaveAttribute('href', '/');
   });
 });

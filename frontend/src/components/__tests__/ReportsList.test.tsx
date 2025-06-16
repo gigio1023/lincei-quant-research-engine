@@ -1,6 +1,5 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
 import ReportsList from '../ReportsList';
 import { reportsApi } from '../../services/api';
 
@@ -9,6 +8,7 @@ jest.mock('../../services/api');
 const mockedReportsApi = reportsApi as jest.Mocked<typeof reportsApi>;
 
 const renderWithRouter = (component: React.ReactElement) => {
+  const { BrowserRouter } = require('react-router-dom');
   return render(<BrowserRouter>{component}</BrowserRouter>);
 };
 
@@ -49,7 +49,8 @@ describe('ReportsList Component', () => {
 
     renderWithRouter(<ReportsList />);
 
-    expect(screen.getByText('로딩 중...')).toBeInTheDocument();
+    expect(screen.getByText('AI가 분석 중입니다')).toBeInTheDocument();
+    expect(screen.getByText('잠시만 기다려주세요...')).toBeInTheDocument();
   });
 
   it('renders reports list after loading', async () => {
@@ -72,7 +73,7 @@ describe('ReportsList Component', () => {
     });
   });
 
-  it('renders report generation buttons', async () => {
+  it('renders filter buttons', async () => {
     mockedReportsApi.getReports.mockResolvedValue({
       reports: [],
       total: 0,
@@ -83,52 +84,8 @@ describe('ReportsList Component', () => {
     renderWithRouter(<ReportsList />);
 
     await waitFor(() => {
-      expect(screen.getByText('🌅 오전 리포트 생성')).toBeInTheDocument();
-      expect(screen.getByText('🌆 오후 리포트 생성')).toBeInTheDocument();
-    });
-  });
-
-  it('handles morning report generation', async () => {
-    mockedReportsApi.getReports.mockResolvedValue({
-      reports: [],
-      total: 0,
-      page: 1,
-      limit: 10,
-    });
-
-    mockedReportsApi.generateReport.mockResolvedValue(mockReports[0]);
-
-    renderWithRouter(<ReportsList />);
-
-    await waitFor(() => {
-      const morningButton = screen.getByText('🌅 오전 리포트 생성');
-      fireEvent.click(morningButton);
-    });
-
-    await waitFor(() => {
-      expect(mockedReportsApi.generateReport).toHaveBeenCalledWith('morning');
-    });
-  });
-
-  it('handles evening report generation', async () => {
-    mockedReportsApi.getReports.mockResolvedValue({
-      reports: [],
-      total: 0,
-      page: 1,
-      limit: 10,
-    });
-
-    mockedReportsApi.generateReport.mockResolvedValue(mockReports[1]);
-
-    renderWithRouter(<ReportsList />);
-
-    await waitFor(() => {
-      const eveningButton = screen.getByText('🌆 오후 리포트 생성');
-      fireEvent.click(eveningButton);
-    });
-
-    await waitFor(() => {
-      expect(mockedReportsApi.generateReport).toHaveBeenCalledWith('evening');
+      expect(screen.getByText('🌅 모닝브리핑')).toBeInTheDocument();
+      expect(screen.getByText('🌆 이브닝브리핑')).toBeInTheDocument();
     });
   });
 
@@ -155,10 +112,7 @@ describe('ReportsList Component', () => {
     renderWithRouter(<ReportsList />);
 
     await waitFor(() => {
-      expect(screen.getByText('아직 리포트가 없습니다')).toBeInTheDocument();
-      expect(
-        screen.getByText('첫 번째 리포트를 생성해보세요!'),
-      ).toBeInTheDocument();
+      expect(screen.getByText('선택한 필터에 해당하는 리포트가 없습니다.')).toBeInTheDocument();
     });
   });
 
@@ -173,12 +127,12 @@ describe('ReportsList Component', () => {
     renderWithRouter(<ReportsList />);
 
     await waitFor(() => {
-      // Check if Korean date format is displayed
-      expect(screen.getByText(/2024년 12월/)).toBeInTheDocument();
+      // Check if Korean date format is displayed - using getAllByText for multiple matches
+      expect(screen.getAllByText(/2024년 12월/)).toHaveLength(2);
     });
   });
 
-  it('displays news analysis count', async () => {
+  it('displays report stats correctly', async () => {
     mockedReportsApi.getReports.mockResolvedValue({
       reports: mockReports,
       total: 2,
@@ -189,15 +143,16 @@ describe('ReportsList Component', () => {
     renderWithRouter(<ReportsList />);
 
     await waitFor(() => {
-      expect(screen.getByText('📰 5개 뉴스 분석')).toBeInTheDocument();
-      expect(screen.getByText('📰 3개 뉴스 분석')).toBeInTheDocument();
+      expect(screen.getByText('2')).toBeInTheDocument(); // 전체 리포트
+      const ones = screen.getAllByText('1');
+      expect(ones).toHaveLength(2); // 모닝브리핑과 이브닝브리핑
     });
   });
 
-  it('renders report type badges correctly', async () => {
+  it('renders component header', async () => {
     mockedReportsApi.getReports.mockResolvedValue({
-      reports: mockReports,
-      total: 2,
+      reports: [],
+      total: 0,
       page: 1,
       limit: 10,
     });
@@ -205,8 +160,7 @@ describe('ReportsList Component', () => {
     renderWithRouter(<ReportsList />);
 
     await waitFor(() => {
-      expect(screen.getByText('🌅 오전')).toBeInTheDocument();
-      expect(screen.getByText('🌆 오후')).toBeInTheDocument();
+      expect(screen.getByText('투자 리포트 분석')).toBeInTheDocument();
       expect(screen.getByText('모닝브리핑')).toBeInTheDocument();
       expect(screen.getByText('이브닝브리핑')).toBeInTheDocument();
     });

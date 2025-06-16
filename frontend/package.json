@@ -33,6 +33,17 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\""
   },
+  "jest": {
+    "moduleNameMapper": {
+      "react-router-dom": "<rootDir>/src/__mocks__/react-router-dom.js"
+    },
+    "collectCoverageFrom": [
+      "src/**/*.{js,jsx,ts,tsx}",
+      "!src/**/*.d.ts",
+      "!src/index.tsx",
+      "!src/reportWebVitals.ts"
+    ]
+  },
   "browserslist": {
     "production": [
       ">0.2%",
