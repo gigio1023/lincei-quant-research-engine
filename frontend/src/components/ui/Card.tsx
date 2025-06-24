@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface CardProps {
   children: React.ReactNode;
@@ -20,7 +20,7 @@ interface CardContentProps {
   className?: string;
 }
 
-export const Card: React.FC<CardProps> = ({ children, className = '' }) => {
+export const Card: React.FC<CardProps> = ({ children, className = "" }) => {
   return (
     <div
       className={`bg-white rounded-lg border border-gray-200 shadow-sm ${className}`}
@@ -32,7 +32,7 @@ export const Card: React.FC<CardProps> = ({ children, className = '' }) => {
 
 export const CardHeader: React.FC<CardHeaderProps> = ({
   children,
-  className = '',
+  className = "",
 }) => {
   return (
     <div className={`px-6 py-4 border-b border-gray-200 ${className}`}>
@@ -43,7 +43,7 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
 
 export const CardTitle: React.FC<CardTitleProps> = ({
   children,
-  className = '',
+  className = "",
 }) => {
   return (
     <h3 className={`text-lg font-semibold text-gray-900 ${className}`}>
@@ -54,7 +54,7 @@ export const CardTitle: React.FC<CardTitleProps> = ({
 
 export const CardContent: React.FC<CardContentProps> = ({
   children,
-  className = '',
+  className = "",
 }) => {
   return <div className={`px-6 py-4 ${className}`}>{children}</div>;
 };

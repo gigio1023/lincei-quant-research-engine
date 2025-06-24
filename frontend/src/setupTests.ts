@@ -1,9 +1,9 @@
 // vitest-dom adds custom matchers for asserting on DOM nodes.
-import '@testing-library/jest-dom'
-import { vi } from 'vitest'
+import "@testing-library/jest-dom";
+import { vi } from "vitest";
 
 // Mock window.matchMedia
-Object.defineProperty(window, 'matchMedia', {
+Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: vi.fn().mockImplementation((query: string) => ({
     matches: false,
@@ -15,10 +15,10 @@ Object.defineProperty(window, 'matchMedia', {
     removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
   })),
-})
+});
 
 // Mock localStorage
-Object.defineProperty(window, 'localStorage', {
+Object.defineProperty(window, "localStorage", {
   value: {
     getItem: vi.fn(() => null),
     setItem: vi.fn(),
@@ -28,10 +28,10 @@ Object.defineProperty(window, 'localStorage', {
     key: vi.fn(),
   },
   writable: true,
-})
+});
 
 // Mock document.documentElement.classList
-Object.defineProperty(document.documentElement, 'classList', {
+Object.defineProperty(document.documentElement, "classList", {
   value: {
     add: vi.fn(),
     remove: vi.fn(),
@@ -39,4 +39,4 @@ Object.defineProperty(document.documentElement, 'classList', {
     toggle: vi.fn(),
   },
   writable: true,
-})
+});

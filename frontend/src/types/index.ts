@@ -6,7 +6,7 @@ export interface Report {
   marketData?: Record<string, unknown>;
   newsAnalysis?: { processedCount?: number };
   investmentRecommendations?: Record<string, unknown>;
-  reportType: 'morning' | 'evening';
+  reportType: "morning" | "evening";
   createdAt: string;
   updatedAt: string;
 }
