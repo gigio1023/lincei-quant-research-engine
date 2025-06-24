@@ -6,7 +6,7 @@ on:
 
 jobs:
   build-and-deploy:
-    runs-on: [self-hosted]
+    runs-on: [gigio1023-arc-runner-set]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
