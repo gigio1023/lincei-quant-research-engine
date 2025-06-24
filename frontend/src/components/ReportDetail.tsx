@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, ReactNode } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { reportsApi } from '../services/api';
 import { Report } from '../types';
@@ -25,7 +25,7 @@ const ReportDetail: React.FC = () => {
       setReport(data);
     } catch (err) {
       setError('리포트를 불러오는데 실패했습니다.');
-      // eslint-disable-next-line no-console
+       
       console.error(
         'Error fetching report:',
         err instanceof Error ? err.message : err,
@@ -50,7 +50,7 @@ const ReportDetail: React.FC = () => {
     return type === 'morning' ? '🌅 오전' : '🌆 오후';
   };
 
-  const formatContent = (content: string) => {
+  const formatContent = (content: string): ReactNode[] => {
     // 마크다운 스타일의 헤더를 HTML로 변환
     return content.split('\n').map((line, index) => {
       if (line.startsWith('## ')) {

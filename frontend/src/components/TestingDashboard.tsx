@@ -61,7 +61,7 @@ const TestingDashboard: React.FC = () => {
       const health = await response.json();
       setSystemHealth(health);
     } catch (error) {
-      // eslint-disable-next-line no-console
+       
       console.error('Failed to fetch system health:', error);
     } finally {
       setLoading(prev => ({ ...prev, health: false }));
@@ -77,7 +77,7 @@ const TestingDashboard: React.FC = () => {
       const result = await response.json();
       setTestResults(prev => ({ ...prev, [suiteName]: result }));
     } catch (error) {
-      // eslint-disable-next-line no-console
+       
       console.error(`Failed to run test suite ${suiteName}:`, error);
       setTestResults(prev => ({
         ...prev,
@@ -105,7 +105,7 @@ const TestingDashboard: React.FC = () => {
       alert(`Created ${result.created} mock news items`);
       fetchSystemHealth(); // Refresh stats
     } catch (error) {
-      // eslint-disable-next-line no-console
+       
       console.error('Failed to create mock news:', error);
       alert('Failed to create mock news');
     } finally {
@@ -120,7 +120,7 @@ const TestingDashboard: React.FC = () => {
       alert('Test data cleaned up successfully');
       fetchSystemHealth(); // Refresh stats
     } catch (error) {
-      // eslint-disable-next-line no-console
+       
       console.error('Failed to cleanup test data:', error);
       alert('Failed to cleanup test data');
     } finally {
@@ -144,7 +144,7 @@ const TestingDashboard: React.FC = () => {
         alert(`Failed to generate ${type} report: ${result.error}`);
       }
     } catch (error) {
-      // eslint-disable-next-line no-console
+       
       console.error(`Failed to generate ${type} report:`, error);
       alert(`Failed to generate ${type} report`);
     } finally {
@@ -169,7 +169,7 @@ const TestingDashboard: React.FC = () => {
         `Full flow test completed: ${successSteps}/${totalSteps} steps successful in ${result.totalDuration}ms`,
       );
     } catch (error) {
-      // eslint-disable-next-line no-console
+       
       console.error('Failed to run full flow test:', error);
       alert('Failed to run full flow test');
     } finally {

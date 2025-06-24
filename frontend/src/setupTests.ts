@@ -1,42 +1,42 @@
-// jest-dom adds custom jest matchers for asserting on DOM nodes.
-// allows you to do things like:
-// expect(element).toHaveTextContent(/react/i)
-// learn more: https://github.com/testing-library/jest-dom
-import '@testing-library/jest-dom';
+// vitest-dom adds custom matchers for asserting on DOM nodes.
+import '@testing-library/jest-dom'
+import { vi } from 'vitest'
 
 // Mock window.matchMedia
-global.matchMedia =
-  global.matchMedia ||
-  function (query) {
-    return {
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: jest.fn(), // deprecated
-      removeListener: jest.fn(), // deprecated
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-      dispatchEvent: jest.fn(),
-    };
-  };
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(), // deprecated
+    removeListener: vi.fn(), // deprecated
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+})
 
 // Mock localStorage
-global.localStorage = {
-  getItem: jest.fn(() => null),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
-  length: 0,
-  key: jest.fn(),
-};
+Object.defineProperty(window, 'localStorage', {
+  value: {
+    getItem: vi.fn(() => null),
+    setItem: vi.fn(),
+    removeItem: vi.fn(),
+    clear: vi.fn(),
+    length: 0,
+    key: vi.fn(),
+  },
+  writable: true,
+})
 
 // Mock document.documentElement.classList
 Object.defineProperty(document.documentElement, 'classList', {
   value: {
-    add: jest.fn(),
-    remove: jest.fn(),
-    contains: jest.fn(() => false),
-    toggle: jest.fn(),
+    add: vi.fn(),
+    remove: vi.fn(),
+    contains: vi.fn(() => false),
+    toggle: vi.fn(),
   },
   writable: true,
-});
+})

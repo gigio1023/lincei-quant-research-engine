@@ -3,9 +3,9 @@ export interface Report {
   title: string;
   content: string;
   summary: string;
-  marketData?: unknown;
+  marketData?: Record<string, unknown>;
   newsAnalysis?: { processedCount?: number };
-  investmentRecommendations?: unknown;
+  investmentRecommendations?: Record<string, unknown>;
   reportType: 'morning' | 'evening';
   createdAt: string;
   updatedAt: string;
