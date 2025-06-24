@@ -1,0 +1,14 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "testEnvironment": "node",
+  "testRegex": ".manual.spec.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "setupFilesAfterEnv": ["<rootDir>/jest-manual.setup.ts"],
+  "testTimeout": 600000,
+  "verbose": true,
+  "detectOpenHandles": true,
+  "forceExit": true
+}

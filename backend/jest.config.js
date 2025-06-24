@@ -2,6 +2,7 @@ module.exports = {
   moduleFileExtensions: ['js', 'json', 'ts'],
   rootDir: '.',
   testRegex: '.*\\.spec\\.ts$',
+  testPathIgnorePatterns: ['<rootDir>/test/manual/'],
   transform: {
     '^.+\\.(t|j)s$': 'ts-jest',
   },
