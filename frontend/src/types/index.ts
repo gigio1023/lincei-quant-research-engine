@@ -3,10 +3,10 @@ export interface Report {
   title: string;
   content: string;
   summary: string;
-  marketData?: any;
-  newsAnalysis?: any;
-  investmentRecommendations?: any;
-  reportType: 'morning' | 'evening';
+  marketData?: Record<string, unknown>;
+  newsAnalysis?: { processedCount?: number };
+  investmentRecommendations?: Record<string, unknown>;
+  reportType: "morning" | "evening";
   createdAt: string;
   updatedAt: string;
 }
