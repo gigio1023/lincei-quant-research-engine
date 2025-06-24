@@ -7,7 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **All code comments and technical documentation should be in English**
 - **Maintain consistency with English-only technical communication**
 
-and you should always use npm audit fix --force to fix the vulnerabilities.
+## Security & Quality Standards
+- **Always run `npm audit fix --force` to fix vulnerabilities**
+- **Execute all CI tests locally before committing**
+- **Maintain 0 ESLint errors and 0 security vulnerabilities**
 
 ## Development Commands
 
@@ -31,24 +34,81 @@ npm run test:all        # All tests (unit + e2e)
 # Code Quality
 npm run lint            # ESLint check and fix
 npm run format          # Prettier formatting
+npm run format:check    # Prettier check only
 ```
 
-### Frontend (React SPA)
+### Frontend (Vite + React 19)
 ```bash
 cd frontend
 
 # Development
-npm start              # Development server (port 3000)
-npm run dev           # Alias for npm start
-npm run build         # Production build
+npm run dev            # Vite dev server (port 3000) - PRIMARY COMMAND
+npm run build          # Production build (TypeScript + Vite)
+npm run preview        # Preview production build
 
 # Testing
-npm test              # Jest tests in watch mode
-npm run test:coverage # Coverage report
+npm run test           # Vitest interactive mode
+npm run test:run       # Vitest single run
+npm run test:coverage  # Coverage report with Vitest
+npm run test:ui        # Vitest UI dashboard
 
 # Code Quality
-npm run lint          # ESLint check and fix
-npm run format        # Prettier formatting
+npm run lint           # ESLint check (strict mode)
+npm run lint:fix       # ESLint check and fix
+npm run format         # Prettier formatting
+npm run format:check   # Prettier check only
+```
+
+## Pre-Commit Quality Check (CI Simulation)
+
+**MANDATORY: Run these commands before every commit to ensure CI passes**
+
+### Complete Local CI Check
+```bash
+# Backend quality check
+cd backend
+npm ci                           # Clean install
+npm run lint                     # ESLint validation
+npm run format:check             # Prettier validation
+npm run test                     # Unit tests
+npm run test:e2e                 # End-to-end tests
+npm run test:cov                 # Generate coverage
+npm run build                    # Production build test
+npm audit --audit-level=moderate # Security check
+
+# Frontend quality check  
+cd frontend
+npm ci                           # Clean install
+npm run lint                     # ESLint validation (strict)
+npm run format:check             # Prettier validation
+npm run test:run                 # Vitest run all tests
+npm run test:coverage            # Generate coverage
+npm run build                    # Production build test
+npm audit --audit-level=moderate # Security check
+
+# Docker build test (optional)
+cd ..
+docker-compose build --no-cache  # Full stack build
+```
+
+### Quick Quality Check (Essential)
+```bash
+# Backend essentials
+cd backend && npm run lint && npm run test:all && npm run build
+
+# Frontend essentials  
+cd frontend && npm run lint && npm run test:run && npm run build
+
+# Security check
+npm audit --audit-level=moderate
+```
+
+### Emergency Fix Commands
+```bash
+# Fix common issues automatically
+npm run lint:fix && npm run format  # Fix code style
+npm audit fix --force              # Fix security issues
+rm -rf node_modules package-lock.json && npm install # Reset dependencies
 ```
 
 ### Docker Deployment
@@ -81,11 +141,22 @@ docker-compose logs -f       # View logs
 
 ## Key Configuration Files
 
+### Backend Configuration
 - **Environment Setup**: `backend/.env` (requires GEMINI_API_KEY)
 - **Database**: SQLite at `backend/data/investment.db`
+- **TypeScript**: `backend/tsconfig.json`
 - **Scheduling**: Cron expressions in `backend/src/modules/reports/scheduler.service.ts`
 - **News Sources**: RSS feeds configured in `backend/src/modules/news/news.service.ts`
 - **AI Models**: Model selection and fallback logic in `backend/src/modules/llm/llm.service.ts`
+
+### Frontend Configuration (Vite)
+- **Build Config**: `frontend/vite.config.ts` (Vite + Vitest settings)
+- **TypeScript**: `frontend/tsconfig.app.json` (app), `frontend/tsconfig.node.json` (build tools)
+- **Styling**: `frontend/tailwind.config.js` (TailwindCSS + plugins)
+- **PostCSS**: `frontend/postcss.config.js` (CSS processing)
+- **ESLint**: `frontend/eslint.config.js` (flat config format)
+- **Entry Point**: `frontend/index.html` → `frontend/src/main.tsx`
+- **Types**: `frontend/src/types/index.ts` (shared type definitions)
 
 ## Investment Report Generation
 
@@ -141,13 +212,13 @@ Since the system is primarily batch-driven, manual trigger endpoints enable imme
 
 ```bash
 # Test complete data flow
-curl -X POST http://localhost:3000/reports/test/flow/full
+curl -X POST http://localhost:3001/reports/test/flow/full
 
 # Generate specific report type
-curl -X POST http://localhost:3000/reports/test/generate/morning
+curl -X POST http://localhost:3001/reports/test/generate/morning
 
 # Test news collection only
-curl -X POST http://localhost:3000/reports/test/news/collect
+curl -X POST http://localhost:3001/reports/test/news/collect
 ```
 
 ### Test Suites Available
@@ -179,16 +250,16 @@ const health = await testingService.getSystemHealth();
 await testingService.cleanupTestData();
 ```
 
-### Backend Testing
+### Backend Testing (Jest)
 - **Unit Tests**: `*.spec.ts` files alongside source code
 - **E2E Tests**: `test/*.e2e-spec.ts` for full API workflows
 - **Integration Tests**: `test/integration/*.e2e-spec.ts` for data flow validation
 - **Coverage**: Comprehensive coverage reports available
 
-### Frontend Testing
-- **Component Tests**: React Testing Library in `__tests__` directories
+### Frontend Testing (Vitest)
+- **Component Tests**: React Testing Library with Vitest
 - **API Tests**: Service layer testing with mocked responses
-- **Integration**: User interaction testing with Jest
+- **Integration**: User interaction testing with Vitest
 
 ### Performance Testing
 - **Time Limits**: News collection < 30s, Report generation < 60s
@@ -210,13 +281,37 @@ DELETE /test/data/cleanup
 
 ### Continuous Integration
 ```bash
-# Run all test suites
-npm run test:all
+# Backend tests
+npm run test:all        # All tests (unit + e2e)
+npm run test           # Unit tests only
+npm run test:e2e       # E2E tests only
+npm run test:cov       # Coverage report
 
-# Run specific test types
-npm run test:unit
-npm run test:e2e
-npm run test:integration
+# Frontend tests  
+npm run test:run       # Run all tests once
+npm run test:coverage  # Coverage report
+npm run test           # Watch mode (development)
+```
+
+### CI Simulation Commands
+```bash
+# Simulate complete CI pipeline locally
+cd backend && npm ci && npm run lint && npm run test:all && npm run build
+cd frontend && npm ci && npm run lint && npm run test:coverage && npm run build
+
+# Security audit simulation
+cd backend && npm audit --audit-level=moderate
+cd frontend && npm audit --audit-level=moderate
+
+# Quick smoke test
+cd backend && npm run start:dev &
+sleep 5 && curl http://localhost:3001/health
+cd frontend && npm run build && npx serve -s dist -p 3000 &
+sleep 5 && curl http://localhost:3000
+
+# Emergency CI debug
+cd backend && npm run lint 2>&1 | head -20
+cd frontend && npm run build 2>&1 | grep -i error
 ```
 
 ## Development Patterns
@@ -283,23 +378,33 @@ src/
         └── reports.module.ts
 ```
 
-### Frontend (React) Structure
+### Frontend (Vite + React 19) Structure
 ```
-src/
-├── api/          # API calls and axios instances
-├── components/   # Shared UI components
-├── features/     # Feature-based modules
-│   └── reports/
-│       ├── components/
-│       ├── hooks/
-│       ├── types.ts
-│       └── index.ts
-├── hooks/        # Shared custom hooks
-├── pages/        # Route components
-├── types/        # Global type definitions
-├── utils/        # Helper functions
-├── App.tsx
-└── index.tsx
+frontend/
+├── index.html              # Entry HTML (Vite style)
+├── vite.config.ts          # Vite build + Vitest config
+├── tailwind.config.js      # TailwindCSS configuration
+├── tsconfig.app.json       # TypeScript app config
+├── tsconfig.node.json      # TypeScript build tools config
+├── eslint.config.js        # ESLint flat config
+├── public/                 # Static assets
+│   ├── favicon.ico
+│   └── manifest.json
+└── src/
+    ├── main.tsx            # React entry point (Vite style)
+    ├── App.tsx             # Main app component
+    ├── components/         # Shared UI components
+    │   ├── ui/            # Base UI components (Button, Card, etc.)
+    │   ├── Header.tsx
+    │   ├── ReportsList.tsx
+    │   ├── ReportDetail.tsx
+    │   └── TestingDashboard.tsx
+    ├── services/           # API layer
+    │   └── api.ts         # Axios-based API client
+    ├── types/              # TypeScript definitions
+    │   └── index.ts       # Shared interfaces
+    ├── setupTests.ts       # Vitest + testing-library setup
+    └── index.css          # Global styles + Tailwind imports
 ```
 
 ## Development Guidelines
