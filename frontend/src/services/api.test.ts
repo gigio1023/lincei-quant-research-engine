@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import axios from 'axios';
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import axios from "axios";
 
 // Mock the entire axios module
-vi.mock('axios', () => ({
+vi.mock("axios", () => ({
   default: {
     create: vi.fn(() => ({
       get: vi.fn(),
@@ -16,7 +16,7 @@ vi.mock('axios', () => ({
 const mockedAxios = vi.mocked(axios);
 const mockGet = vi.fn();
 
-describe('API Service', () => {
+describe("API Service", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedAxios.create.mockReturnValue({
@@ -27,55 +27,55 @@ describe('API Service', () => {
     } as never);
   });
 
-  describe('reportsApi', () => {
-    it('should_create_axios_instance', async () => {
+  describe("reportsApi", () => {
+    it("should_create_axios_instance", async () => {
       // Import after mocking
-      await import('./api');
-      
+      await import("./api");
+
       expect(mockedAxios.create).toHaveBeenCalledWith({
-        baseURL: 'http://localhost:3001',
+        baseURL: "http://localhost:3001",
         timeout: 10000,
       });
     });
 
-    it('should_get_reports_with_pagination', async () => {
+    it("should_get_reports_with_pagination", async () => {
       const mockResponse = {
         data: {
           reports: [],
           total: 0,
           page: 1,
-          limit: 10
-        }
+          limit: 10,
+        },
       };
-      
+
       mockGet.mockResolvedValue(mockResponse);
-      
+
       // Import after mocking
-      const { reportsApi } = await import('./api');
+      const { reportsApi } = await import("./api");
       const result = await reportsApi.getReports(1, 10);
-      
-      expect(mockGet).toHaveBeenCalledWith('/reports?page=1&limit=10');
+
+      expect(mockGet).toHaveBeenCalledWith("/reports?page=1&limit=10");
       expect(result).toEqual(mockResponse.data);
     });
 
-    it('should_get_single_report_by_id', async () => {
+    it("should_get_single_report_by_id", async () => {
       const mockReport = {
         id: 1,
-        title: 'Test Report',
-        content: 'Test content',
-        summary: 'Test summary',
-        reportType: 'morning' as const,
-        createdAt: '2025-06-24T00:00:00Z',
-        updatedAt: '2025-06-24T00:00:00Z'
+        title: "Test Report",
+        content: "Test content",
+        summary: "Test summary",
+        reportType: "morning" as const,
+        createdAt: "2025-06-24T00:00:00Z",
+        updatedAt: "2025-06-24T00:00:00Z",
       };
-      
+
       mockGet.mockResolvedValue({ data: mockReport });
-      
+
       // Import after mocking
-      const { reportsApi } = await import('./api');
+      const { reportsApi } = await import("./api");
       const result = await reportsApi.getReport(1);
-      
-      expect(mockGet).toHaveBeenCalledWith('/reports/1');
+
+      expect(mockGet).toHaveBeenCalledWith("/reports/1");
       expect(result).toEqual(mockReport);
     });
   });

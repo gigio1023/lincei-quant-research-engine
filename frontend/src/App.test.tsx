@@ -1,24 +1,24 @@
-import { render } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
-import App from './App';
+import { render } from "@testing-library/react";
+import { describe, it, expect } from "vitest";
+import { MemoryRouter } from "react-router-dom";
+import App from "./App";
 
-describe('App', () => {
-  it('should_render_without_crashing', () => {
+describe("App", () => {
+  it("should_render_without_crashing", () => {
     render(
       <MemoryRouter>
         <App />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
     expect(document.body).toBeInTheDocument();
   });
 
-  it('should_render_main_container', () => {
+  it("should_render_main_container", () => {
     render(
       <MemoryRouter>
         <App />
-      </MemoryRouter>
+      </MemoryRouter>,
     );
-    expect(document.querySelector('.min-h-screen')).toBeInTheDocument();
+    expect(document.querySelector(".min-h-screen")).toBeInTheDocument();
   });
 });

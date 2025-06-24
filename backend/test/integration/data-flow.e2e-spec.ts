@@ -94,11 +94,11 @@ describe('Data Flow Integration (e2e)', () => {
     it('should_handle_no_news_scenario_gracefully', async () => {
       // Clean up any existing test data first
       await testingService.cleanupTestData();
-      
+
       // Store initial state - don't assume it's 0
       const initialStats = await newsService.getNewsStats();
       const initialUnprocessed = initialStats.unprocessed;
-      
+
       // Generate report and verify it handles the scenario gracefully
       const report = await reportsService.generateDailyReport('morning');
       expect(report).toBeDefined();
@@ -108,7 +108,7 @@ describe('Data Flow Integration (e2e)', () => {
       expect(report.summary).toBeDefined();
       expect(report.newsAnalysis).toBeDefined();
       expect(typeof report.newsAnalysis.processedCount).toBe('number');
-      
+
       // Verify the report was created successfully regardless of news count
       expect(report.id).toBeDefined();
       expect(report.createdAt).toBeDefined();
