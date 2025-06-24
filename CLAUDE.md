@@ -19,14 +19,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Backend
 cd backend
 npm run lint            # Fix ESLint errors
-npm run format:check    # Verify Prettier formatting
+npm run format    # Verify Prettier formatting
 npm run test:all        # Run all tests
 npm run build           # Verify build succeeds
 
 # Frontend  
 cd frontend
 npm run lint            # Fix ESLint errors
-npm run format:check    # Verify Prettier formatting (if available)
+npm run format    # Verify Prettier formatting (if available)
 npm run test:coverage   # Run tests with coverage
 npm run build           # Verify build succeeds
 
