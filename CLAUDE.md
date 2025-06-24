@@ -7,6 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **All code comments and technical documentation should be in English**
 - **Maintain consistency with English-only technical communication**
 
+and you should always use npm audit fix --force to fix the vulnerabilities.
+
 ## Development Commands
 
 ### Backend (NestJS API)
