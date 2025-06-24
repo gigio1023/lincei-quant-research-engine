@@ -7,17 +7,22 @@ const mockLocation = {
   search: '',
   hash: '',
   state: null,
-  key: 'default'
+  key: 'default',
 };
 
 const mockParams = {};
 
 // Mock components
-const Link = ({ children, to, ...props }) => React.createElement('a', { href: to, ...props }, children);
-const NavLink = ({ children, to, ...props }) => React.createElement('a', { href: to, ...props }, children);
-const BrowserRouter = ({ children }) => React.createElement('div', { 'data-testid': 'browser-router' }, children);
-const Routes = ({ children }) => React.createElement('div', { 'data-testid': 'routes' }, children);
-const Route = ({ element }) => React.createElement('div', { 'data-testid': 'route' }, element);
+const Link = ({ children, to, ...props }) =>
+  React.createElement('a', { href: to, ...props }, children);
+const NavLink = ({ children, to, ...props }) =>
+  React.createElement('a', { href: to, ...props }, children);
+const BrowserRouter = ({ children }) =>
+  React.createElement('div', { 'data-testid': 'browser-router' }, children);
+const Routes = ({ children }) =>
+  React.createElement('div', { 'data-testid': 'routes' }, children);
+const Route = ({ element }) =>
+  React.createElement('div', { 'data-testid': 'route' }, element);
 const Outlet = () => React.createElement('div', { 'data-testid': 'outlet' });
 
 // Mock hooks
@@ -36,7 +41,7 @@ module.exports = {
   useLocation,
   useParams,
   // Reset function for tests
-  __setMockLocation: (newLocation) => Object.assign(mockLocation, newLocation),
-  __setMockParams: (newParams) => Object.assign(mockParams, newParams),
-  __clearNavigate: () => mockNavigate.mockClear()
-}; 
+  __setMockLocation: newLocation => Object.assign(mockLocation, newLocation),
+  __setMockParams: newParams => Object.assign(mockParams, newParams),
+  __clearNavigate: () => mockNavigate.mockClear(),
+};
