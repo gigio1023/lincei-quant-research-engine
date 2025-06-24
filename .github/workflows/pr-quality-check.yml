@@ -31,7 +31,7 @@ jobs:
       run: npm run lint
 
     - name: Run Prettier check
-      run: npx prettier --check "src/**/*.ts" "test/**/*.ts"
+      run: npm run format:check
 
     - name: Run unit tests
       run: npm run test
