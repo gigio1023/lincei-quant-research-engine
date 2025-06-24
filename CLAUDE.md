@@ -11,6 +11,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Always run `npm audit fix --force` to fix vulnerabilities**
 - **Execute all CI tests locally before committing**
 - **Maintain 0 ESLint errors and 0 security vulnerabilities**
+- **MANDATORY: Run code quality checks before any commit**
+
+### Pre-Commit Quality Checklist
+```bash
+# REQUIRED: Run these commands before every commit
+# Backend
+cd backend
+npm run lint            # Fix ESLint errors
+npm run format:check    # Verify Prettier formatting
+npm run test:all        # Run all tests
+npm run build           # Verify build succeeds
+
+# Frontend  
+cd frontend
+npm run lint            # Fix ESLint errors
+npm run format:check    # Verify Prettier formatting (if available)
+npm run test:coverage   # Run tests with coverage
+npm run build           # Verify build succeeds
+
+# Security audit
+npm audit --audit-level=moderate  # Both directories
+```
 
 ## Development Commands
 
@@ -406,6 +428,60 @@ frontend/
     ├── setupTests.ts       # Vitest + testing-library setup
     └── index.css          # Global styles + Tailwind imports
 ```
+
+## Development Workflow
+
+### MANDATORY: Code Quality Gates
+Every code implementation MUST follow this workflow:
+
+#### 1. Before Implementation
+```bash
+# Check current code quality
+cd backend && npm run lint && npm run format:check
+cd frontend && npm run lint && npm run format:check
+```
+
+#### 2. During Implementation  
+- Write code following project patterns
+- Add/update tests for new functionality
+- Run tests frequently: `npm run test:watch` (backend) / `npm run test` (frontend)
+
+#### 3. After Implementation (REQUIRED)
+```bash
+# Backend quality check
+cd backend
+npm run lint            # Must pass with 0 errors
+npm run format:check    # Must pass - no formatting issues
+npm run test:all        # Must pass - all tests green
+npm run build           # Must succeed - no TypeScript errors
+
+# Frontend quality check  
+cd frontend
+npm run lint            # Must pass with 0 errors
+npm run format:check    # Must pass (if available)
+npm run test:coverage   # Must pass - maintain coverage
+npm run build           # Must succeed - no build errors
+
+# Security check (both)
+npm audit --audit-level=moderate  # Must show 0 vulnerabilities
+```
+
+#### 4. Pre-Commit Verification
+```bash
+# Final check - simulate CI locally
+cd backend && npm ci && npm run lint && npm run test:all && npm run build
+cd frontend && npm ci && npm run lint && npm run test:coverage && npm run build
+```
+
+**❌ DO NOT COMMIT if any of these steps fail**  
+**✅ Only proceed to git commit when ALL checks pass**
+
+### Implementation Rules
+- **Fix ALL ESLint errors before committing**  
+- **Maintain or improve test coverage**
+- **Ensure builds succeed on both backend and frontend**
+- **Resolve ALL security vulnerabilities**
+- **Follow consistent formatting (Prettier)**
 
 ## Development Guidelines
 
