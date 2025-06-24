@@ -8,7 +8,7 @@ on:
 jobs:
   backend-quality:
     name: Backend Code Quality & Tests
-    runs-on: ubuntu-latest
+    runs-on: [gigio1023-arc-runner-set]
     defaults:
       run:
         working-directory: ./backend
@@ -51,7 +51,7 @@ jobs:
 
   frontend-quality:
     name: Frontend Code Quality & Tests
-    runs-on: ubuntu-latest
+    runs-on: [gigio1023-arc-runner-set]
     defaults:
       run:
         working-directory: ./frontend
