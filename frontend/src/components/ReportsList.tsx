@@ -58,7 +58,7 @@ const ReportsList: React.FC = () => {
     setSelectedReport(null);
   };
 
-  if (loading && reports.length === 0) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <LoadingSpinner />
