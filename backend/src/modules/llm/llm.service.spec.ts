@@ -42,10 +42,6 @@ describe('LlmService', () => {
 
   it('should initialize with config values', () => {
     expect(configService.get).toHaveBeenCalledWith('GEMINI_API_KEY');
-    expect(configService.get).toHaveBeenCalledWith(
-      'GEMINI_BASE_URL',
-      expect.any(String),
-    );
     expect(configService.get).toHaveBeenCalledWith('OPENAI_API_KEY');
   });
 

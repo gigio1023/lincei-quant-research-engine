@@ -3,7 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 
 export enum LlmModel {
-  GEMINI_2_5_PRO_PREVIEW = 'gemini-2.5-pro-preview-06-05',
+  GEMINI_2_5_FLASH = 'gemini-2.5-flash',
+  GEMINI_2_5_FLASH_LITE = 'gemini-2.5-flash-lite-preview-06-17',
   GPT_4_1_NANO = 'gpt-4.1-nano',
 }
 
@@ -16,7 +17,7 @@ export class LlmService {
   constructor(private configService: ConfigService) {
     // OpenAI 클라이언트 (보조 모델)
     const openaiKey = this.configService.get('OPENAI_API_KEY');
-    if (openaiKey) {
+    if (openaiKey && openaiKey !== 'your_openai_api_key_here') {
       this.openai = new OpenAI({
         apiKey: openaiKey,
       });
@@ -24,14 +25,10 @@ export class LlmService {
 
     // Gemini를 OpenAI 호환 형태로 사용 (주 모델)
     const geminiKey = this.configService.get('GEMINI_API_KEY');
-    if (geminiKey) {
+    if (geminiKey && geminiKey !== 'your_gemini_api_key_here') {
       this.geminiClient = new OpenAI({
         apiKey: geminiKey,
-        baseURL: this.configService.get(
-          'GEMINI_BASE_URL',
-          'https://generativelanguage.googleapis.com/v1beta/openai/',
-        ),
-        timeout: 30000, // 30초 타임아웃
+        baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
       });
     }
   }
@@ -47,7 +44,7 @@ export class LlmService {
       const client =
         useGemini && this.geminiClient ? this.geminiClient : this.openai;
       const model = useGemini
-        ? LlmModel.GEMINI_2_5_PRO_PREVIEW
+        ? LlmModel.GEMINI_2_5_FLASH
         : LlmModel.GPT_4_1_NANO;
 
       if (!client) {
@@ -102,6 +99,18 @@ export class LlmService {
         );
       }
 
+      // 503 오류(서비스 과부하) 시에도 재시도
+      if (error.status === 503 && retryCount < maxRetries) {
+        const waitTime = Math.pow(2, retryCount + 1) * 1000; // 더 긴 대기 시간
+        this.logger.warn(`서비스 과부하, ${waitTime}ms 대기 후 재시도`);
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+        return this.generateInvestmentAnalysis(
+          prompt,
+          useGemini,
+          retryCount + 1,
+        );
+      }
+
       // Gemini 실패 시 OpenAI로 폴백 (한 번만)
       if (useGemini && this.openai && retryCount === 0) {
         this.logger.warn('Gemini 실패, OpenAI로 폴백 시도');
@@ -118,7 +127,7 @@ export class LlmService {
     }
   }
 
-  private getDefaultAnalysisMessage(prompt: string): string {
+  private getDefaultAnalysisMessage(_prompt: string): string {
     const today = new Date().toLocaleDateString('ko-KR');
 
     return `# ${today} 투자 분석 리포트
