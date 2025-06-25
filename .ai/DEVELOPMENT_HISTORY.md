@@ -86,7 +86,7 @@ describe('Data Flow', () => {
 ### DEPLOYMENT PATTERNS
 ```dockerfile
 # Docker multi-stage
-FROM node:18-alpine AS builder
+FROM node:24-alpine AS builder
 FROM nginx:alpine AS runtime
 
 # Environment variables

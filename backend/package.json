@@ -48,6 +48,7 @@
     "class-validator": "^0.14.2",
     "dotenv": "^16.5.0",
     "jest": "^30.0.0",
+    "nunjucks": "^3.2.4",
     "openai": "^5.3.0",
     "reflect-metadata": "^0.2.2",
     "rss-parser": "^3.13.0",
@@ -59,6 +60,7 @@
     "typescript": "^5.8.3"
   },
   "devDependencies": {
+    "@types/nunjucks": "^3.2.6",
     "@typescript-eslint/eslint-plugin": "^8.34.0",
     "@typescript-eslint/parser": "^8.34.0",
     "eslint": "^8.57.1",
