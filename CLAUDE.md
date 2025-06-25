@@ -12,6 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Execute all CI tests locally before committing**
 - **Maintain 0 ESLint errors and 0 security vulnerabilities**
 - **MANDATORY: Run code quality checks before any commit**
+- **MANDATORY: After ANY code changes (backend or frontend), run ALL tests to ensure CI passes. Check .github/workflows/pr-quality-check.yml for the exact tests that will run in CI (build verification is not required locally)**
 
 ### Pre-Commit Quality Checklist
 ```bash

@@ -21,7 +21,11 @@ export class NewsService {
     private newsRepository: Repository<NewsSource>,
   ) {}
 
-  async collectNews(): Promise<void> {
+  async collectNews(): Promise<{
+    totalCollected: number;
+    successCount: number;
+    totalSources: number;
+  }> {
     this.logger.log('다양한 국제 뉴스 수집 시작');
 
     const sources = [
@@ -79,6 +83,12 @@ export class NewsService {
     this.logger.log(
       `뉴스 수집 완료: ${successCount}/${sources.length} 소스에서 ${totalCollected}개 뉴스 수집`,
     );
+
+    return {
+      totalCollected,
+      successCount,
+      totalSources: sources.length,
+    };
   }
 
   private async collectFromRSS(

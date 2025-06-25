@@ -19,6 +19,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:unit": "jest --testPathPattern=src",
     "test:integration": "jest --testPathPattern=test",
+    "test:manual": "jest --config ./test/jest-manual.json",
     "test:all": "npm run test && npm run test:e2e"
   },
   "keywords": [
