@@ -1,9 +1,19 @@
 /** @type {import('tailwindcss').Config} */
-export default {
-  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+module.exports = {
+  content: [
+    "./components/**/*.{ts,tsx}",
+    "./app/**/*.{ts,tsx}",
+    "./src/**/*.{js,ts,jsx,tsx}"
+  ],
   theme: {
-    extend: {},
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
   },
-  plugins: [require('@tailwindcss/typography')],
-}
+  plugins: [require('@tailwindcss/typography'), require("tailwindcss-animate")],
+};
 
