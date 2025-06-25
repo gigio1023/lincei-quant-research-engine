@@ -5,7 +5,7 @@ interface ButtonProps {
   onClick?: () => void;
   disabled?: boolean;
   className?: string;
-  variant?: "primary" | "secondary" | "destructive";
+  variant?: "primary" | "secondary" | "destructive" | "ghost";
   size?: "sm" | "md" | "lg";
   type?: "button" | "submit" | "reset";
 }
@@ -27,6 +27,7 @@ export const Button: React.FC<ButtonProps> = ({
     secondary:
       "bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-500",
     destructive: "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500",
+    ghost: "bg-transparent text-gray-700 hover:bg-gray-100 focus:ring-gray-500",
   };
 
   const sizeClasses = {

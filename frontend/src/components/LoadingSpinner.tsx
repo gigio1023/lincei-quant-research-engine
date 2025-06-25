@@ -22,7 +22,10 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ size = "large" }) => {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center space-y-6 p-8">
+    <div
+      className="flex flex-col items-center justify-center space-y-6 p-8"
+      role="status"
+    >
       <div className="relative">
         {/* 글래스 배경 */}
         <div className="glass-card w-24 h-24 rounded-full flex items-center justify-center backdrop-blur-2xl">
