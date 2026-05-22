@@ -181,6 +181,67 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
                 )}
               </div>
             </div>
+            <div className="mt-3 rounded-md border border-[#2b3139] bg-[#151a21] p-2 text-xs">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-bold uppercase text-[#707a8a]">
+                  Fill polling
+                </span>
+                <span
+                  className={
+                    adapter.readOnlyPoll.canPollFills
+                      ? "font-mono font-bold text-[#0ecb81]"
+                      : "font-mono font-bold text-[#fcd535]"
+                  }
+                >
+                  {adapter.readOnlyPoll.canPollFills ? "can poll" : "blocked"}
+                </span>
+              </div>
+              <div className="mt-2 grid gap-1 text-[#929aa5]">
+                <div>
+                  schema{" "}
+                  <span className="font-mono text-[#eaecef]">
+                    {adapter.readOnlyPoll.fillSchemaVerified
+                      ? "verified"
+                      : "missing"}
+                  </span>
+                </div>
+                <div>
+                  path{" "}
+                  <span className="font-mono text-[#eaecef]">
+                    {adapter.readOnlyPoll.fillPathConfigured
+                      ? "configured"
+                      : "missing"}
+                  </span>
+                </div>
+                <div>
+                  last fill poll{" "}
+                  <span className="font-mono text-[#eaecef]">
+                    {adapter.readOnlyPoll.lastFillPollAt
+                      ? formatDateTime(adapter.readOnlyPoll.lastFillPollAt)
+                      : "never"}
+                  </span>
+                </div>
+                <div>
+                  latest fills{" "}
+                  <span className="font-mono text-[#eaecef]">
+                    {adapter.readOnlyPoll.lastBrokerFillIds?.join(", ") ??
+                      "none"}
+                  </span>
+                </div>
+                <div>
+                  fill reconcile{" "}
+                  <span className="font-mono text-[#eaecef]">
+                    {adapter.readOnlyPoll.lastFillReconciliationStatus ??
+                      "not_checked"}
+                  </span>
+                  {adapter.readOnlyPoll.lastFillReconciledAt
+                    ? ` / ${formatDateTime(
+                        adapter.readOnlyPoll.lastFillReconciledAt,
+                      )}`
+                    : ""}
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">

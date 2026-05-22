@@ -2,6 +2,7 @@ import {
   BrokerSnapshot,
   BrokerSnapshotProvider,
 } from '../../entities/broker-snapshot.entity';
+import { BrokerFill } from '../../entities/broker-fill.entity';
 import { ExecutionControlStateValue } from '../../entities/execution-control-state.entity';
 import {
   BacktestMetrics,
@@ -236,7 +237,11 @@ export interface BrokerAdapterReadOnlyPollStatus {
   enabled: boolean;
   configured: boolean;
   schemaVerified: boolean;
+  fillPollingEnabled?: boolean;
+  fillSchemaVerified?: boolean;
+  fillPathConfigured?: boolean;
   canPoll: boolean;
+  canPollFills?: boolean;
   baseUrl: string;
   accountRef: string;
   allowedEndpoints: string[];
@@ -245,9 +250,14 @@ export interface BrokerAdapterReadOnlyPollStatus {
   lastAttemptAt?: string;
   lastPollAt?: string;
   lastSnapshotId?: number;
+  lastFillPollAt?: string;
+  lastBrokerFillIds?: number[];
+  lastFillCount?: number;
   lastReconciliationStatus?: string;
   lastReconciledAt?: string;
   lastReconciliationError?: string;
+  lastFillReconciliationStatus?: string;
+  lastFillReconciledAt?: string;
   lastError?: string;
   brokerExecutionEnabled: false;
   liveTradingEnabled: false;
@@ -256,6 +266,7 @@ export interface BrokerAdapterReadOnlyPollStatus {
 export interface BrokerReadOnlyPollResponse {
   status: BrokerAdapterReadOnlyPollStatus;
   snapshot?: BrokerSnapshot;
+  fills?: BrokerFill[];
 }
 
 export interface UpdateExecutionControlRequest {

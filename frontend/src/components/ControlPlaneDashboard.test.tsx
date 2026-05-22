@@ -20,6 +20,7 @@ vi.mock("../services/api", () => ({
     getBrokerSnapshots: vi.fn(),
     getBrokerFills: vi.fn(),
     reconcileBrokerFill: vi.fn(),
+    pollBrokerReadOnlyFills: vi.fn(),
     getBrokerAdapterStatus: vi.fn(),
     getOrderPlanApprovals: vi.fn(),
     getRuns: vi.fn(),
@@ -789,7 +790,11 @@ const mockBrokerAdapterStatus = {
     enabled: false,
     configured: false,
     schemaVerified: false,
+    fillPollingEnabled: false,
+    fillSchemaVerified: false,
+    fillPathConfigured: false,
     canPoll: false,
+    canPollFills: false,
     baseUrl: "https://openapi.tossinvest.com",
     accountRef: "missing",
     allowedEndpoints: [
@@ -799,7 +804,9 @@ const mockBrokerAdapterStatus = {
     ],
     cron: "*/5 * * * *",
     running: false,
+    lastFillCount: 0,
     lastReconciliationStatus: "not_checked",
+    lastFillReconciliationStatus: "not_checked",
     brokerExecutionEnabled: false,
     liveTradingEnabled: false,
   },
@@ -1032,6 +1039,9 @@ describe("ControlPlaneDashboard", () => {
       screen.getByText("toss / oauth2_client_credentials"),
     ).toBeInTheDocument();
     expect(screen.getByText("Read-only polling")).toBeInTheDocument();
+    expect(screen.getByText("Fill polling")).toBeInTheDocument();
+    expect(screen.getByText("last fill poll")).toBeInTheDocument();
+    expect(screen.getByText("fill reconcile")).toBeInTheDocument();
     expect(screen.getAllByText("blocked").length).toBeGreaterThan(0);
     expect(screen.getByText("last poll")).toBeInTheDocument();
     expect(screen.getAllByText("never").length).toBeGreaterThan(0);

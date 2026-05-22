@@ -507,11 +507,20 @@ all broker/live execution flags remain `false`.
 
 #### `POST /control-plane/broker-adapter/poll-read-only`
 
-- **Description**: Attempts a Toss read-only snapshot poll, disabled by default. The same poller also runs every five minutes but immediately returns unless it can poll. It requires `BROKER_READ_ONLY_ENABLED=true`, `TOSS_READ_ONLY_POLLER_ENABLED=true`, Toss credentials/account ref, and `TOSS_OPEN_API_SCHEMA_VERIFIED=true`. The adapter allowlist only permits `POST /oauth2/token`, `GET /api/v1/accounts`, and `GET /v1/holdings`, then imports the mapped snapshot through the same broker snapshot ledger. After import it attempts an automatic paper-account reconciliation and records the result in the read-only poll status. It has no order, preview, cancel, modify, or fill endpoint.
+- **Description**: Attempts a Toss read-only snapshot poll, disabled by default. The same poller also runs every five minutes but immediately returns unless it can poll. It requires `BROKER_READ_ONLY_ENABLED=true`, `TOSS_READ_ONLY_POLLER_ENABLED=true`, Toss credentials/account ref, and `TOSS_OPEN_API_SCHEMA_VERIFIED=true`. The adapter allowlist permits `POST /oauth2/token`, `GET /api/v1/accounts`, and `GET /v1/holdings`, then imports the mapped snapshot through the same broker snapshot ledger. After import it attempts an automatic paper-account reconciliation and records the result in the read-only poll status. It has no order, preview, cancel, or modify endpoint.
 - **Response Notes**:
   - returns `{ "status": BrokerAdapterReadOnlyPollStatus, "snapshot": BrokerSnapshot }` on success;
   - returns `400` when disabled or unverified;
   - raw Toss account refs are only passed into the adapter and then stored through `accountRefHash`;
+  - `brokerExecutionEnabled` and `liveTradingEnabled` remain `false`.
+
+#### `POST /control-plane/broker-adapter/poll-read-only-fills`
+
+- **Description**: Attempts a Toss read-only fill poll, disabled by default. This endpoint is intentionally path-configured because the exact Toss fill/execution schema is not publicly verified in this repo. It requires the snapshot poll gates plus `TOSS_READ_ONLY_FILL_POLLER_ENABLED=true`, `TOSS_OPEN_API_FILL_SCHEMA_VERIFIED=true`, and a relative `TOSS_OPEN_API_FILLS_PATH`. The adapter only permits `GET` to that configured path, maps returned executions/fills into provider-neutral `ImportBrokerFillRequest` objects, imports them through `broker_fills`, and reuses paper-fill matching.
+- **Response Notes**:
+  - returns `{ "status": BrokerAdapterReadOnlyPollStatus, "fills": BrokerFill[] }` on success;
+  - returns `400` when disabled, unverified, or missing a configured fill path;
+  - duplicate provider fill refs replay idempotently through the hashed `brokerFillRefHash`;
   - `brokerExecutionEnabled` and `liveTradingEnabled` remain `false`.
 
 #### `POST /control-plane/broker-snapshots/:id/reconcile-paper`

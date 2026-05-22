@@ -64,14 +64,14 @@ I did not find an official Toss sandbox or paper-trading environment in the publ
 
 ## Integration Verdict
 
-Toss is a plausible first broker-adapter candidate, but this repo is not ready to use Toss for real money. The repo now includes a disabled-by-default Toss read-only adapter path that allowlists token, account, and holdings reads and imports the mapped result into the broker snapshot ledger. It is intentionally blocked unless credentials, account ref, explicit poll enablement, and operator schema verification are present. The readiness contract also reports credential custody separately: local environment variables are development-only, while production trading requires `BROKER_CREDENTIAL_SECRET_REF` or `TOSS_OPEN_API_SECRET_REF`.
+Toss is a plausible first broker-adapter candidate, but this repo is not ready to use Toss for real money. The repo now includes disabled-by-default Toss read-only adapter paths that allowlist token, account, holdings, and an operator-configured GET fill path, then import mapped results into the broker snapshot/fill ledgers. Snapshot polling is blocked unless credentials, account ref, explicit poll enablement, and operator schema verification are present. Fill polling additionally requires `TOSS_READ_ONLY_FILL_POLLER_ENABLED=true`, `TOSS_OPEN_API_FILL_SCHEMA_VERIFIED=true`, and a relative `TOSS_OPEN_API_FILLS_PATH`, because the exact fill/execution endpoint schema is not verified in this repo. The readiness contract also reports credential custody separately: local environment variables are development-only, while production trading requires `BROKER_CREDENTIAL_SECRET_REF` or `TOSS_OPEN_API_SECRET_REF`.
 
 Required before real-money use:
 
 1. obtain Toss Open API access and API keys;
 2. fetch and review the OpenAPI schema;
 3. generate a typed client in an isolated broker adapter package;
-4. verify the current read-only account and holdings snapshot mapper against real Toss responses;
+4. verify the current read-only account, holdings, and fill mappers against real Toss responses;
 5. implement paper execution or a local simulator with the same order-plan interface;
 6. move broker credentials behind an external secret reference and add production signing custody for durable approval records and idempotency keys;
 7. add reconciliation and kill-switch tests;

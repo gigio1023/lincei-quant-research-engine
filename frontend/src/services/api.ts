@@ -5,6 +5,7 @@ import {
   AutonomousRunSchedule,
   BrokerAdapterStatus,
   BrokerFill,
+  BrokerReadOnlyPollResponse,
   BrokerSnapshot,
   BudgetEnvelope,
   ControlPlaneStatus,
@@ -135,6 +136,13 @@ export const controlPlaneApi = {
 
   getBrokerAdapterStatus: async (): Promise<BrokerAdapterStatus> => {
     const response = await api.get("/control-plane/broker-adapter/status");
+    return response.data;
+  },
+
+  pollBrokerReadOnlyFills: async (): Promise<BrokerReadOnlyPollResponse> => {
+    const response = await api.post(
+      "/control-plane/broker-adapter/poll-read-only-fills",
+    );
     return response.data;
   },
 

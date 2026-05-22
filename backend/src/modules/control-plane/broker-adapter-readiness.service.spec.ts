@@ -13,7 +13,10 @@ describe('BrokerAdapterReadinessService', () => {
     delete process.env.TOSS_OPEN_API_ACCOUNT_REF;
     delete process.env.TOSS_OPEN_API_ACCOUNT_SEQ;
     delete process.env.TOSS_READ_ONLY_POLLER_ENABLED;
+    delete process.env.TOSS_READ_ONLY_FILL_POLLER_ENABLED;
     delete process.env.TOSS_OPEN_API_SCHEMA_VERIFIED;
+    delete process.env.TOSS_OPEN_API_FILL_SCHEMA_VERIFIED;
+    delete process.env.TOSS_OPEN_API_FILLS_PATH;
     delete process.env.TOSS_OPEN_API_SANDBOX_VERIFIED;
     delete process.env.TOSS_OPEN_API_LAST_VERIFIED_AT;
     delete process.env.BROKER_CREDENTIAL_CUSTODY_MODE;
@@ -51,6 +54,7 @@ describe('BrokerAdapterReadinessService', () => {
         readOnlyPoll: expect.objectContaining({
           enabled: false,
           canPoll: false,
+          canPollFills: false,
           brokerExecutionEnabled: false,
           liveTradingEnabled: false,
         }),
@@ -99,6 +103,7 @@ describe('BrokerAdapterReadinessService', () => {
           configured: true,
           schemaVerified: true,
           canPoll: false,
+          canPollFills: false,
         }),
       }),
     );
@@ -146,6 +151,42 @@ describe('BrokerAdapterReadinessService', () => {
         expect.objectContaining({
           key: 'credentialCustody',
           status: 'ready',
+        }),
+      ]),
+    );
+  });
+
+  it('marks read-only fill polling configured only after schema and path are verified', () => {
+    process.env.BROKER_READ_ONLY_ENABLED = 'true';
+    process.env.TOSS_READ_ONLY_POLLER_ENABLED = 'true';
+    process.env.TOSS_READ_ONLY_FILL_POLLER_ENABLED = 'true';
+    process.env.TOSS_OPEN_API_CLIENT_ID = 'client-123456';
+    process.env.TOSS_OPEN_API_CLIENT_SECRET = 'secret-value';
+    process.env.TOSS_OPEN_API_ACCOUNT_SEQ = 'acct-123456789';
+    process.env.TOSS_OPEN_API_SCHEMA_VERIFIED = 'true';
+    process.env.TOSS_OPEN_API_FILL_SCHEMA_VERIFIED = 'true';
+    process.env.TOSS_OPEN_API_FILLS_PATH = '/v1/fills';
+
+    const service = new BrokerAdapterReadinessService();
+
+    const status = service.getStatus();
+
+    expect(status.readOnlyPoll).toEqual(
+      expect.objectContaining({
+        enabled: true,
+        canPoll: true,
+        fillPollingEnabled: true,
+        fillSchemaVerified: true,
+        fillPathConfigured: true,
+        canPollFills: true,
+        allowedEndpoints: expect.arrayContaining(['GET /v1/fills']),
+      }),
+    );
+    expect(status.capabilities).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'fillPolling',
+          status: 'configured',
         }),
       ]),
     );

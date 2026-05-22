@@ -13,7 +13,10 @@ import {
   BrokerReadOnlyPollResponse,
 } from './control-plane.types';
 import { ControlPlaneService } from './control-plane.service';
-import { mapTossReadOnlySnapshot } from './toss-read-only.mapper';
+import {
+  mapTossReadOnlyFills,
+  mapTossReadOnlySnapshot,
+} from './toss-read-only.mapper';
 
 type HttpMethod = 'GET' | 'POST';
 
@@ -24,6 +27,9 @@ interface TossReadOnlyConfig {
   clientSecret?: string;
   accountRef?: string;
   schemaVerified: boolean;
+  fillPollingEnabled: boolean;
+  fillSchemaVerified: boolean;
+  fillsPath?: string;
   timeoutMs: number;
 }
 
@@ -52,9 +58,14 @@ export class TossReadOnlyBrokerService {
   private lastAttemptAt?: string;
   private lastPollAt?: string;
   private lastSnapshotId?: number;
+  private lastFillPollAt?: string;
+  private lastBrokerFillIds?: number[];
+  private lastFillCount?: number;
   private lastReconciliationStatus?: string;
   private lastReconciledAt?: string;
   private lastReconciliationError?: string;
+  private lastFillReconciliationStatus?: string;
+  private lastFillReconciledAt?: string;
   private lastError?: string;
 
   constructor(
@@ -79,24 +90,38 @@ export class TossReadOnlyBrokerService {
       config.clientId && config.clientSecret && config.accountRef,
     );
     const canPoll = config.enabled && configured && config.schemaVerified;
+    const canPollFills =
+      canPoll &&
+      config.fillPollingEnabled &&
+      config.fillSchemaVerified &&
+      Boolean(config.fillsPath);
 
     return {
       provider: 'toss',
       enabled: config.enabled,
       configured,
       schemaVerified: config.schemaVerified,
+      fillPollingEnabled: config.fillPollingEnabled,
+      fillSchemaVerified: config.fillSchemaVerified,
+      fillPathConfigured: Boolean(config.fillsPath),
       canPoll,
+      canPollFills,
       baseUrl: config.baseUrl,
       accountRef: config.accountRef ? this.mask(config.accountRef) : 'missing',
-      allowedEndpoints: ALLOWED_ENDPOINTS,
+      allowedEndpoints: this.getAllowedEndpoints(config),
       cron: TOSS_READ_ONLY_POLL_CRON,
       running: this.running,
       lastAttemptAt: this.lastAttemptAt,
       lastPollAt: this.lastPollAt,
       lastSnapshotId: this.lastSnapshotId,
+      lastFillPollAt: this.lastFillPollAt,
+      lastBrokerFillIds: this.lastBrokerFillIds,
+      lastFillCount: this.lastFillCount,
       lastReconciliationStatus: this.lastReconciliationStatus,
       lastReconciledAt: this.lastReconciledAt,
       lastReconciliationError: this.lastReconciliationError,
+      lastFillReconciliationStatus: this.lastFillReconciliationStatus,
+      lastFillReconciledAt: this.lastFillReconciledAt,
       lastError: this.lastError,
       brokerExecutionEnabled: false,
       liveTradingEnabled: false,
@@ -119,6 +144,25 @@ export class TossReadOnlyBrokerService {
           ? error.message
           : 'Toss read-only broker poll failed';
       this.logger.error(`Toss read-only poll failed: ${message}`);
+    }
+  }
+
+  @Cron(TOSS_READ_ONLY_POLL_CRON, {
+    name: 'toss-read-only-broker-fill-poll',
+  })
+  async pollReadOnlyFillsCron(): Promise<void> {
+    if (!this.getReadOnlyPollStatus().canPollFills) {
+      return;
+    }
+
+    try {
+      await this.pollReadOnlyFills('cron');
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Toss read-only fill poll failed';
+      this.logger.error(`Toss read-only fill poll failed: ${message}`);
     }
   }
 
@@ -179,6 +223,88 @@ export class TossReadOnlyBrokerService {
         error instanceof Error
           ? error.message
           : 'Toss read-only polling failed';
+      throw error;
+    } finally {
+      this.running = false;
+    }
+  }
+
+  async pollReadOnlyFills(
+    trigger = 'manual',
+  ): Promise<BrokerReadOnlyPollResponse> {
+    const config = this.getConfig();
+    const status = this.getReadOnlyPollStatus();
+
+    if (!status.canPollFills) {
+      this.lastError =
+        'Toss read-only fill polling requires snapshot polling readiness, TOSS_READ_ONLY_FILL_POLLER_ENABLED=true, TOSS_OPEN_API_FILL_SCHEMA_VERIFIED=true, and TOSS_OPEN_API_FILLS_PATH.';
+      throw new BadRequestException(this.lastError);
+    }
+
+    if (this.running) {
+      this.lastError = 'Previous Toss read-only poll is still running.';
+      throw new BadRequestException(this.lastError);
+    }
+
+    this.running = true;
+    this.lastAttemptAt = new Date().toISOString();
+    const triggerRef = trigger.trim() || 'manual';
+
+    try {
+      const token = await this.fetchAccessToken(config);
+      const fillsResponse = await this.requestReadOnly(
+        'GET',
+        config.fillsPath!,
+        config,
+        token,
+        {
+          'X-Tossinvest-Account': config.accountRef!,
+        },
+      );
+      const fillRequests = mapTossReadOnlyFills({
+        accountRef: config.accountRef!,
+        asOf: new Date().toISOString(),
+        fills: this.assertRecord(fillsResponse, 'Toss fills response'),
+      }).map((request) => ({
+        ...request,
+        sourceRef: `${request.sourceRef}:${triggerRef}`,
+      }));
+      const importedFills = [];
+
+      for (const fillRequest of fillRequests) {
+        importedFills.push(
+          await this.controlPlaneService.importBrokerFill(fillRequest),
+        );
+      }
+
+      this.lastFillPollAt = new Date().toISOString();
+      this.lastBrokerFillIds = importedFills.map((fill) => fill.id);
+      this.lastFillCount = importedFills.length;
+      this.lastFillReconciliationStatus =
+        importedFills.length === 0
+          ? 'not_checked'
+          : importedFills.every(
+                (fill) => fill.reconciliation.status === 'matched',
+              )
+            ? 'matched'
+            : 'mismatch';
+      const fillReconciledAtValues = importedFills
+        .map((fill) => fill.reconciliation.checkedAt)
+        .filter((value): value is string => Boolean(value))
+        .sort();
+      this.lastFillReconciledAt =
+        fillReconciledAtValues[fillReconciledAtValues.length - 1];
+      this.lastError = undefined;
+
+      return {
+        status: this.getReadOnlyPollStatus(),
+        fills: importedFills,
+      };
+    } catch (error) {
+      this.lastError =
+        error instanceof Error
+          ? error.message
+          : 'Toss read-only fill polling failed';
       throw error;
     } finally {
       this.running = false;
@@ -248,7 +374,11 @@ export class TossReadOnlyBrokerService {
     headers: Record<string, string> = {},
     data?: URLSearchParams,
   ): Promise<unknown> {
-    assertTossReadOnlyEndpointAllowed(method, path);
+    assertTossReadOnlyEndpointAllowed(
+      method,
+      path,
+      this.getAllowedEndpoints(config),
+    );
 
     return this.requester({
       method,
@@ -277,8 +407,48 @@ export class TossReadOnlyBrokerService {
         process.env.TOSS_OPEN_API_ACCOUNT_SEQ ??
         process.env.TOSS_OPEN_API_ACCOUNT_REF,
       schemaVerified: process.env.TOSS_OPEN_API_SCHEMA_VERIFIED === 'true',
+      fillPollingEnabled:
+        process.env.TOSS_READ_ONLY_FILL_POLLER_ENABLED === 'true',
+      fillSchemaVerified:
+        process.env.TOSS_OPEN_API_FILL_SCHEMA_VERIFIED === 'true',
+      fillsPath: this.normalizeReadOnlyPath(
+        process.env.TOSS_OPEN_API_FILLS_PATH,
+      ),
       timeoutMs: Number(process.env.TOSS_READ_ONLY_HTTP_TIMEOUT_MS ?? 10_000),
     };
+  }
+
+  private getAllowedEndpoints(config: TossReadOnlyConfig): string[] {
+    return [
+      ...ALLOWED_ENDPOINTS,
+      ...(config.fillPollingEnabled &&
+      config.fillSchemaVerified &&
+      config.fillsPath
+        ? [`GET ${config.fillsPath}`]
+        : []),
+    ];
+  }
+
+  private normalizeReadOnlyPath(value: string | undefined): string | undefined {
+    const trimmed = value?.trim();
+
+    if (!trimmed) {
+      return undefined;
+    }
+
+    if (!trimmed.startsWith('/')) {
+      throw new BadRequestException(
+        'TOSS_OPEN_API_FILLS_PATH must be a relative API path starting with /',
+      );
+    }
+
+    if (/^\/\//.test(trimmed) || /^https?:\/\//i.test(trimmed)) {
+      throw new BadRequestException(
+        'TOSS_OPEN_API_FILLS_PATH must not be an absolute URL',
+      );
+    }
+
+    return trimmed;
   }
 
   private assertRecord(value: unknown, label: string): Record<string, unknown> {
@@ -301,12 +471,13 @@ export class TossReadOnlyBrokerService {
 export function assertTossReadOnlyEndpointAllowed(
   method: HttpMethod,
   path: string,
+  allowedEndpoints: string[] = ALLOWED_ENDPOINTS,
 ): void {
   const key = `${method} ${path}`;
 
-  if (!ALLOWED_ENDPOINTS.includes(key)) {
+  if (!allowedEndpoints.includes(key)) {
     throw new BadRequestException(
-      `Toss read-only adapter blocks ${key}; only account and holdings reads are allowed`,
+      `Toss read-only adapter blocks ${key}; only configured read-only account, holdings, and fill reads are allowed`,
     );
   }
 }

@@ -192,6 +192,11 @@ export class ControlPlaneController {
     return this.tossReadOnlyBrokerService.pollReadOnlySnapshot();
   }
 
+  @Post('broker-adapter/poll-read-only-fills')
+  pollBrokerReadOnlyFills(): Promise<BrokerReadOnlyPollResponse> {
+    return this.tossReadOnlyBrokerService.pollReadOnlyFills();
+  }
+
   @Post('broker-snapshots/:id/reconcile-paper')
   reconcileBrokerSnapshot(
     @Param('id', ParseIntPipe) id: number,

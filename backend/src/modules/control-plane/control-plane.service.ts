@@ -944,6 +944,22 @@ export class ControlPlaneService {
       );
     }
 
+    const provider = request.provider ?? 'manual';
+    const brokerFillRefHash = this.hashObject({
+      provider,
+      brokerFillRef: request.brokerFillRef,
+    });
+    const existingFill = await this.brokerFillRepository.findOne({
+      where: { brokerFillRefHash },
+    });
+
+    if (existingFill) {
+      return this.reconcileBrokerFillAgainstPaper(existingFill, {
+        tolerance: existingFill.reconciliation.tolerance,
+        notes: ['Idempotent broker fill import replayed by fill ref hash.'],
+      });
+    }
+
     const reconciliation: BrokerFillReconciliation = {
       status: 'not_checked',
       symbolMatched: false,
@@ -963,7 +979,7 @@ export class ControlPlaneService {
 
     const savedFill = await this.brokerFillRepository.save(
       this.brokerFillRepository.create({
-        provider: request.provider ?? 'manual',
+        provider,
         sourceRef: request.sourceRef,
         accountRefHash: request.accountRef
           ? this.hashObject({ accountRef: request.accountRef })
@@ -971,10 +987,7 @@ export class ControlPlaneService {
         brokerOrderRefHash: request.brokerOrderRef
           ? this.hashObject({ brokerOrderRef: request.brokerOrderRef })
           : undefined,
-        brokerFillRefHash: this.hashObject({
-          provider: request.provider ?? 'manual',
-          brokerFillRef: request.brokerFillRef,
-        }),
+        brokerFillRefHash,
         status: 'imported',
         symbol: request.symbol,
         side: request.side,

@@ -19,6 +19,11 @@ export class BrokerAdapterReadinessService {
     const accountRefConfigured = Boolean(process.env.TOSS_OPEN_API_ACCOUNT_REF);
     const accountSeqConfigured = Boolean(process.env.TOSS_OPEN_API_ACCOUNT_SEQ);
     const schemaVerified = process.env.TOSS_OPEN_API_SCHEMA_VERIFIED === 'true';
+    const fillSchemaVerified =
+      process.env.TOSS_OPEN_API_FILL_SCHEMA_VERIFIED === 'true';
+    const fillPollingEnabled =
+      process.env.TOSS_READ_ONLY_FILL_POLLER_ENABLED === 'true';
+    const fillPathConfigured = Boolean(process.env.TOSS_OPEN_API_FILLS_PATH);
     const sandboxVerified =
       process.env.TOSS_OPEN_API_SANDBOX_VERIFIED === 'true';
     const readOnlyEnabled =
@@ -96,9 +101,20 @@ export class BrokerAdapterReadinessService {
       },
       {
         key: 'fillPolling',
-        status: 'not_implemented',
+        status:
+          readOnlyEnabled &&
+          fillPollingEnabled &&
+          fillSchemaVerified &&
+          fillPathConfigured
+            ? 'configured'
+            : 'blocked',
         detail:
-          'Fill and order-state polling are not implemented; paper fills remain local simulator evidence.',
+          readOnlyEnabled &&
+          fillPollingEnabled &&
+          fillSchemaVerified &&
+          fillPathConfigured
+            ? 'Read-only fill polling can import broker fill evidence through the provider-neutral ledger.'
+            : 'Read-only fill polling requires snapshot readiness, TOSS_READ_ONLY_FILL_POLLER_ENABLED=true, TOSS_OPEN_API_FILL_SCHEMA_VERIFIED=true, and TOSS_OPEN_API_FILLS_PATH.',
       },
       {
         key: 'reconciliation',
@@ -134,11 +150,22 @@ export class BrokerAdapterReadinessService {
           process.env.TOSS_READ_ONLY_POLLER_ENABLED === 'true',
         configured,
         schemaVerified,
+        fillPollingEnabled,
+        fillSchemaVerified,
+        fillPathConfigured,
         canPoll:
           process.env.BROKER_READ_ONLY_ENABLED === 'true' &&
           process.env.TOSS_READ_ONLY_POLLER_ENABLED === 'true' &&
           configured &&
           schemaVerified,
+        canPollFills:
+          process.env.BROKER_READ_ONLY_ENABLED === 'true' &&
+          process.env.TOSS_READ_ONLY_POLLER_ENABLED === 'true' &&
+          fillPollingEnabled &&
+          configured &&
+          schemaVerified &&
+          fillSchemaVerified &&
+          fillPathConfigured,
         baseUrl: baseUrl ?? 'https://openapi.tossinvest.com',
         accountRef: configured
           ? this.maskCredentialRef(
@@ -150,6 +177,11 @@ export class BrokerAdapterReadinessService {
           'POST /oauth2/token',
           'GET /api/v1/accounts',
           'GET /v1/holdings',
+          ...(fillPollingEnabled &&
+          fillSchemaVerified &&
+          process.env.TOSS_OPEN_API_FILLS_PATH
+            ? [`GET ${process.env.TOSS_OPEN_API_FILLS_PATH}`]
+            : []),
         ],
         cron: '*/5 * * * *',
         running: false,

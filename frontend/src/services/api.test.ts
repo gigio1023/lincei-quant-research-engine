@@ -698,6 +698,43 @@ describe("API Service", () => {
       expect(result).toEqual(mockBrokerFill);
     });
 
+    it("should_poll_broker_read_only_fills", async () => {
+      const mockResponse = {
+        status: {
+          provider: "toss",
+          enabled: true,
+          configured: true,
+          schemaVerified: true,
+          fillPollingEnabled: true,
+          fillSchemaVerified: true,
+          fillPathConfigured: true,
+          canPoll: true,
+          canPollFills: true,
+          baseUrl: "https://openapi.tossinvest.com",
+          accountRef: "acc***456",
+          allowedEndpoints: ["GET /v1/fills"],
+          cron: "*/5 * * * *",
+          running: false,
+          lastBrokerFillIds: ["broker-fill-1"],
+          lastFillCount: 1,
+          lastFillReconciliationStatus: "matched",
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+        },
+        fills: [],
+      };
+
+      mockPost.mockResolvedValue({ data: mockResponse });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.pollBrokerReadOnlyFills();
+
+      expect(mockPost).toHaveBeenCalledWith(
+        "/control-plane/broker-adapter/poll-read-only-fills",
+      );
+      expect(result).toEqual(mockResponse);
+    });
+
     it("should_get_order_plan_approvals", async () => {
       const mockApprovals = [
         {

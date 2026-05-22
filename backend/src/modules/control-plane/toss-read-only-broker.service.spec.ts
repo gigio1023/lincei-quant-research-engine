@@ -7,6 +7,7 @@ import { ControlPlaneService } from './control-plane.service';
 describe('TossReadOnlyBrokerService', () => {
   const originalEnv = process.env;
   let importBrokerSnapshot: jest.Mock;
+  let importBrokerFill: jest.Mock;
   let reconcileBrokerSnapshot: jest.Mock;
 
   beforeEach(() => {
@@ -24,6 +25,17 @@ describe('TossReadOnlyBrokerService', () => {
       ...request,
       brokerExecutionEnabled: false,
       liveTradingEnabled: false,
+    }));
+    importBrokerFill = jest.fn(async (request) => ({
+      id: 88,
+      ...request,
+      status: 'matched',
+      brokerExecutionEnabled: false,
+      liveTradingEnabled: false,
+      reconciliation: {
+        status: 'matched',
+        checkedAt: '2026-05-23T00:01:00.000Z',
+      },
     }));
     reconcileBrokerSnapshot = jest.fn(async (_snapshotId, _request) => ({
       id: 77,
@@ -46,6 +58,7 @@ describe('TossReadOnlyBrokerService', () => {
     const service = new TossReadOnlyBrokerService(
       {
         importBrokerSnapshot,
+        importBrokerFill,
         reconcileBrokerSnapshot,
       } as unknown as ControlPlaneService,
       requester,
@@ -66,6 +79,7 @@ describe('TossReadOnlyBrokerService', () => {
     );
     expect(requester).not.toHaveBeenCalled();
     expect(importBrokerSnapshot).not.toHaveBeenCalled();
+    expect(importBrokerFill).not.toHaveBeenCalled();
     expect(reconcileBrokerSnapshot).not.toHaveBeenCalled();
     await service.pollReadOnlySnapshotCron();
     expect(requester).not.toHaveBeenCalled();
@@ -96,6 +110,7 @@ describe('TossReadOnlyBrokerService', () => {
     const service = new TossReadOnlyBrokerService(
       {
         importBrokerSnapshot,
+        importBrokerFill,
         reconcileBrokerSnapshot,
       } as unknown as ControlPlaneService,
       requester,
@@ -183,6 +198,7 @@ describe('TossReadOnlyBrokerService', () => {
     const service = new TossReadOnlyBrokerService(
       {
         importBrokerSnapshot,
+        importBrokerFill,
         reconcileBrokerSnapshot,
       } as unknown as ControlPlaneService,
       requester,
@@ -205,6 +221,120 @@ describe('TossReadOnlyBrokerService', () => {
         lastError: undefined,
       }),
     );
+  });
+
+  it('imports Toss read-only fill evidence when fill polling is explicitly enabled', async () => {
+    process.env.BROKER_READ_ONLY_ENABLED = 'true';
+    process.env.TOSS_READ_ONLY_POLLER_ENABLED = 'true';
+    process.env.TOSS_READ_ONLY_FILL_POLLER_ENABLED = 'true';
+    process.env.TOSS_OPEN_API_CLIENT_ID = 'client-123456';
+    process.env.TOSS_OPEN_API_CLIENT_SECRET = 'secret-123456';
+    process.env.TOSS_OPEN_API_ACCOUNT_SEQ = 'account-123456';
+    process.env.TOSS_OPEN_API_SCHEMA_VERIFIED = 'true';
+    process.env.TOSS_OPEN_API_FILL_SCHEMA_VERIFIED = 'true';
+    process.env.TOSS_OPEN_API_FILLS_PATH = '/v1/fills';
+    const requester = jest
+      .fn()
+      .mockResolvedValueOnce({ access_token: 'token-value' })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            executionId: 'execution-1',
+            orderId: 'order-1',
+            symbol: '005930',
+            side: 'BUY',
+            quantity: 10,
+            fillPrice: 50_000,
+            executedAmount: 500_000,
+            commission: 500,
+            currency: 'KRW',
+            executedAt: '2026-05-23T00:00:00.000Z',
+          },
+        ],
+      });
+    const service = new TossReadOnlyBrokerService(
+      {
+        importBrokerSnapshot,
+        importBrokerFill,
+        reconcileBrokerSnapshot,
+      } as unknown as ControlPlaneService,
+      requester,
+    );
+
+    const result = await service.pollReadOnlyFills();
+
+    expect(requester).toHaveBeenCalledTimes(2);
+    expect(requester.mock.calls.map(([request]) => request.path)).toEqual([
+      '/oauth2/token',
+      '/v1/fills',
+    ]);
+    expect(importBrokerFill).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'toss',
+        accountRef: 'account-123456',
+        brokerOrderRef: 'order-1',
+        brokerFillRef: 'execution-1',
+        symbol: '005930',
+        side: 'BUY',
+        quantity: 10,
+        fillPrice: 50_000,
+        grossNotional: 500_000,
+        fee: 500,
+        sourceRef: 'toss-read-only-fill-poll:0:manual',
+      }),
+    );
+    expect(result.status).toEqual(
+      expect.objectContaining({
+        canPollFills: true,
+        lastBrokerFillIds: [88],
+        lastFillCount: 1,
+        lastFillReconciliationStatus: 'matched',
+        lastFillReconciledAt: '2026-05-23T00:01:00.000Z',
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+    expect(result.fills?.[0]).toEqual(
+      expect.objectContaining({
+        id: 88,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+  });
+
+  it('keeps Toss fill polling disabled without explicit fill schema and path', async () => {
+    process.env.BROKER_READ_ONLY_ENABLED = 'true';
+    process.env.TOSS_READ_ONLY_POLLER_ENABLED = 'true';
+    process.env.TOSS_READ_ONLY_FILL_POLLER_ENABLED = 'true';
+    process.env.TOSS_OPEN_API_CLIENT_ID = 'client-123456';
+    process.env.TOSS_OPEN_API_CLIENT_SECRET = 'secret-123456';
+    process.env.TOSS_OPEN_API_ACCOUNT_SEQ = 'account-123456';
+    process.env.TOSS_OPEN_API_SCHEMA_VERIFIED = 'true';
+    const requester = jest.fn();
+    const service = new TossReadOnlyBrokerService(
+      {
+        importBrokerSnapshot,
+        importBrokerFill,
+        reconcileBrokerSnapshot,
+      } as unknown as ControlPlaneService,
+      requester,
+    );
+
+    expect(service.getReadOnlyPollStatus()).toEqual(
+      expect.objectContaining({
+        canPoll: true,
+        canPollFills: false,
+        fillPollingEnabled: true,
+        fillSchemaVerified: false,
+        fillPathConfigured: false,
+      }),
+    );
+    await expect(service.pollReadOnlyFills()).rejects.toThrow(
+      'Toss read-only fill polling requires',
+    );
+    expect(requester).not.toHaveBeenCalled();
+    expect(importBrokerFill).not.toHaveBeenCalled();
   });
 
   it('blocks every non-read-only Toss endpoint', () => {

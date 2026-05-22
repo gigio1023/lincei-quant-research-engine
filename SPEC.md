@@ -454,12 +454,12 @@ Current status:
 - broker snapshot entity and read-only import API exist;
 - raw account refs are hashed and credentials/order fields are rejected;
 - broker snapshots can be reconciled against the active paper account for cash, equity, positions, tolerance, and staleness;
-- provider-neutral Toss adapter readiness contract reports credential/schema/sandbox/read-only/order-placement gates;
-- disabled-by-default Toss read-only poll worker exists and only allowlists token, account, and holdings reads before importing mapped snapshots through the same broker snapshot ledger;
+- provider-neutral Toss adapter readiness contract reports credential/schema/fill-schema/sandbox/read-only/order-placement gates;
+- disabled-by-default Toss read-only poll workers exist and only allowlist token, account, holdings, and an operator-configured GET fill path before importing mapped snapshots/fills through the same broker ledgers;
 - imported Toss read-only snapshots attempt automatic reconciliation against the active paper account and report the latest reconciliation status on the adapter poll status;
-- read-only broker fill evidence can now be imported into `broker_fills` and matched against paper fills; automatic provider fill polling is still blocked;
-- frontend dashboard shows latest broker snapshot status, broker fill evidence, paper-fill match details, Toss readiness gates, and reconciliation notes;
-- still missing verified Toss schema responses, production credential custody, provider-specific rate-limit/error handling, fill polling, order custody, and broker write controls.
+- read-only broker fill evidence can now be manually imported or polled through the configured read-only fill path into `broker_fills` and matched against paper fills;
+- frontend dashboard shows latest broker snapshot status, broker fill evidence, fill-poll readiness, paper-fill match details, Toss readiness gates, and reconciliation notes;
+- still missing verified Toss schema responses, production credential custody, provider-specific rate-limit/error handling, order custody, and broker write controls.
 
 Exit criteria:
 

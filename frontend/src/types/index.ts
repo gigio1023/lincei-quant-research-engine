@@ -551,6 +551,12 @@ export interface BrokerAdapterStatus {
   brokerExecutionEnabled: false;
 }
 
+export interface BrokerReadOnlyPollResponse {
+  status: BrokerAdapterReadOnlyPollStatus;
+  snapshot?: BrokerSnapshot;
+  fills?: BrokerFill[];
+}
+
 export type BrokerCredentialCustodyMode =
   | "missing"
   | "env"
@@ -569,7 +575,11 @@ export interface BrokerAdapterReadOnlyPollStatus {
   enabled: boolean;
   configured: boolean;
   schemaVerified: boolean;
+  fillPollingEnabled?: boolean;
+  fillSchemaVerified?: boolean;
+  fillPathConfigured?: boolean;
   canPoll: boolean;
+  canPollFills?: boolean;
   baseUrl: string;
   accountRef: string;
   allowedEndpoints: string[];
@@ -578,9 +588,14 @@ export interface BrokerAdapterReadOnlyPollStatus {
   lastAttemptAt?: string;
   lastPollAt?: string;
   lastSnapshotId?: number | string;
+  lastFillPollAt?: string;
+  lastBrokerFillIds?: Array<number | string>;
+  lastFillCount?: number;
   lastReconciliationStatus?: string;
   lastReconciledAt?: string;
   lastReconciliationError?: string;
+  lastFillReconciliationStatus?: string;
+  lastFillReconciledAt?: string;
   lastError?: string;
   brokerExecutionEnabled: false;
   liveTradingEnabled: false;

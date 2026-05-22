@@ -1,11 +1,20 @@
 import { BadRequestException } from '@nestjs/common';
-import { ImportBrokerSnapshotRequest } from './control-plane.types';
+import {
+  ImportBrokerFillRequest,
+  ImportBrokerSnapshotRequest,
+} from './control-plane.types';
 import { AssetClass, PositionSnapshot } from '../risk-gate/risk-gate.types';
 
 export interface TossReadOnlyRawSnapshot {
   accountRef: string;
   asOf: string;
   holdings: Record<string, unknown>;
+}
+
+export interface TossReadOnlyRawFills {
+  accountRef: string;
+  asOf: string;
+  fills: Record<string, unknown>;
 }
 
 const POSITION_FIELDS = {
@@ -20,6 +29,26 @@ const POSITION_FIELDS = {
     'assetAmount',
   ],
   assetClass: ['assetClass', 'productType', 'market'],
+};
+
+const FILL_FIELDS = {
+  fillRef: ['fillId', 'executionId', 'tradeId', 'id', 'executionNo'],
+  orderRef: ['orderId', 'orderNo', 'brokerOrderId', 'originalOrderId'],
+  symbol: ['symbol', 'stockCode', 'ticker', 'code', 'isin'],
+  side: ['side', 'orderSide', 'tradeSide', 'buySellType', 'transactionType'],
+  quantity: ['quantity', 'filledQuantity', 'executedQuantity', 'qty'],
+  fillPrice: ['fillPrice', 'executedPrice', 'price', 'averagePrice'],
+  grossNotional: [
+    'grossNotional',
+    'executedAmount',
+    'tradeAmount',
+    'amount',
+    'notional',
+  ],
+  fee: ['fee', 'commission', 'commissionAmount', 'totalFee'],
+  feeCurrency: ['feeCurrency', 'currency'],
+  currency: ['currency', 'settlementCurrency'],
+  filledAt: ['filledAt', 'executedAt', 'tradeAt', 'timestamp', 'createdAt'],
 };
 
 export function mapTossReadOnlySnapshot(
@@ -74,6 +103,84 @@ export function mapTossReadOnlySnapshot(
         (equity === 0 ? 0 : roundMoney((position.marketValue / equity) * 100)),
     })),
   };
+}
+
+export function mapTossReadOnlyFills(
+  raw: TossReadOnlyRawFills,
+): ImportBrokerFillRequest[] {
+  return extractFills(raw.fills).map((fill, index) => ({
+    provider: 'toss',
+    sourceRef: `toss-read-only-fill-poll:${index}`,
+    accountRef: raw.accountRef,
+    ...fill,
+    asOf: raw.asOf,
+  }));
+}
+
+function extractFills(
+  fillsResponse: Record<string, unknown>,
+): Omit<ImportBrokerFillRequest, 'provider' | 'sourceRef' | 'accountRef'>[] {
+  const items = readArray(fillsResponse, [
+    'items',
+    'fills',
+    'executions',
+    'trades',
+    'orders',
+    'result.items',
+    'result.fills',
+    'result.executions',
+    'data.items',
+    'data.fills',
+  ]);
+
+  return items.map((item, index) => {
+    const record = asRecord(item);
+
+    if (!record) {
+      throw new BadRequestException(
+        `Toss read-only fill item ${index} is not an object`,
+      );
+    }
+
+    const symbol = readFirstString(record, FILL_FIELDS.symbol);
+    const side = mapTossOrderSide(readFirstString(record, FILL_FIELDS.side));
+    const quantity = readFirstFiniteNumber(record, FILL_FIELDS.quantity);
+    const fillPrice = readFirstFiniteNumber(record, FILL_FIELDS.fillPrice);
+    const fee = readFirstFiniteNumber(record, FILL_FIELDS.fee) ?? 0;
+    const grossNotional =
+      readFirstFiniteNumber(record, FILL_FIELDS.grossNotional) ??
+      (quantity !== undefined && fillPrice !== undefined
+        ? roundMoney(quantity * fillPrice)
+        : undefined);
+    const filledAt =
+      readFirstString(record, FILL_FIELDS.filledAt) ?? new Date().toISOString();
+    const fillRef =
+      readFirstString(record, FILL_FIELDS.fillRef) ??
+      `${symbol ?? 'unknown'}:${side ?? 'unknown'}:${filledAt}:${index}`;
+
+    if (!symbol || !side || !quantity || !fillPrice || !grossNotional) {
+      throw new BadRequestException(
+        `Toss read-only fill item ${index} is missing symbol, side, quantity, price, or notional`,
+      );
+    }
+
+    return {
+      brokerOrderRef: readFirstString(record, FILL_FIELDS.orderRef),
+      brokerFillRef: fillRef,
+      symbol,
+      side,
+      quantity,
+      fillPrice,
+      grossNotional,
+      fee,
+      feeCurrency:
+        readFirstString(record, FILL_FIELDS.feeCurrency) ??
+        readFirstString(record, FILL_FIELDS.currency) ??
+        'KRW',
+      currency: readFirstString(record, FILL_FIELDS.currency) ?? 'KRW',
+      filledAt,
+    };
+  });
 }
 
 function extractPositions(
@@ -133,6 +240,20 @@ function mapTossAssetClass(value: string | undefined): AssetClass {
   }
 
   return 'domestic_stock';
+}
+
+function mapTossOrderSide(value: string | undefined): 'BUY' | 'SELL' | null {
+  const normalized = value?.trim().toLowerCase() ?? '';
+
+  if (['buy', 'bid', 'b', '매수'].includes(normalized)) {
+    return 'BUY';
+  }
+
+  if (['sell', 'ask', 's', '매도'].includes(normalized)) {
+    return 'SELL';
+  }
+
+  return null;
 }
 
 function readFirstFiniteNumber(
