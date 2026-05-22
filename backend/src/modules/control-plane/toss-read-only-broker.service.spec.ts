@@ -7,6 +7,7 @@ import { ControlPlaneService } from './control-plane.service';
 describe('TossReadOnlyBrokerService', () => {
   const originalEnv = process.env;
   let importBrokerSnapshot: jest.Mock;
+  let reconcileBrokerSnapshot: jest.Mock;
 
   beforeEach(() => {
     process.env = { ...originalEnv };
@@ -24,6 +25,16 @@ describe('TossReadOnlyBrokerService', () => {
       brokerExecutionEnabled: false,
       liveTradingEnabled: false,
     }));
+    reconcileBrokerSnapshot = jest.fn(async (_snapshotId, _request) => ({
+      id: 77,
+      status: 'matched',
+      brokerExecutionEnabled: false,
+      liveTradingEnabled: false,
+      reconciliation: {
+        status: 'matched',
+        checkedAt: '2026-05-23T00:00:00.000Z',
+      },
+    }));
   });
 
   afterEach(() => {
@@ -33,7 +44,10 @@ describe('TossReadOnlyBrokerService', () => {
   it('stays disabled by default and does not call the network', async () => {
     const requester = jest.fn();
     const service = new TossReadOnlyBrokerService(
-      { importBrokerSnapshot } as unknown as ControlPlaneService,
+      {
+        importBrokerSnapshot,
+        reconcileBrokerSnapshot,
+      } as unknown as ControlPlaneService,
       requester,
     );
 
@@ -52,6 +66,7 @@ describe('TossReadOnlyBrokerService', () => {
     );
     expect(requester).not.toHaveBeenCalled();
     expect(importBrokerSnapshot).not.toHaveBeenCalled();
+    expect(reconcileBrokerSnapshot).not.toHaveBeenCalled();
     await service.pollReadOnlySnapshotCron();
     expect(requester).not.toHaveBeenCalled();
   });
@@ -79,7 +94,10 @@ describe('TossReadOnlyBrokerService', () => {
         ],
       });
     const service = new TossReadOnlyBrokerService(
-      { importBrokerSnapshot } as unknown as ControlPlaneService,
+      {
+        importBrokerSnapshot,
+        reconcileBrokerSnapshot,
+      } as unknown as ControlPlaneService,
       requester,
     );
 
@@ -117,11 +135,74 @@ describe('TossReadOnlyBrokerService', () => {
         canPoll: true,
         running: false,
         lastSnapshotId: 77,
+        lastReconciliationStatus: 'matched',
+        lastReconciledAt: '2026-05-23T00:00:00.000Z',
         lastAttemptAt: expect.any(String),
         lastPollAt: expect.any(String),
         accountRef: 'acc***456',
         brokerExecutionEnabled: false,
         liveTradingEnabled: false,
+      }),
+    );
+    expect(reconcileBrokerSnapshot).toHaveBeenCalledWith(
+      77,
+      expect.objectContaining({
+        notes: ['Auto-reconciled after Toss read-only poll.'],
+      }),
+    );
+    expect(result.snapshot).toEqual(
+      expect.objectContaining({
+        id: 77,
+        status: 'matched',
+        reconciliation: expect.objectContaining({ status: 'matched' }),
+      }),
+    );
+  });
+
+  it('keeps an imported snapshot when auto-reconciliation is unavailable', async () => {
+    process.env.BROKER_READ_ONLY_ENABLED = 'true';
+    process.env.TOSS_READ_ONLY_POLLER_ENABLED = 'true';
+    process.env.TOSS_OPEN_API_CLIENT_ID = 'client-123456';
+    process.env.TOSS_OPEN_API_CLIENT_SECRET = 'secret-123456';
+    process.env.TOSS_OPEN_API_ACCOUNT_SEQ = 'account-123456';
+    process.env.TOSS_OPEN_API_SCHEMA_VERIFIED = 'true';
+    reconcileBrokerSnapshot.mockRejectedValueOnce(
+      new Error(
+        'Broker snapshot reconciliation requires an active paper account',
+      ),
+    );
+    const requester = jest
+      .fn()
+      .mockResolvedValueOnce({ access_token: 'token-value' })
+      .mockResolvedValueOnce({ result: [{ accountSeq: 'account-123456' }] })
+      .mockResolvedValueOnce({
+        cash: 6_500_000,
+        equity: 10_000_000,
+        items: [],
+      });
+    const service = new TossReadOnlyBrokerService(
+      {
+        importBrokerSnapshot,
+        reconcileBrokerSnapshot,
+      } as unknown as ControlPlaneService,
+      requester,
+    );
+
+    const result = await service.pollReadOnlySnapshot();
+
+    expect(result.snapshot).toEqual(
+      expect.objectContaining({
+        id: 77,
+        provider: 'toss',
+      }),
+    );
+    expect(result.status).toEqual(
+      expect.objectContaining({
+        lastSnapshotId: 77,
+        lastReconciliationStatus: 'not_checked',
+        lastReconciliationError:
+          'Broker snapshot reconciliation requires an active paper account',
+        lastError: undefined,
       }),
     );
   });

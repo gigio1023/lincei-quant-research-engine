@@ -450,6 +450,7 @@ Current status:
 - broker snapshots can be reconciled against the active paper account for cash, equity, positions, tolerance, and staleness;
 - provider-neutral Toss adapter readiness contract reports credential/schema/sandbox/read-only/order-placement gates;
 - disabled-by-default Toss read-only poll worker exists and only allowlists token, account, and holdings reads before importing mapped snapshots through the same broker snapshot ledger;
+- imported Toss read-only snapshots attempt automatic reconciliation against the active paper account and report the latest reconciliation status on the adapter poll status;
 - frontend dashboard shows latest broker snapshot status, Toss readiness gates, and reconciliation notes;
 - still missing verified Toss schema responses, production credential custody, provider-specific rate-limit/error handling, fill polling, order custody, and broker write controls.
 
@@ -490,7 +491,7 @@ Blocking items:
 - exact OpenAPI schema review;
 - verified Toss broker adapter implementation beyond the current readiness contract;
 - production signing custody for human approvals;
-- broker-backed reconciliation;
+- verified broker-backed reconciliation with real Toss schema/client responses;
 - explicit paper account seed/promote workflow exists, but production custody and operator policy still need hardening;
 - schedule leases and an env-gated in-process worker for autonomous runs exist with due/not-due checks, TTL validation, owner-checked release, overlap guard, and cycle keys; distributed DB lock audit, scheduler deployment policy, and auth boundary still need hardening;
 - transaction isolation plus durable reservation holds across DB transactions;

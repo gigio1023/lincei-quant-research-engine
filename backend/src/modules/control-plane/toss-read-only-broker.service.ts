@@ -52,6 +52,9 @@ export class TossReadOnlyBrokerService {
   private lastAttemptAt?: string;
   private lastPollAt?: string;
   private lastSnapshotId?: number;
+  private lastReconciliationStatus?: string;
+  private lastReconciledAt?: string;
+  private lastReconciliationError?: string;
   private lastError?: string;
 
   constructor(
@@ -91,6 +94,9 @@ export class TossReadOnlyBrokerService {
       lastAttemptAt: this.lastAttemptAt,
       lastPollAt: this.lastPollAt,
       lastSnapshotId: this.lastSnapshotId,
+      lastReconciliationStatus: this.lastReconciliationStatus,
+      lastReconciledAt: this.lastReconciledAt,
+      lastReconciliationError: this.lastReconciliationError,
       lastError: this.lastError,
       brokerExecutionEnabled: false,
       liveTradingEnabled: false,
@@ -157,14 +163,16 @@ export class TossReadOnlyBrokerService {
       imported.sourceRef = `toss-read-only-poll:${triggerRef}`;
       const snapshot =
         await this.controlPlaneService.importBrokerSnapshot(imported);
+      const reconciledSnapshot =
+        await this.tryReconcileImportedSnapshot(snapshot);
       this.lastPollAt = new Date().toISOString();
-      this.lastSnapshotId = snapshot.id;
+      this.lastSnapshotId = reconciledSnapshot.id;
       this.lastError = undefined;
       this.running = false;
 
       return {
         status: this.getReadOnlyPollStatus(),
-        snapshot,
+        snapshot: reconciledSnapshot,
       };
     } catch (error) {
       this.lastError =
@@ -174,6 +182,36 @@ export class TossReadOnlyBrokerService {
       throw error;
     } finally {
       this.running = false;
+    }
+  }
+
+  private async tryReconcileImportedSnapshot(
+    snapshot: BrokerReadOnlyPollResponse['snapshot'],
+  ) {
+    if (!snapshot) {
+      throw new BadRequestException('Broker snapshot import returned empty');
+    }
+
+    try {
+      const reconciled = await this.controlPlaneService.reconcileBrokerSnapshot(
+        snapshot.id,
+        {
+          notes: ['Auto-reconciled after Toss read-only poll.'],
+        },
+      );
+      this.lastReconciliationStatus = reconciled.reconciliation.status;
+      this.lastReconciledAt = reconciled.reconciliation.checkedAt;
+      this.lastReconciliationError = undefined;
+
+      return reconciled;
+    } catch (error) {
+      this.lastReconciliationStatus = 'not_checked';
+      this.lastReconciliationError =
+        error instanceof Error
+          ? error.message
+          : 'Broker snapshot auto-reconciliation failed';
+
+      return snapshot;
     }
   }
 

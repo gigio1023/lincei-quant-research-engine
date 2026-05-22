@@ -729,6 +729,7 @@ const mockBrokerAdapterStatus = {
     ],
     cron: "*/5 * * * *",
     running: false,
+    lastReconciliationStatus: "not_checked",
     brokerExecutionEnabled: false,
     liveTradingEnabled: false,
   },

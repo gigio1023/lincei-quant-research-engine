@@ -286,6 +286,7 @@ export const DOCUMENTED_BROKER_ADAPTER_STATUS: BrokerAdapterStatus = {
     ],
     cron: "*/5 * * * *",
     running: false,
+    lastReconciliationStatus: "not_checked",
     brokerExecutionEnabled: false,
     liveTradingEnabled: false,
   },

@@ -490,6 +490,9 @@ export interface BrokerAdapterReadOnlyPollStatus {
   lastAttemptAt?: string;
   lastPollAt?: string;
   lastSnapshotId?: number | string;
+  lastReconciliationStatus?: string;
+  lastReconciledAt?: string;
+  lastReconciliationError?: string;
   lastError?: string;
   brokerExecutionEnabled: false;
   liveTradingEnabled: false;

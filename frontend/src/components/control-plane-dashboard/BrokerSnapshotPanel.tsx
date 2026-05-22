@@ -140,6 +140,23 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
                     {adapter.readOnlyPoll.lastSnapshotId ?? "none"}
                   </span>
                 </div>
+                <div>
+                  auto reconcile{" "}
+                  <span className="font-mono text-[#eaecef]">
+                    {adapter.readOnlyPoll.lastReconciliationStatus ??
+                      "not_checked"}
+                  </span>
+                  {adapter.readOnlyPoll.lastReconciledAt
+                    ? ` / ${formatDateTime(
+                        adapter.readOnlyPoll.lastReconciledAt,
+                      )}`
+                    : ""}
+                </div>
+                {adapter.readOnlyPoll.lastReconciliationError && (
+                  <div className="text-[#f0b90b]">
+                    {adapter.readOnlyPoll.lastReconciliationError}
+                  </div>
+                )}
                 {adapter.readOnlyPoll.lastError && (
                   <div className="text-[#f6465d]">
                     {adapter.readOnlyPoll.lastError}
