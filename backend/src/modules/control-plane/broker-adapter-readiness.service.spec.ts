@@ -11,6 +11,8 @@ describe('BrokerAdapterReadinessService', () => {
     delete process.env.TOSS_OPEN_API_CLIENT_ID;
     delete process.env.TOSS_OPEN_API_CLIENT_SECRET;
     delete process.env.TOSS_OPEN_API_ACCOUNT_REF;
+    delete process.env.TOSS_OPEN_API_ACCOUNT_SEQ;
+    delete process.env.TOSS_READ_ONLY_POLLER_ENABLED;
     delete process.env.TOSS_OPEN_API_SCHEMA_VERIFIED;
     delete process.env.TOSS_OPEN_API_SANDBOX_VERIFIED;
     delete process.env.TOSS_OPEN_API_LAST_VERIFIED_AT;
@@ -37,6 +39,12 @@ describe('BrokerAdapterReadinessService', () => {
         schemaVerified: false,
         sandboxVerified: false,
         brokerExecutionEnabled: false,
+        readOnlyPoll: expect.objectContaining({
+          enabled: false,
+          canPoll: false,
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+        }),
       }),
     );
     expect(status.blockers).toEqual(
@@ -70,6 +78,12 @@ describe('BrokerAdapterReadinessService', () => {
         schemaVerified: true,
         sandboxVerified: false,
         lastVerifiedAt: '2026-05-23T00:00:00.000Z',
+        readOnlyPoll: expect.objectContaining({
+          enabled: false,
+          configured: true,
+          schemaVerified: true,
+          canPoll: false,
+        }),
       }),
     );
     expect(status.capabilities).toEqual(

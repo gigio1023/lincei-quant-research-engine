@@ -15,6 +15,7 @@ export class BrokerAdapterReadinessService {
       process.env.TOSS_OPEN_API_CLIENT_SECRET,
     );
     const accountRefConfigured = Boolean(process.env.TOSS_OPEN_API_ACCOUNT_REF);
+    const accountSeqConfigured = Boolean(process.env.TOSS_OPEN_API_ACCOUNT_SEQ);
     const schemaVerified = process.env.TOSS_OPEN_API_SCHEMA_VERIFIED === 'true';
     const sandboxVerified =
       process.env.TOSS_OPEN_API_SANDBOX_VERIFIED === 'true';
@@ -22,10 +23,12 @@ export class BrokerAdapterReadinessService {
       process.env.BROKER_READ_ONLY_ENABLED === 'true' &&
       clientIdConfigured &&
       clientSecretConfigured &&
-      accountRefConfigured &&
+      (accountRefConfigured || accountSeqConfigured) &&
       schemaVerified;
     const configured =
-      clientIdConfigured && clientSecretConfigured && accountRefConfigured;
+      clientIdConfigured &&
+      clientSecretConfigured &&
+      (accountRefConfigured || accountSeqConfigured);
     const credentialRef = configured
       ? this.maskCredentialRef(process.env.TOSS_OPEN_API_CLIENT_ID)
       : 'missing';
@@ -115,6 +118,33 @@ export class BrokerAdapterReadinessService {
       schemaVerified,
       sandboxVerified,
       lastVerifiedAt: process.env.TOSS_OPEN_API_LAST_VERIFIED_AT,
+      readOnlyPoll: {
+        provider: 'toss',
+        enabled:
+          process.env.BROKER_READ_ONLY_ENABLED === 'true' &&
+          process.env.TOSS_READ_ONLY_POLLER_ENABLED === 'true',
+        configured,
+        schemaVerified,
+        canPoll:
+          process.env.BROKER_READ_ONLY_ENABLED === 'true' &&
+          process.env.TOSS_READ_ONLY_POLLER_ENABLED === 'true' &&
+          configured &&
+          schemaVerified,
+        baseUrl: baseUrl ?? 'https://openapi.tossinvest.com',
+        accountRef: configured
+          ? this.maskCredentialRef(
+              process.env.TOSS_OPEN_API_ACCOUNT_SEQ ??
+                process.env.TOSS_OPEN_API_ACCOUNT_REF,
+            )
+          : 'missing',
+        allowedEndpoints: [
+          'POST /oauth2/token',
+          'GET /api/v1/accounts',
+          'GET /v1/holdings',
+        ],
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      },
       capabilities,
       blockers: capabilities
         .filter((capability) =>

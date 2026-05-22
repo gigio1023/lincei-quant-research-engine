@@ -64,14 +64,14 @@ I did not find an official Toss sandbox or paper-trading environment in the publ
 
 ## Integration Verdict
 
-Toss is a plausible first broker-adapter candidate, but this repo is not ready to use Toss for real money.
+Toss is a plausible first broker-adapter candidate, but this repo is not ready to use Toss for real money. The repo now includes a disabled-by-default Toss read-only adapter path that allowlists token, account, and holdings reads and imports the mapped result into the broker snapshot ledger. It is intentionally blocked unless credentials, account ref, explicit poll enablement, and operator schema verification are present.
 
 Required before real-money use:
 
 1. obtain Toss Open API access and API keys;
 2. fetch and review the OpenAPI schema;
 3. generate a typed client in an isolated broker adapter package;
-4. implement read-only account and holdings snapshots first;
+4. verify the current read-only account and holdings snapshot mapper against real Toss responses;
 5. implement paper execution or a local simulator with the same order-plan interface;
 6. add production signing custody for durable approval records and idempotency keys;
 7. add reconciliation and kill-switch tests;

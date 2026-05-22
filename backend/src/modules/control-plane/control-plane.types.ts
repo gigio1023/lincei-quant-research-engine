@@ -1,4 +1,7 @@
-import { BrokerSnapshotProvider } from '../../entities/broker-snapshot.entity';
+import {
+  BrokerSnapshot,
+  BrokerSnapshotProvider,
+} from '../../entities/broker-snapshot.entity';
 import { ExecutionControlStateValue } from '../../entities/execution-control-state.entity';
 import {
   BacktestMetrics,
@@ -182,9 +185,31 @@ export interface BrokerAdapterStatus {
   schemaVerified: boolean;
   sandboxVerified: boolean;
   lastVerifiedAt?: string;
+  readOnlyPoll: BrokerAdapterReadOnlyPollStatus;
   capabilities: BrokerAdapterCapability[];
   blockers: string[];
   brokerExecutionEnabled: false;
+}
+
+export interface BrokerAdapterReadOnlyPollStatus {
+  provider: 'toss';
+  enabled: boolean;
+  configured: boolean;
+  schemaVerified: boolean;
+  canPoll: boolean;
+  baseUrl: string;
+  accountRef: string;
+  allowedEndpoints: string[];
+  lastPollAt?: string;
+  lastSnapshotId?: number;
+  lastError?: string;
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+}
+
+export interface BrokerReadOnlyPollResponse {
+  status: BrokerAdapterReadOnlyPollStatus;
+  snapshot?: BrokerSnapshot;
 }
 
 export interface UpdateExecutionControlRequest {

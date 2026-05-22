@@ -21,9 +21,11 @@ import { RiskEvaluation } from '../../entities/risk-evaluation.entity';
 import { BrokerAdapterReadinessService } from './broker-adapter-readiness.service';
 import { ControlPlaneSchedulerService } from './control-plane-scheduler.service';
 import { ControlPlaneService } from './control-plane.service';
+import { TossReadOnlyBrokerService } from './toss-read-only-broker.service';
 import {
   AdvanceAutonomousRunRequest,
   BrokerAdapterStatus,
+  BrokerReadOnlyPollResponse,
   ControlPlaneStatus,
   CreateAutonomousRunScheduleRequest,
   CreateAutonomousRunRequest,
@@ -51,6 +53,7 @@ export class ControlPlaneController {
     private readonly controlPlaneService: ControlPlaneService,
     private readonly controlPlaneSchedulerService: ControlPlaneSchedulerService,
     private readonly brokerAdapterReadinessService: BrokerAdapterReadinessService,
+    private readonly tossReadOnlyBrokerService: TossReadOnlyBrokerService,
   ) {}
 
   @Get('status')
@@ -156,7 +159,14 @@ export class ControlPlaneController {
 
   @Get('broker-adapter/status')
   getBrokerAdapterStatus(): BrokerAdapterStatus {
-    return this.brokerAdapterReadinessService.getStatus();
+    return this.tossReadOnlyBrokerService.getAdapterStatus(
+      this.brokerAdapterReadinessService.getStatus(),
+    );
+  }
+
+  @Post('broker-adapter/poll-read-only')
+  pollBrokerReadOnlySnapshot(): Promise<BrokerReadOnlyPollResponse> {
+    return this.tossReadOnlyBrokerService.pollReadOnlySnapshot();
   }
 
   @Post('broker-snapshots/:id/reconcile-paper')

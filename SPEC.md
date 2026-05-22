@@ -447,8 +447,9 @@ Current status:
 - raw account refs are hashed and credentials/order fields are rejected;
 - broker snapshots can be reconciled against the active paper account for cash, equity, positions, tolerance, and staleness;
 - provider-neutral Toss adapter readiness contract reports credential/schema/sandbox/read-only/order-placement gates;
+- disabled-by-default Toss read-only poll path exists and only allowlists token, account, and holdings reads before importing mapped snapshots through the same broker snapshot ledger;
 - frontend dashboard shows latest broker snapshot status, Toss readiness gates, and reconciliation notes;
-- still missing verified Toss schema/client, real API credentials isolation, provider-specific rate-limit/error handling, and scheduled polling.
+- still missing verified Toss schema responses, production credential custody, provider-specific rate-limit/error handling, fill polling, order custody, and broker write controls.
 
 Exit criteria:
 

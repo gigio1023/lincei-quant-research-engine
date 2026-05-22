@@ -1,0 +1,246 @@
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Optional,
+} from '@nestjs/common';
+import axios, { AxiosRequestConfig } from 'axios';
+import {
+  BrokerAdapterReadOnlyPollStatus,
+  BrokerAdapterStatus,
+  BrokerReadOnlyPollResponse,
+} from './control-plane.types';
+import { ControlPlaneService } from './control-plane.service';
+import { mapTossReadOnlySnapshot } from './toss-read-only.mapper';
+
+type HttpMethod = 'GET' | 'POST';
+
+interface TossReadOnlyConfig {
+  enabled: boolean;
+  baseUrl: string;
+  clientId?: string;
+  clientSecret?: string;
+  accountRef?: string;
+  schemaVerified: boolean;
+  timeoutMs: number;
+}
+
+interface TossReadOnlyRequest {
+  method: HttpMethod;
+  path: string;
+  baseUrl: string;
+  headers?: Record<string, string>;
+  data?: URLSearchParams;
+  timeoutMs: number;
+}
+
+type TossReadOnlyRequester = (request: TossReadOnlyRequest) => Promise<unknown>;
+
+const ALLOWED_ENDPOINTS = [
+  'POST /oauth2/token',
+  'GET /api/v1/accounts',
+  'GET /v1/holdings',
+];
+
+@Injectable()
+export class TossReadOnlyBrokerService {
+  private lastPollAt?: string;
+  private lastSnapshotId?: number;
+  private lastError?: string;
+
+  constructor(
+    private readonly controlPlaneService: ControlPlaneService,
+    @Optional()
+    @Inject('TOSS_READ_ONLY_REQUESTER')
+    private readonly requester: TossReadOnlyRequester = defaultRequester,
+  ) {}
+
+  getAdapterStatus(base: BrokerAdapterStatus): BrokerAdapterStatus {
+    const readOnlyPoll = this.getReadOnlyPollStatus();
+
+    return {
+      ...base,
+      readOnlyPoll,
+    };
+  }
+
+  getReadOnlyPollStatus(): BrokerAdapterReadOnlyPollStatus {
+    const config = this.getConfig();
+    const configured = Boolean(
+      config.clientId && config.clientSecret && config.accountRef,
+    );
+    const canPoll = config.enabled && configured && config.schemaVerified;
+
+    return {
+      provider: 'toss',
+      enabled: config.enabled,
+      configured,
+      schemaVerified: config.schemaVerified,
+      canPoll,
+      baseUrl: config.baseUrl,
+      accountRef: config.accountRef ? this.mask(config.accountRef) : 'missing',
+      allowedEndpoints: ALLOWED_ENDPOINTS,
+      lastPollAt: this.lastPollAt,
+      lastSnapshotId: this.lastSnapshotId,
+      lastError: this.lastError,
+      brokerExecutionEnabled: false,
+      liveTradingEnabled: false,
+    };
+  }
+
+  async pollReadOnlySnapshot(): Promise<BrokerReadOnlyPollResponse> {
+    const config = this.getConfig();
+    const status = this.getReadOnlyPollStatus();
+
+    if (!status.canPoll) {
+      this.lastError =
+        'Toss read-only polling requires BROKER_READ_ONLY_ENABLED=true, credentials, account ref, and verified schema.';
+      throw new BadRequestException(this.lastError);
+    }
+
+    try {
+      const token = await this.fetchAccessToken(config);
+      await this.requestReadOnly('GET', '/api/v1/accounts', config, token);
+      const holdings = await this.requestReadOnly(
+        'GET',
+        '/v1/holdings',
+        config,
+        token,
+        {
+          'X-Tossinvest-Account': config.accountRef!,
+        },
+      );
+      const imported = mapTossReadOnlySnapshot({
+        accountRef: config.accountRef!,
+        asOf: new Date().toISOString(),
+        holdings: this.assertRecord(holdings, 'Toss holdings response'),
+      });
+      const snapshot =
+        await this.controlPlaneService.importBrokerSnapshot(imported);
+      this.lastPollAt = new Date().toISOString();
+      this.lastSnapshotId = snapshot.id;
+      this.lastError = undefined;
+
+      return {
+        status: this.getReadOnlyPollStatus(),
+        snapshot,
+      };
+    } catch (error) {
+      this.lastError =
+        error instanceof Error
+          ? error.message
+          : 'Toss read-only polling failed';
+      throw error;
+    }
+  }
+
+  private async fetchAccessToken(config: TossReadOnlyConfig): Promise<string> {
+    const tokenResponse = await this.requestReadOnly(
+      'POST',
+      '/oauth2/token',
+      config,
+      undefined,
+      undefined,
+      new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: config.clientId!,
+        client_secret: config.clientSecret!,
+      }),
+    );
+    const tokenRecord = this.assertRecord(tokenResponse, 'Toss token response');
+    const accessToken = tokenRecord.access_token ?? tokenRecord.accessToken;
+
+    if (typeof accessToken !== 'string' || !accessToken.trim()) {
+      throw new BadRequestException(
+        'Toss token response did not include access_token',
+      );
+    }
+
+    return accessToken;
+  }
+
+  private async requestReadOnly(
+    method: HttpMethod,
+    path: string,
+    config: TossReadOnlyConfig,
+    accessToken?: string,
+    headers: Record<string, string> = {},
+    data?: URLSearchParams,
+  ): Promise<unknown> {
+    assertTossReadOnlyEndpointAllowed(method, path);
+
+    return this.requester({
+      method,
+      path,
+      baseUrl: config.baseUrl,
+      headers: {
+        Accept: 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...headers,
+      },
+      data,
+      timeoutMs: config.timeoutMs,
+    });
+  }
+
+  private getConfig(): TossReadOnlyConfig {
+    return {
+      enabled:
+        process.env.BROKER_READ_ONLY_ENABLED === 'true' &&
+        process.env.TOSS_READ_ONLY_POLLER_ENABLED === 'true',
+      baseUrl:
+        process.env.TOSS_OPEN_API_BASE_URL ?? 'https://openapi.tossinvest.com',
+      clientId: process.env.TOSS_OPEN_API_CLIENT_ID,
+      clientSecret: process.env.TOSS_OPEN_API_CLIENT_SECRET,
+      accountRef:
+        process.env.TOSS_OPEN_API_ACCOUNT_SEQ ??
+        process.env.TOSS_OPEN_API_ACCOUNT_REF,
+      schemaVerified: process.env.TOSS_OPEN_API_SCHEMA_VERIFIED === 'true',
+      timeoutMs: Number(process.env.TOSS_READ_ONLY_HTTP_TIMEOUT_MS ?? 10_000),
+    };
+  }
+
+  private assertRecord(value: unknown, label: string): Record<string, unknown> {
+    if (!value || typeof value !== 'object') {
+      throw new BadRequestException(`${label} is not an object`);
+    }
+
+    return value as Record<string, unknown>;
+  }
+
+  private mask(value: string): string {
+    if (value.length <= 6) {
+      return 'configured';
+    }
+
+    return `${value.slice(0, 3)}***${value.slice(-3)}`;
+  }
+}
+
+export function assertTossReadOnlyEndpointAllowed(
+  method: HttpMethod,
+  path: string,
+): void {
+  const key = `${method} ${path}`;
+
+  if (!ALLOWED_ENDPOINTS.includes(key)) {
+    throw new BadRequestException(
+      `Toss read-only adapter blocks ${key}; only account and holdings reads are allowed`,
+    );
+  }
+}
+
+async function defaultRequester(
+  request: TossReadOnlyRequest,
+): Promise<unknown> {
+  const axiosConfig: AxiosRequestConfig = {
+    method: request.method,
+    url: `${request.baseUrl}${request.path}`,
+    headers: request.headers,
+    data: request.data,
+    timeout: request.timeoutMs,
+  };
+  const response = await axios.request(axiosConfig);
+
+  return response.data;
+}

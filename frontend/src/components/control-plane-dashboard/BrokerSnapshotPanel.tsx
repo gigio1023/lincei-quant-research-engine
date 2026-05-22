@@ -75,8 +75,15 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
             <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
               {[
                 ["configured", adapter.configured ? "yes" : "no"],
+                [
+                  "poller",
+                  adapter.readOnlyPoll.enabled
+                    ? adapter.readOnlyPoll.lastError
+                      ? "error"
+                      : "enabled"
+                    : "disabled",
+                ],
                 ["schema", adapter.schemaVerified ? "verified" : "missing"],
-                ["sandbox", adapter.sandboxVerified ? "verified" : "missing"],
                 ["live", adapter.liveTradingEnabled ? "enabled" : "off"],
               ].map(([label, value]) => (
                 <div key={label}>
@@ -88,6 +95,43 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
                   </div>
                 </div>
               ))}
+            </div>
+            <div className="mt-3 rounded-md border border-[#2b3139] bg-[#151a21] p-2 text-xs">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-bold uppercase text-[#707a8a]">
+                  Read-only polling
+                </span>
+                <span
+                  className={
+                    adapter.readOnlyPoll.canPoll
+                      ? "font-mono font-bold text-[#0ecb81]"
+                      : "font-mono font-bold text-[#fcd535]"
+                  }
+                >
+                  {adapter.readOnlyPoll.canPoll ? "can poll" : "blocked"}
+                </span>
+              </div>
+              <div className="mt-2 grid gap-1 text-[#929aa5]">
+                <div>
+                  last poll{" "}
+                  <span className="font-mono text-[#eaecef]">
+                    {adapter.readOnlyPoll.lastPollAt
+                      ? formatDateTime(adapter.readOnlyPoll.lastPollAt)
+                      : "never"}
+                  </span>
+                </div>
+                <div>
+                  latest snapshot{" "}
+                  <span className="font-mono text-[#eaecef]">
+                    {adapter.readOnlyPoll.lastSnapshotId ?? "none"}
+                  </span>
+                </div>
+                {adapter.readOnlyPoll.lastError && (
+                  <div className="text-[#f6465d]">
+                    {adapter.readOnlyPoll.lastError}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

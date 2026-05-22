@@ -17,6 +17,7 @@ import { BrokerAdapterReadinessService } from './broker-adapter-readiness.servic
 import { ControlPlaneSchedulerService } from './control-plane-scheduler.service';
 import { ControlPlaneController } from './control-plane.controller';
 import { ControlPlaneService } from './control-plane.service';
+import { TossReadOnlyBrokerService } from './toss-read-only-broker.service';
 
 @Module({
   imports: [
@@ -41,11 +42,13 @@ import { ControlPlaneService } from './control-plane.service';
     BrokerAdapterReadinessService,
     ControlPlaneService,
     ControlPlaneSchedulerService,
+    TossReadOnlyBrokerService,
   ],
   exports: [
     BrokerAdapterReadinessService,
     ControlPlaneService,
     ControlPlaneSchedulerService,
+    TossReadOnlyBrokerService,
   ],
 })
 export class ControlPlaneModule {}

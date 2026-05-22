@@ -764,6 +764,12 @@ describe('ControlPlane research provenance (e2e)', () => {
         liveTradingEnabled: false,
         credentialRef: 'missing',
         brokerExecutionEnabled: false,
+        readOnlyPoll: expect.objectContaining({
+          enabled: false,
+          canPoll: false,
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+        }),
       }),
     );
     expect(response.body.capabilities).toEqual(
@@ -774,5 +780,9 @@ describe('ControlPlane research provenance (e2e)', () => {
         }),
       ]),
     );
+    await request(app.getHttpServer())
+      .post('/control-plane/broker-adapter/poll-read-only')
+      .send({})
+      .expect(400);
   });
 });

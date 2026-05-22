@@ -708,6 +708,22 @@ const mockBrokerAdapterStatus = {
   credentialRef: "missing",
   schemaVerified: false,
   sandboxVerified: false,
+  readOnlyPoll: {
+    provider: "toss",
+    enabled: false,
+    configured: false,
+    schemaVerified: false,
+    canPoll: false,
+    baseUrl: "https://openapi.tossinvest.com",
+    accountRef: "missing",
+    allowedEndpoints: [
+      "POST /oauth2/token",
+      "GET /api/v1/accounts",
+      "GET /v1/holdings",
+    ],
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+  },
   capabilities: [
     {
       key: "credentials",
@@ -921,11 +937,15 @@ describe("ControlPlaneDashboard", () => {
       screen.getByText("Paper cash ledger matched simulated fills."),
     ).toBeInTheDocument();
     expect(screen.getByText("Broker Snapshot Monitor")).toBeInTheDocument();
-    expect(screen.getByText("Live broker snapshots")).toBeInTheDocument();
-    expect(screen.getByText("Live broker adapter")).toBeInTheDocument();
+    expect(screen.getByText("API broker snapshots")).toBeInTheDocument();
+    expect(screen.getByText("API broker adapter status")).toBeInTheDocument();
     expect(
       screen.getByText("toss / oauth2_client_credentials"),
     ).toBeInTheDocument();
+    expect(screen.getByText("Read-only polling")).toBeInTheDocument();
+    expect(screen.getAllByText("blocked").length).toBeGreaterThan(0);
+    expect(screen.getByText("last poll")).toBeInTheDocument();
+    expect(screen.getByText("never")).toBeInTheDocument();
     expect(screen.getByText("orderPlacement")).toBeInTheDocument();
     expect(screen.getByText("manual / operator-import")).toBeInTheDocument();
     expect(

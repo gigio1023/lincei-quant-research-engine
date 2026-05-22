@@ -787,6 +787,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       refreshedRunSchedules,
       refreshedRunScheduleWorkerStatus,
       refreshedPaperAccount,
+      refreshedBrokerSnapshots,
       refreshedBrokerAdapterStatus,
       refreshedOrderPlanApprovals,
     ] = await Promise.allSettled([
@@ -798,6 +799,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       controlPlaneApi.getRunSchedules(),
       controlPlaneApi.getRunScheduleWorkerStatus(),
       controlPlaneApi.getPaperAccount(),
+      controlPlaneApi.getBrokerSnapshots(),
       controlPlaneApi.getBrokerAdapterStatus(),
       controlPlaneApi.getOrderPlanApprovals(),
     ]);
@@ -874,6 +876,15 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     } else {
       setBrokerAdapterError(
         "Broker adapter refresh failed after automation action.",
+      );
+    }
+
+    if (refreshedBrokerSnapshots.status === "fulfilled") {
+      setBrokerSnapshots(refreshedBrokerSnapshots.value);
+      setBrokerSnapshotsError(null);
+    } else {
+      setBrokerSnapshotsError(
+        "Broker snapshot refresh failed after automation action.",
       );
     }
 
@@ -1067,12 +1078,12 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           ? "Loading account events"
           : "Documented account events",
       brokerSnapshots: brokerSnapshots
-        ? "Live broker snapshots"
+        ? "API broker snapshots"
         : loadingBrokerSnapshots
           ? "Loading broker snapshots"
           : "Documented broker sample",
       brokerAdapter: brokerAdapterStatus
-        ? "Live broker adapter"
+        ? "API broker adapter status"
         : loadingBrokerAdapter
           ? "Loading broker adapter"
           : "Documented broker adapter sample",

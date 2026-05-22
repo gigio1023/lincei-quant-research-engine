@@ -394,7 +394,7 @@ all broker/live execution flags remain `false`.
 
 #### `GET /control-plane/broker-adapter/status`
 
-- **Description**: Returns the provider-neutral broker adapter readiness contract. The current first candidate is Toss, but this endpoint does not call Toss and never exposes secrets. It reports whether required credential environment variables are present, whether the OpenAPI schema and sandbox have been operator-verified, and which broker capabilities remain blocked.
+- **Description**: Returns the provider-neutral broker adapter readiness contract. The current first candidate is Toss. This endpoint reports evidence only; it does not trigger polls, place orders, or expose secrets. It reports whether required credential environment variables are present, whether the OpenAPI schema and sandbox have been operator-verified, read-only polling state, and which broker capabilities remain blocked.
 - **Example Response**:
   ```json
   {
@@ -407,6 +407,22 @@ all broker/live execution flags remain `false`.
     "credentialRef": "missing",
     "schemaVerified": false,
     "sandboxVerified": false,
+    "readOnlyPoll": {
+      "provider": "toss",
+      "enabled": false,
+      "configured": false,
+      "schemaVerified": false,
+      "canPoll": false,
+      "baseUrl": "https://openapi.tossinvest.com",
+      "accountRef": "missing",
+      "allowedEndpoints": [
+        "POST /oauth2/token",
+        "GET /api/v1/accounts",
+        "GET /v1/holdings"
+      ],
+      "brokerExecutionEnabled": false,
+      "liveTradingEnabled": false
+    },
     "capabilities": [
       {
         "key": "credentials",
@@ -424,9 +440,18 @@ all broker/live execution flags remain `false`.
   }
   ```
 
+#### `POST /control-plane/broker-adapter/poll-read-only`
+
+- **Description**: Attempts a Toss read-only snapshot poll, disabled by default. It requires `BROKER_READ_ONLY_ENABLED=true`, `TOSS_READ_ONLY_POLLER_ENABLED=true`, Toss credentials/account ref, and `TOSS_OPEN_API_SCHEMA_VERIFIED=true`. The adapter allowlist only permits `POST /oauth2/token`, `GET /api/v1/accounts`, and `GET /v1/holdings`, then imports the mapped snapshot through the same broker snapshot ledger. It has no order, preview, cancel, modify, or fill endpoint.
+- **Response Notes**:
+  - returns `{ "status": BrokerAdapterReadOnlyPollStatus, "snapshot": BrokerSnapshot }` on success;
+  - returns `400` when disabled or unverified;
+  - raw Toss account refs are only passed into the adapter and then stored through `accountRefHash`;
+  - `brokerExecutionEnabled` and `liveTradingEnabled` remain `false`.
+
 #### `POST /control-plane/broker-snapshots/:id/reconcile-paper`
 
-- **Description**: Reconciles a broker read-only snapshot against the active paper account. This compares cash, equity, positions, tolerance, and snapshot age. It still does not prove live broker readiness because no verified Toss adapter or broker polling exists yet.
+- **Description**: Reconciles a broker read-only snapshot against the active paper account. This compares cash, equity, positions, tolerance, and snapshot age. It still does not prove live broker readiness because Toss schema verification, sandbox parity, fill polling, order custody, and broker write controls remain blocked.
 - **Example Request**:
   ```json
   {

@@ -450,9 +450,26 @@ export interface BrokerAdapterStatus {
   schemaVerified: boolean;
   sandboxVerified: boolean;
   lastVerifiedAt?: string;
+  readOnlyPoll: BrokerAdapterReadOnlyPollStatus;
   capabilities: BrokerAdapterCapability[];
   blockers: string[];
   brokerExecutionEnabled: false;
+}
+
+export interface BrokerAdapterReadOnlyPollStatus {
+  provider: "toss";
+  enabled: boolean;
+  configured: boolean;
+  schemaVerified: boolean;
+  canPoll: boolean;
+  baseUrl: string;
+  accountRef: string;
+  allowedEndpoints: string[];
+  lastPollAt?: string;
+  lastSnapshotId?: number | string;
+  lastError?: string;
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
 }
 
 export interface ImportBrokerSnapshotRequest {

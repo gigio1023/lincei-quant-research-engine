@@ -518,6 +518,22 @@ describe("API Service", () => {
         credentialRef: "missing",
         schemaVerified: false,
         sandboxVerified: false,
+        readOnlyPoll: {
+          provider: "toss",
+          enabled: false,
+          configured: false,
+          schemaVerified: false,
+          canPoll: false,
+          baseUrl: "https://openapi.tossinvest.com",
+          accountRef: "missing",
+          allowedEndpoints: [
+            "POST /oauth2/token",
+            "GET /api/v1/accounts",
+            "GET /v1/holdings",
+          ],
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+        },
         capabilities: [
           {
             key: "orderPlacement",
