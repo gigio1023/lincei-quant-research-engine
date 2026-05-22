@@ -430,6 +430,7 @@ Current status:
 - paper position accounting now records quantity, average price, cost basis, unrealized PnL, and realized PnL in simulated fills, position ledger entries, account positions, and dashboard position rows;
 - paper execution readiness now records reservation evidence for required cash, reserved cash, available cash, required sells, reserved sells, and available sell notional by symbol before fill simulation;
 - filled paper order plans now persist a durable reservation-hold snapshot with hold id, status, cash amount, sell notional by symbol, hold hash, and consumption timestamp;
+- readiness checks subtract any still-reserved paper hold snapshot even if a previous plan has already moved out of an open execution status;
 - durable paper account state now carries simulated cash, equity, exposure, positions, and applied plan ids across paper cycles;
 - minimal execution-control state and halted/paused/reducing gate exists;
 - frontend dashboard shows paper account state, execution-control state, latest paper plans, fills, reconciliation notes, hashes, and broker/live disabled guardrails;

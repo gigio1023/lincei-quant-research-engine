@@ -1099,6 +1099,101 @@ describe('ControlPlaneService', () => {
     );
   });
 
+  it('subtracts reserved paper holds even when the plan status is no longer open', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Reserved hold budget',
+      totalBudget: 1_000_000,
+      policy: {
+        maxGrossExposurePct: 100,
+        maxSinglePositionPct: 100,
+        maxOrderNotional: 1_000_000,
+      },
+    });
+    const seededAccount = await service.seedPaperAccount({
+      budgetEnvelopeId: budget.id,
+      cash: 1_000_000,
+      positions: [],
+      actor: 'unit-test-operator',
+      reason: 'Seed account for reserved hold check.',
+      idempotencyKey: 'seed-reserved-hold-account',
+    });
+    await service.promotePaperAccount(seededAccount.id, {
+      actor: 'unit-test-operator',
+      reason: 'Promote account for reserved hold check.',
+      idempotencyKey: 'promote-reserved-hold-account',
+      expectedEventHash: paperAccountEvents[0].eventHash,
+    });
+    const researchRun = await service.runBaselineResearch({
+      budgetEnvelopeId: budget.id,
+    });
+    const proposal = await service.createProposal({
+      budgetEnvelopeId: budget.id,
+      researchRunId: researchRun.id,
+      strategyId: 'reserved-hold-v1',
+      ruleId: 'cash-reserved-hold-check',
+      generatedAt: '2026-05-22T23:59:00.000Z',
+      marketDataTimestamp: '2026-05-22T23:55:00.000Z',
+      portfolioSnapshot: {
+        currency: 'KRW',
+        equity: 1_000_000,
+        cash: 1_000_000,
+        grossExposurePct: 0,
+      },
+      orders: [
+        {
+          symbol: '005930',
+          assetClass: 'domestic_stock',
+          side: 'BUY',
+          orderType: 'MARKET',
+          notional: 800_000,
+          targetPositionPct: 80,
+        },
+      ],
+    });
+    const approval = await service.createOrderPlanApproval(proposal.id, {
+      idempotencyKey: 'reserved-hold-paper-plan',
+      approver: 'unit-test-operator',
+      reason: 'Approve reserved hold check plan.',
+    });
+    paperOrderPlans.push({
+      id: 99,
+      proposalId: 999,
+      paperAccountId: seededAccount.id,
+      status: 'filled',
+      reservationHold: {
+        holdId: 'paper-reservation:orphaned-reserved-hold',
+        status: 'reserved',
+        idempotencyKey: 'orphaned-reserved-hold',
+        createdAt: '2026-05-22T23:58:00.000Z',
+        cashAmount: 300_450,
+        sellNotionalBySymbol: {},
+        availableCashAtHold: 1_000_000,
+        availableSellNotionalBySymbolAtHold: {},
+        holdHash: 'sha256-reserved-hold',
+        notes: ['Reserved hold left open by an interrupted paper plan.'],
+      },
+      orders: [],
+      updatedAt: new Date('2026-05-22T23:58:00.000Z'),
+    } as PaperOrderPlan);
+
+    const plan = await service.paperExecuteProposal(proposal.id, {
+      idempotencyKey: 'reserved-hold-paper-plan',
+      orderPlanApprovalId: approval.id,
+    });
+
+    expect(plan.status).toBe('blocked');
+    expect(plan.blockedReasons).toContain('Paper execution cash check failed');
+    expect(plan.readinessSnapshot).toEqual(
+      expect.objectContaining({
+        requiredCash: 801_200,
+        reservedCash: 300_450,
+        availableCash: 699_550,
+        cashSufficient: false,
+        noDuplicatePlan: true,
+      }),
+    );
+  });
+
   it('blocks paper execution when execution control is halted', async () => {
     const budget = await service.createBudgetEnvelope({
       name: 'Halted budget',

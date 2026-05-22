@@ -83,6 +83,11 @@ interface PaperReservationSnapshot {
   availableSellNotionalBySymbol: Record<string, number>;
 }
 
+interface PaperOpenReservation {
+  cashAmount: number;
+  sellNotionalBySymbol: Record<string, number>;
+}
+
 @Injectable()
 export class ControlPlaneService {
   private readonly disallowedModelCategories = new Set([
@@ -1922,7 +1927,7 @@ export class ControlPlaneService {
 
   private async findOpenPaperReservations(
     paperAccountId?: number,
-  ): Promise<PaperOrderPlan[]> {
+  ): Promise<PaperOpenReservation[]> {
     if (!paperAccountId) {
       return [];
     }
@@ -1936,11 +1941,44 @@ export class ControlPlaneService {
       'partially_filled',
     ];
 
-    return plans.filter(
-      (plan) =>
-        plan.paperAccountId === paperAccountId &&
-        reservingStatuses.includes(plan.status),
-    );
+    return plans
+      .filter((plan) => {
+        if (plan.paperAccountId !== paperAccountId) {
+          return false;
+        }
+
+        if (plan.reservationHold?.status === 'reserved') {
+          return true;
+        }
+
+        return !plan.reservationHold && reservingStatuses.includes(plan.status);
+      })
+      .map((plan) => {
+        if (plan.reservationHold?.status === 'reserved') {
+          return {
+            cashAmount: this.roundMoney(plan.reservationHold.cashAmount),
+            sellNotionalBySymbol: this.roundMoneyBySymbol(
+              plan.reservationHold.sellNotionalBySymbol,
+            ),
+          };
+        }
+
+        return {
+          cashAmount: this.calculatePaperBuyRequirement(
+            plan.orders.map((order) => ({
+              side: order.side,
+              notional: order.requestedNotional,
+            })),
+          ),
+          sellNotionalBySymbol: this.calculatePaperSellRequirements(
+            plan.orders.map((order) => ({
+              symbol: order.symbol,
+              side: order.side,
+              notional: order.requestedNotional,
+            })),
+          ),
+        };
+      });
   }
 
   private riskEvaluationMatchesProposal(
@@ -1973,14 +2011,7 @@ export class ControlPlaneService {
     const requiredCash = this.calculatePaperBuyRequirement(proposal.orders);
     const reservedCash = this.roundMoney(
       openReservations.reduce(
-        (total, plan) =>
-          total +
-          this.calculatePaperBuyRequirement(
-            plan.orders.map((order) => ({
-              side: order.side,
-              notional: order.requestedNotional,
-            })),
-          ),
+        (total, reservation) => total + reservation.cashAmount,
         0,
       ),
     );
@@ -1992,16 +2023,10 @@ export class ControlPlaneService {
     );
     const reservedSellNotionalBySymbol = openReservations.reduce<
       Record<string, number>
-    >((reserved, plan) => {
-      const planRequirements = this.calculatePaperSellRequirements(
-        plan.orders.map((order) => ({
-          symbol: order.symbol,
-          side: order.side,
-          notional: order.requestedNotional,
-        })),
-      );
-
-      for (const [symbol, notional] of Object.entries(planRequirements)) {
+    >((reserved, reservation) => {
+      for (const [symbol, notional] of Object.entries(
+        reservation.sellNotionalBySymbol,
+      )) {
         reserved[symbol] = this.roundMoney((reserved[symbol] ?? 0) + notional);
       }
 
@@ -2068,6 +2093,17 @@ export class ControlPlaneService {
 
         return required;
       }, {});
+  }
+
+  private roundMoneyBySymbol(
+    values: Record<string, number>,
+  ): Record<string, number> {
+    return Object.fromEntries(
+      Object.entries(values).map(([symbol, value]) => [
+        symbol,
+        this.roundMoney(value),
+      ]),
+    );
   }
 
   private getPaperExecutionBlockedReasons(input: {
