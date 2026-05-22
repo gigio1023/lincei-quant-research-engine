@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import * as request from 'supertest';
 import { AutonomousRun } from '../src/entities/autonomous-run.entity';
+import { BrokerSnapshot } from '../src/entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../src/entities/budget-envelope.entity';
 import { ExecutionControlState } from '../src/entities/execution-control-state.entity';
 import { InvestmentProposal } from '../src/entities/investment-proposal.entity';
@@ -23,6 +24,7 @@ describe('ControlPlane research provenance (e2e)', () => {
           database: ':memory:',
           entities: [
             AutonomousRun,
+            BrokerSnapshot,
             BudgetEnvelope,
             ExecutionControlState,
             InvestmentProposal,
@@ -360,5 +362,62 @@ describe('ControlPlane research provenance (e2e)', () => {
 
     expect(plansResponse.body).toHaveLength(1);
     expect(plansResponse.body[0].proposalId).toBe(proposalResponse.body.id);
+
+    const brokerSnapshotResponse = await request(app.getHttpServer())
+      .post('/control-plane/broker-snapshots/import-read-only')
+      .send({
+        provider: 'manual',
+        accountRef: 'e2e-account-ref',
+        sourceRef: 'operator-import',
+        asOf: new Date(Date.now() - 10 * 60_000).toISOString(),
+        currency: 'KRW',
+        cash: paperAccountResponse.body.cash,
+        equity: paperAccountResponse.body.equity,
+        positions: paperAccountResponse.body.positions,
+      })
+      .expect(201);
+
+    expect(brokerSnapshotResponse.body.accountRefHash).toMatch(/^sha256:/);
+    expect(brokerSnapshotResponse.body.brokerExecutionEnabled).toBe(false);
+    expect(brokerSnapshotResponse.body.liveTradingEnabled).toBe(false);
+    expect(brokerSnapshotResponse.body.reconciliation.status).toBe(
+      'not_checked',
+    );
+
+    const brokerReconcileResponse = await request(app.getHttpServer())
+      .post(
+        `/control-plane/broker-snapshots/${brokerSnapshotResponse.body.id}/reconcile-paper`,
+      )
+      .send({
+        tolerance: 0.01,
+        maxAgeMinutes: 60,
+        notes: ['E2E broker read-only reconciliation.'],
+      })
+      .expect(201);
+
+    expect(brokerReconcileResponse.body.status).toBe('matched');
+    expect(brokerReconcileResponse.body.reconciliation.cashMatched).toBe(true);
+    expect(brokerReconcileResponse.body.reconciliation.positionsMatched).toBe(
+      true,
+    );
+
+    const latestBrokerSnapshotResponse = await request(app.getHttpServer())
+      .get('/control-plane/broker-snapshots/latest')
+      .expect(200);
+    expect(latestBrokerSnapshotResponse.body.id).toBe(
+      brokerSnapshotResponse.body.id,
+    );
+
+    await request(app.getHttpServer())
+      .post('/control-plane/broker-snapshots/import-read-only')
+      .send({
+        provider: 'manual',
+        asOf: new Date(Date.now() - 10 * 60_000).toISOString(),
+        cash: 1_000_000,
+        equity: 1_000_000,
+        positions: [],
+        brokerCredentials: { token: 'secret' },
+      })
+      .expect(400);
   });
 });

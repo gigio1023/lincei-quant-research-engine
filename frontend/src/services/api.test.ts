@@ -286,6 +286,46 @@ describe("API Service", () => {
       expect(result).toEqual(mockPaperAccount);
     });
 
+    it("should_get_broker_snapshots", async () => {
+      const mockBrokerSnapshots = [
+        {
+          id: "broker-snapshot-1",
+          provider: "manual",
+          status: "matched",
+          currency: "KRW",
+          cash: 9499250,
+          equity: 9999250,
+          grossExposurePct: 5,
+          positions: [],
+          asOf: "2026-05-22T09:00:00.000Z",
+          reconciliation: {
+            status: "matched",
+            cashMatched: true,
+            equityMatched: true,
+            positionsMatched: true,
+            actualBrokerCash: 9499250,
+            actualBrokerEquity: 9999250,
+            actualBrokerPositions: {},
+            tolerance: 0.01,
+            maxAgeMinutes: 60,
+            notes: [],
+          },
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+          createdAt: "2026-05-22T09:00:00.000Z",
+          updatedAt: "2026-05-22T09:05:00.000Z",
+        },
+      ];
+
+      mockGet.mockResolvedValue({ data: mockBrokerSnapshots });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.getBrokerSnapshots();
+
+      expect(mockGet).toHaveBeenCalledWith("/control-plane/broker-snapshots");
+      expect(result).toEqual(mockBrokerSnapshots);
+    });
+
     it("should_get_execution_control", async () => {
       const mockExecutionControl = {
         id: "execution-control-1",

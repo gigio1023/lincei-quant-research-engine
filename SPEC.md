@@ -232,6 +232,15 @@ Adapter boundary:
 
 No adapter should expose raw broker credentials to the frontend or LLM layer.
 
+Current read-only slice:
+
+- `broker_snapshots` stores imported read-only account evidence with provider, source ref, hashed account ref, timestamp, cash, equity, exposure, positions, reconciliation status, and hard `brokerExecutionEnabled/liveTradingEnabled: false` flags;
+- `POST /control-plane/broker-snapshots/import-read-only` accepts manual/imported snapshots and rejects broker credentials, account ids, tokens, order payloads, and order intent fields;
+- `GET /control-plane/broker-snapshots` and `GET /control-plane/broker-snapshots/latest` expose read-only snapshot history;
+- `POST /control-plane/broker-snapshots/:id/reconcile-paper` compares a broker snapshot with the active paper account and records cash, equity, position, tolerance, age, stale, match, or mismatch evidence;
+- the dashboard shows a Broker Snapshot Monitor next to paper execution so the user can see whether external account truth matches internal paper state;
+- this is not a Toss adapter yet and cannot place, cancel, modify, preview, or route orders.
+
 Toss Securities API must be treated as real-money write access unless an official sandbox or paper environment is verified. Official public pages show OAuth client-credentials, account lookup, holdings, and order examples, but access requires a Toss Securities account, pre-application, and API key issuance. The current public docs do not prove a paper environment.
 
 ### 7. Monitoring and Recovery
@@ -415,6 +424,14 @@ Add broker read-only mode:
 - cash import;
 - reconciliation against internal paper state.
 
+Current status:
+
+- broker snapshot entity and read-only import API exist;
+- raw account refs are hashed and credentials/order fields are rejected;
+- broker snapshots can be reconciled against the active paper account for cash, equity, positions, tolerance, and staleness;
+- frontend dashboard shows latest broker snapshot status and reconciliation notes;
+- still missing verified Toss schema/client, real API credentials isolation, provider-specific rate-limit/error handling, and scheduled polling.
+
 Exit criteria:
 
 - broker API credentials stay outside LLM/frontend state;
@@ -450,9 +467,9 @@ Blocking items:
 
 - Toss API access and API key approval;
 - exact OpenAPI schema review;
-- broker adapter implementation;
+- verified Toss broker adapter implementation;
 - signed human approval;
-- broker read-only reconciliation;
+- scheduled broker read-only polling and broker-backed reconciliation;
 - explicit paper account seed/promote workflow;
 - transaction isolation plus quantity, cost basis, realized PnL, and reservation accounting;
 - operational monitoring;

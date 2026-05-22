@@ -1,5 +1,6 @@
 import axios from "axios";
 import {
+  BrokerSnapshot,
   ControlPlaneStatus,
   ExecutionControlState,
   PaperAccount,
@@ -73,6 +74,11 @@ export const controlPlaneApi = {
 
   getPaperOrderPlans: async (): Promise<PaperOrderPlan[]> => {
     const response = await api.get("/control-plane/paper-order-plans");
+    return response.data;
+  },
+
+  getBrokerSnapshots: async (): Promise<BrokerSnapshot[]> => {
+    const response = await api.get("/control-plane/broker-snapshots");
     return response.data;
   },
 

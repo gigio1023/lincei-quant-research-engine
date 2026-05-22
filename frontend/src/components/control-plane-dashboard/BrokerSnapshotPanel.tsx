@@ -1,0 +1,151 @@
+import {
+  formatCurrency,
+  formatDateTime,
+  formatNumber,
+  paperOrderPlanStatusClass,
+} from "./dashboardFormat";
+import { DashboardModel } from "./useControlPlaneDashboard";
+
+interface BrokerSnapshotPanelProps {
+  model: DashboardModel;
+}
+
+export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
+  const snapshot = model.latestBrokerSnapshot;
+
+  return (
+    <section className="rounded-xl border border-[#2b3139] bg-[#181a20]">
+      <div className="flex flex-col gap-3 border-b border-[#2b3139] p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-base font-bold text-white">
+            Broker Snapshot Monitor
+          </h3>
+          <p className="mt-1 text-xs text-[#707a8a]">
+            Read-only broker evidence. No credentials, order payloads, or
+            callable broker actions are exposed here.
+          </p>
+        </div>
+        <span className="rounded-md border border-[#f6465d]/30 bg-[#f6465d]/10 px-2 py-1 text-[11px] font-bold uppercase text-[#f6465d]">
+          broker write disabled
+        </span>
+      </div>
+
+      {model.errors.brokerSnapshots && (
+        <div className="mx-4 mt-4 rounded-lg border border-[#f0b90b]/30 bg-[#f0b90b]/10 p-3 text-xs font-semibold text-[#fcd535]">
+          {model.errors.brokerSnapshots}
+        </div>
+      )}
+
+      {snapshot ? (
+        <div className="grid gap-0 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="border-b border-[#2b3139] p-4 lg:border-r lg:border-b-0">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[11px] font-bold uppercase text-[#707a8a]">
+                  {model.sources.brokerSnapshots}
+                </div>
+                <div className="mt-1 font-mono text-sm font-bold text-white">
+                  {snapshot.provider} / {snapshot.sourceRef ?? "read-only"}
+                </div>
+                <div className="mt-1 font-mono text-[11px] text-[#707a8a]">
+                  {snapshot.id}
+                </div>
+              </div>
+              <span
+                className={`${paperOrderPlanStatusClass(snapshot.status)} rounded-md border px-2 py-1 text-[11px] font-bold uppercase`}
+              >
+                {snapshot.status}
+              </span>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {[
+                ["Cash", formatCurrency(snapshot.cash, snapshot.currency)],
+                ["Equity", formatCurrency(snapshot.equity, snapshot.currency)],
+                ["Exposure", `${formatNumber(snapshot.grossExposurePct)}%`],
+                ["Positions", `${snapshot.positions.length}`],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3"
+                >
+                  <div className="text-[11px] font-bold uppercase text-[#707a8a]">
+                    {label}
+                  </div>
+                  <div className="mt-1 font-mono text-sm font-bold text-white">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 text-xs text-[#707a8a]">
+              As of{" "}
+              <span className="font-mono text-[#eaecef]">
+                {formatDateTime(snapshot.asOf)}
+              </span>
+            </div>
+          </div>
+
+          <div className="p-4">
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: "Cash", matched: snapshot.reconciliation.cashMatched },
+                {
+                  label: "Equity",
+                  matched: snapshot.reconciliation.equityMatched,
+                },
+                {
+                  label: "Positions",
+                  matched: snapshot.reconciliation.positionsMatched,
+                },
+              ].map(({ label, matched }) => (
+                <div
+                  key={label}
+                  className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3"
+                >
+                  <div className="text-[11px] font-bold uppercase text-[#707a8a]">
+                    {label}
+                  </div>
+                  <div
+                    className={`mt-1 font-mono text-sm font-bold ${
+                      matched ? "text-[#0ecb81]" : "text-[#f6465d]"
+                    }`}
+                  >
+                    {matched ? "matched" : "open"}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 divide-y divide-[#2b3139] rounded-lg border border-[#2b3139] bg-[#0b0e11] text-xs">
+              {[
+                ["cashDiff", snapshot.reconciliation.cashDiff ?? 0],
+                ["equityDiff", snapshot.reconciliation.equityDiff ?? 0],
+                ["tolerance", snapshot.reconciliation.tolerance],
+                ["maxAgeMinutes", snapshot.reconciliation.maxAgeMinutes],
+              ].map(([label, value]) => (
+                <div key={label} className="flex justify-between gap-3 p-3">
+                  <span className="text-[#707a8a]">{label}</span>
+                  <span className="font-mono font-bold text-[#eaecef]">
+                    {typeof value === "number" ? formatNumber(value) : value}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 max-h-24 space-y-1 overflow-auto text-xs text-[#929aa5]">
+              {snapshot.reconciliation.notes.slice(-3).map((note) => (
+                <div key={note}>{note}</div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="p-4 text-sm text-[#929aa5]">
+          No broker read-only snapshot has been imported yet.
+        </div>
+      )}
+    </section>
+  );
+};

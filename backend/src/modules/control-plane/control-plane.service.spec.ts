@@ -1,4 +1,5 @@
 import { AutonomousRun } from '../../entities/autonomous-run.entity';
+import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
@@ -12,6 +13,7 @@ import { ControlPlaneService } from './control-plane.service';
 describe('ControlPlaneService', () => {
   let service: ControlPlaneService;
   let budgets: BudgetEnvelope[];
+  let brokerSnapshots: BrokerSnapshot[];
   let researchRuns: ResearchRun[];
   let proposals: InvestmentProposal[];
   let paperAccounts: PaperAccount[];
@@ -43,6 +45,7 @@ describe('ControlPlaneService', () => {
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(new Date('2026-05-23T00:00:00.000Z'));
     budgets = [];
+    brokerSnapshots = [];
     researchRuns = [];
     proposals = [];
     paperAccounts = [];
@@ -52,6 +55,7 @@ describe('ControlPlaneService', () => {
     runs = [];
     service = new ControlPlaneService(
       makeRepository(budgets) as any,
+      makeRepository(brokerSnapshots) as any,
       makeRepository(proposals) as any,
       makeRepository(researchRuns) as any,
       makeRepository(paperAccounts) as any,
@@ -410,6 +414,102 @@ describe('ControlPlaneService', () => {
     );
   });
 
+  it('imports a read-only broker snapshot and reconciles it against paper account state', async () => {
+    paperAccounts.push({
+      id: 1,
+      name: 'Paper account',
+      status: 'active',
+      currency: 'KRW',
+      cash: 9_500_000,
+      equity: 10_000_000,
+      grossExposurePct: 5,
+      positions: [
+        {
+          symbol: '005930',
+          assetClass: 'domestic_stock',
+          marketValue: 500_000,
+          weightPct: 5,
+        },
+      ],
+      cashLedger: [],
+      positionLedger: [],
+      appliedPlanIds: [],
+      brokerExecutionEnabled: false,
+      liveTradingEnabled: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as PaperAccount);
+
+    const snapshot = await service.importBrokerSnapshot({
+      provider: 'manual',
+      accountRef: 'raw-account-id-must-be-hashed',
+      sourceRef: 'operator-import',
+      asOf: '2026-05-22T23:59:00.000Z',
+      currency: 'KRW',
+      cash: 9_500_000,
+      equity: 10_000_000,
+      positions: [
+        {
+          symbol: '005930',
+          assetClass: 'domestic_stock',
+          marketValue: 500_000,
+          weightPct: 5,
+        },
+      ],
+    });
+
+    expect(snapshot.brokerExecutionEnabled).toBe(false);
+    expect(snapshot.liveTradingEnabled).toBe(false);
+    expect(snapshot.accountRefHash).toMatch(/^sha256:/);
+    expect(snapshot).not.toHaveProperty('accountRef');
+    expect(snapshot.reconciliation.status).toBe('not_checked');
+
+    const reconciled = await service.reconcileBrokerSnapshot(snapshot.id, {
+      tolerance: 0.01,
+      maxAgeMinutes: 120,
+      notes: ['Unit test broker reconciliation.'],
+    });
+
+    expect(reconciled.status).toBe('matched');
+    expect(reconciled.reconciliation).toEqual(
+      expect.objectContaining({
+        status: 'matched',
+        paperAccountId: paperAccounts[0].id,
+        cashMatched: true,
+        equityMatched: true,
+        positionsMatched: true,
+        cashDiff: 0,
+        equityDiff: 0,
+      }),
+    );
+  });
+
+  it('rejects broker snapshot imports that include credentials or order intent', async () => {
+    await expect(
+      service.importBrokerSnapshot({
+        provider: 'manual',
+        asOf: '2026-05-22T23:59:00.000Z',
+        cash: 1_000_000,
+        equity: 1_000_000,
+        positions: [],
+        brokerCredentials: { token: 'secret' },
+      } as any),
+    ).rejects.toThrow('Broker read-only snapshots cannot include');
+
+    await expect(
+      service.importBrokerSnapshot({
+        provider: 'manual',
+        asOf: '2026-05-22T23:59:00.000Z',
+        cash: 1_000_000,
+        equity: 1_000_000,
+        positions: [],
+        orders: [{ symbol: '005930' }],
+      } as any),
+    ).rejects.toThrow('Broker read-only snapshots cannot include');
+
+    expect(brokerSnapshots).toHaveLength(0);
+  });
+
   it('persists a blocked paper plan when risk approval is missing', async () => {
     const researchRun = await service.createResearchRun({
       objective: 'Blocked paper execution research run',
@@ -708,7 +808,9 @@ describe('ControlPlaneService', () => {
 
     expect(status.brokerExecutionEnabled).toBe(false);
     expect(status.liveTradingReady).toBe(false);
-    expect(status.blockers).toContain('No Toss or broker read-only adapter');
+    expect(status.blockers).toContain(
+      'No verified Toss read-only adapter schema or credentials',
+    );
     expect(status.readiness).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -726,6 +828,10 @@ describe('ControlPlaneService', () => {
         expect.objectContaining({
           key: 'paperSimulationLedgerReady',
           ready: true,
+        }),
+        expect.objectContaining({
+          key: 'brokerSnapshotLedgerReady',
+          ready: false,
         }),
         expect.objectContaining({
           key: 'executionControlReady',

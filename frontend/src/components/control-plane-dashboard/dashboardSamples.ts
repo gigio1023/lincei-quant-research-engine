@@ -1,4 +1,4 @@
-import { PaperOrderPlan, ResearchRun } from "../../types";
+import { BrokerSnapshot, PaperOrderPlan, ResearchRun } from "../../types";
 
 export const DOCUMENTED_RESEARCH_RUNS: ResearchRun[] = [
   {
@@ -187,5 +187,52 @@ export const DOCUMENTED_PAPER_ORDER_PLANS: PaperOrderPlan[] = [
     blockedReasons: [],
     createdAt: "2026-05-22T09:04:00.000Z",
     updatedAt: "2026-05-22T09:06:30.000Z",
+  },
+];
+
+export const DOCUMENTED_BROKER_SNAPSHOTS: BrokerSnapshot[] = [
+  {
+    id: "broker-snapshot-docs-001",
+    provider: "manual",
+    sourceRef: "documented-read-only-import",
+    accountRefHash: "sha256:docs-account-ref",
+    status: "matched",
+    currency: "KRW",
+    cash: 9_499_500,
+    equity: 9_999_850,
+    grossExposurePct: 5,
+    positions: [
+      {
+        symbol: "005930",
+        assetClass: "domestic_stock",
+        marketValue: 499_850,
+        weightPct: 5,
+      },
+    ],
+    asOf: "2026-05-22T09:07:00.000Z",
+    reconciliation: {
+      status: "matched",
+      checkedAt: "2026-05-22T09:08:00.000Z",
+      paperAccountId: "paper-account-docs-001",
+      cashMatched: true,
+      equityMatched: true,
+      positionsMatched: true,
+      expectedPaperCash: 9_499_500,
+      actualBrokerCash: 9_499_500,
+      cashDiff: 0,
+      expectedPaperEquity: 9_999_850,
+      actualBrokerEquity: 9_999_850,
+      equityDiff: 0,
+      expectedPaperPositions: { "005930": 499_850 },
+      actualBrokerPositions: { "005930": 499_850 },
+      positionDiffs: { "005930": 0 },
+      tolerance: 0.01,
+      maxAgeMinutes: 60,
+      notes: ["Read-only broker snapshot matched the paper account sample."],
+    },
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+    createdAt: "2026-05-22T09:07:00.000Z",
+    updatedAt: "2026-05-22T09:08:00.000Z",
   },
 ];

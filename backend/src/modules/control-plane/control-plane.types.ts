@@ -1,9 +1,10 @@
+import { BrokerSnapshotProvider } from '../../entities/broker-snapshot.entity';
+import { ExecutionControlStateValue } from '../../entities/execution-control-state.entity';
 import {
   BacktestMetrics,
   ResearchDatasetRef,
   ResearchWindow,
 } from '../../entities/research-run.entity';
-import { ExecutionControlStateValue } from '../../entities/execution-control-state.entity';
 import {
   PortfolioSnapshot,
   ProposedOrder,
@@ -76,6 +77,25 @@ export interface PaperExecuteProposalRequest {
 
 export interface ReconcilePaperOrderPlanRequest {
   tolerance?: number;
+  notes?: string[];
+}
+
+export interface ImportBrokerSnapshotRequest {
+  provider?: BrokerSnapshotProvider;
+  sourceRef?: string;
+  accountRef?: string;
+  asOf: string;
+  currency?: string;
+  cash: number;
+  equity: number;
+  grossExposurePct?: number;
+  positions?: PortfolioSnapshot['positions'];
+}
+
+export interface ReconcileBrokerSnapshotRequest {
+  paperAccountId?: number;
+  tolerance?: number;
+  maxAgeMinutes?: number;
   notes?: string[];
 }
 

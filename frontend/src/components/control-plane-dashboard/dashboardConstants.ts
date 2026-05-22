@@ -10,6 +10,7 @@ import {
   SafetyGate,
 } from "../../types";
 export {
+  DOCUMENTED_BROKER_SNAPSHOTS,
   DOCUMENTED_PAPER_ORDER_PLANS,
   DOCUMENTED_RESEARCH_RUNS,
 } from "./dashboardSamples";
@@ -85,13 +86,24 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
       detail: "Execution control state defaults to active",
     },
     {
+      key: "brokerReadOnlyReady",
+      ready: false,
+      detail:
+        "Live broker adapter is not implemented; read-only snapshot ledger is available",
+    },
+    {
+      key: "brokerSnapshotLedgerReady",
+      ready: true,
+      detail: "Documented broker read-only snapshot sample is available",
+    },
+    {
       key: "liveTradingReady",
       ready: false,
       detail: "Live trading is blocked",
     },
   ],
   blockers: [
-    "No broker read-only adapter",
+    "No verified Toss read-only adapter schema or credentials",
     "No signed order-plan workflow",
     "No broker reconciliation loop",
     "No production kill switch runtime",
@@ -170,8 +182,9 @@ export const SAFETY_GATES: SafetyGate[] = [
   },
   {
     name: "Broker read-only",
-    status: "missing",
-    notes: "No Toss or broker account snapshot adapter is wired into the app.",
+    status: "partial",
+    notes:
+      "Read-only broker snapshot ledger and paper reconciliation exist; a verified Toss adapter is still missing.",
   },
   {
     name: "Live trading",
@@ -212,9 +225,9 @@ export const CONTROL_PLANE_STAGES: ControlPlaneStage[] = [
   {
     phase: "Phase 4",
     title: "Broker read-only",
-    status: "missing",
+    status: "partial",
     description:
-      "Broker snapshots for holdings and cash without any callable order endpoint.",
+      "Manual read-only broker snapshots and paper-account reconciliation without any callable order endpoint.",
   },
   {
     phase: "Phase 5",

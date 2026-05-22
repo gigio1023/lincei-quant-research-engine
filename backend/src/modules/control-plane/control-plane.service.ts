@@ -7,6 +7,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { createHash } from 'crypto';
 import { Repository } from 'typeorm';
 import { AutonomousRun } from '../../entities/autonomous-run.entity';
+import {
+  BrokerSnapshot,
+  BrokerSnapshotReconciliation,
+} from '../../entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import {
   ExecutionControlState,
@@ -36,7 +40,9 @@ import {
   CreateBudgetEnvelopeRequest,
   CreateInvestmentProposalRequest,
   CreateResearchRunRequest,
+  ImportBrokerSnapshotRequest,
   PaperExecuteProposalRequest,
+  ReconcileBrokerSnapshotRequest,
   ReconcilePaperOrderPlanRequest,
   RunBaselineResearchRequest,
   UpdateExecutionControlRequest,
@@ -53,6 +59,8 @@ export class ControlPlaneService {
   constructor(
     @InjectRepository(BudgetEnvelope)
     private readonly budgetRepository: Repository<BudgetEnvelope>,
+    @InjectRepository(BrokerSnapshot)
+    private readonly brokerSnapshotRepository: Repository<BrokerSnapshot>,
     @InjectRepository(InvestmentProposal)
     private readonly proposalRepository: Repository<InvestmentProposal>,
     @InjectRepository(ResearchRun)
@@ -80,6 +88,7 @@ export class ControlPlaneService {
     const evaluationCount = await this.riskEvaluationRepository.count();
     const paperAccountCount = await this.paperAccountRepository.count();
     const paperOrderPlanCount = await this.paperOrderPlanRepository.count();
+    const brokerSnapshotCount = await this.brokerSnapshotRepository.count();
     const executionControlState = await this.getExecutionControlState();
     const runCount = await this.runRepository.count();
 
@@ -143,7 +152,13 @@ export class ControlPlaneService {
         {
           key: 'brokerReadOnlyReady',
           ready: false,
-          detail: 'Broker read-only adapter is not implemented',
+          detail:
+            'Live broker adapter is not implemented; read-only snapshot ledger is available',
+        },
+        {
+          key: 'brokerSnapshotLedgerReady',
+          ready: brokerSnapshotCount > 0,
+          detail: `${brokerSnapshotCount} broker read-only snapshots imported`,
         },
         {
           key: 'liveTradingReady',
@@ -153,7 +168,7 @@ export class ControlPlaneService {
         },
       ],
       blockers: [
-        'No Toss or broker read-only adapter',
+        'No verified Toss read-only adapter schema or credentials',
         'No signed order-plan workflow',
         'No broker reconciliation loop',
         'No production kill switch runtime',
@@ -339,6 +354,187 @@ export class ControlPlaneService {
     throw new NotFoundException(
       'No active paper account exists. A paper execution or explicit seed step must create it first.',
     );
+  }
+
+  async importBrokerSnapshot(
+    request: ImportBrokerSnapshotRequest,
+  ): Promise<BrokerSnapshot> {
+    this.assertReadOnlyBrokerSnapshotRequest(request);
+
+    const asOf = new Date(request.asOf);
+
+    if (Number.isNaN(asOf.getTime())) {
+      throw new BadRequestException(
+        'Broker snapshot asOf must be a valid date',
+      );
+    }
+
+    if (asOf.getTime() > Date.now() + 60_000) {
+      throw new BadRequestException('Broker snapshot asOf cannot be future');
+    }
+
+    if (request.cash < 0 || request.equity < 0) {
+      throw new BadRequestException(
+        'Broker snapshot cash and equity cannot be negative',
+      );
+    }
+
+    const positions = request.positions ?? [];
+    const grossExposurePct =
+      request.grossExposurePct ??
+      this.calculateGrossExposurePct(positions, request.equity);
+    const actualBrokerPositions = this.positionsToMarketValueMap(positions);
+    const reconciliation: BrokerSnapshotReconciliation = {
+      status: 'not_checked',
+      cashMatched: false,
+      equityMatched: false,
+      positionsMatched: false,
+      actualBrokerCash: this.roundMoney(request.cash),
+      actualBrokerEquity: this.roundMoney(request.equity),
+      actualBrokerPositions,
+      tolerance: 0.01,
+      maxAgeMinutes: 60,
+      notes: [
+        'Imported as read-only broker evidence. No order endpoint was called.',
+      ],
+    };
+
+    return this.brokerSnapshotRepository.save(
+      this.brokerSnapshotRepository.create({
+        provider: request.provider ?? 'manual',
+        sourceRef: request.sourceRef,
+        accountRefHash: request.accountRef
+          ? this.hashObject({ accountRef: request.accountRef })
+          : undefined,
+        status: 'imported',
+        currency: request.currency ?? 'KRW',
+        cash: this.roundMoney(request.cash),
+        equity: this.roundMoney(request.equity),
+        grossExposurePct,
+        positions,
+        asOf,
+        reconciliation,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+  }
+
+  async listBrokerSnapshots(): Promise<BrokerSnapshot[]> {
+    return this.brokerSnapshotRepository.find({
+      order: { asOf: 'DESC', updatedAt: 'DESC' },
+    });
+  }
+
+  async getLatestBrokerSnapshot(): Promise<BrokerSnapshot> {
+    const latest = await this.brokerSnapshotRepository.findOne({
+      where: {},
+      order: { asOf: 'DESC', updatedAt: 'DESC' },
+    });
+
+    if (!latest) {
+      throw new NotFoundException('No broker read-only snapshot exists');
+    }
+
+    return latest;
+  }
+
+  async reconcileBrokerSnapshot(
+    snapshotId: number,
+    request: ReconcileBrokerSnapshotRequest = {},
+  ): Promise<BrokerSnapshot> {
+    const snapshot = await this.brokerSnapshotRepository.findOne({
+      where: { id: snapshotId },
+    });
+
+    if (!snapshot) {
+      throw new NotFoundException(`Broker snapshot ${snapshotId} not found`);
+    }
+
+    const paperAccount = request.paperAccountId
+      ? await this.paperAccountRepository.findOne({
+          where: { id: request.paperAccountId },
+        })
+      : await this.paperAccountRepository.findOne({
+          where: { status: 'active' },
+          order: { updatedAt: 'DESC' },
+        });
+
+    if (!paperAccount) {
+      throw new NotFoundException(
+        'Broker snapshot reconciliation requires an active paper account',
+      );
+    }
+
+    const tolerance = request.tolerance ?? snapshot.reconciliation.tolerance;
+    const maxAgeMinutes =
+      request.maxAgeMinutes ?? snapshot.reconciliation.maxAgeMinutes;
+    const checkedAt = new Date();
+    const ageMinutes = (checkedAt.getTime() - snapshot.asOf.getTime()) / 60_000;
+    const expectedPaperPositions = this.positionsToMarketValueMap(
+      paperAccount.positions,
+    );
+    const actualBrokerPositions = this.positionsToMarketValueMap(
+      snapshot.positions,
+    );
+    const allSymbols = Array.from(
+      new Set([
+        ...Object.keys(expectedPaperPositions),
+        ...Object.keys(actualBrokerPositions),
+      ]),
+    );
+    const positionDiffs = Object.fromEntries(
+      allSymbols.map((symbol) => [
+        symbol,
+        this.roundMoney(
+          (actualBrokerPositions[symbol] ?? 0) -
+            (expectedPaperPositions[symbol] ?? 0),
+        ),
+      ]),
+    );
+    const cashDiff = this.roundMoney(snapshot.cash - paperAccount.cash);
+    const equityDiff = this.roundMoney(snapshot.equity - paperAccount.equity);
+    const cashMatched = Math.abs(cashDiff) <= tolerance;
+    const equityMatched = Math.abs(equityDiff) <= tolerance;
+    const positionsMatched = Object.values(positionDiffs).every(
+      (diff) => Math.abs(diff) <= tolerance,
+    );
+    const stale = ageMinutes > maxAgeMinutes;
+    const status = stale
+      ? 'stale'
+      : cashMatched && equityMatched && positionsMatched
+        ? 'matched'
+        : 'mismatch';
+
+    snapshot.status = status;
+    snapshot.reconciliation = {
+      status,
+      checkedAt: checkedAt.toISOString(),
+      paperAccountId: paperAccount.id,
+      cashMatched,
+      equityMatched,
+      positionsMatched,
+      expectedPaperCash: paperAccount.cash,
+      actualBrokerCash: snapshot.cash,
+      cashDiff,
+      expectedPaperEquity: paperAccount.equity,
+      actualBrokerEquity: snapshot.equity,
+      equityDiff,
+      expectedPaperPositions,
+      actualBrokerPositions,
+      positionDiffs,
+      tolerance,
+      maxAgeMinutes,
+      notes: [
+        ...snapshot.reconciliation.notes,
+        ...(request.notes ?? []),
+        stale
+          ? `Broker snapshot is stale: ${this.roundMoney(ageMinutes)} minutes old.`
+          : 'Broker snapshot compared against active paper account state.',
+      ],
+    };
+
+    return this.brokerSnapshotRepository.save(snapshot);
   }
 
   async getExecutionControlState(): Promise<ExecutionControlState> {
@@ -1298,6 +1494,35 @@ export class ControlPlaneService {
     return Object.fromEntries(
       positions.map((position) => [position.symbol, position.marketValue]),
     );
+  }
+
+  private assertReadOnlyBrokerSnapshotRequest(
+    request: ImportBrokerSnapshotRequest,
+  ): void {
+    const disallowedKeys = [
+      'brokerCredentials',
+      'accessToken',
+      'refreshToken',
+      'secret',
+      'clientSecret',
+      'apiKey',
+      'accountId',
+      'orders',
+      'order',
+      'clientOrderId',
+      'placeOrder',
+      'cancelOrder',
+    ];
+    const presentDisallowedKey = disallowedKeys.find(
+      (key) =>
+        (request as unknown as Record<string, unknown>)[key] !== undefined,
+    );
+
+    if (presentDisallowedKey) {
+      throw new BadRequestException(
+        `Broker read-only snapshots cannot include ${presentDisallowedKey}`,
+      );
+    }
   }
 
   private calculateGrossExposurePct(

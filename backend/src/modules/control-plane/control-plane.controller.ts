@@ -7,6 +7,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { AutonomousRun } from '../../entities/autonomous-run.entity';
+import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
@@ -20,7 +21,9 @@ import {
   CreateBudgetEnvelopeRequest,
   CreateInvestmentProposalRequest,
   CreateResearchRunRequest,
+  ImportBrokerSnapshotRequest,
   PaperExecuteProposalRequest,
+  ReconcileBrokerSnapshotRequest,
   ReconcilePaperOrderPlanRequest,
   RunBaselineResearchRequest,
   UpdateExecutionControlRequest,
@@ -79,6 +82,31 @@ export class ControlPlaneController {
   @Get('paper-account')
   getPaperAccountState(): Promise<PaperAccount> {
     return this.controlPlaneService.getPaperAccountState();
+  }
+
+  @Post('broker-snapshots/import-read-only')
+  importBrokerSnapshot(
+    @Body() request: ImportBrokerSnapshotRequest,
+  ): Promise<BrokerSnapshot> {
+    return this.controlPlaneService.importBrokerSnapshot(request);
+  }
+
+  @Get('broker-snapshots')
+  listBrokerSnapshots(): Promise<BrokerSnapshot[]> {
+    return this.controlPlaneService.listBrokerSnapshots();
+  }
+
+  @Get('broker-snapshots/latest')
+  getLatestBrokerSnapshot(): Promise<BrokerSnapshot> {
+    return this.controlPlaneService.getLatestBrokerSnapshot();
+  }
+
+  @Post('broker-snapshots/:id/reconcile-paper')
+  reconcileBrokerSnapshot(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() request: ReconcileBrokerSnapshotRequest = {},
+  ): Promise<BrokerSnapshot> {
+    return this.controlPlaneService.reconcileBrokerSnapshot(id, request);
   }
 
   @Post('execution-control')

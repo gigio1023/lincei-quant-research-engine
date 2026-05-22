@@ -264,6 +264,73 @@ export interface PaperAccount {
   updatedAt: string;
 }
 
+export type BrokerSnapshotProvider = "manual" | "toss" | "simulated";
+
+export type BrokerSnapshotStatus =
+  | "imported"
+  | "matched"
+  | "mismatch"
+  | "stale";
+
+export interface BrokerSnapshotReconciliation {
+  status: "not_checked" | "matched" | "mismatch" | "stale";
+  checkedAt?: string;
+  paperAccountId?: number | string;
+  cashMatched: boolean;
+  equityMatched: boolean;
+  positionsMatched: boolean;
+  expectedPaperCash?: number;
+  actualBrokerCash: number;
+  cashDiff?: number;
+  expectedPaperEquity?: number;
+  actualBrokerEquity: number;
+  equityDiff?: number;
+  expectedPaperPositions?: Record<string, number>;
+  actualBrokerPositions: Record<string, number>;
+  positionDiffs?: Record<string, number>;
+  tolerance: number;
+  maxAgeMinutes: number;
+  notes: string[];
+}
+
+export interface BrokerSnapshot {
+  id: number | string;
+  provider: BrokerSnapshotProvider;
+  sourceRef?: string;
+  accountRefHash?: string;
+  status: BrokerSnapshotStatus;
+  currency: string;
+  cash: number;
+  equity: number;
+  grossExposurePct: number;
+  positions: PositionSnapshot[];
+  asOf: string;
+  reconciliation: BrokerSnapshotReconciliation;
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ImportBrokerSnapshotRequest {
+  provider?: BrokerSnapshotProvider;
+  sourceRef?: string;
+  accountRef?: string;
+  asOf: string;
+  currency?: string;
+  cash: number;
+  equity: number;
+  grossExposurePct?: number;
+  positions?: PositionSnapshot[];
+}
+
+export interface ReconcileBrokerSnapshotRequest {
+  paperAccountId?: number;
+  tolerance?: number;
+  maxAgeMinutes?: number;
+  notes?: string[];
+}
+
 export interface RiskGateRequest {
   mode: RiskGateMode;
   actor: RiskGateActor;

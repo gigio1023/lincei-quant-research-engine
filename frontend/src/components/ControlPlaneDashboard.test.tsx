@@ -13,6 +13,7 @@ vi.mock("../services/api", () => ({
     getPaperAccount: vi.fn(),
     getExecutionControl: vi.fn(),
     getPaperOrderPlans: vi.fn(),
+    getBrokerSnapshots: vi.fn(),
     runBaselineResearch: vi.fn(),
   },
 }));
@@ -347,6 +348,46 @@ const mockExecutionControl = {
   createdAt: "2026-05-22T09:00:00.000Z",
 };
 
+const mockBrokerSnapshots = [
+  {
+    id: "broker-snapshot-api-1",
+    provider: "manual",
+    sourceRef: "operator-import",
+    accountRefHash: "sha256:broker-account",
+    status: "matched",
+    currency: "KRW",
+    cash: 9500000,
+    equity: 9999850,
+    grossExposurePct: 5,
+    positions: mockPaperAccount.positions,
+    asOf: "2026-05-22T09:07:00.000Z",
+    reconciliation: {
+      status: "matched",
+      checkedAt: "2026-05-22T09:08:00.000Z",
+      paperAccountId: mockPaperAccount.id,
+      cashMatched: true,
+      equityMatched: true,
+      positionsMatched: true,
+      expectedPaperCash: 9500000,
+      actualBrokerCash: 9500000,
+      cashDiff: 0,
+      expectedPaperEquity: 9999850,
+      actualBrokerEquity: 9999850,
+      equityDiff: 0,
+      expectedPaperPositions: { "005930": 499850 },
+      actualBrokerPositions: { "005930": 499850 },
+      positionDiffs: { "005930": 0 },
+      tolerance: 0.01,
+      maxAgeMinutes: 60,
+      notes: ["Broker snapshot compared against active paper account state."],
+    },
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+    createdAt: "2026-05-22T09:07:00.000Z",
+    updatedAt: "2026-05-22T09:08:00.000Z",
+  },
+];
+
 describe("ControlPlaneDashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -365,6 +406,9 @@ describe("ControlPlaneDashboard", () => {
     );
     vi.mocked(controlPlaneApi.getPaperOrderPlans).mockResolvedValue(
       mockPaperOrderPlans,
+    );
+    vi.mocked(controlPlaneApi.getBrokerSnapshots).mockResolvedValue(
+      mockBrokerSnapshots,
     );
     vi.mocked(controlPlaneApi.runBaselineResearch).mockResolvedValue(
       mockBaselineResearchRun,
@@ -411,7 +455,7 @@ describe("ControlPlaneDashboard", () => {
     expect(
       screen.getByText("Paper execution control is active."),
     ).toBeInTheDocument();
-    expect(screen.getByText("Positions")).toBeInTheDocument();
+    expect(screen.getAllByText("Positions").length).toBeGreaterThan(0);
     expect(screen.getAllByText("005930").length).toBeGreaterThan(0);
     expect(screen.getByText("Last reconciliation")).toBeInTheDocument();
     expect(screen.getByText("Recent ledger changes")).toBeInTheDocument();
@@ -427,6 +471,14 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("Expected cash")).toBeInTheDocument();
     expect(
       screen.getByText("Paper cash ledger matched simulated fills."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Broker Snapshot Monitor")).toBeInTheDocument();
+    expect(screen.getByText("Live broker snapshots")).toBeInTheDocument();
+    expect(screen.getByText("manual / operator-import")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Broker snapshot compared against active paper account state.",
+      ),
     ).toBeInTheDocument();
     expect(
       screen.getAllByText("brokerExecutionEnabled: false").length,
@@ -450,6 +502,9 @@ describe("ControlPlaneDashboard", () => {
       new Error("offline"),
     );
     vi.mocked(controlPlaneApi.getPaperOrderPlans).mockRejectedValue(
+      new Error("offline"),
+    );
+    vi.mocked(controlPlaneApi.getBrokerSnapshots).mockRejectedValue(
       new Error("offline"),
     );
 
@@ -495,6 +550,8 @@ describe("ControlPlaneDashboard", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByText("paper-docs-plan-001")).toBeInTheDocument();
+    expect(screen.getByText("Documented broker sample")).toBeInTheDocument();
+    expect(screen.getByText("broker-snapshot-docs-001")).toBeInTheDocument();
   });
 
   it("should_show_empty_state_when_live_research_ledger_is_empty", async () => {

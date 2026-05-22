@@ -1,3 +1,4 @@
+import { BrokerSnapshotPanel } from "./control-plane-dashboard/BrokerSnapshotPanel";
 import { DashboardHeader } from "./control-plane-dashboard/DashboardHeader";
 import { PaperExecutionPanel } from "./control-plane-dashboard/PaperExecutionPanel";
 import { ReadinessPanel } from "./control-plane-dashboard/ReadinessPanel";
@@ -17,6 +18,7 @@ const ControlPlaneDashboard = () => {
           <div className="space-y-4">
             <ResearchLedgerPanel model={model} />
             <PaperExecutionPanel model={model} />
+            <BrokerSnapshotPanel model={model} />
           </div>
           <RightRail model={model} />
         </section>
