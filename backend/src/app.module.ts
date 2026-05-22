@@ -8,8 +8,13 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { NewsModule } from './modules/news/news.module';
 import { LlmModule } from './modules/llm/llm.module';
 import { RiskGateModule } from './modules/risk-gate/risk-gate.module';
+import { ControlPlaneModule } from './modules/control-plane/control-plane.module';
 import { Report } from './entities/report.entity';
 import { NewsSource } from './entities/news-source.entity';
+import { BudgetEnvelope } from './entities/budget-envelope.entity';
+import { InvestmentProposal } from './entities/investment-proposal.entity';
+import { RiskEvaluation } from './entities/risk-evaluation.entity';
+import { AutonomousRun } from './entities/autonomous-run.entity';
 
 @Module({
   imports: [
@@ -19,9 +24,16 @@ import { NewsSource } from './entities/news-source.entity';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
-        type: 'sqlite',
+        type: 'better-sqlite3',
         database: configService.get('DATABASE_PATH', 'data/investment.db'),
-        entities: [Report, NewsSource],
+        entities: [
+          Report,
+          NewsSource,
+          BudgetEnvelope,
+          InvestmentProposal,
+          RiskEvaluation,
+          AutonomousRun,
+        ],
         synchronize: true,
         autoLoadEntities: true,
       }),
@@ -32,6 +44,7 @@ import { NewsSource } from './entities/news-source.entity';
     NewsModule,
     LlmModule,
     RiskGateModule,
+    ControlPlaneModule,
   ],
   controllers: [AppController],
   providers: [AppService],

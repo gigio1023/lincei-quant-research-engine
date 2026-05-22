@@ -26,7 +26,7 @@ describe('Data Flow Integration (e2e)', () => {
           envFilePath: '.env.test',
         }),
         TypeOrmModule.forRoot({
-          type: 'sqlite',
+          type: 'better-sqlite3',
           database: ':memory:',
           entities: [Report, NewsSource],
           synchronize: true,

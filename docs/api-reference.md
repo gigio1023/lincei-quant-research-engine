@@ -172,6 +172,62 @@ Currently, no authentication is required for the API endpoints. This will be upd
     }
     ```
 
+### Control Plane
+
+All control-plane endpoints are evaluation-only. They create budget, proposal,
+risk-evaluation, and run ledger records, but they do not place broker orders.
+
+#### `GET /control-plane/status`
+
+-   **Description**: Returns system readiness, blockers, and confirms broker execution is disabled.
+
+#### `POST /control-plane/budgets`
+
+-   **Description**: Creates an active budget envelope. Live trading is forcibly disabled even if requested.
+-   **Example Request**:
+    ```json
+    {
+      "name": "Aggressive dry run",
+      "totalBudget": 10000000,
+      "currency": "KRW",
+      "mode": "dry_run"
+    }
+    ```
+
+#### `GET /control-plane/budgets`
+
+-   **Description**: Lists budget envelopes ordered by latest update.
+
+#### `POST /control-plane/proposals`
+
+-   **Description**: Stores a typed investment proposal with portfolio snapshot, orders, thesis, and evidence references.
+
+#### `GET /control-plane/proposals`
+
+-   **Description**: Lists stored investment proposals.
+
+#### `POST /control-plane/proposals/:id/evaluate-risk`
+
+-   **Description**: Evaluates a stored proposal through the deterministic risk gate and persists request/response snapshots.
+
+#### `GET /control-plane/risk-evaluations`
+
+-   **Description**: Lists persisted risk evaluations.
+
+#### `POST /control-plane/runs`
+
+-   **Description**: Creates an observable autonomous-run ledger entry.
+-   **Example Request**:
+    ```json
+    {
+      "objective": "Research and allocate dry-run budget"
+    }
+    ```
+
+#### `GET /control-plane/runs`
+
+-   **Description**: Lists autonomous-run ledger entries.
+
 ## Data Models
 
 ### Report

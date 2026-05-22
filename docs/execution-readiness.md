@@ -11,6 +11,8 @@ After the initial control-plane work, the repo can run a deterministic risk eval
 - Backend report service, if environment variables are configured.
 - Frontend report UI.
 - New risk gate tests and backend build.
+- Control-plane budget/proposal/risk-evaluation/run ledgers.
+- Control-plane dashboard view.
 - Local reference inspection under `references/projects/`.
 
 ## Not Runnable Yet
@@ -30,8 +32,8 @@ After the initial control-plane work, the repo can run a deterministic risk eval
 | Gate | Status | Notes |
 | --- | --- | --- |
 | Research reports | Partial | Existing app creates LLM-assisted reports, not trade proposals. |
-| Proposal contract | Missing | Needs schema, storage, provenance, timestamps. |
-| Deterministic risk gate | Started | Evaluation-only backend module. |
+| Proposal contract | Started | Budget/proposal/risk-evaluation/run entities and endpoints exist. Research-run ledger still missing. |
+| Deterministic risk gate | Started | Evaluation-only backend module plus persisted risk-evaluation audit through control-plane. |
 | Paper execution | Missing | Must exist before broker write access. |
 | Broker read-only | Missing | Toss or another broker snapshot adapter required. |
 | Broker write access | Blocked | Requires separate gated design and credentials. |
@@ -47,3 +49,7 @@ Build toward this order:
 4. Toss read-only adapter;
 5. Toss paper/sandbox adapter if available;
 6. tiny live pilot behind explicit approval.
+
+## Toss-Specific Readiness
+
+Toss Securities Open API should be treated as live broker access until an official test environment is verified. Public official materials show account, holdings, market data, and order examples, but access is gated by account ownership, pre-application, and API key issuance. The current repo must not add a Toss order adapter before paper execution and broker read-only reconciliation exist.

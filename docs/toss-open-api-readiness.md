@@ -48,6 +48,8 @@ Before implementing a Toss adapter, verify:
 - webhook or polling expectations;
 - allowed use of automated strategies under current terms.
 
+I did not find an official Toss sandbox or paper-trading environment in the public sources checked. Until verified otherwise, Toss write endpoints must be treated as real-money order capability.
+
 ## Integration Verdict
 
 Toss is a plausible first broker-adapter candidate, but this repo is not ready to use Toss for real money.

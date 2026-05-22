@@ -90,6 +90,12 @@ const Header: React.FC = () => {
                   분석
                 </Link>
                 <Link
+                  to="/control-plane"
+                  className="glass-button px-6 py-3 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 font-semibold rounded-2xl transition-all duration-120 ease-fast-out backdrop-blur-extreme border-2 border-glass-white-border dark:border-glass-black-border hover:border-primary-400 dark:hover:bg-glass-black-border hover:scale-[1.02] transform will-change-transform"
+                >
+                  Control Plane
+                </Link>
+                <Link
                   to="/testing"
                   className="glass-button px-6 py-3 text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 font-semibold rounded-2xl transition-all duration-120 ease-fast-out backdrop-blur-extreme border-2 border-orange-200 dark:border-orange-800 hover:border-orange-400 dark:hover:bg-glass-black-border hover:scale-[1.02] transform will-change-transform"
                 >

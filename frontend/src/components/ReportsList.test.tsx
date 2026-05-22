@@ -18,13 +18,19 @@ vi.mock("../services/api", () => ({
 }));
 
 describe("ReportsList", () => {
-  it("should_render_loading_state", () => {
+  it("should_render_loading_state", async () => {
     render(
       <MemoryRouter>
         <ReportsList />
       </MemoryRouter>,
     );
     expect(screen.getByText("AI가 분석 중입니다")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("선택한 필터에 해당하는 리포트가 없습니다."),
+      ).toBeInTheDocument();
+    });
   });
 
   it("should_render_empty_state_after_loading", async () => {

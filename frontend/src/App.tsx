@@ -4,6 +4,7 @@ import Header from "./components/Header";
 import ReportsList from "./components/ReportsList";
 import ReportDetail from "./components/ReportDetail";
 import TestingDashboard from "./components/TestingDashboard";
+import ControlPlaneDashboard from "./components/ControlPlaneDashboard";
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
             <Route path="/" element={<ReportsList />} />
             <Route path="/reports" element={<ReportsList />} />
             <Route path="/reports/:id" element={<ReportDetail />} />
+            <Route path="/control-plane" element={<ControlPlaneDashboard />} />
             <Route path="/testing" element={<TestingDashboard />} />
             <Route
               path="/analytics"

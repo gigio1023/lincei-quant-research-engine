@@ -14,6 +14,8 @@ The local clones under `references/projects/` are ignored by git. These paths ar
 | Runtime control states | `references/projects/freqtrade/freqtrade/worker.py`, `references/projects/nautilus_trader/nautilus_trader/live/node.py` | Use audited states such as `idle`, `running`, `paused`, `halted`, and `stopping`, not loose UI buttons. |
 | No-lookahead handling | `references/projects/qlib/qlib/contrib/strategy/order_generator.py`, `references/projects/vectorbt/vectorbt/portfolio/base.py` | Timestamp alignment tests must guard close-derived signals and generated order timing. |
 | Experiment artifacts | `references/projects/qlib/qlib/workflow/recorder.py`, `references/projects/qlib/qlib/workflow/expm.py`, `references/projects/vectorbt/vectorbt/portfolio/base.py` | Keep a proposal ledger with inputs, config, signal version, simulated intents, metrics, and reports. |
+| Paper-before-live execution | `references/projects/freqtrade/freqtrade/exchange/exchange.py`, `references/projects/hummingbot/hummingbot/connector/budget_checker.py` | Add a paper execution enclave before any broker write adapter. |
+| Runtime kill switch | `references/projects/hummingbot/hummingbot/core/utils/kill_switch.py`, `references/projects/nautilus_trader/nautilus_trader/risk/engine.pyx` | Recovery should be stop/reduce/exit based on policy, not LLM judgment. |
 
 ## Patterns To Avoid
 
@@ -24,5 +26,6 @@ The local clones under `references/projects/` are ignored by git. These paths ar
 | Force-entry and force-exit controls | `references/projects/freqtrade/freqtrade/rpc/rpc.py` | Initial product must not expose manual force-trade endpoints. |
 | Crypto bot product shape | `references/projects/freqtrade`, `references/projects/hummingbot` | Reuse protections and connector boundaries, not crypto market-making assumptions. |
 | Simulation as execution | `references/projects/vectorbt/vectorbt/portfolio/base.py` | Fast simulations do not define real broker fill, latency, or reconciliation behavior. |
+| RL as first allocator | `references/projects/FinRL/finrl/meta/env_stock_trading/env_stocktrading.py` | Reinforcement-learning actions should not be the initial capital allocation engine. |
 
 Future design notes should extend this file when a new reference is inspected.

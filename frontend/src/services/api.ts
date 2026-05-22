@@ -1,7 +1,19 @@
 import axios from "axios";
-import { Report, ReportsResponse } from "../types";
+import {
+  ControlPlaneStatus,
+  Report,
+  ReportsResponse,
+  RiskGateStatus,
+} from "../types";
 
-const API_BASE_URL = process.env.REACT_APP_API_URL ?? "http://localhost:3001";
+const env = (
+  import.meta as ImportMeta & {
+    env: Record<string, string | undefined>;
+  }
+).env;
+
+const API_BASE_URL =
+  env.VITE_API_URL ?? env.REACT_APP_API_URL ?? "http://localhost:3001";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -21,6 +33,20 @@ export const reportsApi = {
 
   getReportsByDate: async (date: string): Promise<Report[]> => {
     const response = await api.get(`/reports/date/${date}`);
+    return response.data;
+  },
+};
+
+export const riskGateApi = {
+  getStatus: async (): Promise<RiskGateStatus> => {
+    const response = await api.get("/risk-gate/status");
+    return response.data;
+  },
+};
+
+export const controlPlaneApi = {
+  getStatus: async (): Promise<ControlPlaneStatus> => {
+    const response = await api.get("/control-plane/status");
     return response.data;
   },
 };

@@ -18,6 +18,7 @@ const mockGet = vi.fn();
 
 describe("API Service", () => {
   beforeEach(() => {
+    vi.resetModules();
     vi.clearAllMocks();
     mockedAxios.create.mockReturnValue({
       get: mockGet,
@@ -77,6 +78,65 @@ describe("API Service", () => {
 
       expect(mockGet).toHaveBeenCalledWith("/reports/1");
       expect(result).toEqual(mockReport);
+    });
+  });
+
+  describe("riskGateApi", () => {
+    it("should_get_risk_gate_status", async () => {
+      const mockStatus = {
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+        defaultPolicy: {
+          maxGrossExposurePct: 100,
+          maxSinglePositionPct: 20,
+          maxOrderNotional: 1000000,
+          maxDailyLossPct: 3,
+          maxDrawdownPct: 10,
+          maxDataAgeMinutes: 60,
+          allowedAssetClasses: [
+            "cash",
+            "domestic_stock",
+            "foreign_stock",
+            "domestic_etf",
+            "foreign_etf",
+          ],
+          allowLiveTrading: false,
+          requireHumanApproval: true,
+        },
+      };
+
+      mockGet.mockResolvedValue({ data: mockStatus });
+
+      const { riskGateApi } = await import("./api");
+      const result = await riskGateApi.getStatus();
+
+      expect(mockGet).toHaveBeenCalledWith("/risk-gate/status");
+      expect(result).toEqual(mockStatus);
+    });
+  });
+
+  describe("controlPlaneApi", () => {
+    it("should_get_control_plane_status", async () => {
+      const mockStatus = {
+        brokerExecutionEnabled: false,
+        liveTradingReady: false,
+        readiness: [
+          {
+            key: "riskGateReady",
+            ready: true,
+            detail: "Deterministic risk gate is registered",
+          },
+        ],
+        blockers: ["No paper execution enclave"],
+      };
+
+      mockGet.mockResolvedValue({ data: mockStatus });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.getStatus();
+
+      expect(mockGet).toHaveBeenCalledWith("/control-plane/status");
+      expect(result).toEqual(mockStatus);
     });
   });
 });

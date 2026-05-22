@@ -94,6 +94,41 @@ Outputs:
 
 LLMs may summarize, classify, and propose hypotheses. LLMs must not be treated as validated alpha.
 
+### 2.1 Research Run Ledger
+
+Every autonomous cycle must create a research run before it creates a proposal.
+
+A research run stores:
+
+- objective and budget envelope id;
+- strategy family and hypothesis;
+- dataset ids, windows, and availability timestamps;
+- feature list and timestamp lag rules;
+- benchmark;
+- transaction cost and slippage assumptions;
+- model or baseline name;
+- training window if a model was trained;
+- validation window;
+- backtest metrics;
+- artifact refs;
+- known failure modes.
+
+Model training is optional, not the default. The first implementation should use deterministic baselines and simple factor/ranking strategies. A trained model can be introduced only when it produces a signal that is evaluated like any other proposal.
+
+Allowed first model categories:
+
+- ranking models for risk-adjusted return or benchmark outperformance probability;
+- regime classifiers for volatility/trend/risk-off states;
+- event classifiers for news and filing events;
+- slippage or execution-cost estimators.
+
+Disallowed first model categories:
+
+- LLM direct buy/sell model;
+- reinforcement-learning allocator;
+- model output directly mapped to broker orders;
+- backtest-selected parameter set presented as validated alpha.
+
 ### 3. Portfolio Proposal
 
 A proposal is a typed object that can be tested and rejected.
@@ -123,6 +158,8 @@ The first backend slice is `POST /risk-gate/evaluate`. It returns:
 - reasons;
 - policy snapshot;
 - `brokerExecutionEnabled: false`.
+
+The control-plane slice also provides `POST /control-plane/proposals/:id/evaluate-risk`, which stores every evaluation. A result is not accepted unless the request and response snapshots are durable.
 
 Minimum checks:
 
@@ -170,6 +207,8 @@ Adapter boundary:
 - rate limit and retry rules.
 
 No adapter should expose raw broker credentials to the frontend or LLM layer.
+
+Toss Securities API must be treated as real-money write access unless an official sandbox or paper environment is verified. Official public pages show OAuth client-credentials, account lookup, holdings, and order examples, but access requires a Toss Securities account, pre-application, and API key issuance. The current public docs do not prove a paper environment.
 
 ### 7. Monitoring and Recovery
 
@@ -265,6 +304,15 @@ Exit criteria:
 - no proposal can be evaluated without policy;
 - every rejection is stored.
 
+Current status:
+
+- budget envelope entity exists;
+- proposal entity exists;
+- risk evaluation entity exists;
+- autonomous run entity exists;
+- control-plane status and list/create/evaluate endpoints exist;
+- broker execution remains disabled.
+
 ### Phase 2: Research Automation
 
 Add automated research runs:
@@ -275,6 +323,20 @@ Add automated research runs:
 - benchmark comparison;
 - transaction cost and slippage assumptions;
 - report generation for passed and failed runs.
+
+Backtesting minimums:
+
+- baseline comparison;
+- transaction costs;
+- slippage;
+- turnover;
+- exposure;
+- concentration;
+- drawdown;
+- Sharpe, Sortino, Calmar where applicable;
+- train/validation/test split when model training is used;
+- no-lookahead timestamp checks;
+- out-of-sample result recorded before a proposal can advance.
 
 Exit criteria:
 
