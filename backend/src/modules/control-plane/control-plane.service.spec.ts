@@ -699,6 +699,19 @@ describe('ControlPlaneService', () => {
       'Human approval is required outside dry-run mode',
     );
 
+    const recoveryReplay = await service.runRecoveryProposal({
+      budgetEnvelopeId: budget.id,
+      paperAccountId: seededAccount.id,
+      maxPositions: 1,
+    });
+
+    expect(recoveryReplay.researchRun.id).toBe(recovery.researchRun.id);
+    expect(recoveryReplay.proposal.id).toBe(recovery.proposal.id);
+    expect(recoveryReplay.riskEvaluation.id).toBe(recovery.riskEvaluation.id);
+    expect(recovery.proposal.evidenceRefs).toEqual(
+      expect.arrayContaining([expect.stringMatching(/^paper-recovery-state:/)]),
+    );
+
     const approval = await service.createOrderPlanApproval(
       recovery.proposal.id,
       {

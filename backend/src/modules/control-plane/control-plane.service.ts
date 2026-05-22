@@ -2378,6 +2378,19 @@ export class ControlPlaneService {
       );
     }
 
+    const recoveryStateRef = this.buildRecoveryStateRef(
+      paperAccount,
+      budget,
+      positions,
+      request.maxPositions ?? 10,
+    );
+    const existingRecovery =
+      await this.findExistingRecoveryProposal(recoveryStateRef);
+
+    if (existingRecovery) {
+      return existingRecovery;
+    }
+
     const generatedAt = new Date().toISOString();
     const paperAccountUpdatedAt =
       paperAccount.updatedAt?.toISOString() ?? generatedAt;
@@ -2462,6 +2475,11 @@ export class ControlPlaneService {
           positions,
           generatedAt,
         }),
+        [recoveryStateRef]: this.hashObject({
+          paperAccountId: paperAccount.id,
+          positions,
+          budgetId: budget.id,
+        }),
       },
       knownFailureModes: [
         'Paper recovery is a deterministic simulation and does not prove broker liquidity.',
@@ -2495,12 +2513,75 @@ export class ControlPlaneService {
       thesis:
         'Recovery proposal generated from active paper-account positions. It is SELL-only and keeps broker/live execution disabled.',
       evidenceRefs: [
+        recoveryStateRef,
         ...researchRun.artifactRefs,
         `paper-account:${paperAccount.id}`,
         `budget:${budget.id}`,
       ],
     });
     const riskEvaluation = await this.evaluateProposal(proposal.id);
+
+    return { researchRun, proposal, riskEvaluation };
+  }
+
+  private buildRecoveryStateRef(
+    paperAccount: PaperAccount,
+    budget: BudgetEnvelope,
+    positions: PortfolioSnapshot['positions'],
+    maxPositions: number,
+  ): string {
+    const stateHash = this.hashObject({
+      paperAccountId: paperAccount.id,
+      paperAccountUpdatedAt: paperAccount.updatedAt?.toISOString() ?? null,
+      budgetId: budget.id,
+      maxPositions,
+      maxOrderNotional: budget.policy?.maxOrderNotional ?? 1_000_000,
+      cash: this.roundMoney(paperAccount.cash),
+      equity: this.roundMoney(paperAccount.equity),
+      grossExposurePct: this.roundMoney(paperAccount.grossExposurePct),
+      positions: [...(positions ?? [])]
+        .map((position) => ({
+          symbol: position.symbol,
+          assetClass: position.assetClass,
+          marketValue: this.roundMoney(position.marketValue),
+          weightPct:
+            position.weightPct === undefined
+              ? undefined
+              : this.roundMoney(position.weightPct),
+        }))
+        .sort((left, right) => left.symbol.localeCompare(right.symbol)),
+    });
+
+    return `paper-recovery-state:${stateHash}`;
+  }
+
+  private async findExistingRecoveryProposal(
+    recoveryStateRef: string,
+  ): Promise<RunRecoveryProposalResponse | null> {
+    const proposal = (
+      await this.proposalRepository.find({
+        where: { ruleId: 'paper-account-recovery-sell-only-v1' },
+        order: { updatedAt: 'DESC' },
+      })
+    ).find((candidate) =>
+      (candidate.evidenceRefs ?? []).includes(recoveryStateRef),
+    );
+
+    if (!proposal?.researchRunId) {
+      return null;
+    }
+
+    const researchRun = await this.researchRunRepository.findOne({
+      where: { id: proposal.researchRunId },
+    });
+
+    if (!researchRun) {
+      return null;
+    }
+
+    const riskEvaluation =
+      (await this.findLatestRiskEvaluation(proposal.id)) ??
+      (await this.evaluateProposal(proposal.id));
 
     return { researchRun, proposal, riskEvaluation };
   }

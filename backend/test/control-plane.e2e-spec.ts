@@ -709,6 +709,28 @@ describe('ControlPlane research provenance (e2e)', () => {
       false,
     );
 
+    const replayRecoveryResponse = await request(app.getHttpServer())
+      .post('/control-plane/recovery/run-baseline')
+      .send({
+        budgetEnvelopeId: budgetResponse.body.id,
+        paperAccountId: seededAccountResponse.body.id,
+        maxPositions: 1,
+      })
+      .expect(201);
+
+    expect(replayRecoveryResponse.body.researchRun.id).toBe(
+      recoveryResponse.body.researchRun.id,
+    );
+    expect(replayRecoveryResponse.body.proposal.id).toBe(
+      recoveryResponse.body.proposal.id,
+    );
+    expect(replayRecoveryResponse.body.riskEvaluation.id).toBe(
+      recoveryResponse.body.riskEvaluation.id,
+    );
+    expect(recoveryResponse.body.proposal.evidenceRefs).toEqual(
+      expect.arrayContaining([expect.stringMatching(/^paper-recovery-state:/)]),
+    );
+
     const approvalResponse = await request(app.getHttpServer())
       .post(
         `/control-plane/proposals/${recoveryResponse.body.proposal.id}/order-plan-approvals`,

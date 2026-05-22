@@ -272,10 +272,9 @@ Current recovery implementation:
 - it creates a `paper_recovery` research run, a linked `paper-account-recovery-sell-only-v1` proposal, and a persisted risk evaluation;
 - proposal orders are `SELL` only, sorted from largest paper position first, and capped by the active budget `maxOrderNotional`;
 - the risk gate allows reducing SELL orders even when the current long position is already above the single-position limit, while still denying oversized or non-reducing SELL attempts;
+- recovery proposal generation computes a deterministic `paper-recovery-state:*` evidence ref from the paper-account projection, budget, max position count, and max order notional, then replays the existing research run/proposal/risk evaluation for duplicate requests;
 - the dashboard exposes this as "Create sell-only recovery", clearly separate from paper execution;
 - recovery proposal generation never submits paper fills, never creates signed approval, never calls broker APIs, and keeps all broker/live flags disabled.
-
-Known recovery gap: repeated recovery calls are not yet idempotent against the same paper-account projection. Before live-adjacent operation, recovery needs a state hash or proposal idempotency key so duplicate clicks, retries, or scheduler races cannot create competing liquidation proposals.
 
 ## Reference Projects Policy
 
@@ -426,6 +425,7 @@ Current status:
 - deterministic paper order-plan ledger exists;
 - durable signed paper order-plan approval ledger exists;
 - idempotent paper-execute endpoint exists;
+- idempotent SELL-only recovery proposal replay exists for unchanged paper-account projections;
 - paper fill, cash ledger, position ledger, and local reconciliation snapshots exist;
 - durable paper account state now carries simulated cash, equity, exposure, positions, and applied plan ids across paper cycles;
 - minimal execution-control state and halted/paused/reducing gate exists;
@@ -488,7 +488,7 @@ Blocking items:
 - exact OpenAPI schema review;
 - verified Toss broker adapter implementation beyond the current readiness contract;
 - production signing custody for human approvals;
-- scheduled broker read-only polling and broker-backed reconciliation;
+- broker-backed reconciliation;
 - explicit paper account seed/promote workflow exists, but production custody and operator policy still need hardening;
 - schedule leases and an env-gated in-process worker for autonomous runs exist with due/not-due checks, TTL validation, owner-checked release, overlap guard, and cycle keys; distributed DB lock audit, scheduler deployment policy, and auth boundary still need hardening;
 - transaction isolation plus quantity, cost basis, realized PnL, and reservation accounting;

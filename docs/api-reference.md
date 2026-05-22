@@ -281,8 +281,9 @@ all broker/live execution flags remain `false`.
   - returns `{ "researchRun": ResearchRun, "proposal": InvestmentProposal, "riskEvaluation": RiskEvaluation }`;
   - the proposal orders are `SELL` and capped by the active budget `maxOrderNotional`;
   - zero and negative paper positions are ignored;
+  - repeated calls for the same paper-account projection, budget, max position count, and max order notional replay the existing recovery research run/proposal/risk evaluation through a `paper-recovery-state:*` evidence ref;
   - a paper-mode budget will usually return `REVIEW` until a signed order-plan approval is created through `POST /control-plane/proposals/:id/order-plan-approvals`;
-  - repeated calls are not yet idempotent and can create multiple recovery proposals from the same paper-account state.
+  - a changed paper-account projection after paper execution produces a new recovery state and can create the next reducing proposal.
 
 #### `POST /control-plane/proposals`
 
