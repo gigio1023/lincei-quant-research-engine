@@ -13,11 +13,7 @@ export const DashboardHeader = ({ model }: DashboardHeaderProps) => {
       formatBoolean(model.status.brokerExecutionEnabled),
       "text-[#f6465d]",
     ],
-    [
-      "liveTradingEnabled",
-      formatBoolean(model.status.liveTradingEnabled),
-      "text-[#f6465d]",
-    ],
+    ["liveGate", model.controlStatus.liveTradingGate.mode, "text-[#f6465d]"],
     [
       "Intent",
       EXAMPLE_REQUEST.executionIntent ?? "evaluate_only",

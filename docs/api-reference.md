@@ -180,7 +180,12 @@ all broker/live execution flags remain `false`.
 
 #### `GET /control-plane/status`
 
-- **Description**: Returns system readiness, blockers, and confirms broker execution is disabled.
+- **Description**: Returns system readiness, blockers, and confirms broker execution is disabled. The response includes a `liveTradingGate` object that stays disabled until order endpoints, broker write access, production credential custody, kill-switch runtime, fill polling, and broker reconciliation are all implemented and verified.
+- **Response Notes**:
+  - `brokerExecutionEnabled` is always `false`;
+  - `liveTradingReady` is always `false`;
+  - `liveTradingGate.mode` is `disabled`;
+  - `liveTradingGate.blockers` lists the missing production controls that must be cleared before any real-money order path can be considered.
 
 #### `POST /control-plane/budgets`
 

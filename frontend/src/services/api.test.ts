@@ -121,6 +121,17 @@ describe("API Service", () => {
       const mockStatus = {
         brokerExecutionEnabled: false,
         liveTradingReady: false,
+        liveTradingGate: {
+          enabled: false,
+          mode: "disabled",
+          checkedAt: "2026-05-22T09:00:00.000Z",
+          orderEndpointImplemented: false,
+          brokerWriteEnabled: false,
+          killSwitchReady: false,
+          credentialCustodyRequired: true,
+          blockers: ["Live order endpoint is not implemented"],
+          detail: "Live trading gate is disabled.",
+        },
         readiness: [
           {
             key: "riskGateReady",

@@ -48,6 +48,20 @@ export const ReadinessPanel = ({ model }: ReadinessPanelProps) => (
       ))}
     </div>
 
+    <div className="mt-4 rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-[11px] font-bold uppercase text-[#707a8a]">
+          Live Trading Gate
+        </div>
+        <span className={statusBadge("blocked")}>
+          {model.controlStatus.liveTradingGate.mode}
+        </span>
+      </div>
+      <div className="mt-2 text-xs leading-5 text-[#929aa5]">
+        {model.controlStatus.liveTradingGate.detail}
+      </div>
+    </div>
+
     <div className="mt-4 rounded-lg border border-[#f6465d]/30 bg-[#f6465d]/10 p-3">
       <div className="text-[11px] font-bold uppercase text-[#f6465d]">
         Remaining blockers

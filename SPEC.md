@@ -433,6 +433,7 @@ Current status:
 - readiness checks subtract any still-reserved paper hold snapshot even if a previous plan has already moved out of an open execution status;
 - durable paper account state now carries simulated cash, equity, exposure, positions, and applied plan ids across paper cycles;
 - minimal execution-control state and halted/paused/reducing gate exists;
+- control-plane status now exposes an explicit disabled live-trading gate with blockers for order endpoints, broker write access, credential custody, kill switch, fill polling, and reconciliation;
 - frontend dashboard shows paper account state, execution-control state, latest paper plans, fills, reconciliation notes, hashes, and broker/live disabled guardrails;
 - still missing production signing custody, transaction-isolated accounting service, database-enforced reservation lock isolation, and scheduled broker-backed reconciliation.
 

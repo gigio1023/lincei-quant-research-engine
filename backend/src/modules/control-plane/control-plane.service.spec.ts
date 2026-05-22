@@ -1365,6 +1365,20 @@ describe('ControlPlaneService', () => {
 
     expect(status.brokerExecutionEnabled).toBe(false);
     expect(status.liveTradingReady).toBe(false);
+    expect(status.liveTradingGate).toEqual(
+      expect.objectContaining({
+        enabled: false,
+        mode: 'disabled',
+        orderEndpointImplemented: false,
+        brokerWriteEnabled: false,
+        killSwitchReady: false,
+        credentialCustodyRequired: true,
+        blockers: expect.arrayContaining([
+          'Live order endpoint is not implemented',
+          'Broker write access is disabled',
+        ]),
+      }),
+    );
     expect(status.blockers).toContain(
       'No verified Toss read-only adapter schema or credentials',
     );

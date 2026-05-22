@@ -303,10 +303,23 @@ export interface AdvanceAutonomousRunRequest {
 export interface ControlPlaneStatus {
   brokerExecutionEnabled: false;
   liveTradingReady: false;
+  liveTradingGate: LiveTradingGateStatus;
   readiness: Array<{
     key: string;
     ready: boolean;
     detail: string;
   }>;
   blockers: string[];
+}
+
+export interface LiveTradingGateStatus {
+  enabled: false;
+  mode: 'disabled';
+  checkedAt: string;
+  orderEndpointImplemented: false;
+  brokerWriteEnabled: false;
+  killSwitchReady: false;
+  credentialCustodyRequired: true;
+  blockers: string[];
+  detail: string;
 }

@@ -57,6 +57,17 @@ const mockRiskGateStatus = {
 const mockControlPlaneStatus = {
   brokerExecutionEnabled: false,
   liveTradingReady: false,
+  liveTradingGate: {
+    enabled: false,
+    mode: "disabled",
+    checkedAt: "2026-05-22T09:00:00.000Z",
+    orderEndpointImplemented: false,
+    brokerWriteEnabled: false,
+    killSwitchReady: false,
+    credentialCustodyRequired: true,
+    blockers: ["Live order endpoint is not implemented"],
+    detail: "Live trading gate is disabled.",
+  },
   readiness: [
     {
       key: "riskGateReady",
@@ -875,7 +886,9 @@ describe("ControlPlaneDashboard", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("No live trading")).toBeInTheDocument();
     expect(screen.getByText("brokerExecutionEnabled")).toBeInTheDocument();
-    expect(screen.getAllByText("false").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("liveGate")).toBeInTheDocument();
+    expect(screen.getAllByText("disabled").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("false").length).toBeGreaterThanOrEqual(1);
 
     await waitFor(() => {
       expect(screen.getByText("Live API status")).toBeInTheDocument();

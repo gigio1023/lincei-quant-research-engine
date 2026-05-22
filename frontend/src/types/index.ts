@@ -592,8 +592,21 @@ export interface ControlPlaneReadinessItem {
 export interface ControlPlaneStatus {
   brokerExecutionEnabled: false;
   liveTradingReady: false;
+  liveTradingGate: LiveTradingGateStatus;
   readiness: ControlPlaneReadinessItem[];
   blockers: string[];
+}
+
+export interface LiveTradingGateStatus {
+  enabled: false;
+  mode: "disabled";
+  checkedAt: string;
+  orderEndpointImplemented: false;
+  brokerWriteEnabled: false;
+  killSwitchReady: false;
+  credentialCustodyRequired: true;
+  blockers: string[];
+  detail: string;
 }
 
 export type BudgetEnvelopeStatus = "draft" | "active" | "paused" | "archived";

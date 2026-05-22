@@ -51,6 +51,24 @@ export const DOCUMENTED_STATUS: RiskGateStatus = {
 export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
   brokerExecutionEnabled: false,
   liveTradingReady: false,
+  liveTradingGate: {
+    enabled: false,
+    mode: "disabled",
+    checkedAt: "2026-05-22T09:00:00.000Z",
+    orderEndpointImplemented: false,
+    brokerWriteEnabled: false,
+    killSwitchReady: false,
+    credentialCustodyRequired: true,
+    blockers: [
+      "Live order endpoint is not implemented",
+      "Broker write access is disabled",
+      "Production credential custody is not wired",
+      "Production kill switch runtime is not ready",
+      "Broker fill polling and reconciliation are not verified",
+    ],
+    detail:
+      "Live trading gate is disabled until broker write access, credential custody, kill switch, fill polling, and reconciliation are verified.",
+  },
   readiness: [
     {
       key: "budgetEnvelopeActive",
@@ -113,7 +131,8 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
     {
       key: "liveTradingReady",
       ready: false,
-      detail: "Live trading is blocked",
+      detail:
+        "Live trading gate is disabled until broker write access, credential custody, kill switch, fill polling, and reconciliation are verified.",
     },
   ],
   blockers: [

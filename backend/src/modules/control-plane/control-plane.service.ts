@@ -141,10 +141,12 @@ export class ControlPlaneService {
     const brokerSnapshotCount = await this.brokerSnapshotRepository.count();
     const executionControlState = await this.getExecutionControlState();
     const runCount = await this.runRepository.count();
+    const liveTradingGate = this.buildLiveTradingGateStatus();
 
     return {
       brokerExecutionEnabled: false,
       liveTradingReady: false,
+      liveTradingGate,
       readiness: [
         {
           key: 'budgetEnvelopeActive',
@@ -219,7 +221,7 @@ export class ControlPlaneService {
           key: 'brokerAdapterContractReady',
           ready: true,
           detail:
-            'Provider-neutral Toss readiness contract reports credential, schema, sandbox, read-only, and order-placement gates',
+            'Provider-neutral Toss readiness contract reports credential, credential-custody, schema, sandbox, read-only, and order-placement gates',
         },
         {
           key: 'brokerSnapshotLedgerReady',
@@ -229,8 +231,7 @@ export class ControlPlaneService {
         {
           key: 'liveTradingReady',
           ready: false,
-          detail:
-            'Live trading is blocked until paper execution and broker reconciliation exist',
+          detail: liveTradingGate.detail,
         },
       ],
       blockers: [
@@ -238,7 +239,30 @@ export class ControlPlaneService {
         'No production signed order-plan workflow',
         'No broker reconciliation loop',
         'No production kill switch runtime',
+        ...liveTradingGate.blockers,
       ],
+    };
+  }
+
+  private buildLiveTradingGateStatus(): ControlPlaneStatus['liveTradingGate'] {
+    const blockers = [
+      'Live order endpoint is not implemented',
+      'Broker write access is disabled',
+      'Production credential custody is not wired',
+      'Production kill switch runtime is not ready',
+      'Broker fill polling and reconciliation are not verified',
+    ];
+
+    return {
+      enabled: false,
+      mode: 'disabled',
+      checkedAt: new Date().toISOString(),
+      orderEndpointImplemented: false,
+      brokerWriteEnabled: false,
+      killSwitchReady: false,
+      credentialCustodyRequired: true,
+      blockers,
+      detail: `Live trading gate is disabled: ${blockers.join('; ')}.`,
     };
   }
 
