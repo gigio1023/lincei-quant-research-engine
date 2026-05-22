@@ -265,6 +265,25 @@ all broker/live execution flags remain `false`.
   - `brokerExecutionEnabled` and `liveTradingEnabled` are always `false`.
   - The run is `proposal_ready` only if dataset lineage, no-lookahead proof, cost/slippage assumptions, backtest metrics, and artifact hashes are present.
 
+#### `POST /control-plane/recovery/run-baseline`
+
+- **Description**: Builds a deterministic SELL-only recovery proposal from the active promoted paper account, then persists the linked research run, investment proposal, and risk evaluation. This endpoint creates proposal evidence only. It does not create an order-plan approval, does not paper-execute fills, does not call a broker, and never enables live trading.
+- **Example Request**:
+  ```json
+  {
+    "paperAccountId": 1,
+    "budgetEnvelopeId": 1,
+    "objective": "Reduce oversized paper exposure",
+    "maxPositions": 10
+  }
+  ```
+- **Response Notes**:
+  - returns `{ "researchRun": ResearchRun, "proposal": InvestmentProposal, "riskEvaluation": RiskEvaluation }`;
+  - the proposal orders are `SELL` and capped by the active budget `maxOrderNotional`;
+  - zero and negative paper positions are ignored;
+  - a paper-mode budget will usually return `REVIEW` until a signed order-plan approval is created through `POST /control-plane/proposals/:id/order-plan-approvals`;
+  - repeated calls are not yet idempotent and can create multiple recovery proposals from the same paper-account state.
+
 #### `POST /control-plane/proposals`
 
 - **Description**: Stores a typed investment proposal with portfolio snapshot, orders, thesis, and evidence references. A `researchRunId` is required, and the linked run must be `proposal_ready` with `advanceEligible: true`.

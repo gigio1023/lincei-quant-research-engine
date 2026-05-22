@@ -36,6 +36,8 @@ import {
   PromotePaperAccountRequest,
   ReconcileBrokerSnapshotRequest,
   ReconcilePaperOrderPlanRequest,
+  RunRecoveryProposalRequest,
+  RunRecoveryProposalResponse,
   RunScheduleWorkerStatus,
   RunBaselineResearchRequest,
   SeedPaperAccountRequest,
@@ -217,6 +219,13 @@ export class ControlPlaneController {
     @Body() request: RunBaselineResearchRequest,
   ): Promise<ResearchRun> {
     return this.controlPlaneService.runBaselineResearch(request);
+  }
+
+  @Post('recovery/run-baseline')
+  runRecoveryProposal(
+    @Body() request: RunRecoveryProposalRequest = {},
+  ): Promise<RunRecoveryProposalResponse> {
+    return this.controlPlaneService.runRecoveryProposal(request);
   }
 
   @Post('runs')

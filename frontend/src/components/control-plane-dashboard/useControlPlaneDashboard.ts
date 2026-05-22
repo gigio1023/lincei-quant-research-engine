@@ -107,6 +107,7 @@ export interface DashboardModel {
     brokerAdapter: string | null;
     orderPlanApprovals: string | null;
     baselineResearch: string | null;
+    recoveryProposal: string | null;
   };
   loading: {
     researchRuns: boolean;
@@ -124,11 +125,14 @@ export interface DashboardModel {
     orderPlanApprovals: boolean;
   };
   baselineResearchSuccess: string | null;
+  recoveryProposalSuccess: string | null;
   runningBaselineResearch: boolean;
+  runningRecoveryProposal: boolean;
   advancingRun: boolean;
   tickingSchedule: boolean;
   readinessReadyCount: number;
   runBaselineResearch: () => Promise<void>;
+  runRecoveryProposal: () => Promise<void>;
   advanceLatestRun: () => Promise<void>;
   tickLatestSchedule: () => Promise<void>;
 }
@@ -410,12 +414,19 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     string | null
   >(null);
   const [runningBaselineResearch, setRunningBaselineResearch] = useState(false);
+  const [runningRecoveryProposal, setRunningRecoveryProposal] = useState(false);
   const [advancingRun, setAdvancingRun] = useState(false);
   const [tickingSchedule, setTickingSchedule] = useState(false);
   const [baselineResearchError, setBaselineResearchError] = useState<
     string | null
   >(null);
+  const [recoveryProposalError, setRecoveryProposalError] = useState<
+    string | null
+  >(null);
   const [baselineResearchSuccess, setBaselineResearchSuccess] = useState<
+    string | null
+  >(null);
+  const [recoveryProposalSuccess, setRecoveryProposalSuccess] = useState<
     string | null
   >(null);
 
@@ -708,6 +719,61 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       );
     } finally {
       setRunningBaselineResearch(false);
+    }
+  };
+
+  const runRecoveryProposal = async () => {
+    if (!paperAccount) {
+      setRecoveryProposalError(
+        "Recovery proposal requires a live active paper account.",
+      );
+      return;
+    }
+
+    setRunningRecoveryProposal(true);
+    setRecoveryProposalError(null);
+    setRecoveryProposalSuccess(null);
+
+    try {
+      const recoveryRequest = {
+        ...(typeof paperAccount.id === "number"
+          ? { paperAccountId: paperAccount.id }
+          : {}),
+        ...(typeof paperAccount.budgetEnvelopeId === "number"
+          ? { budgetEnvelopeId: paperAccount.budgetEnvelopeId }
+          : {}),
+        maxPositions: 10,
+      };
+      const recovery =
+        await controlPlaneApi.runRecoveryProposal(recoveryRequest);
+
+      setResearchRuns((currentRuns) => [
+        recovery.researchRun,
+        ...(currentRuns ?? []).filter(
+          (run) => run.id !== recovery.researchRun.id,
+        ),
+      ]);
+      setProposals((currentProposals) => [
+        recovery.proposal,
+        ...(currentProposals ?? []).filter(
+          (proposal) => proposal.id !== recovery.proposal.id,
+        ),
+      ]);
+      setRiskEvaluations((currentEvaluations) => [
+        recovery.riskEvaluation,
+        ...(currentEvaluations ?? []).filter(
+          (evaluation) => evaluation.id !== recovery.riskEvaluation.id,
+        ),
+      ]);
+      setRecoveryProposalSuccess(
+        `SELL-only recovery proposal ${recovery.proposal.id} created; no paper fill or broker order was submitted.`,
+      );
+    } catch {
+      setRecoveryProposalError(
+        "Recovery proposal failed. No paper execution, broker, or live order path was called.",
+      );
+    } finally {
+      setRunningRecoveryProposal(false);
     }
   };
 
@@ -1032,6 +1098,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       brokerAdapter: brokerAdapterError,
       orderPlanApprovals: orderPlanApprovalsError,
       baselineResearch: baselineResearchError,
+      recoveryProposal: recoveryProposalError,
     },
     loading: {
       researchRuns: loadingResearchRuns,
@@ -1049,12 +1116,15 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       orderPlanApprovals: loadingOrderPlanApprovals,
     },
     baselineResearchSuccess,
+    recoveryProposalSuccess,
     runningBaselineResearch,
+    runningRecoveryProposal,
     advancingRun,
     tickingSchedule,
     readinessReadyCount: controlStatus.readiness.filter((item) => item.ready)
       .length,
     runBaselineResearch,
+    runRecoveryProposal,
     advanceLatestRun,
     tickLatestSchedule,
   };

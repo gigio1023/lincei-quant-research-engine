@@ -58,6 +58,8 @@ import {
   ReconcileBrokerSnapshotRequest,
   ReconcilePaperOrderPlanRequest,
   RunBaselineResearchRequest,
+  RunRecoveryProposalRequest,
+  RunRecoveryProposalResponse,
   SeedPaperAccountRequest,
   TickAutonomousRunScheduleRequest,
   UpdateExecutionControlRequest,
@@ -1681,6 +1683,121 @@ export class ControlPlaneService {
     );
   }
 
+  private validateRunRecoveryProposalRequest(
+    request: RunRecoveryProposalRequest,
+  ): void {
+    if (
+      request.paperAccountId !== undefined &&
+      (!Number.isInteger(request.paperAccountId) || request.paperAccountId <= 0)
+    ) {
+      throw new BadRequestException(
+        'Recovery proposal paperAccountId must be positive',
+      );
+    }
+
+    if (
+      request.budgetEnvelopeId !== undefined &&
+      (!Number.isInteger(request.budgetEnvelopeId) ||
+        request.budgetEnvelopeId <= 0)
+    ) {
+      throw new BadRequestException(
+        'Recovery proposal budgetEnvelopeId must be positive',
+      );
+    }
+
+    if (
+      request.maxPositions !== undefined &&
+      (!Number.isInteger(request.maxPositions) ||
+        request.maxPositions < 1 ||
+        request.maxPositions > 50)
+    ) {
+      throw new BadRequestException(
+        'Recovery proposal maxPositions must be between 1 and 50',
+      );
+    }
+
+    this.validateOptionalNonEmptyString(
+      request.objective,
+      'Recovery proposal objective must be a non-empty string',
+    );
+  }
+
+  private async findRecoveryPaperAccount(
+    request: RunRecoveryProposalRequest,
+  ): Promise<PaperAccount> {
+    const paperAccount = request.paperAccountId
+      ? await this.paperAccountRepository.findOne({
+          where: { id: request.paperAccountId },
+        })
+      : request.budgetEnvelopeId
+        ? await this.findActivePaperAccountForScope(request.budgetEnvelopeId)
+        : await this.findLatestActivePaperAccount();
+
+    if (!paperAccount) {
+      throw new NotFoundException(
+        request.paperAccountId
+          ? `Paper account ${request.paperAccountId} not found`
+          : 'No active paper account found for recovery proposal',
+      );
+    }
+
+    if (paperAccount.status !== 'active') {
+      throw new BadRequestException(
+        'Recovery proposal requires an active paper account',
+      );
+    }
+
+    if (
+      request.budgetEnvelopeId &&
+      paperAccount.budgetEnvelopeId !== request.budgetEnvelopeId
+    ) {
+      throw new BadRequestException(
+        'Recovery proposal budget does not match the paper account',
+      );
+    }
+
+    return paperAccount;
+  }
+
+  private async findLatestActivePaperAccount(): Promise<PaperAccount | null> {
+    const accounts = await this.paperAccountRepository.find({
+      order: { updatedAt: 'DESC' },
+    });
+
+    return (
+      accounts
+        .filter((account) => account.status === 'active')
+        .sort(
+          (left, right) =>
+            (right.updatedAt?.getTime() ?? 0) -
+            (left.updatedAt?.getTime() ?? 0),
+        )[0] ?? null
+    );
+  }
+
+  private async findRecoveryBudget(
+    request: RunRecoveryProposalRequest,
+    paperAccount: PaperAccount,
+  ): Promise<BudgetEnvelope> {
+    const budgetId = request.budgetEnvelopeId ?? paperAccount.budgetEnvelopeId;
+    const budget = budgetId
+      ? await this.budgetRepository.findOne({
+          where: { id: budgetId, status: 'active' },
+        })
+      : await this.budgetRepository.findOne({
+          where: { status: 'active' },
+          order: { updatedAt: 'DESC' },
+        });
+
+    if (!budget) {
+      throw new BadRequestException(
+        'Recovery proposal requires an active budget envelope',
+      );
+    }
+
+    return budget;
+  }
+
   private buildPaperAccountPortfolio(
     paperAccount: PaperAccount,
   ): PortfolioSnapshot {
@@ -2238,6 +2355,154 @@ export class ControlPlaneService {
     );
 
     return this.createResearchRun(researchRunRequest);
+  }
+
+  async runRecoveryProposal(
+    request: RunRecoveryProposalRequest = {},
+  ): Promise<RunRecoveryProposalResponse> {
+    this.validateRunRecoveryProposalRequest(request);
+
+    const paperAccount = await this.findRecoveryPaperAccount(request);
+    const budget = await this.findRecoveryBudget(request, paperAccount);
+    const positions = [...(paperAccount.positions ?? [])]
+      .filter((position) => position.marketValue > 0)
+      .sort(
+        (left, right) =>
+          Math.abs(right.marketValue) - Math.abs(left.marketValue),
+      )
+      .slice(0, request.maxPositions ?? 10);
+
+    if (positions.length === 0) {
+      throw new BadRequestException(
+        'Recovery proposal requires at least one long paper position',
+      );
+    }
+
+    const generatedAt = new Date().toISOString();
+    const paperAccountUpdatedAt =
+      paperAccount.updatedAt?.toISOString() ?? generatedAt;
+    const artifactRef = `paper-account:${paperAccount.id}:recovery:${generatedAt}`;
+    const researchRun = await this.createResearchRun({
+      budgetEnvelopeId: budget.id,
+      objective:
+        request.objective?.trim() ??
+        `Reduce paper account ${paperAccount.id} exposure`,
+      strategyFamily: 'paper_recovery',
+      hypothesis:
+        'A deterministic SELL-only recovery proposal can reduce simulated exposure without broker order placement.',
+      datasetRefs: [
+        {
+          id: `paper-account:${paperAccount.id}:positions`,
+          provider: 'internal_control_plane',
+          source: 'paper_account_projection',
+          windowStart: paperAccountUpdatedAt,
+          windowEnd: generatedAt,
+          availabilityTimestamp: generatedAt,
+          marketDataTimestamp: generatedAt,
+          timezone: 'UTC',
+          frequency: 'event',
+          universe: positions.map((position) => position.symbol),
+          fields: ['symbol', 'assetClass', 'marketValue', 'weightPct'],
+          adjustmentMode: 'paper_projection',
+        },
+      ],
+      featureRefs: [
+        'paper_account.positions.market_value',
+        'paper_account.positions.weight_pct',
+        'budget.policy.max_order_notional',
+      ],
+      timestampLagRules: [
+        'Paper recovery uses the latest promoted paper-account projection only.',
+        'No broker account, credentials, or live order endpoint is read or called.',
+      ],
+      noLookaheadChecked: true,
+      benchmark: 'cash',
+      costModel: 'fixed-10bps-paper-fee-v1',
+      slippageModel: 'fixed-5bps-paper-slippage-v1',
+      validationWindow: {
+        start: paperAccountUpdatedAt,
+        end: generatedAt,
+      },
+      backtestMetrics: {
+        startValue: paperAccount.equity,
+        endValue: paperAccount.equity,
+        totalReturnPct: 0,
+        benchmarkReturnPct: 0,
+        excessReturnPct: 0,
+        maxDrawdownPct: 0,
+        sharpeRatio: 0,
+        turnoverPct: this.roundMoney(
+          (positions.reduce(
+            (total, position) => total + Math.abs(position.marketValue),
+            0,
+          ) /
+            paperAccount.equity) *
+            100,
+        ),
+        grossExposurePct: paperAccount.grossExposurePct,
+        totalFees: this.roundMoney(
+          positions.reduce(
+            (total, position) =>
+              total +
+              Math.min(
+                position.marketValue,
+                budget.policy?.maxOrderNotional ?? 1_000_000,
+              ) *
+                0.001,
+            0,
+          ),
+        ),
+        tradeCount: positions.length,
+        winRatePct: 0,
+      },
+      artifactRefs: [artifactRef],
+      artifactHashes: {
+        [artifactRef]: this.hashObject({
+          paperAccountId: paperAccount.id,
+          positions,
+          generatedAt,
+        }),
+      },
+      knownFailureModes: [
+        'Paper recovery is a deterministic simulation and does not prove broker liquidity.',
+        'Oversized positions may require repeated recovery proposals if max order notional caps apply.',
+        'Signed paper approval is still required before paper execution.',
+      ],
+    });
+
+    const maxOrderNotional = budget.policy?.maxOrderNotional ?? 1_000_000;
+    const orders: ProposedOrder[] = positions.map((position) => ({
+      symbol: position.symbol,
+      assetClass: position.assetClass,
+      side: 'SELL',
+      orderType: 'MARKET',
+      notional: this.roundMoney(
+        Math.min(position.marketValue, maxOrderNotional),
+      ),
+      targetPositionPct: 0,
+    }));
+
+    const proposal = await this.createProposal({
+      budgetEnvelopeId: budget.id,
+      researchRunId: researchRun.id,
+      strategyId: `${researchRun.strategyFamily}:sell-only-baseline`,
+      ruleId: 'paper-account-recovery-sell-only-v1',
+      actor: 'scheduler',
+      generatedAt,
+      marketDataTimestamp: generatedAt,
+      portfolioSnapshot: this.buildPaperAccountPortfolio(paperAccount),
+      orders,
+      thesis:
+        'Recovery proposal generated from active paper-account positions. It is SELL-only and keeps broker/live execution disabled.',
+      evidenceRefs: [
+        ...researchRun.artifactRefs,
+        `paper-account:${paperAccount.id}`,
+        `budget:${budget.id}`,
+      ],
+    });
+    const riskEvaluation = await this.evaluateProposal(proposal.id);
+
+    return { researchRun, proposal, riskEvaluation };
   }
 
   private getResearchRunBlockedReasons(

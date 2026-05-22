@@ -833,5 +833,43 @@ describe("API Service", () => {
       );
       expect(result).toEqual(mockResearchRun);
     });
+
+    it("should_run_recovery_proposal", async () => {
+      const mockRequest = {
+        paperAccountId: 1,
+        budgetEnvelopeId: 2,
+        maxPositions: 5,
+      };
+      const mockResponse = {
+        researchRun: {
+          id: "rr-recovery-1",
+          objective: "Reduce paper account exposure",
+          strategyFamily: "paper_recovery",
+          status: "proposal_ready",
+        },
+        proposal: {
+          id: "proposal-recovery-1",
+          orders: [{ symbol: "005930", side: "SELL", notional: 500000 }],
+          brokerExecutionEnabled: false,
+        },
+        riskEvaluation: {
+          id: "risk-recovery-1",
+          proposalId: "proposal-recovery-1",
+          decision: "REVIEW",
+          brokerExecutionEnabled: false,
+        },
+      };
+
+      mockPost.mockResolvedValue({ data: mockResponse });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.runRecoveryProposal(mockRequest);
+
+      expect(mockPost).toHaveBeenCalledWith(
+        "/control-plane/recovery/run-baseline",
+        mockRequest,
+      );
+      expect(result).toEqual(mockResponse);
+    });
   });
 });

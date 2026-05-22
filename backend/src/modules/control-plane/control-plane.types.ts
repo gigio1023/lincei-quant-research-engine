@@ -5,6 +5,9 @@ import {
   ResearchDatasetRef,
   ResearchWindow,
 } from '../../entities/research-run.entity';
+import type { InvestmentProposal } from '../../entities/investment-proposal.entity';
+import type { ResearchRun } from '../../entities/research-run.entity';
+import type { RiskEvaluation } from '../../entities/risk-evaluation.entity';
 import {
   PortfolioSnapshot,
   ProposedOrder,
@@ -67,6 +70,19 @@ export interface RunBaselineResearchRequest {
   symbol?: string;
   benchmark?: string;
   initialCapital?: number;
+}
+
+export interface RunRecoveryProposalRequest {
+  paperAccountId?: number;
+  budgetEnvelopeId?: number;
+  objective?: string;
+  maxPositions?: number;
+}
+
+export interface RunRecoveryProposalResponse {
+  researchRun: ResearchRun;
+  proposal: InvestmentProposal;
+  riskEvaluation: RiskEvaluation;
 }
 
 export interface PaperExecuteProposalRequest {

@@ -179,4 +179,81 @@ describe('RiskGateService', () => {
       ]),
     );
   });
+
+  it('allows reducing SELL orders for existing overweight long positions', () => {
+    const result = service.evaluate(
+      baseRequest({
+        mode: 'paper',
+        humanApprovalId: 'approval-recovery-1',
+        portfolio: {
+          currency: 'KRW',
+          equity: 10_000_000,
+          cash: 6_500_000,
+          grossExposurePct: 35,
+          positions: [
+            {
+              symbol: '005930',
+              assetClass: 'domestic_stock',
+              marketValue: 3_500_000,
+              weightPct: 35,
+            },
+          ],
+        },
+        orders: [
+          {
+            symbol: '005930',
+            assetClass: 'domestic_stock',
+            side: 'SELL',
+            orderType: 'MARKET',
+            notional: 1_000_000,
+            targetPositionPct: 0,
+          },
+        ],
+      }),
+    );
+
+    expect(result.decision).toBe('ALLOW');
+    expect(result.reasons).toEqual([]);
+  });
+
+  it('still denies non-reducing SELL orders from breached positions', () => {
+    const result = service.evaluate(
+      baseRequest({
+        mode: 'paper',
+        humanApprovalId: 'approval-recovery-2',
+        portfolio: {
+          currency: 'KRW',
+          equity: 10_000_000,
+          cash: 6_500_000,
+          grossExposurePct: 35,
+          positions: [
+            {
+              symbol: '005930',
+              assetClass: 'domestic_stock',
+              marketValue: 3_500_000,
+              weightPct: 35,
+            },
+          ],
+        },
+        orders: [
+          {
+            symbol: '005930',
+            assetClass: 'domestic_stock',
+            side: 'SELL',
+            orderType: 'MARKET',
+            notional: 4_000_000,
+            targetPositionPct: 0,
+          },
+        ],
+      }),
+    );
+
+    expect(result.decision).toBe('DENY');
+    expect(result.reasons).toEqual(
+      expect.arrayContaining([
+        'Existing position 005930 exceeds single-position limit',
+        'Order 005930 exceeds max order notional',
+      ]),
+    );
+  });
 });

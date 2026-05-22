@@ -637,6 +637,119 @@ describe('ControlPlane research provenance (e2e)', () => {
       .expect(400);
   });
 
+  it('creates and paper executes a SELL-only recovery proposal without broker access', async () => {
+    const budgetResponse = await request(app.getHttpServer())
+      .post('/control-plane/budgets')
+      .send({
+        name: 'Recovery e2e paper budget',
+        totalBudget: 10_000_000,
+        mode: 'paper',
+      })
+      .expect(201);
+    const seededAccountResponse = await request(app.getHttpServer())
+      .post('/control-plane/paper-account/seed')
+      .send({
+        budgetEnvelopeId: budgetResponse.body.id,
+        cash: 6_500_000,
+        positions: [
+          {
+            symbol: '005930',
+            assetClass: 'domestic_stock',
+            marketValue: 3_500_000,
+            weightPct: 35,
+          },
+        ],
+        actor: 'e2e-operator',
+        reason: 'Seed recovery paper account.',
+        idempotencyKey: 'e2e-recovery-paper-seed-1',
+      })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(
+        `/control-plane/paper-account/${seededAccountResponse.body.id}/promote`,
+      )
+      .send({
+        actor: 'e2e-operator',
+        reason: 'Promote recovery paper account.',
+        idempotencyKey: 'e2e-recovery-paper-promote-1',
+      })
+      .expect(201);
+
+    const recoveryResponse = await request(app.getHttpServer())
+      .post('/control-plane/recovery/run-baseline')
+      .send({
+        budgetEnvelopeId: budgetResponse.body.id,
+        paperAccountId: seededAccountResponse.body.id,
+        maxPositions: 1,
+      })
+      .expect(201);
+
+    expect(recoveryResponse.body.researchRun.strategyFamily).toBe(
+      'paper_recovery',
+    );
+    expect(recoveryResponse.body.proposal.researchRunId).toBe(
+      recoveryResponse.body.researchRun.id,
+    );
+    expect(recoveryResponse.body.proposal.orders).toEqual([
+      expect.objectContaining({
+        symbol: '005930',
+        side: 'SELL',
+        notional: 1_000_000,
+        targetPositionPct: 0,
+      }),
+    ]);
+    expect(recoveryResponse.body.riskEvaluation.proposalId).toBe(
+      recoveryResponse.body.proposal.id,
+    );
+    expect(recoveryResponse.body.riskEvaluation.requestSnapshot.orders).toEqual(
+      recoveryResponse.body.proposal.orders,
+    );
+    expect(recoveryResponse.body.proposal.brokerExecutionEnabled).toBe(false);
+    expect(recoveryResponse.body.riskEvaluation.brokerExecutionEnabled).toBe(
+      false,
+    );
+
+    const approvalResponse = await request(app.getHttpServer())
+      .post(
+        `/control-plane/proposals/${recoveryResponse.body.proposal.id}/order-plan-approvals`,
+      )
+      .send({
+        idempotencyKey: 'e2e-recovery-paper-plan-1',
+        approver: 'e2e-operator',
+        reason: 'Approve SELL-only recovery plan.',
+      })
+      .expect(201);
+    const paperResponse = await request(app.getHttpServer())
+      .post(
+        `/control-plane/proposals/${recoveryResponse.body.proposal.id}/paper-execute`,
+      )
+      .send({
+        idempotencyKey: 'e2e-recovery-paper-plan-1',
+        orderPlanApprovalId: approvalResponse.body.id,
+      })
+      .expect(201);
+
+    expect(paperResponse.body.status).toBe('filled');
+    expect(paperResponse.body.orders[0].side).toBe('SELL');
+    expect(paperResponse.body.fills[0]).toEqual(
+      expect.objectContaining({
+        symbol: '005930',
+        side: 'SELL',
+        filledNotional: 1_000_000,
+      }),
+    );
+    expect(paperResponse.body.brokerExecutionEnabled).toBe(false);
+    expect(paperResponse.body.liveTradingEnabled).toBe(false);
+
+    expect(paperResponse.body.portfolioAfter.cash).toBe(7_498_500);
+    expect(paperResponse.body.portfolioAfter.positions).toEqual([
+      expect.objectContaining({
+        symbol: '005930',
+        marketValue: 2_500_000,
+      }),
+    ]);
+  });
+
   it('reports broker adapter readiness without exposing credentials or live access', async () => {
     const response = await request(app.getHttpServer())
       .get('/control-plane/broker-adapter/status')

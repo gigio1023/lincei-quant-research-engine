@@ -19,6 +19,8 @@ import {
   ResearchRun,
   RiskEvaluation,
   RunBaselineResearchRequest,
+  RunRecoveryProposalRequest,
+  RunRecoveryProposalResponse,
   RunScheduleWorkerStatus,
   RiskGateStatus,
   TickAutonomousRunScheduleRequest,
@@ -178,6 +180,16 @@ export const controlPlaneApi = {
   ): Promise<ResearchRun> => {
     const response = await api.post(
       "/control-plane/research-runs/run-baseline",
+      request,
+    );
+    return response.data;
+  },
+
+  runRecoveryProposal: async (
+    request: RunRecoveryProposalRequest = {},
+  ): Promise<RunRecoveryProposalResponse> => {
+    const response = await api.post(
+      "/control-plane/recovery/run-baseline",
       request,
     );
     return response.data;

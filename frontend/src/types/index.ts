@@ -788,6 +788,19 @@ export interface RunBaselineResearchRequest {
   initialCapital?: number;
 }
 
+export interface RunRecoveryProposalRequest {
+  paperAccountId?: number;
+  budgetEnvelopeId?: number;
+  objective?: string;
+  maxPositions?: number;
+}
+
+export interface RunRecoveryProposalResponse {
+  researchRun: ResearchRun;
+  proposal: InvestmentProposal;
+  riskEvaluation: RiskEvaluation;
+}
+
 export type ControlPlaneGateStatus =
   | "partial"
   | "started"

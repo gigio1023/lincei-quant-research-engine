@@ -636,6 +636,103 @@ describe('ControlPlaneService', () => {
     );
   });
 
+  it('generates a SELL-only recovery proposal from active paper positions', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Recovery paper budget',
+      mode: 'paper',
+      totalBudget: 10_000_000,
+    });
+    const seededAccount = await service.seedPaperAccount({
+      budgetEnvelopeId: budget.id,
+      cash: 6_500_000,
+      positions: [
+        {
+          symbol: '005930',
+          assetClass: 'domestic_stock',
+          marketValue: 3_500_000,
+          weightPct: 35,
+        },
+      ],
+      actor: 'unit-test-operator',
+      reason: 'Seed paper account with an oversized position.',
+      idempotencyKey: 'seed-recovery-paper-account',
+    });
+    await service.promotePaperAccount(seededAccount.id, {
+      actor: 'unit-test-operator',
+      reason: 'Promote paper account before recovery.',
+      idempotencyKey: 'promote-recovery-paper-account',
+      expectedEventHash: paperAccountEvents[0].eventHash,
+    });
+
+    const recovery = await service.runRecoveryProposal({
+      budgetEnvelopeId: budget.id,
+      paperAccountId: seededAccount.id,
+      maxPositions: 1,
+    });
+
+    expect(recovery.researchRun).toEqual(
+      expect.objectContaining({
+        strategyFamily: 'paper_recovery',
+        status: 'proposal_ready',
+        advanceEligible: true,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+    expect(recovery.proposal.orders).toEqual([
+      expect.objectContaining({
+        symbol: '005930',
+        side: 'SELL',
+        orderType: 'MARKET',
+        notional: 1_000_000,
+        targetPositionPct: 0,
+      }),
+    ]);
+    expect(recovery.proposal.portfolioSnapshot.positions?.[0]).toEqual(
+      expect.objectContaining({
+        symbol: '005930',
+        marketValue: 3_500_000,
+      }),
+    );
+    expect(recovery.riskEvaluation.decision).toBe('REVIEW');
+    expect(recovery.riskEvaluation.reasons).toContain(
+      'Human approval is required outside dry-run mode',
+    );
+
+    const approval = await service.createOrderPlanApproval(
+      recovery.proposal.id,
+      {
+        idempotencyKey: 'paper-recovery-approval',
+        approver: 'unit-test-operator',
+        reason: 'Approve SELL-only recovery simulation.',
+      },
+    );
+    const plan = await service.paperExecuteProposal(recovery.proposal.id, {
+      idempotencyKey: 'paper-recovery-approval',
+      orderPlanApprovalId: approval.id,
+    });
+    const recoveredAccount = await service.getPaperAccountState();
+
+    expect(plan.status).toBe('filled');
+    expect(plan.fills[0]).toEqual(
+      expect.objectContaining({
+        symbol: '005930',
+        side: 'SELL',
+        filledNotional: 1_000_000,
+        netCashDelta: 998_500,
+      }),
+    );
+    expect(recoveredAccount.cash).toBe(7_498_500);
+    expect(recoveredAccount.positions[0]).toEqual(
+      expect.objectContaining({
+        symbol: '005930',
+        marketValue: 2_500_000,
+      }),
+    );
+    expect(recoveredAccount.brokerExecutionEnabled).toBe(false);
+    expect(recoveredAccount.liveTradingEnabled).toBe(false);
+  });
+
   it('imports a read-only broker snapshot and reconciles it against paper account state', async () => {
     paperAccounts.push({
       id: 1,

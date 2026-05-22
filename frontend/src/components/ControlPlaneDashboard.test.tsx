@@ -26,6 +26,7 @@ vi.mock("../services/api", () => ({
     advanceRun: vi.fn(),
     tickRunSchedule: vi.fn(),
     runBaselineResearch: vi.fn(),
+    runRecoveryProposal: vi.fn(),
   },
 }));
 
@@ -271,6 +272,82 @@ const mockRiskEvaluations = [
     createdAt: "2026-05-22T09:02:00.000Z",
   },
 ];
+
+const mockRecoveryProposal = {
+  id: "proposal-recovery-api-1",
+  budgetEnvelopeId: "budget-api-1",
+  researchRunId: "rr-recovery-api-1",
+  strategyId: "paper_recovery:sell-only-baseline",
+  ruleId: "paper-account-recovery-sell-only-v1",
+  actor: "scheduler",
+  status: "generated",
+  generatedAt: "2026-05-22T09:10:00.000Z",
+  marketDataTimestamp: "2026-05-22T09:10:00.000Z",
+  portfolioSnapshot: {
+    currency: "KRW",
+    equity: 9999250,
+    cash: 9499250,
+    grossExposurePct: 5,
+    positions: [
+      {
+        symbol: "005930",
+        assetClass: "domestic_stock",
+        marketValue: 500000,
+        weightPct: 5,
+      },
+    ],
+  },
+  orders: [
+    {
+      symbol: "005930",
+      assetClass: "domestic_stock",
+      side: "SELL",
+      orderType: "MARKET",
+      notional: 500000,
+      targetPositionPct: 0,
+    },
+  ],
+  thesis: "Recovery proposal from paper positions.",
+  evidenceRefs: ["paper-account:paper-account-api-1"],
+  brokerExecutionEnabled: false,
+  requiresHumanApproval: true,
+  createdAt: "2026-05-22T09:10:00.000Z",
+  updatedAt: "2026-05-22T09:10:00.000Z",
+};
+
+const mockRecoveryRiskEvaluation = {
+  id: "risk-recovery-api-1",
+  proposalId: "proposal-recovery-api-1",
+  decision: "REVIEW",
+  reasons: ["Human approval is required outside dry-run mode"],
+  requestSnapshot: {
+    mode: "paper",
+    actor: "scheduler",
+    researchRunId: "rr-recovery-api-1",
+    strategyId: "paper_recovery:sell-only-baseline",
+    ruleId: "paper-account-recovery-sell-only-v1",
+    generatedAt: "2026-05-22T09:10:00.000Z",
+    marketDataTimestamp: "2026-05-22T09:10:00.000Z",
+    portfolio: mockRecoveryProposal.portfolioSnapshot,
+    orders: mockRecoveryProposal.orders,
+    evidenceRefs: mockRecoveryProposal.evidenceRefs,
+    executionIntent: "evaluate_only",
+  },
+  responseSnapshot: {
+    decision: "REVIEW",
+    evaluatedAt: "2026-05-22T09:10:01.000Z",
+    mode: "paper",
+    brokerExecutionEnabled: false,
+    requiresHumanApproval: true,
+    reasons: ["Human approval is required outside dry-run mode"],
+    policy: mockRiskGateStatus.defaultPolicy,
+    approvedOrderCount: 1,
+  },
+  brokerExecutionEnabled: false,
+  requiresHumanApproval: true,
+  evaluatedAt: "2026-05-22T09:10:01.000Z",
+  createdAt: "2026-05-22T09:10:01.000Z",
+};
 
 const mockAutonomousRuns = [
   {
@@ -738,6 +815,16 @@ describe("ControlPlaneDashboard", () => {
     vi.mocked(controlPlaneApi.runBaselineResearch).mockResolvedValue(
       mockBaselineResearchRun,
     );
+    vi.mocked(controlPlaneApi.runRecoveryProposal).mockResolvedValue({
+      researchRun: {
+        ...mockBaselineResearchRun,
+        id: "rr-recovery-api-1",
+        objective: "Reduce paper account exposure",
+        strategyFamily: "paper_recovery",
+      },
+      proposal: mockRecoveryProposal,
+      riskEvaluation: mockRecoveryRiskEvaluation,
+    });
     vi.mocked(controlPlaneApi.advanceRun).mockResolvedValue(
       mockAutonomousRuns[0],
     );
@@ -1030,6 +1117,40 @@ describe("ControlPlaneDashboard", () => {
       screen.getByText("Run deterministic dry-run momentum baseline backtest"),
     ).toBeInTheDocument();
     expect(screen.getByText("+9.2%")).toBeInTheDocument();
+  });
+
+  it("should_create_sell_only_recovery_proposal_without_paper_execution", async () => {
+    render(<ControlPlaneDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Live paper account")).toBeInTheDocument();
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Create sell-only recovery" }),
+    );
+
+    await waitFor(() => {
+      expect(controlPlaneApi.runRecoveryProposal).toHaveBeenCalledWith({
+        maxPositions: 10,
+      });
+    });
+
+    expect(controlPlaneApi.runBaselineResearch).not.toHaveBeenCalled();
+    expect(
+      await screen.findByText(
+        "SELL-only recovery proposal proposal-recovery-api-1 created; no paper fill or broker order was submitted.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Reduce paper account exposure"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("proposal proposal-recovery-api-1"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByText("risk risk-recovery-api-1").length,
+    ).toBeGreaterThan(0);
   });
 
   it("should_advance_latest_autonomous_run_and_refresh_ledgers", async () => {

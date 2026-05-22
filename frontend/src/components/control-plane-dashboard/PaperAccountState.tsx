@@ -23,6 +23,8 @@ export const PaperAccountState = ({ model }: PaperAccountStateProps) => {
         </span>
       </div>
 
+      <RecoveryProposalAction model={model} />
+
       {model.errors.paperAccount && (
         <div className="mb-3 rounded-lg border border-[#f0b90b]/30 bg-[#f0b90b]/10 p-3 text-xs font-semibold text-[#fcd535]">
           {model.errors.paperAccount}
@@ -49,6 +51,58 @@ export const PaperAccountState = ({ model }: PaperAccountStateProps) => {
           <ExecutionControl model={model} />
           <Positions model={model} />
           <LedgerSummary model={model} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+const RecoveryProposalAction = ({ model }: PaperAccountStateProps) => {
+  const account = model.visiblePaperAccount;
+  const hasLongPosition = Boolean(
+    account?.positions.some((position) => position.marketValue > 0),
+  );
+  const disabled =
+    !account ||
+    account.status !== "active" ||
+    !hasLongPosition ||
+    model.runningRecoveryProposal;
+
+  return (
+    <div className="mb-3 rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="text-xs font-bold uppercase text-[#707a8a]">
+            Recovery proposal
+          </div>
+          <div className="mt-1 text-sm font-semibold text-[#eaecef]">
+            Generate a SELL-only recovery proposal from active paper positions.
+          </div>
+        </div>
+        <button
+          className="min-h-10 rounded-md bg-[#fcd535] px-4 py-2 text-sm font-bold text-[#181a20] transition hover:bg-[#f0b90b] disabled:cursor-not-allowed disabled:bg-[#3a3a1f] disabled:text-[#707a8a]"
+          type="button"
+          onClick={model.runRecoveryProposal}
+          disabled={disabled}
+        >
+          {model.runningRecoveryProposal
+            ? "Creating..."
+            : "Create sell-only recovery"}
+        </button>
+      </div>
+      {model.recoveryProposalSuccess && (
+        <div className="mt-3 rounded-md border border-[#0ecb81]/30 bg-[#0ecb81]/10 p-2 text-xs font-semibold text-[#0ecb81]">
+          {model.recoveryProposalSuccess}
+        </div>
+      )}
+      {model.errors.recoveryProposal && (
+        <div className="mt-3 rounded-md border border-[#f6465d]/30 bg-[#f6465d]/10 p-2 text-xs font-semibold text-[#f6465d]">
+          {model.errors.recoveryProposal}
+        </div>
+      )}
+      {!hasLongPosition && account && (
+        <div className="mt-2 text-xs font-semibold text-[#707a8a]">
+          No long paper positions are available for a recovery proposal.
         </div>
       )}
     </div>

@@ -266,6 +266,17 @@ The system must monitor:
 
 Recovery means a deterministic stop, reduce, or liquidate workflow. It does not mean asking an LLM to "make the money back."
 
+Current recovery implementation:
+
+- `POST /control-plane/recovery/run-baseline` reads the active promoted paper account or an explicit `paperAccountId`;
+- it creates a `paper_recovery` research run, a linked `paper-account-recovery-sell-only-v1` proposal, and a persisted risk evaluation;
+- proposal orders are `SELL` only, sorted from largest paper position first, and capped by the active budget `maxOrderNotional`;
+- the risk gate allows reducing SELL orders even when the current long position is already above the single-position limit, while still denying oversized or non-reducing SELL attempts;
+- the dashboard exposes this as "Create sell-only recovery", clearly separate from paper execution;
+- recovery proposal generation never submits paper fills, never creates signed approval, never calls broker APIs, and keeps all broker/live flags disabled.
+
+Known recovery gap: repeated recovery calls are not yet idempotent against the same paper-account projection. Before live-adjacent operation, recovery needs a state hash or proposal idempotency key so duplicate clicks, retries, or scheduler races cannot create competing liquidation proposals.
+
 ## Reference Projects Policy
 
 Reference projects live under `references/projects/` and are intentionally git-ignored. They are used for inspection only.

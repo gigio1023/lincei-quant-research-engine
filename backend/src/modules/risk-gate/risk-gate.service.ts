@@ -226,7 +226,10 @@ export class RiskGateService {
     }
 
     for (const position of portfolio.positions ?? []) {
-      if (position.weightPct > policy.maxSinglePositionPct) {
+      if (
+        position.weightPct > policy.maxSinglePositionPct &&
+        !this.hasReducingSellOrder(request, position.symbol)
+      ) {
         denyReasons.push(
           `Existing position ${position.symbol} exceeds single-position limit`,
         );
@@ -273,7 +276,8 @@ export class RiskGateService {
 
       if (
         order.targetPositionPct !== undefined &&
-        order.targetPositionPct > policy.maxSinglePositionPct
+        order.targetPositionPct > policy.maxSinglePositionPct &&
+        !this.isReducingSellOrder(request, order)
       ) {
         denyReasons.push(`Order ${order.symbol} exceeds single-position limit`);
       }
@@ -292,6 +296,36 @@ export class RiskGateService {
       'future',
       'unknown',
     ].includes(assetClass);
+  }
+
+  private hasReducingSellOrder(
+    request: RiskGateRequest,
+    symbol: string,
+  ): boolean {
+    return request.orders.some((order) =>
+      this.isReducingSellOrder(request, order, symbol),
+    );
+  }
+
+  private isReducingSellOrder(
+    request: RiskGateRequest,
+    order: RiskGateRequest['orders'][number],
+    symbol = order.symbol,
+  ): boolean {
+    if (order.side !== 'SELL' || order.symbol !== symbol) {
+      return false;
+    }
+
+    const currentPosition = request.portfolio.positions?.find(
+      (position) => position.symbol === order.symbol,
+    );
+
+    return Boolean(
+      currentPosition &&
+        currentPosition.marketValue > 0 &&
+        order.notional > 0 &&
+        order.notional <= currentPosition.marketValue,
+    );
   }
 
   private parseDate(value: string): Date | null {
