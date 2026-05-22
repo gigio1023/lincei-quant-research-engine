@@ -3,6 +3,7 @@ import {
   ResearchDatasetRef,
   ResearchWindow,
 } from '../../entities/research-run.entity';
+import { ExecutionControlStateValue } from '../../entities/execution-control-state.entity';
 import {
   PortfolioSnapshot,
   ProposedOrder,
@@ -65,6 +66,23 @@ export interface RunBaselineResearchRequest {
   symbol?: string;
   benchmark?: string;
   initialCapital?: number;
+}
+
+export interface PaperExecuteProposalRequest {
+  idempotencyKey?: string;
+  expectedRiskEvaluationId?: number;
+  humanApprovalId?: string;
+}
+
+export interface ReconcilePaperOrderPlanRequest {
+  tolerance?: number;
+  notes?: string[];
+}
+
+export interface UpdateExecutionControlRequest {
+  state: ExecutionControlStateValue;
+  actor?: string;
+  reason: string;
 }
 
 export interface ControlPlaneStatus {

@@ -4,7 +4,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import * as request from 'supertest';
 import { AutonomousRun } from '../src/entities/autonomous-run.entity';
 import { BudgetEnvelope } from '../src/entities/budget-envelope.entity';
+import { ExecutionControlState } from '../src/entities/execution-control-state.entity';
 import { InvestmentProposal } from '../src/entities/investment-proposal.entity';
+import { PaperOrderPlan } from '../src/entities/paper-order-plan.entity';
 import { ResearchRun } from '../src/entities/research-run.entity';
 import { RiskEvaluation } from '../src/entities/risk-evaluation.entity';
 import { ControlPlaneModule } from '../src/modules/control-plane/control-plane.module';
@@ -21,7 +23,9 @@ describe('ControlPlane research provenance (e2e)', () => {
           entities: [
             AutonomousRun,
             BudgetEnvelope,
+            ExecutionControlState,
             InvestmentProposal,
+            PaperOrderPlan,
             ResearchRun,
             RiskEvaluation,
           ],
@@ -217,5 +221,124 @@ describe('ControlPlane research provenance (e2e)', () => {
     ).toMatch(/^sha256:/);
     expect(researchRunResponse.body.brokerExecutionEnabled).toBe(false);
     expect(researchRunResponse.body.liveTradingEnabled).toBe(false);
+  });
+
+  it('paper executes an allowed proposal without broker access', async () => {
+    const generatedAt = new Date(Date.now() - 60_000).toISOString();
+    const marketDataTimestamp = new Date(Date.now() - 5 * 60_000).toISOString();
+
+    const budgetResponse = await request(app.getHttpServer())
+      .post('/control-plane/budgets')
+      .send({
+        name: 'Paper execution budget',
+        totalBudget: 10_000_000,
+        mode: 'dry_run',
+      })
+      .expect(201);
+    const researchRunResponse = await request(app.getHttpServer())
+      .post('/control-plane/research-runs/run-baseline')
+      .send({
+        budgetEnvelopeId: budgetResponse.body.id,
+        objective: 'Create paper execution evidence',
+      })
+      .expect(201);
+    const proposalResponse = await request(app.getHttpServer())
+      .post('/control-plane/proposals')
+      .send({
+        budgetEnvelopeId: budgetResponse.body.id,
+        researchRunId: researchRunResponse.body.id,
+        strategyId: 'momentum-v1',
+        ruleId: 'long-only-breakout',
+        generatedAt,
+        marketDataTimestamp,
+        portfolioSnapshot: {
+          currency: 'KRW',
+          equity: 10_000_000,
+          cash: 10_000_000,
+          grossExposurePct: 0,
+        },
+        orders: [
+          {
+            symbol: '005930',
+            assetClass: 'domestic_stock',
+            side: 'BUY',
+            orderType: 'MARKET',
+            notional: 500_000,
+            targetPositionPct: 5,
+          },
+        ],
+        thesis: 'Paper execute after risk evaluation.',
+      })
+      .expect(201);
+
+    const evaluationResponse = await request(app.getHttpServer())
+      .post(
+        `/control-plane/proposals/${proposalResponse.body.id}/evaluate-risk`,
+      )
+      .expect(201);
+
+    const paperResponse = await request(app.getHttpServer())
+      .post(
+        `/control-plane/proposals/${proposalResponse.body.id}/paper-execute`,
+      )
+      .send({
+        idempotencyKey: 'e2e-paper-plan-1',
+        humanApprovalId: 'approval-e2e-paper-1',
+      })
+      .expect(201);
+
+    expect(paperResponse.body.status).toBe('filled');
+    expect(paperResponse.body.riskEvaluationId).not.toBe(
+      evaluationResponse.body.id,
+    );
+    expect(paperResponse.body.idempotencyKey).toBe('e2e-paper-plan-1');
+    expect(paperResponse.body.proposalHash).toMatch(/^sha256:/);
+    expect(paperResponse.body.planHash).toMatch(/^sha256:/);
+    expect(paperResponse.body.readinessSnapshot.latestRiskAllow).toBe(true);
+    expect(paperResponse.body.readinessSnapshot.riskMatchesProposal).toBe(true);
+    expect(paperResponse.body.brokerExecutionEnabled).toBe(false);
+    expect(paperResponse.body.liveTradingEnabled).toBe(false);
+    expect(paperResponse.body.orders[0].paperOrderId).toContain('paper-order:');
+    expect(paperResponse.body.fills).toHaveLength(1);
+    expect(paperResponse.body.fills[0].paperFillId).toContain(':fill:0');
+    expect(paperResponse.body.cashLedger).toHaveLength(1);
+    expect(paperResponse.body.positionLedger).toHaveLength(1);
+    expect(paperResponse.body.endingCash).toBe(9_499_250);
+    expect(paperResponse.body.reconciliation.status).toBe('pending');
+    expect(paperResponse.body.reconciliation.cashMatched).toBe(false);
+
+    const fetchedPlanResponse = await request(app.getHttpServer())
+      .get(`/control-plane/paper-order-plans/${paperResponse.body.id}`)
+      .expect(200);
+    expect(fetchedPlanResponse.body.id).toBe(paperResponse.body.id);
+
+    const replayResponse = await request(app.getHttpServer())
+      .post(
+        `/control-plane/proposals/${proposalResponse.body.id}/paper-execute`,
+      )
+      .send({
+        idempotencyKey: 'e2e-paper-plan-1',
+      })
+      .expect(201);
+    expect(replayResponse.body.id).toBe(paperResponse.body.id);
+
+    const reconcileResponse = await request(app.getHttpServer())
+      .post(
+        `/control-plane/paper-order-plans/${paperResponse.body.id}/reconcile`,
+      )
+      .send({
+        notes: ['E2E paper reconciliation.'],
+      })
+      .expect(201);
+    expect(reconcileResponse.body.status).toBe('reconciled');
+    expect(reconcileResponse.body.reconciliation.status).toBe('matched');
+    expect(reconcileResponse.body.reconciliation.cashMatched).toBe(true);
+
+    const plansResponse = await request(app.getHttpServer())
+      .get('/control-plane/paper-order-plans')
+      .expect(200);
+
+    expect(plansResponse.body).toHaveLength(1);
+    expect(plansResponse.body[0].proposalId).toBe(proposalResponse.body.id);
   });
 });

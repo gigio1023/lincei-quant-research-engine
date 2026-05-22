@@ -200,6 +200,101 @@ describe("API Service", () => {
       expect(result).toEqual(mockResearchRuns);
     });
 
+    it("should_get_paper_order_plans", async () => {
+      const mockPaperOrderPlans = [
+        {
+          id: "paper-plan-1",
+          proposalId: "proposal-1",
+          researchRunId: "rr-1",
+          budgetEnvelopeId: "budget-1",
+          status: "completed",
+          mode: "paper",
+          submittedAt: "2026-05-22T09:05:00.000Z",
+          completedAt: "2026-05-22T09:06:00.000Z",
+          orders: [
+            {
+              symbol: "005930",
+              assetClass: "domestic_stock",
+              side: "BUY",
+              orderType: "MARKET",
+              notional: 500000,
+            },
+          ],
+          fills: [
+            {
+              symbol: "005930",
+              side: "BUY",
+              requestedNotional: 500000,
+              filledNotional: 499850,
+              fillPrice: 73500,
+              fee: 500,
+              slippage: 150,
+              status: "filled",
+            },
+          ],
+          startingCash: 10000000,
+          endingCash: 9500000,
+          startingEquity: 10000000,
+          endingEquity: 9999850,
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+          reconciliation: {
+            cashMatched: true,
+            positionsMatched: true,
+            notes: ["Paper cash ledger matched simulated fills."],
+          },
+          blockedReasons: [],
+          createdAt: "2026-05-22T09:04:00.000Z",
+          updatedAt: "2026-05-22T09:06:30.000Z",
+        },
+      ];
+
+      mockGet.mockResolvedValue({ data: mockPaperOrderPlans });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.getPaperOrderPlans();
+
+      expect(mockGet).toHaveBeenCalledWith("/control-plane/paper-order-plans");
+      expect(result).toEqual(mockPaperOrderPlans);
+    });
+
+    it("should_execute_proposal_paper", async () => {
+      const mockPaperOrderPlan = {
+        id: "paper-plan-1",
+        proposalId: "proposal-1",
+        status: "submitted",
+        mode: "paper",
+        submittedAt: "2026-05-22T09:05:00.000Z",
+        orders: [],
+        fills: [],
+        startingCash: 10000000,
+        endingCash: 10000000,
+        startingEquity: 10000000,
+        endingEquity: 10000000,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+        reconciliation: {
+          cashMatched: true,
+          positionsMatched: true,
+          notes: [],
+        },
+        blockedReasons: [],
+        createdAt: "2026-05-22T09:04:00.000Z",
+        updatedAt: "2026-05-22T09:05:00.000Z",
+      };
+
+      mockPost.mockResolvedValue({ data: mockPaperOrderPlan });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.executeProposalPaper("proposal-1");
+
+      expect(mockPost).toHaveBeenCalledWith(
+        "/control-plane/proposals/proposal-1/paper-execute",
+        {},
+      );
+      expect(result).toEqual(mockPaperOrderPlan);
+    });
+
     it("should_run_baseline_research", async () => {
       const mockRequest = {
         objective: "Run deterministic dry-run momentum baseline",

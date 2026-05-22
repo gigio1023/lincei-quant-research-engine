@@ -137,6 +137,19 @@ describe('RiskGateService', () => {
     );
   });
 
+  it('allows paper mode with human approval inside policy limits', () => {
+    const result = service.evaluate(
+      baseRequest({
+        mode: 'paper',
+        humanApprovalId: 'approval-paper-1',
+      }),
+    );
+
+    expect(result.decision).toBe('ALLOW');
+    expect(result.requiresHumanApproval).toBe(false);
+    expect(result.reasons).toEqual([]);
+  });
+
   it('denies prohibited assets, shorts, leverage, and concentration', () => {
     const result = service.evaluate(
       baseRequest({

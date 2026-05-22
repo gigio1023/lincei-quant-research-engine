@@ -1,6 +1,8 @@
 import { AutonomousRun } from '../../entities/autonomous-run.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
+import { ExecutionControlState } from '../../entities/execution-control-state.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
+import { PaperOrderPlan } from '../../entities/paper-order-plan.entity';
 import { ResearchRun } from '../../entities/research-run.entity';
 import { RiskEvaluation } from '../../entities/risk-evaluation.entity';
 import { RiskGateService } from '../risk-gate/risk-gate.service';
@@ -11,6 +13,8 @@ describe('ControlPlaneService', () => {
   let budgets: BudgetEnvelope[];
   let researchRuns: ResearchRun[];
   let proposals: InvestmentProposal[];
+  let paperOrderPlans: PaperOrderPlan[];
+  let executionControlStates: ExecutionControlState[];
   let evaluations: RiskEvaluation[];
   let runs: AutonomousRun[];
 
@@ -39,12 +43,16 @@ describe('ControlPlaneService', () => {
     budgets = [];
     researchRuns = [];
     proposals = [];
+    paperOrderPlans = [];
+    executionControlStates = [];
     evaluations = [];
     runs = [];
     service = new ControlPlaneService(
       makeRepository(budgets) as any,
       makeRepository(proposals) as any,
       makeRepository(researchRuns) as any,
+      makeRepository(paperOrderPlans) as any,
+      makeRepository(executionControlStates) as any,
       makeRepository(evaluations) as any,
       makeRepository(runs) as any,
       new RiskGateService(),
@@ -146,6 +154,287 @@ describe('ControlPlaneService', () => {
     expect(proposals[0].status).toBe('evaluated');
     expect(researchRuns[0].status).toBe('proposal_ready');
     expect(researchRuns[0].phase).toBe('proposal_linked');
+  });
+
+  it('simulates paper execution only after an ALLOW risk evaluation', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Paper budget',
+      totalBudget: 10_000_000,
+    });
+    const researchRun = await service.createResearchRun({
+      budgetEnvelopeId: budget.id,
+      objective: 'Paper execution research run',
+      strategyFamily: 'momentum',
+      hypothesis: 'Paper execution should simulate fills after risk approval.',
+      datasetRefs: [
+        {
+          id: 'krx-daily-bars',
+          source: 'sample',
+          windowStart: '2025-01-01',
+          windowEnd: '2026-05-22',
+          availabilityTimestamp: '2026-05-22T23:50:00.000Z',
+        },
+      ],
+      featureRefs: ['close_20d_return'],
+      timestampLagRules: ['Signals use only data available before close.'],
+      noLookaheadChecked: true,
+      benchmark: 'KOSPI',
+      costModel: '10bps fixed commission and tax estimate',
+      slippageModel: '5bps notional slippage',
+      validationWindow: {
+        start: '2026-01-01',
+        end: '2026-05-22',
+      },
+      backtestMetrics: {
+        totalReturnPct: 8.2,
+        benchmarkReturnPct: 3.1,
+        maxDrawdownPct: 4.3,
+        sharpeRatio: 1.1,
+        turnoverPct: 22,
+        tradeCount: 12,
+      },
+      artifactRefs: ['artifacts/research-runs/paper/report.md'],
+      artifactHashes: {
+        'artifacts/research-runs/paper/report.md': 'sha256:test',
+      },
+      knownFailureModes: ['Trend reversal can cause delayed exits.'],
+    });
+    const proposal = await service.createProposal({
+      budgetEnvelopeId: budget.id,
+      researchRunId: researchRun.id,
+      strategyId: 'momentum-v1',
+      ruleId: 'long-only-breakout',
+      generatedAt: '2026-05-22T23:59:00.000Z',
+      marketDataTimestamp: '2026-05-22T23:55:00.000Z',
+      portfolioSnapshot: {
+        currency: 'KRW',
+        equity: 10_000_000,
+        cash: 10_000_000,
+        grossExposurePct: 0,
+      },
+      orders: [
+        {
+          symbol: '005930',
+          assetClass: 'domestic_stock',
+          side: 'BUY',
+          orderType: 'MARKET',
+          notional: 500_000,
+          targetPositionPct: 5,
+        },
+      ],
+      thesis: 'Paper execution test proposal',
+    });
+
+    await service.evaluateProposal(proposal.id);
+    const plan = await service.paperExecuteProposal(proposal.id, {
+      idempotencyKey: 'paper-test-1',
+      humanApprovalId: 'approval-paper-test-1',
+    });
+
+    expect(plan.status).toBe('filled');
+    expect(plan.riskEvaluationId).toBe(evaluations[1].id);
+    expect(plan.idempotencyKey).toBe('paper-test-1');
+    expect(plan.proposalHash).toMatch(/^sha256:/);
+    expect(plan.riskRequestHash).toMatch(/^sha256:/);
+    expect(plan.planHash).toMatch(/^sha256:/);
+    expect(plan.readinessSnapshot).toEqual(
+      expect.objectContaining({
+        latestRiskAllow: true,
+        riskMatchesProposal: true,
+        brokerExecutionDisabled: true,
+        liveTradingDisabled: true,
+        cashSufficient: true,
+        noDuplicatePlan: true,
+      }),
+    );
+    expect(plan.brokerExecutionEnabled).toBe(false);
+    expect(plan.liveTradingEnabled).toBe(false);
+    expect(plan.orders).toHaveLength(1);
+    expect(plan.orders[0]).toEqual(
+      expect.objectContaining({
+        paperOrderId: 'paper-order:1:0',
+        proposalOrderIndex: 0,
+        feeModelRef: 'fixed-10bps-paper-fee-v1',
+        slippageModelRef: 'fixed-5bps-paper-slippage-v1',
+      }),
+    );
+    expect(plan.fills).toHaveLength(1);
+    expect(plan.fills[0]).toEqual(
+      expect.objectContaining({
+        paperFillId: 'paper-order:1:0:fill:0',
+        paperOrderId: 'paper-order:1:0',
+        symbol: '005930',
+        quantity: 500_000,
+        fillPrice: 1,
+        grossNotional: 500_000,
+        requestedNotional: 500_000,
+        filledNotional: 500_000,
+        fee: 500,
+        feeCurrency: 'KRW',
+        slippage: 250,
+        netCashDelta: -500_750,
+        status: 'filled',
+      }),
+    );
+    expect(plan.cashLedger).toEqual([
+      expect.objectContaining({
+        amount: -500_750,
+        balanceAfter: 9_499_250,
+      }),
+    ]);
+    expect(plan.positionLedger).toEqual([
+      expect.objectContaining({
+        symbol: '005930',
+        quantityDelta: 500_000,
+        notionalDelta: 500_000,
+        positionNotionalAfter: 500_000,
+      }),
+    ]);
+    expect(plan.endingCash).toBe(9_499_250);
+    expect(plan.endingEquity).toBe(9_999_250);
+    expect(plan.reconciliation.status).toBe('pending');
+    expect(plan.reconciliation.cashMatched).toBe(false);
+    expect(plan.reconciliation.expectedCash).toBe(9_499_250);
+    expect(plan.killSwitchSnapshot).toEqual(
+      expect.objectContaining({
+        armed: true,
+        tripped: false,
+      }),
+    );
+    expect(proposals[0].status).toBe('paper_ready');
+    expect(evaluations).toHaveLength(2);
+    expect(evaluations[1].responseSnapshot.mode).toBe('paper');
+    expect(evaluations[1].decision).toBe('ALLOW');
+
+    const idempotentReplay = await service.paperExecuteProposal(proposal.id, {
+      idempotencyKey: 'paper-test-1',
+    });
+    expect(idempotentReplay.id).toBe(plan.id);
+
+    const reconciled = await service.reconcilePaperOrderPlan(plan.id, {
+      notes: ['Unit test reconciliation.'],
+    });
+    expect(reconciled.status).toBe('reconciled');
+    expect(reconciled.reconciliation.status).toBe('matched');
+    expect(reconciled.reconciliation.cashMatched).toBe(true);
+    expect(reconciled.reconciliation.positionsMatched).toBe(true);
+  });
+
+  it('persists a blocked paper plan when risk approval is missing', async () => {
+    const researchRun = await service.createResearchRun({
+      objective: 'Blocked paper execution research run',
+      strategyFamily: 'momentum',
+      hypothesis: 'Missing risk approval should block paper execution.',
+      datasetRefs: [
+        {
+          id: 'krx-daily-bars',
+          source: 'sample',
+          windowStart: '2025-01-01',
+          windowEnd: '2026-05-22',
+          availabilityTimestamp: '2026-05-22T23:50:00.000Z',
+        },
+      ],
+      featureRefs: ['close_20d_return'],
+      timestampLagRules: ['Signals use only data available before close.'],
+      noLookaheadChecked: true,
+      benchmark: 'KOSPI',
+      costModel: '10bps fixed commission and tax estimate',
+      slippageModel: '5bps notional slippage',
+      validationWindow: {
+        start: '2026-01-01',
+        end: '2026-05-22',
+      },
+      backtestMetrics: {
+        totalReturnPct: 8.2,
+        benchmarkReturnPct: 3.1,
+        maxDrawdownPct: 4.3,
+        sharpeRatio: 1.1,
+        turnoverPct: 22,
+        tradeCount: 12,
+      },
+      artifactRefs: ['artifacts/research-runs/blocked-paper/report.md'],
+      artifactHashes: {
+        'artifacts/research-runs/blocked-paper/report.md': 'sha256:test',
+      },
+      knownFailureModes: ['Trend reversal can cause delayed exits.'],
+    });
+    const proposal = await service.createProposal({
+      researchRunId: researchRun.id,
+      strategyId: 'momentum-v1',
+      ruleId: 'long-only-breakout',
+      generatedAt: '2026-05-22T23:59:00.000Z',
+      marketDataTimestamp: '2026-05-22T23:55:00.000Z',
+      portfolioSnapshot: {
+        currency: 'KRW',
+        equity: 10_000_000,
+        cash: 10_000_000,
+        grossExposurePct: 0,
+      },
+      orders: [],
+    });
+
+    const plan = await service.paperExecuteProposal(proposal.id);
+
+    expect(plan.status).toBe('blocked');
+    expect(plan.fills).toEqual([]);
+    expect(plan.blockedReasons).toContain('Latest risk decision is REVIEW');
+    expect(plan.endingCash).toBe(10_000_000);
+    expect(plan.endingEquity).toBe(10_000_000);
+    expect(plan.reconciliation.status).toBe('not_required');
+    expect(plan.reconciliation.cashMatched).toBe(true);
+  });
+
+  it('blocks paper execution when execution control is halted', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Halted budget',
+      totalBudget: 10_000_000,
+    });
+    const researchRun = await service.runBaselineResearch({
+      budgetEnvelopeId: budget.id,
+    });
+    const proposal = await service.createProposal({
+      budgetEnvelopeId: budget.id,
+      researchRunId: researchRun.id,
+      strategyId: 'momentum-v1',
+      ruleId: 'long-only-breakout',
+      generatedAt: '2026-05-22T23:59:00.000Z',
+      marketDataTimestamp: '2026-05-22T23:55:00.000Z',
+      portfolioSnapshot: {
+        currency: 'KRW',
+        equity: 10_000_000,
+        cash: 10_000_000,
+        grossExposurePct: 0,
+      },
+      orders: [
+        {
+          symbol: '005930',
+          assetClass: 'domestic_stock',
+          side: 'BUY',
+          orderType: 'MARKET',
+          notional: 500_000,
+          targetPositionPct: 5,
+        },
+      ],
+    });
+
+    await service.evaluateProposal(proposal.id);
+    await service.updateExecutionControlState({
+      state: 'halted',
+      actor: 'human',
+      reason: 'Manual stop for test.',
+    });
+
+    const plan = await service.paperExecuteProposal(proposal.id);
+
+    expect(plan.status).toBe('blocked');
+    expect(plan.blockedReasons).toContain('Execution control state is halted');
+    expect(plan.killSwitchSnapshot.tripped).toBe(true);
+    expect(plan.killSwitchEvent).toEqual(
+      expect.objectContaining({
+        actor: 'human',
+        tripped: true,
+      }),
+    );
   });
 
   it('blocks proposal creation when research evidence is incomplete', async () => {
@@ -265,7 +554,7 @@ describe('ControlPlaneService', () => {
 
     expect(status.brokerExecutionEnabled).toBe(false);
     expect(status.liveTradingReady).toBe(false);
-    expect(status.blockers).toContain('No paper execution enclave');
+    expect(status.blockers).toContain('No Toss or broker read-only adapter');
     expect(status.readiness).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -274,6 +563,18 @@ describe('ControlPlaneService', () => {
         }),
         expect.objectContaining({
           key: 'riskGateReady',
+          ready: true,
+        }),
+        expect.objectContaining({
+          key: 'paperExecutionReady',
+          ready: false,
+        }),
+        expect.objectContaining({
+          key: 'paperSimulationLedgerReady',
+          ready: true,
+        }),
+        expect.objectContaining({
+          key: 'executionControlReady',
           ready: true,
         }),
         expect.objectContaining({

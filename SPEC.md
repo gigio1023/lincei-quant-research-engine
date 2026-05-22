@@ -201,6 +201,18 @@ Rules:
 
 Initial execution should be paper only. Live mode requires a separate design review.
 
+Current paper slice:
+
+- `paper_order_plans` records deterministic paper-only order plans;
+- paper execution is derived from a stored proposal, never an arbitrary request body;
+- each plan stores proposal/risk/plan hashes, an idempotency key, readiness snapshot, immutable paper order ids, fill events, cash ledger rows, position ledger rows, portfolio before/after snapshots, reconciliation state, and kill-switch snapshot;
+- `POST /control-plane/proposals/:id/paper-execute` returns the same plan for the same idempotency key;
+- `POST /control-plane/paper-order-plans/:id/reconcile` reconciles expected paper cash and positions against the local paper ledger;
+- `GET/POST /control-plane/execution-control` stores a minimal execution-control state (`active`, `paused`, `reducing`, `halted`) and paper execution blocks when the state forbids new exposure;
+- broker and live execution flags remain `false`.
+
+This is a paper simulator ledger, not broker-grade execution readiness. Broker-grade paper readiness still requires signed order-plan approval, durable paper account state across cycles, broker read-only snapshots, and reconciliation against external account truth.
+
 ### 6. Broker Adapter
 
 The first broker candidate is Toss Securities Open API because the official pages now expose Open API guidance. The current repo should treat Toss as a future adapter, not as an implemented execution path.
@@ -381,6 +393,15 @@ Exit criteria:
 - kill switch is tested;
 - no real broker credentials are required.
 
+Current status:
+
+- deterministic paper order-plan ledger exists;
+- idempotent paper-execute endpoint exists;
+- paper fill, cash ledger, position ledger, and local reconciliation snapshots exist;
+- minimal execution-control state and halted/paused/reducing gate exists;
+- frontend dashboard shows latest paper plans, fills, reconciliation notes, hashes, and broker/live disabled guardrails;
+- still missing signed approval, durable paper account state across proposals, and broker read-only reconciliation.
+
 ### Phase 4: Broker Read-Only
 
 Add broker read-only mode:
@@ -419,16 +440,16 @@ Exit criteria:
 
 Current verdict: not ready.
 
-The system is not ready for "deposit money and let it invest." After this PR it can evaluate a proposal against deterministic policy, but it cannot research, allocate, execute, or recover capital end to end.
+The system is not ready for "deposit money and let it invest." After this PR it can create reproducible baseline research runs, evaluate proposals against deterministic policy, and simulate a paper order plan with local ledger/reconciliation evidence. It still cannot allocate, execute, or recover real capital end to end.
 
 Blocking items:
 
 - Toss API access and API key approval;
 - exact OpenAPI schema review;
 - broker adapter implementation;
-- paper execution;
 - signed human approval;
-- reconciliation;
+- broker read-only reconciliation;
+- durable paper account state across autonomous cycles;
 - operational monitoring;
 - legal and terms review;
 - explicit live-trading gate.

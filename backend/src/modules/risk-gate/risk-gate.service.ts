@@ -114,7 +114,11 @@ export class RiskGateService {
       return;
     }
 
-    if (request.mode === 'paper' && policy.requireHumanApproval) {
+    if (
+      request.mode === 'paper' &&
+      policy.requireHumanApproval &&
+      !request.humanApprovalId
+    ) {
       reviewReasons.push('Paper execution requires human approval');
     }
   }

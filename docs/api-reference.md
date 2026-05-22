@@ -174,9 +174,9 @@ Currently, no authentication is required for the API endpoints. This will be upd
 
 ### Control Plane
 
-All control-plane endpoints are evaluation-only. They create budget, research-run,
-proposal, risk-evaluation, and run ledger records, but they do not place broker
-orders.
+Control-plane endpoints create budget, research-run, proposal, risk-evaluation,
+paper simulation, and run ledger records. They do not place broker orders, and
+all broker/live execution flags remain `false`.
 
 #### `GET /control-plane/status`
 
@@ -280,6 +280,59 @@ orders.
 #### `GET /control-plane/risk-evaluations`
 
 -   **Description**: Lists persisted risk evaluations.
+
+#### `GET /control-plane/execution-control`
+
+-   **Description**: Returns the latest execution-control state. If none exists, a default `active` state is created for paper simulation only.
+
+#### `POST /control-plane/execution-control`
+
+-   **Description**: Appends a new execution-control state. `paused` and `halted` block paper execution. `reducing` only permits SELL-only paper plans.
+-   **Example Request**:
+    ```json
+    {
+      "state": "halted",
+      "actor": "human",
+      "reason": "Manual stop before broker integration review"
+    }
+    ```
+
+#### `POST /control-plane/proposals/:id/paper-execute`
+
+-   **Description**: Creates or replays an idempotent paper-only order plan from a stored proposal. Orders are derived from the proposal; arbitrary order payloads, broker credentials, and account ids are not accepted. The endpoint requires an `ALLOW` risk evaluation matching the proposal snapshot, sufficient paper cash/positions, no active duplicate plan, and an execution-control state that permits the action.
+-   **Example Request**:
+    ```json
+    {
+      "idempotencyKey": "paper:proposal:1:risk:4",
+      "expectedRiskEvaluationId": 4,
+      "humanApprovalId": "paper-approval-20260523-001"
+    }
+    ```
+-   **Response Notes**:
+    -   returns a `PaperOrderPlan`;
+    -   if the latest matching risk evaluation is not a paper-mode `ALLOW`, the service creates a paper-mode risk evaluation using `humanApprovalId`; without approval it remains blocked for review;
+    -   `status` is `filled`, `blocked`, or `reconciled` for the current implementation;
+    -   each plan stores `proposalHash`, `riskRequestHash`, `planHash`, `readinessSnapshot`, immutable paper order ids, fill events, cash ledger rows, position ledger rows, portfolio before/after snapshots, reconciliation state, and kill-switch snapshot;
+    -   `brokerExecutionEnabled` and `liveTradingEnabled` are always `false`.
+
+#### `GET /control-plane/paper-order-plans`
+
+-   **Description**: Lists paper order plans ordered by latest update.
+
+#### `GET /control-plane/paper-order-plans/:id`
+
+-   **Description**: Fetches one paper order plan by id.
+
+#### `POST /control-plane/paper-order-plans/:id/reconcile`
+
+-   **Description**: Reconciles expected paper cash and positions against the local paper ledger. Until a broker read-only adapter exists, this is a local simulator reconciliation, not external broker truth.
+-   **Example Request**:
+    ```json
+    {
+      "tolerance": 0.01,
+      "notes": ["Operator reviewed the paper ledger."]
+    }
+    ```
 
 #### `POST /control-plane/runs`
 

@@ -62,6 +62,7 @@ vi.mock("./services/api", () => ({
       }),
     ),
     getResearchRuns: vi.fn(() => Promise.resolve([])),
+    getPaperOrderPlans: vi.fn(() => Promise.resolve([])),
   },
 }));
 

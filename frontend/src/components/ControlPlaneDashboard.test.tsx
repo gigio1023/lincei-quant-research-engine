@@ -10,6 +10,7 @@ vi.mock("../services/api", () => ({
   controlPlaneApi: {
     getStatus: vi.fn(),
     getResearchRuns: vi.fn(),
+    getPaperOrderPlans: vi.fn(),
     runBaselineResearch: vi.fn(),
   },
 }));
@@ -55,10 +56,17 @@ const mockControlPlaneStatus = {
     {
       key: "paperExecutionReady",
       ready: false,
-      detail: "Paper execution enclave is not implemented",
+      detail:
+        "Paper simulator ledger registered; broker-grade readiness is blocked",
+    },
+    {
+      key: "paperSimulationLedgerReady",
+      ready: true,
+      detail:
+        "Deterministic paper order-plan, fill, and reconciliation ledger is registered",
     },
   ],
-  blockers: ["No paper execution enclave"],
+  blockers: ["No signed order-plan workflow"],
 };
 
 const mockResearchRuns = [
@@ -159,6 +167,148 @@ const mockBaselineResearchRun = {
   updatedAt: "2026-05-22T09:12:00.000Z",
 };
 
+const mockPaperOrderPlans = [
+  {
+    id: "paper-plan-api-1",
+    proposalId: "proposal-api-1",
+    researchRunId: "rr-api-1",
+    budgetEnvelopeId: "budget-api-1",
+    riskEvaluationId: "risk-api-1",
+    proposalHash: "sha256:proposal-api",
+    riskRequestHash: "sha256:risk-api",
+    planHash: "sha256:plan-api",
+    idempotencyKey: "paper-api-1",
+    status: "filled",
+    mode: "paper",
+    submittedAt: "2026-05-22T09:05:00.000Z",
+    completedAt: "2026-05-22T09:06:00.000Z",
+    readinessSnapshot: {
+      budgetActive: true,
+      latestRiskAllow: true,
+      riskMatchesProposal: true,
+      paperEngineEnabled: true,
+      brokerExecutionDisabled: true,
+      liveTradingDisabled: true,
+      killSwitchArmed: true,
+      killSwitchTripped: false,
+      cashSufficient: true,
+      positionsSufficient: true,
+      noDuplicatePlan: true,
+    },
+    orders: [
+      {
+        paperOrderId: "paper-order:api:0",
+        proposalOrderIndex: 0,
+        symbol: "005930",
+        side: "BUY",
+        orderType: "MARKET",
+        requestedNotional: 500000,
+        targetPositionPct: 5,
+        marketDataTimestamp: "2026-05-22T09:00:00.000Z",
+        feeModelRef: "fixed-10bps-paper-fee-v1",
+        slippageModelRef: "fixed-5bps-paper-slippage-v1",
+        sourceOrder: {
+          symbol: "005930",
+          assetClass: "domestic_stock",
+          side: "BUY",
+          orderType: "MARKET",
+          notional: 500000,
+          targetPositionPct: 5,
+        },
+      },
+    ],
+    fills: [
+      {
+        paperFillId: "paper-order:api:0:fill:0",
+        paperOrderId: "paper-order:api:0",
+        timestamp: "2026-05-22T09:05:00.000Z",
+        symbol: "005930",
+        side: "BUY",
+        quantity: 6.80027211,
+        fillPrice: 73500,
+        grossNotional: 499850,
+        requestedNotional: 500000,
+        filledNotional: 499850,
+        fee: 500,
+        feeCurrency: "KRW",
+        slippage: 150,
+        netCashDelta: -500500,
+        positionDelta: 6.80027211,
+        status: "filled",
+      },
+    ],
+    portfolioBefore: {
+      currency: "KRW",
+      equity: 10000000,
+      cash: 10000000,
+      grossExposurePct: 0,
+    },
+    portfolioAfter: {
+      currency: "KRW",
+      equity: 9999850,
+      cash: 9500000,
+      grossExposurePct: 5,
+    },
+    cashLedger: [
+      {
+        paperCashEventId: "paper-order:api:0:fill:0:cash",
+        paperFillId: "paper-order:api:0:fill:0",
+        timestamp: "2026-05-22T09:05:00.000Z",
+        currency: "KRW",
+        amount: -500500,
+        balanceAfter: 9500000,
+        reason: "BUY paper fill net cash delta",
+      },
+    ],
+    positionLedger: [
+      {
+        paperPositionEventId: "paper-order:api:0:fill:0:position",
+        paperFillId: "paper-order:api:0:fill:0",
+        timestamp: "2026-05-22T09:05:00.000Z",
+        symbol: "005930",
+        quantityDelta: 6.80027211,
+        notionalDelta: 499850,
+        positionNotionalAfter: 499850,
+      },
+    ],
+    startingCash: 10000000,
+    endingCash: 9500000,
+    startingEquity: 10000000,
+    endingEquity: 9999850,
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+    reconciliation: {
+      status: "matched",
+      reconciledAt: "2026-05-22T09:06:00.000Z",
+      cashMatched: true,
+      positionsMatched: true,
+      expectedCash: 9500000,
+      actualCash: 9500000,
+      cashDiff: 0,
+      expectedPositions: {
+        "005930": 499850,
+      },
+      actualPositions: {
+        "005930": 499850,
+      },
+      positionDiffs: {
+        "005930": 0,
+      },
+      tolerance: 0.01,
+      notes: ["Paper cash ledger matched simulated fills."],
+    },
+    killSwitchSnapshot: {
+      armed: true,
+      tripped: false,
+      checkedAt: "2026-05-22T09:05:00.000Z",
+      reason: "Execution control state is active.",
+    },
+    blockedReasons: [],
+    createdAt: "2026-05-22T09:04:00.000Z",
+    updatedAt: "2026-05-22T09:06:30.000Z",
+  },
+];
+
 describe("ControlPlaneDashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -168,6 +318,9 @@ describe("ControlPlaneDashboard", () => {
     );
     vi.mocked(controlPlaneApi.getResearchRuns).mockResolvedValue(
       mockResearchRuns,
+    );
+    vi.mocked(controlPlaneApi.getPaperOrderPlans).mockResolvedValue(
+      mockPaperOrderPlans,
     );
     vi.mocked(controlPlaneApi.runBaselineResearch).mockResolvedValue(
       mockBaselineResearchRun,
@@ -190,7 +343,11 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("System Readiness Matrix")).toBeInTheDocument();
     expect(screen.getByText("riskGateReady")).toBeInTheDocument();
     expect(screen.getByText("researchRunLedgerReady")).toBeInTheDocument();
-    expect(screen.getByText("No paper execution enclave")).toBeInTheDocument();
+    expect(
+      screen.getAllByText(
+        "Paper simulator ledger registered; broker-grade readiness is blocked",
+      ).length,
+    ).toBeGreaterThanOrEqual(1);
 
     expect(screen.getByText("Research Run Ledger")).toBeInTheDocument();
     expect(screen.getByText("Live research ledger")).toBeInTheDocument();
@@ -202,6 +359,21 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("Backtest Metrics")).toBeInTheDocument();
     expect(screen.getByText("+12.4%")).toBeInTheDocument();
     expect(screen.getByText("Broker disabled")).toBeInTheDocument();
+
+    expect(screen.getByText("Paper Execution Enclave")).toBeInTheDocument();
+    expect(screen.getByText("Live paper plans")).toBeInTheDocument();
+    expect(screen.getByText("paper-plan-api-1")).toBeInTheDocument();
+    expect(screen.getByText("Proposal proposal-api-1")).toBeInTheDocument();
+    expect(screen.getByText("Paper fills")).toBeInTheDocument();
+    expect(screen.getByText("Reconciliation")).toBeInTheDocument();
+    expect(screen.getByText("Plan hash: sha256:plan-api")).toBeInTheDocument();
+    expect(screen.getByText("Expected cash")).toBeInTheDocument();
+    expect(
+      screen.getByText("Paper cash ledger matched simulated fills."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("brokerExecutionEnabled: false"),
+    ).toBeInTheDocument();
   });
 
   it("should_show_documented_fallback_when_status_api_fails", async () => {
@@ -210,6 +382,9 @@ describe("ControlPlaneDashboard", () => {
       new Error("offline"),
     );
     vi.mocked(controlPlaneApi.getResearchRuns).mockRejectedValue(
+      new Error("offline"),
+    );
+    vi.mocked(controlPlaneApi.getPaperOrderPlans).mockRejectedValue(
       new Error("offline"),
     );
 
@@ -237,6 +412,13 @@ describe("ControlPlaneDashboard", () => {
         content.includes("Research-run ledger API is unavailable"),
       ),
     ).toBeInTheDocument();
+    expect(screen.getByText("Documented sample plans")).toBeInTheDocument();
+    expect(
+      screen.getByText((content) =>
+        content.includes("Paper order-plan API is unavailable"),
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("paper-docs-plan-001")).toBeInTheDocument();
   });
 
   it("should_show_empty_state_when_live_research_ledger_is_empty", async () => {
@@ -250,6 +432,20 @@ describe("ControlPlaneDashboard", () => {
 
     expect(
       screen.getByText("No research runs recorded yet."),
+    ).toBeInTheDocument();
+  });
+
+  it("should_show_empty_state_when_live_paper_plan_ledger_is_empty", async () => {
+    vi.mocked(controlPlaneApi.getPaperOrderPlans).mockResolvedValue([]);
+
+    render(<ControlPlaneDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Live paper plans")).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByText("No paper order plans recorded yet."),
     ).toBeInTheDocument();
   });
 

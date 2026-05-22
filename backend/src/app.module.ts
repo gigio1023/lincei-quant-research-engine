@@ -12,10 +12,12 @@ import { ControlPlaneModule } from './modules/control-plane/control-plane.module
 import { Report } from './entities/report.entity';
 import { NewsSource } from './entities/news-source.entity';
 import { BudgetEnvelope } from './entities/budget-envelope.entity';
+import { ExecutionControlState } from './entities/execution-control-state.entity';
 import { InvestmentProposal } from './entities/investment-proposal.entity';
 import { RiskEvaluation } from './entities/risk-evaluation.entity';
 import { AutonomousRun } from './entities/autonomous-run.entity';
 import { ResearchRun } from './entities/research-run.entity';
+import { PaperOrderPlan } from './entities/paper-order-plan.entity';
 
 @Module({
   imports: [
@@ -31,10 +33,12 @@ import { ResearchRun } from './entities/research-run.entity';
           Report,
           NewsSource,
           BudgetEnvelope,
+          ExecutionControlState,
           InvestmentProposal,
           RiskEvaluation,
           AutonomousRun,
           ResearchRun,
+          PaperOrderPlan,
         ],
         synchronize: true,
         autoLoadEntities: true,

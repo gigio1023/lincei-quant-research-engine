@@ -4,7 +4,7 @@
 
 Not ready for real money.
 
-After the initial control-plane work, the repo can run a deterministic risk evaluation endpoint. It still cannot take a cash deposit, research investments, place orders, monitor fills, or recover positions end to end.
+After the initial control-plane work, the repo can run deterministic research, risk, and paper-simulation slices. It still cannot take a cash deposit, connect a broker account, place real orders, monitor real fills, or recover positions end to end.
 
 ## Runnable Now
 
@@ -12,6 +12,9 @@ After the initial control-plane work, the repo can run a deterministic risk eval
 - Frontend report UI.
 - New risk gate tests and backend build.
 - Control-plane budget/research-run/proposal/risk-evaluation/run ledgers.
+- Deterministic paper order-plan/fill/cash/position ledger.
+- Local paper reconciliation endpoint.
+- Minimal execution-control state that can block paper execution when paused, reducing, or halted.
 - Control-plane dashboard view.
 - Local reference inspection under `references/projects/`.
 
@@ -19,9 +22,9 @@ After the initial control-plane work, the repo can run a deterministic risk eval
 
 - broker account connection;
 - Toss API client;
-- paper trading;
+- broker-backed paper trading;
 - live order placement;
-- order reconciliation;
+- broker order reconciliation;
 - automated liquidation or exposure reduction;
 - production kill switch;
 - approved budget capsule storage;
@@ -35,7 +38,7 @@ After the initial control-plane work, the repo can run a deterministic risk eval
 | Research-run provenance | Started | Research-run entity/API, proposal-ready gate, and deterministic baseline runner exist. External market ingestion is still missing. |
 | Proposal contract | Started | Budget/research-run/proposal/risk-evaluation/run entities and endpoints exist. |
 | Deterministic risk gate | Started | Evaluation-only backend module plus persisted risk-evaluation audit through control-plane. |
-| Paper execution | Missing | Must exist before broker write access. |
+| Paper execution | Started | Deterministic paper simulator ledger, idempotent paper-execute endpoint, local reconciliation, and execution-control state exist. Signed order plans, durable paper account state, and broker-backed reconciliation are still missing. |
 | Broker read-only | Missing | Toss or another broker snapshot adapter required. |
 | Broker write access | Blocked | Requires separate gated design and credentials. |
 | Live trading | Blocked | No real-money order path is implemented. |
@@ -46,7 +49,7 @@ Build toward this order:
 
 1. proposal schema and audit storage;
 2. external market/news ingestion for reproducible research runs;
-3. paper execution enclave;
+3. signed order-plan approval and durable paper account state;
 4. Toss read-only adapter;
 5. Toss paper/sandbox adapter if available;
 6. tiny live pilot behind explicit approval.

@@ -4,6 +4,7 @@ import {
   ControlPlaneStatus,
   ControlPlaneGateStatus,
   ControlPlaneStage,
+  PaperOrderPlan,
   ResearchRun,
   RunBaselineResearchRequest,
   RiskGateRequest,
@@ -178,6 +179,210 @@ const DOCUMENTED_RESEARCH_RUNS: ResearchRun[] = [
   },
 ];
 
+const DOCUMENTED_PAPER_ORDER_PLANS: PaperOrderPlan[] = [
+  {
+    id: "paper-docs-plan-001",
+    proposalId: "proposal-docs-momentum-001",
+    researchRunId: "rr-docs-momentum-001",
+    budgetEnvelopeId: "budget-docs-dry-run",
+    riskEvaluationId: "risk-docs-001",
+    proposalHash: "sha256:docs-proposal",
+    riskRequestHash: "sha256:docs-risk",
+    planHash: "sha256:docs-plan",
+    idempotencyKey: "docs-paper-plan-001",
+    status: "reconciled",
+    mode: "paper",
+    submittedAt: "2026-05-22T09:05:00.000Z",
+    completedAt: "2026-05-22T09:06:00.000Z",
+    readinessSnapshot: {
+      budgetActive: true,
+      latestRiskAllow: true,
+      riskMatchesProposal: true,
+      paperEngineEnabled: true,
+      brokerExecutionDisabled: true,
+      liveTradingDisabled: true,
+      killSwitchArmed: true,
+      killSwitchTripped: false,
+      cashSufficient: true,
+      positionsSufficient: true,
+      noDuplicatePlan: true,
+    },
+    orders: [
+      {
+        paperOrderId: "paper-order:docs:0",
+        proposalOrderIndex: 0,
+        symbol: "005930",
+        side: "BUY",
+        orderType: "MARKET",
+        requestedNotional: 500_000,
+        targetPositionPct: 5,
+        marketDataTimestamp: "2026-05-22T09:00:00.000Z",
+        feeModelRef: "fixed-10bps-paper-fee-v1",
+        slippageModelRef: "fixed-5bps-paper-slippage-v1",
+        sourceOrder: {
+          symbol: "005930",
+          assetClass: "domestic_stock",
+          side: "BUY",
+          orderType: "MARKET",
+          notional: 500_000,
+          targetPositionPct: 5,
+        },
+      },
+      {
+        paperOrderId: "paper-order:docs:1",
+        proposalOrderIndex: 1,
+        symbol: "000660",
+        side: "BUY",
+        orderType: "MARKET",
+        requestedNotional: 350_000,
+        targetPositionPct: 3.5,
+        marketDataTimestamp: "2026-05-22T09:00:00.000Z",
+        feeModelRef: "fixed-10bps-paper-fee-v1",
+        slippageModelRef: "fixed-5bps-paper-slippage-v1",
+        sourceOrder: {
+          symbol: "000660",
+          assetClass: "domestic_stock",
+          side: "BUY",
+          orderType: "MARKET",
+          notional: 350_000,
+          targetPositionPct: 3.5,
+        },
+      },
+    ],
+    fills: [
+      {
+        paperFillId: "paper-order:docs:0:fill:0",
+        paperOrderId: "paper-order:docs:0",
+        timestamp: "2026-05-22T09:05:00.000Z",
+        symbol: "005930",
+        side: "BUY",
+        quantity: 6.80027211,
+        fillPrice: 73_500,
+        grossNotional: 499_850,
+        requestedNotional: 500_000,
+        filledNotional: 499_850,
+        fee: 500,
+        feeCurrency: "KRW",
+        slippage: 150,
+        netCashDelta: -500_500,
+        positionDelta: 6.80027211,
+        status: "filled",
+      },
+      {
+        paperFillId: "paper-order:docs:1:fill:0",
+        paperOrderId: "paper-order:docs:1",
+        timestamp: "2026-05-22T09:05:00.000Z",
+        symbol: "000660",
+        side: "BUY",
+        quantity: 1.92153846,
+        fillPrice: 182_000,
+        grossNotional: 349_720,
+        requestedNotional: 350_000,
+        filledNotional: 349_720,
+        fee: 350,
+        feeCurrency: "KRW",
+        slippage: 280,
+        netCashDelta: -350_350,
+        positionDelta: 1.92153846,
+        status: "filled",
+      },
+    ],
+    portfolioBefore: {
+      currency: "KRW",
+      equity: 10_000_000,
+      cash: 10_000_000,
+      grossExposurePct: 0,
+    },
+    portfolioAfter: {
+      currency: "KRW",
+      equity: 9_999_580,
+      cash: 9_149_580,
+      grossExposurePct: 8.5,
+    },
+    cashLedger: [
+      {
+        paperCashEventId: "paper-order:docs:0:fill:0:cash",
+        paperFillId: "paper-order:docs:0:fill:0",
+        timestamp: "2026-05-22T09:05:00.000Z",
+        currency: "KRW",
+        amount: -500_500,
+        balanceAfter: 9_499_500,
+        reason: "BUY paper fill net cash delta",
+      },
+      {
+        paperCashEventId: "paper-order:docs:1:fill:0:cash",
+        paperFillId: "paper-order:docs:1:fill:0",
+        timestamp: "2026-05-22T09:05:00.000Z",
+        currency: "KRW",
+        amount: -350_350,
+        balanceAfter: 9_149_580,
+        reason: "BUY paper fill net cash delta",
+      },
+    ],
+    positionLedger: [
+      {
+        paperPositionEventId: "paper-order:docs:0:fill:0:position",
+        paperFillId: "paper-order:docs:0:fill:0",
+        timestamp: "2026-05-22T09:05:00.000Z",
+        symbol: "005930",
+        quantityDelta: 6.80027211,
+        notionalDelta: 499_850,
+        positionNotionalAfter: 499_850,
+      },
+      {
+        paperPositionEventId: "paper-order:docs:1:fill:0:position",
+        paperFillId: "paper-order:docs:1:fill:0",
+        timestamp: "2026-05-22T09:05:00.000Z",
+        symbol: "000660",
+        quantityDelta: 1.92153846,
+        notionalDelta: 349_720,
+        positionNotionalAfter: 349_720,
+      },
+    ],
+    startingCash: 10_000_000,
+    endingCash: 9_149_580,
+    startingEquity: 10_000_000,
+    endingEquity: 9_999_580,
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+    reconciliation: {
+      status: "matched",
+      reconciledAt: "2026-05-22T09:06:00.000Z",
+      cashMatched: true,
+      positionsMatched: true,
+      expectedCash: 9_149_580,
+      actualCash: 9_149_580,
+      cashDiff: 0,
+      expectedPositions: {
+        "005930": 499_850,
+        "000660": 349_720,
+      },
+      actualPositions: {
+        "005930": 499_850,
+        "000660": 349_720,
+      },
+      positionDiffs: {
+        "005930": 0,
+        "000660": 0,
+      },
+      tolerance: 0.01,
+      notes: [
+        "Paper cash ledger matched simulated fills.",
+        "No broker account or live order path was contacted.",
+      ],
+    },
+    killSwitchSnapshot: {
+      armed: true,
+      tripped: false,
+      checkedAt: "2026-05-22T09:05:00.000Z",
+      reason: "Execution control state is active.",
+    },
+    blockedReasons: [],
+    createdAt: "2026-05-22T09:04:00.000Z",
+    updatedAt: "2026-05-22T09:06:30.000Z",
+  },
+];
+
 const BASELINE_RESEARCH_REQUEST: RunBaselineResearchRequest = {
   objective: "Run deterministic dry-run momentum baseline backtest",
   strategyFamily: "cross-sectional momentum",
@@ -344,6 +549,9 @@ const formatCurrency = (value: number, currency = "KRW") =>
     maximumFractionDigits: 0,
   }).format(value);
 
+const formatSignedCurrency = (value: number, currency = "KRW") =>
+  `${value > 0 ? "+" : ""}${formatCurrency(value, currency)}`;
+
 const formatPercent = (value: number) =>
   `${new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 1,
@@ -404,6 +612,26 @@ const researchRunStatusClass = (status: string) => {
   return STATUS_CLASSES.partial;
 };
 
+const paperOrderPlanStatusClass = (status: string) => {
+  const normalizedStatus = status.toLowerCase();
+
+  if (
+    ["completed", "filled", "reconciled", "settled"].includes(normalizedStatus)
+  ) {
+    return STATUS_CLASSES.started;
+  }
+
+  if (
+    ["blocked", "failed", "rejected", "cancelled", "halted"].includes(
+      normalizedStatus,
+    )
+  ) {
+    return STATUS_CLASSES.blocked;
+  }
+
+  return STATUS_CLASSES.partial;
+};
+
 const ControlPlaneDashboard: React.FC = () => {
   const [riskGateStatus, setRiskGateStatus] = useState<RiskGateStatus | null>(
     null,
@@ -411,12 +639,19 @@ const ControlPlaneDashboard: React.FC = () => {
   const [controlPlaneStatus, setControlPlaneStatus] =
     useState<ControlPlaneStatus | null>(null);
   const [researchRuns, setResearchRuns] = useState<ResearchRun[] | null>(null);
+  const [paperOrderPlans, setPaperOrderPlans] = useState<
+    PaperOrderPlan[] | null
+  >(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
   const [loadingResearchRuns, setLoadingResearchRuns] = useState(true);
+  const [loadingPaperOrderPlans, setLoadingPaperOrderPlans] = useState(true);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [researchRunsError, setResearchRunsError] = useState<string | null>(
     null,
   );
+  const [paperOrderPlansError, setPaperOrderPlansError] = useState<
+    string | null
+  >(null);
   const [runningBaselineResearch, setRunningBaselineResearch] = useState(false);
   const [baselineResearchError, setBaselineResearchError] = useState<
     string | null
@@ -430,19 +665,24 @@ const ControlPlaneDashboard: React.FC = () => {
 
     const fetchStatus = async () => {
       try {
-        const [riskStatus, controlStatus, researchRunsStatus] =
-          await Promise.allSettled([
-            riskGateApi.getStatus(),
-            controlPlaneApi.getStatus(),
-            controlPlaneApi.getResearchRuns(),
-          ]);
+        const [
+          riskStatus,
+          controlPlaneStatusResult,
+          researchRunsStatus,
+          paperOrderPlansStatus,
+        ] = await Promise.allSettled([
+          riskGateApi.getStatus(),
+          controlPlaneApi.getStatus(),
+          controlPlaneApi.getResearchRuns(),
+          controlPlaneApi.getPaperOrderPlans(),
+        ]);
         if (!ignore) {
           if (riskStatus.status === "fulfilled") {
             setRiskGateStatus(riskStatus.value);
           }
 
-          if (controlStatus.status === "fulfilled") {
-            setControlPlaneStatus(controlStatus.value);
+          if (controlPlaneStatusResult.status === "fulfilled") {
+            setControlPlaneStatus(controlPlaneStatusResult.value);
           }
 
           if (researchRunsStatus.status === "fulfilled") {
@@ -454,9 +694,18 @@ const ControlPlaneDashboard: React.FC = () => {
             );
           }
 
+          if (paperOrderPlansStatus.status === "fulfilled") {
+            setPaperOrderPlans(paperOrderPlansStatus.value);
+            setPaperOrderPlansError(null);
+          } else {
+            setPaperOrderPlansError(
+              "Paper order-plan API is unavailable. Showing documented sample paper plans.",
+            );
+          }
+
           setStatusError(
             riskStatus.status === "rejected" ||
-              controlStatus.status === "rejected"
+              controlPlaneStatusResult.status === "rejected"
               ? "One or more control-plane status APIs are unavailable."
               : null,
           );
@@ -467,11 +716,15 @@ const ControlPlaneDashboard: React.FC = () => {
           setResearchRunsError(
             "Research-run ledger API is unavailable. Showing documented sample runs.",
           );
+          setPaperOrderPlansError(
+            "Paper order-plan API is unavailable. Showing documented sample paper plans.",
+          );
         }
       } finally {
         if (!ignore) {
           setLoadingStatus(false);
           setLoadingResearchRuns(false);
+          setLoadingPaperOrderPlans(false);
         }
       }
     };
@@ -486,8 +739,26 @@ const ControlPlaneDashboard: React.FC = () => {
   const status = riskGateStatus ?? DOCUMENTED_STATUS;
   const controlStatus = controlPlaneStatus ?? DOCUMENTED_CONTROL_PLANE_STATUS;
   const visibleResearchRuns = researchRuns ?? DOCUMENTED_RESEARCH_RUNS;
+  const visiblePaperOrderPlans =
+    paperOrderPlans ??
+    (loadingPaperOrderPlans ? [] : DOCUMENTED_PAPER_ORDER_PLANS);
+  const latestPaperOrderPlans = [...visiblePaperOrderPlans]
+    .sort(
+      (leftPlan, rightPlan) =>
+        new Date(rightPlan.updatedAt).getTime() -
+        new Date(leftPlan.updatedAt).getTime(),
+    )
+    .slice(0, 3);
   const policy = status.defaultPolicy;
   const exampleOrder = EXAMPLE_REQUEST.orders[0];
+  const paperExecutionReadiness = controlStatus.readiness.find(
+    (item) => item.key === "paperExecutionReady",
+  ) ?? {
+    key: "paperExecutionReady",
+    ready: paperOrderPlans !== null,
+    detail:
+      "Paper readiness is inferred from the paper order-plan API response.",
+  };
   const statusSource = riskGateStatus
     ? "Live API status"
     : loadingStatus
@@ -498,6 +769,11 @@ const ControlPlaneDashboard: React.FC = () => {
     : loadingResearchRuns
       ? "Loading research ledger"
       : "Documented sample runs";
+  const paperOrderPlansSource = paperOrderPlans
+    ? "Live paper plans"
+    : loadingPaperOrderPlans
+      ? "Loading paper plans"
+      : "Documented sample plans";
 
   const handleRunBaselineResearch = async () => {
     setRunningBaselineResearch(true);
@@ -937,6 +1213,310 @@ const ControlPlaneDashboard: React.FC = () => {
                             </span>
                           ))}
                         </div>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="glass-card p-6 md:p-8">
+        <div className="relative z-10">
+          <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Paper Execution Enclave
+              </h3>
+              <p className="mt-1 max-w-3xl text-sm font-medium text-gray-600 dark:text-gray-300">
+                Latest paper order plans, simulated fills, and reconciliation
+                checks. This dashboard is read-only and does not render proposal
+                paper-execute buttons because proposal records are not fetched
+                here.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold uppercase ${
+                  paperOrderPlans
+                    ? "border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-500/15 dark:text-emerald-200"
+                    : "border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-400/30 dark:bg-amber-500/15 dark:text-amber-200"
+                }`}
+              >
+                {paperOrderPlansSource}
+              </span>
+              <span className="inline-flex rounded-full border border-red-300 bg-red-100 px-3 py-1 text-xs font-bold uppercase text-red-800 dark:border-red-400/30 dark:bg-red-500/15 dark:text-red-200">
+                Live disabled
+              </span>
+            </div>
+          </div>
+
+          <div className="mb-5 grid gap-4 lg:grid-cols-3">
+            <div className="rounded-xl border border-white/50 bg-white/40 p-5 dark:border-white/10 dark:bg-black/20">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">
+                    {paperExecutionReadiness.key}
+                  </div>
+                  <p className="mt-2 text-sm font-semibold leading-relaxed text-gray-700 dark:text-gray-300">
+                    {paperExecutionReadiness.detail}
+                  </p>
+                </div>
+                <span
+                  className={statusBadge(
+                    paperExecutionReadiness.ready ? "started" : "blocked",
+                  )}
+                >
+                  {paperExecutionReadiness.ready ? "Ready" : "Blocked"}
+                </span>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-white/50 bg-white/40 p-5 dark:border-white/10 dark:bg-black/20">
+              <div className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">
+                Latest plans visible
+              </div>
+              <div className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
+                {latestPaperOrderPlans.length}
+              </div>
+              <p className="mt-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Displaying the most recently updated paper plans only.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-red-200 bg-red-50/70 p-5 dark:border-red-400/30 dark:bg-red-500/10">
+              <div className="text-xs font-bold uppercase text-red-700 dark:text-red-200">
+                Execution guardrails
+              </div>
+              <div className="mt-3 grid gap-2 text-sm font-bold text-red-800 dark:text-red-100">
+                <div>brokerExecutionEnabled: false</div>
+                <div>liveTradingEnabled: false</div>
+                <div>mode: paper</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-5 rounded-xl border border-sky-200 bg-sky-50/80 p-4 dark:border-sky-400/30 dark:bg-sky-500/10">
+            <div className="text-sm font-bold uppercase text-sky-800 dark:text-sky-200">
+              Non-destructive proposal status
+            </div>
+            <p className="mt-2 max-w-4xl text-sm font-semibold leading-relaxed text-sky-800 dark:text-sky-100">
+              Proposal data is not loaded on this dashboard. A proposal surface
+              should label any paper action as paper execution only and call the
+              typed paper-execute API for that proposal; this panel only reads
+              plan readiness and returned plans.
+            </p>
+          </div>
+
+          {paperOrderPlansError && (
+            <p className="mb-5 rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-sm font-semibold text-amber-800 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-amber-200">
+              {paperOrderPlansError}
+            </p>
+          )}
+
+          {latestPaperOrderPlans.length === 0 ? (
+            <div className="rounded-xl border border-white/50 bg-white/40 p-5 text-sm font-semibold text-gray-700 dark:border-white/10 dark:bg-black/20 dark:text-gray-300">
+              No paper order plans recorded yet.
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {latestPaperOrderPlans.map((plan) => (
+                <article
+                  key={plan.id}
+                  className="rounded-xl border border-white/50 bg-white/40 p-5 dark:border-white/10 dark:bg-black/20"
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-xs font-bold uppercase text-gray-500 dark:text-gray-400">
+                          {plan.id}
+                        </span>
+                        <span
+                          className={`${paperOrderPlanStatusClass(
+                            plan.status,
+                          )} inline-flex rounded-full border px-3 py-1 text-xs font-bold uppercase`}
+                        >
+                          {plan.status}
+                        </span>
+                        <span className="inline-flex rounded-full border border-primary-500/30 bg-primary-500/10 px-3 py-1 text-xs font-bold uppercase text-primary-700 dark:text-primary-200">
+                          {plan.mode}
+                        </span>
+                      </div>
+                      <h4 className="mt-3 text-xl font-bold text-gray-900 dark:text-white">
+                        Proposal {plan.proposalId}
+                      </h4>
+                      <p className="mt-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                        Submitted {formatDateTime(plan.submittedAt)}
+                        {plan.completedAt
+                          ? `; completed ${formatDateTime(plan.completedAt)}`
+                          : "; completion pending"}
+                      </p>
+                      <div className="mt-3 grid gap-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                        <div>Plan hash: {plan.planHash}</div>
+                        <div>Proposal hash: {plan.proposalHash}</div>
+                        <div>Idempotency: {plan.idempotencyKey}</div>
+                      </div>
+                    </div>
+
+                    <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:min-w-96">
+                      {[
+                        [
+                          "Starting equity",
+                          formatCurrency(plan.startingEquity),
+                        ],
+                        ["Ending equity", formatCurrency(plan.endingEquity)],
+                        [
+                          "Equity change",
+                          formatSignedCurrency(
+                            plan.endingEquity - plan.startingEquity,
+                          ),
+                        ],
+                        ["Ending cash", formatCurrency(plan.endingCash)],
+                      ].map(([label, value]) => (
+                        <div
+                          key={`${plan.id}-${label}`}
+                          className="rounded-lg border border-white/50 bg-white/40 p-3 dark:border-white/10 dark:bg-black/20"
+                        >
+                          <div className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                            {label}
+                          </div>
+                          <div className="mt-1 text-base font-bold text-gray-900 dark:text-white">
+                            {value}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid gap-4 xl:grid-cols-[1fr_1fr_0.8fr]">
+                    <div className="rounded-lg border border-white/50 bg-white/40 p-4 dark:border-white/10 dark:bg-black/20">
+                      <div className="text-sm font-bold uppercase text-gray-500 dark:text-gray-400">
+                        Planned orders
+                      </div>
+                      <div className="mt-3 space-y-3">
+                        {plan.orders.map((order) => (
+                          <div
+                            key={`${plan.id}-${order.symbol}-${order.side}`}
+                            className="rounded-lg bg-white/60 p-3 text-sm font-semibold text-gray-800 dark:bg-black/20 dark:text-gray-200"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="font-mono font-bold">
+                                {order.symbol}
+                              </span>
+                              <span>
+                                {order.side}{" "}
+                                {formatCurrency(order.requestedNotional)}
+                              </span>
+                            </div>
+                            <div className="mt-2 text-xs uppercase text-gray-500 dark:text-gray-400">
+                              {order.orderType} / {order.sourceOrder.assetClass}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border border-white/50 bg-white/40 p-4 dark:border-white/10 dark:bg-black/20">
+                      <div className="text-sm font-bold uppercase text-gray-500 dark:text-gray-400">
+                        Paper fills
+                      </div>
+                      {plan.fills.length === 0 ? (
+                        <p className="mt-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                          No fills recorded for this paper plan.
+                        </p>
+                      ) : (
+                        <div className="mt-3 space-y-3">
+                          {plan.fills.map((fill) => (
+                            <div
+                              key={`${plan.id}-${fill.symbol}-${fill.side}-${fill.status}`}
+                              className="rounded-lg bg-white/60 p-3 text-sm font-semibold text-gray-800 dark:bg-black/20 dark:text-gray-200"
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <span className="font-mono font-bold">
+                                  {fill.symbol}
+                                </span>
+                                <span>{fill.status}</span>
+                              </div>
+                              <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
+                                <div>
+                                  Requested:{" "}
+                                  {formatCurrency(fill.requestedNotional)}
+                                </div>
+                                <div>
+                                  Filled: {formatCurrency(fill.filledNotional)}
+                                </div>
+                                <div>
+                                  Price: {formatCurrency(fill.fillPrice)}
+                                </div>
+                                <div>Fee: {formatCurrency(fill.fee)}</div>
+                                <div>
+                                  Slippage: {formatCurrency(fill.slippage)}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="rounded-lg border border-white/50 bg-white/40 p-4 dark:border-white/10 dark:bg-black/20">
+                      <div className="text-sm font-bold uppercase text-gray-500 dark:text-gray-400">
+                        Reconciliation
+                      </div>
+                      <div className="mt-3 space-y-3">
+                        {[
+                          [
+                            "Cash matched",
+                            formatBoolean(plan.reconciliation.cashMatched),
+                          ],
+                          [
+                            "Positions matched",
+                            formatBoolean(plan.reconciliation.positionsMatched),
+                          ],
+                          ["Status", plan.reconciliation.status],
+                          [
+                            "Expected cash",
+                            formatCurrency(plan.reconciliation.expectedCash),
+                          ],
+                          [
+                            "Cash diff",
+                            formatSignedCurrency(
+                              plan.reconciliation.cashDiff ?? 0,
+                            ),
+                          ],
+                        ].map(([label, value]) => (
+                          <div
+                            key={`${plan.id}-${label}`}
+                            className="flex items-center justify-between gap-3 rounded-lg bg-white/60 p-3 text-sm font-semibold text-gray-800 dark:bg-black/20 dark:text-gray-200"
+                          >
+                            <span>{label}</span>
+                            <span className="font-mono font-bold">{value}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-4">
+                        <div className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">
+                          Notes
+                        </div>
+                        <ul className="mt-2 space-y-1 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                          {plan.reconciliation.notes.map((note) => (
+                            <li key={`${plan.id}-${note}`}>{note}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div className="mt-4">
+                        <div className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">
+                          Blocked reasons
+                        </div>
+                        <p className="mt-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                          {plan.blockedReasons.length === 0
+                            ? "None reported for this paper plan."
+                            : plan.blockedReasons.join(", ")}
+                        </p>
                       </div>
                     </div>
                   </div>

@@ -87,6 +87,142 @@ export interface ProposedOrder {
   leverage?: number;
 }
 
+export type PaperOrderPlanId = number | string;
+
+export type PaperOrderPlanMode = "paper";
+
+export interface PaperExecuteProposalRequest {
+  idempotencyKey?: string;
+  expectedRiskEvaluationId?: number;
+  humanApprovalId?: string;
+}
+
+export interface PaperReadinessSnapshot {
+  budgetActive: boolean;
+  latestRiskAllow: boolean;
+  riskMatchesProposal: boolean;
+  paperEngineEnabled: boolean;
+  brokerExecutionDisabled: boolean;
+  liveTradingDisabled: boolean;
+  killSwitchArmed: boolean;
+  killSwitchTripped: boolean;
+  cashSufficient: boolean;
+  positionsSufficient: boolean;
+  noDuplicatePlan: boolean;
+}
+
+export interface PaperOrderSnapshot {
+  paperOrderId: string;
+  proposalOrderIndex: number;
+  symbol: string;
+  side: OrderSide;
+  orderType: OrderType;
+  requestedNotional: number;
+  requestedQuantity?: number;
+  requestedPrice?: number;
+  targetPositionPct?: number;
+  marketDataTimestamp: string;
+  feeModelRef: string;
+  slippageModelRef: string;
+  sourceOrder: ProposedOrder;
+}
+
+export interface PaperOrderFill {
+  paperFillId: string;
+  paperOrderId: string;
+  timestamp: string;
+  symbol: string;
+  side: OrderSide;
+  quantity: number;
+  fillPrice: number;
+  grossNotional: number;
+  requestedNotional: number;
+  filledNotional: number;
+  fee: number;
+  feeCurrency: string;
+  slippage: number;
+  netCashDelta: number;
+  positionDelta: number;
+  status: string;
+  rejectionReason?: string;
+}
+
+export interface PaperCashLedgerEntry {
+  paperCashEventId: string;
+  paperFillId: string;
+  timestamp: string;
+  currency: string;
+  amount: number;
+  balanceAfter: number;
+  reason: string;
+}
+
+export interface PaperPositionLedgerEntry {
+  paperPositionEventId: string;
+  paperFillId: string;
+  timestamp: string;
+  symbol: string;
+  quantityDelta: number;
+  notionalDelta: number;
+  positionNotionalAfter: number;
+}
+
+export interface PaperOrderReconciliation {
+  status: string;
+  reconciledAt?: string;
+  cashMatched: boolean;
+  positionsMatched: boolean;
+  expectedCash: number;
+  actualCash?: number;
+  cashDiff?: number;
+  expectedPositions: Record<string, number>;
+  actualPositions?: Record<string, number>;
+  positionDiffs?: Record<string, number>;
+  tolerance: number;
+  notes: string[];
+}
+
+export interface PaperKillSwitchSnapshot {
+  armed: boolean;
+  tripped: boolean;
+  checkedAt: string;
+  reason?: string;
+}
+
+export interface PaperOrderPlan {
+  id: PaperOrderPlanId;
+  proposalId: PaperOrderPlanId;
+  researchRunId?: PaperOrderPlanId;
+  budgetEnvelopeId?: PaperOrderPlanId;
+  riskEvaluationId?: PaperOrderPlanId;
+  proposalHash: string;
+  riskRequestHash?: string;
+  planHash: string;
+  idempotencyKey: string;
+  status: string;
+  mode: PaperOrderPlanMode;
+  submittedAt: string;
+  completedAt?: string;
+  readinessSnapshot: PaperReadinessSnapshot;
+  orders: PaperOrderSnapshot[];
+  fills: PaperOrderFill[];
+  portfolioBefore: PortfolioSnapshot;
+  portfolioAfter: PortfolioSnapshot;
+  cashLedger: PaperCashLedgerEntry[];
+  positionLedger: PaperPositionLedgerEntry[];
+  startingCash: number;
+  endingCash: number;
+  startingEquity: number;
+  endingEquity: number;
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+  reconciliation: PaperOrderReconciliation;
+  killSwitchSnapshot: PaperKillSwitchSnapshot;
+  blockedReasons: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface RiskGateRequest {
   mode: RiskGateMode;
   actor: RiskGateActor;
