@@ -248,6 +248,23 @@ orders.
 
 -   **Description**: Lists research-run ledger records ordered by latest update.
 
+#### `POST /control-plane/research-runs/run-baseline`
+
+-   **Description**: Runs the built-in deterministic baseline backtest and stores the resulting research run. This is a dry-run research action using local sample bars; it does not read broker data and does not place orders.
+-   **Example Request**:
+    ```json
+    {
+      "budgetEnvelopeId": 1,
+      "objective": "Run deterministic momentum baseline before proposal",
+      "symbol": "SAMPLE_MOMENTUM_BASKET",
+      "benchmark": "SAMPLE_BENCHMARK"
+    }
+    ```
+-   **Response Notes**:
+    -   Returns a `ResearchRun`.
+    -   `brokerExecutionEnabled` and `liveTradingEnabled` are always `false`.
+    -   The run is `proposal_ready` only if dataset lineage, no-lookahead proof, cost/slippage assumptions, backtest metrics, and artifact hashes are present.
+
 #### `POST /control-plane/proposals`
 
 -   **Description**: Stores a typed investment proposal with portfolio snapshot, orders, thesis, and evidence references. A `researchRunId` is required, and the linked run must be `proposal_ready` with `advanceEligible: true`.

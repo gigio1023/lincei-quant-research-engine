@@ -32,7 +32,7 @@ After the initial control-plane work, the repo can run a deterministic risk eval
 | Gate | Status | Notes |
 | --- | --- | --- |
 | Research reports | Partial | Existing app creates LLM-assisted reports, not trade proposals. |
-| Research-run provenance | Started | Research-run entity/API and proposal-ready gate exist; automated backtest runner is still missing. |
+| Research-run provenance | Started | Research-run entity/API, proposal-ready gate, and deterministic baseline runner exist. External market ingestion is still missing. |
 | Proposal contract | Started | Budget/research-run/proposal/risk-evaluation/run entities and endpoints exist. |
 | Deterministic risk gate | Started | Evaluation-only backend module plus persisted risk-evaluation audit through control-plane. |
 | Paper execution | Missing | Must exist before broker write access. |
@@ -45,7 +45,7 @@ After the initial control-plane work, the repo can run a deterministic risk eval
 Build toward this order:
 
 1. proposal schema and audit storage;
-2. automated reproducible research runs and backtest runner;
+2. external market/news ingestion for reproducible research runs;
 3. paper execution enclave;
 4. Toss read-only adapter;
 5. Toss paper/sandbox adapter if available;

@@ -117,6 +117,8 @@ A research run stores:
 
 Only a research run with `status: proposal_ready` and `advanceEligible: true` can create a proposal. Blocked research runs must remain visible with their reasons.
 
+The first automated research slice is `POST /control-plane/research-runs/run-baseline`. It runs a deterministic built-in momentum baseline on local sample bars, computes benchmark-aware backtest metrics, hashes the artifact snapshot, and stores a proposal-ready research run when all provenance gates pass. It is a bootstrap runner, not validated alpha and not live market data.
+
 Model training is optional, not the default. The first implementation should use deterministic baselines and simple factor/ranking strategies. A trained model can be introduced only when it produces a signal that is evaluated like any other proposal.
 
 Allowed first model categories:
@@ -321,6 +323,7 @@ Current status:
 - autonomous run entity exists;
 - proposals require a research run id;
 - proposal creation is blocked unless the research run is proposal-ready;
+- deterministic baseline runner creates proposal-ready research runs from a budget or initial capital;
 - control-plane status and list/create/evaluate endpoints exist;
 - broker execution remains disabled.
 
@@ -334,6 +337,12 @@ Add automated research runs:
 - benchmark comparison;
 - transaction cost and slippage assumptions;
 - report generation for passed and failed runs.
+
+Current status:
+
+- built-in deterministic baseline backtest runner exists;
+- runner computes benchmark comparison, costs, slippage, turnover, drawdown, Sharpe, Sortino, Calmar, information ratio, fees, win rate, and artifact hash;
+- runner uses local sample bars only, so external market ingestion is still missing.
 
 Backtesting minimums:
 

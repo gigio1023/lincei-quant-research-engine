@@ -17,6 +17,7 @@ import {
   CreateBudgetEnvelopeRequest,
   CreateInvestmentProposalRequest,
   CreateResearchRunRequest,
+  RunBaselineResearchRequest,
 } from './control-plane.types';
 
 @Controller('control-plane')
@@ -74,6 +75,13 @@ export class ControlPlaneController {
   @Get('research-runs')
   listResearchRuns(): Promise<ResearchRun[]> {
     return this.controlPlaneService.listResearchRuns();
+  }
+
+  @Post('research-runs/run-baseline')
+  runBaselineResearch(
+    @Body() request: RunBaselineResearchRequest,
+  ): Promise<ResearchRun> {
+    return this.controlPlaneService.runBaselineResearch(request);
   }
 
   @Post('runs')

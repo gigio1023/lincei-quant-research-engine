@@ -12,11 +12,13 @@ import { ResearchRun } from '../../entities/research-run.entity';
 import { RiskEvaluation } from '../../entities/risk-evaluation.entity';
 import { RiskGateService } from '../risk-gate/risk-gate.service';
 import { RiskGateRequest } from '../risk-gate/risk-gate.types';
+import { buildBaselineResearchRunRequest } from './baseline-research-runner';
 import {
   ControlPlaneStatus,
   CreateBudgetEnvelopeRequest,
   CreateInvestmentProposalRequest,
   CreateResearchRunRequest,
+  RunBaselineResearchRequest,
 } from './control-plane.types';
 
 @Injectable()
@@ -317,6 +319,41 @@ export class ControlPlaneService {
 
   async listResearchRuns(): Promise<ResearchRun[]> {
     return this.researchRunRepository.find({ order: { updatedAt: 'DESC' } });
+  }
+
+  async runBaselineResearch(
+    request: RunBaselineResearchRequest,
+  ): Promise<ResearchRun> {
+    const budget = request.budgetEnvelopeId
+      ? await this.budgetRepository.findOne({
+          where: { id: request.budgetEnvelopeId },
+        })
+      : await this.budgetRepository.findOne({
+          where: { status: 'active' },
+          order: { updatedAt: 'DESC' },
+        });
+
+    if (request.budgetEnvelopeId && !budget) {
+      throw new NotFoundException(
+        `Budget ${request.budgetEnvelopeId} not found`,
+      );
+    }
+
+    if (!budget && !request.initialCapital) {
+      throw new BadRequestException(
+        'Baseline research requires a budget envelope or initialCapital',
+      );
+    }
+
+    const researchRunRequest = buildBaselineResearchRunRequest(
+      {
+        ...request,
+        budgetEnvelopeId: request.budgetEnvelopeId ?? budget?.id,
+      },
+      budget,
+    );
+
+    return this.createResearchRun(researchRunRequest);
   }
 
   private getResearchRunBlockedReasons(

@@ -4,6 +4,7 @@ import {
   Report,
   ReportsResponse,
   ResearchRun,
+  RunBaselineResearchRequest,
   RiskGateStatus,
 } from "../types";
 
@@ -53,6 +54,16 @@ export const controlPlaneApi = {
 
   getResearchRuns: async (): Promise<ResearchRun[]> => {
     const response = await api.get("/control-plane/research-runs");
+    return response.data;
+  },
+
+  runBaselineResearch: async (
+    request: RunBaselineResearchRequest = {},
+  ): Promise<ResearchRun> => {
+    const response = await api.post(
+      "/control-plane/research-runs/run-baseline",
+      request,
+    );
     return response.data;
   },
 };

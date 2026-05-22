@@ -5,6 +5,7 @@ import {
   ControlPlaneGateStatus,
   ControlPlaneStage,
   ResearchRun,
+  RunBaselineResearchRequest,
   RiskGateRequest,
   RiskGateResponse,
   RiskGateStatus,
@@ -176,6 +177,14 @@ const DOCUMENTED_RESEARCH_RUNS: ResearchRun[] = [
     updatedAt: "2026-05-21T07:24:00.000Z",
   },
 ];
+
+const BASELINE_RESEARCH_REQUEST: RunBaselineResearchRequest = {
+  objective: "Run deterministic dry-run momentum baseline backtest",
+  strategyFamily: "cross-sectional momentum",
+  symbol: "005930",
+  benchmark: "KOSPI 200 total return proxy",
+  initialCapital: 10_000_000,
+};
 
 const EXAMPLE_REQUEST: RiskGateRequest = {
   mode: "dry_run",
@@ -408,6 +417,13 @@ const ControlPlaneDashboard: React.FC = () => {
   const [researchRunsError, setResearchRunsError] = useState<string | null>(
     null,
   );
+  const [runningBaselineResearch, setRunningBaselineResearch] = useState(false);
+  const [baselineResearchError, setBaselineResearchError] = useState<
+    string | null
+  >(null);
+  const [baselineResearchSuccess, setBaselineResearchSuccess] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     let ignore = false;
@@ -482,6 +498,33 @@ const ControlPlaneDashboard: React.FC = () => {
     : loadingResearchRuns
       ? "Loading research ledger"
       : "Documented sample runs";
+
+  const handleRunBaselineResearch = async () => {
+    setRunningBaselineResearch(true);
+    setBaselineResearchError(null);
+    setBaselineResearchSuccess(null);
+
+    try {
+      const researchRun = await controlPlaneApi.runBaselineResearch(
+        BASELINE_RESEARCH_REQUEST,
+      );
+
+      setResearchRuns((currentRuns) => [
+        researchRun,
+        ...(currentRuns ?? []).filter((run) => run.id !== researchRun.id),
+      ]);
+      setResearchRunsError(null);
+      setBaselineResearchSuccess(
+        "Baseline dry-run completed. Returned research run added to the ledger.",
+      );
+    } catch {
+      setBaselineResearchError(
+        "Baseline dry-run failed. No broker or live order path was called.",
+      );
+    } finally {
+      setRunningBaselineResearch(false);
+    }
+  };
 
   return (
     <div className="container mx-auto px-6 py-12 space-y-8">
@@ -646,7 +689,7 @@ const ControlPlaneDashboard: React.FC = () => {
                 controls.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span
                 className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold uppercase ${
                   researchRuns
@@ -659,8 +702,59 @@ const ControlPlaneDashboard: React.FC = () => {
               <span className="inline-flex rounded-full border border-red-300 bg-red-100 px-3 py-1 text-xs font-bold uppercase text-red-800 dark:border-red-400/30 dark:bg-red-500/15 dark:text-red-200">
                 Broker disabled
               </span>
+              <button
+                type="button"
+                onClick={handleRunBaselineResearch}
+                disabled={loadingResearchRuns || runningBaselineResearch}
+                className="rounded-lg border border-primary-500/40 bg-primary-600 px-4 py-2 text-sm font-bold text-white shadow-glass transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:border-gray-300 disabled:bg-gray-400 disabled:text-gray-100 dark:border-primary-300/40 dark:bg-primary-500 dark:hover:bg-primary-400"
+              >
+                {runningBaselineResearch
+                  ? "Running dry-run backtest"
+                  : "Run dry-run backtest"}
+              </button>
             </div>
           </div>
+
+          <div className="mb-5 rounded-xl border border-sky-200 bg-sky-50/80 p-4 dark:border-sky-400/30 dark:bg-sky-500/10">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <div className="text-sm font-bold uppercase text-sky-800 dark:text-sky-200">
+                  Baseline research dry-run
+                </div>
+                <p className="mt-2 max-w-3xl text-sm font-semibold leading-relaxed text-sky-800 dark:text-sky-100">
+                  Starts the deterministic research/backtest runner only. It
+                  sends no broker credentials, opens no live order path, and
+                  records the returned ResearchRun for review.
+                </p>
+              </div>
+              <div className="grid gap-2 text-xs font-bold text-sky-900 dark:text-sky-100 sm:grid-cols-3 lg:min-w-96">
+                <div className="rounded-lg bg-white/60 p-3 dark:bg-black/20">
+                  Symbol: {BASELINE_RESEARCH_REQUEST.symbol}
+                </div>
+                <div className="rounded-lg bg-white/60 p-3 dark:bg-black/20">
+                  Benchmark: {BASELINE_RESEARCH_REQUEST.benchmark}
+                </div>
+                <div className="rounded-lg bg-white/60 p-3 dark:bg-black/20">
+                  Capital:{" "}
+                  {formatCurrency(
+                    BASELINE_RESEARCH_REQUEST.initialCapital ?? 0,
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {baselineResearchSuccess && (
+            <p className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 text-sm font-semibold text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+              {baselineResearchSuccess}
+            </p>
+          )}
+
+          {baselineResearchError && (
+            <p className="mb-5 rounded-xl border border-red-200 bg-red-50/80 p-4 text-sm font-semibold text-red-800 dark:border-red-400/30 dark:bg-red-500/10 dark:text-red-200">
+              {baselineResearchError}
+            </p>
+          )}
 
           {researchRunsError && (
             <p className="mb-5 rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-sm font-semibold text-amber-800 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-amber-200">

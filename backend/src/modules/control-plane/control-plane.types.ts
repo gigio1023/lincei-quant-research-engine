@@ -58,6 +58,15 @@ export interface CreateResearchRunRequest {
   knownFailureModes: string[];
 }
 
+export interface RunBaselineResearchRequest {
+  budgetEnvelopeId?: number;
+  objective?: string;
+  strategyFamily?: string;
+  symbol?: string;
+  benchmark?: string;
+  initialCapital?: number;
+}
+
 export interface ControlPlaneStatus {
   brokerExecutionEnabled: false;
   liveTradingReady: false;

@@ -210,6 +210,38 @@ describe('ControlPlaneService', () => {
     ).rejects.toThrow('is not proposal-ready');
   });
 
+  it('runs a deterministic baseline backtest into a proposal-ready research run', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Baseline budget',
+      totalBudget: 10_000_000,
+    });
+
+    const researchRun = await service.runBaselineResearch({
+      budgetEnvelopeId: budget.id,
+      objective: 'Run built-in baseline before proposal',
+      symbol: 'SAMPLE_MOMENTUM_BASKET',
+      benchmark: 'SAMPLE_BENCHMARK',
+    });
+
+    expect(researchRun.budgetEnvelopeId).toBe(budget.id);
+    expect(researchRun.status).toBe('proposal_ready');
+    expect(researchRun.advanceEligible).toBe(true);
+    expect(researchRun.noLookaheadChecked).toBe(true);
+    expect(researchRun.backtestMetrics.tradeCount).toBeGreaterThan(0);
+    expect(researchRun.artifactRefs).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('/run-input.json'),
+        expect.stringContaining('/metrics.json'),
+        expect.stringContaining('/report.md'),
+      ]),
+    );
+    expect(researchRun.artifactHashes[researchRun.artifactRefs[0]]).toMatch(
+      /^sha256:/,
+    );
+    expect(researchRun.brokerExecutionEnabled).toBe(false);
+    expect(researchRun.liveTradingEnabled).toBe(false);
+  });
+
   it('rejects proposal creation without research-run provenance', async () => {
     await expect(
       service.createProposal({

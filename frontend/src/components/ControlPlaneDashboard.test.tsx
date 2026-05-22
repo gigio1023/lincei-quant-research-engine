@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import ControlPlaneDashboard from "./ControlPlaneDashboard";
 import { riskGateApi } from "../services/api";
@@ -10,6 +10,7 @@ vi.mock("../services/api", () => ({
   controlPlaneApi: {
     getStatus: vi.fn(),
     getResearchRuns: vi.fn(),
+    runBaselineResearch: vi.fn(),
   },
 }));
 
@@ -110,6 +111,54 @@ const mockResearchRuns = [
   },
 ];
 
+const mockBaselineResearchRun = {
+  id: "rr-baseline-api-1",
+  budgetEnvelopeId: "budget-baseline-1",
+  objective: "Run deterministic dry-run momentum baseline backtest",
+  strategyFamily: "cross-sectional momentum",
+  hypothesis: "The baseline evaluates historical bars without broker access.",
+  status: "proposal_ready",
+  phase: "artifacts_persisted",
+  advanceEligible: true,
+  datasetRefs: [
+    {
+      id: "krx-daily-bars",
+      source: "baseline-runner",
+      windowStart: "2025-01-01",
+      windowEnd: "2026-05-21",
+      availabilityTimestamp: "2026-05-21T23:50:00.000Z",
+    },
+  ],
+  featureRefs: ["return_60d"],
+  timestampLagRules: ["Signals use data available before proposal time."],
+  noLookaheadChecked: true,
+  benchmark: "KOSPI 200 total return proxy",
+  costModel: "10 bps per side",
+  slippageModel: "5 bps fixed haircut",
+  modelName: "deterministic-ranking-baseline",
+  validationWindow: {
+    start: "2025-01-01",
+    end: "2026-05-21",
+  },
+  backtestMetrics: {
+    totalReturnPct: 9.2,
+    benchmarkReturnPct: 7.3,
+    maxDrawdownPct: 6.8,
+    sharpeRatio: 1.05,
+    turnoverPct: 88,
+    tradeCount: 19,
+  },
+  artifactRefs: ["s3://research-runs/rr-baseline-api-1/report.json"],
+  artifactHashes: {
+    "s3://research-runs/rr-baseline-api-1/report.json": "sha256:baseline",
+  },
+  knownFailureModes: ["Momentum reversal"],
+  brokerExecutionEnabled: false,
+  liveTradingEnabled: false,
+  createdAt: "2026-05-22T09:00:00.000Z",
+  updatedAt: "2026-05-22T09:12:00.000Z",
+};
+
 describe("ControlPlaneDashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -119,6 +168,9 @@ describe("ControlPlaneDashboard", () => {
     );
     vi.mocked(controlPlaneApi.getResearchRuns).mockResolvedValue(
       mockResearchRuns,
+    );
+    vi.mocked(controlPlaneApi.runBaselineResearch).mockResolvedValue(
+      mockBaselineResearchRun,
     );
   });
 
@@ -142,6 +194,8 @@ describe("ControlPlaneDashboard", () => {
 
     expect(screen.getByText("Research Run Ledger")).toBeInTheDocument();
     expect(screen.getByText("Live research ledger")).toBeInTheDocument();
+    expect(screen.getByText("Baseline research dry-run")).toBeInTheDocument();
+    expect(screen.getByText("Run dry-run backtest")).toBeInTheDocument();
     expect(
       screen.getByText("Validate API momentum baseline"),
     ).toBeInTheDocument();
@@ -196,6 +250,63 @@ describe("ControlPlaneDashboard", () => {
 
     expect(
       screen.getByText("No research runs recorded yet."),
+    ).toBeInTheDocument();
+  });
+
+  it("should_run_baseline_dry_run_backtest_and_add_returned_research_run", async () => {
+    render(<ControlPlaneDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Live research ledger")).toBeInTheDocument();
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Run dry-run backtest" }),
+    );
+
+    await waitFor(() => {
+      expect(controlPlaneApi.runBaselineResearch).toHaveBeenCalledWith({
+        objective: "Run deterministic dry-run momentum baseline backtest",
+        strategyFamily: "cross-sectional momentum",
+        symbol: "005930",
+        benchmark: "KOSPI 200 total return proxy",
+        initialCapital: 10000000,
+      });
+    });
+
+    expect(
+      await screen.findByText(
+        "Baseline dry-run completed. Returned research run added to the ledger.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Run deterministic dry-run momentum baseline backtest"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("+9.2%")).toBeInTheDocument();
+  });
+
+  it("should_show_failure_when_baseline_dry_run_backtest_fails", async () => {
+    vi.mocked(controlPlaneApi.runBaselineResearch).mockRejectedValue(
+      new Error("runner failed"),
+    );
+
+    render(<ControlPlaneDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Live research ledger")).toBeInTheDocument();
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Run dry-run backtest" }),
+    );
+
+    expect(
+      await screen.findByText(
+        "Baseline dry-run failed. No broker or live order path was called.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Validate API momentum baseline"),
     ).toBeInTheDocument();
   });
 });

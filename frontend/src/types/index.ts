@@ -212,6 +212,15 @@ export interface ResearchRun {
   updatedAt: string;
 }
 
+export interface RunBaselineResearchRequest {
+  budgetEnvelopeId?: number;
+  objective?: string;
+  strategyFamily?: string;
+  symbol?: string;
+  benchmark?: string;
+  initialCapital?: number;
+}
+
 export type ControlPlaneGateStatus =
   | "partial"
   | "started"

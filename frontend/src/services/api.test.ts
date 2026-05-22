@@ -15,6 +15,7 @@ vi.mock("axios", () => ({
 
 const mockedAxios = vi.mocked(axios);
 const mockGet = vi.fn();
+const mockPost = vi.fn();
 
 describe("API Service", () => {
   beforeEach(() => {
@@ -22,7 +23,7 @@ describe("API Service", () => {
     vi.clearAllMocks();
     mockedAxios.create.mockReturnValue({
       get: mockGet,
-      post: vi.fn(),
+      post: mockPost,
       put: vi.fn(),
       delete: vi.fn(),
     } as never);
@@ -197,6 +198,54 @@ describe("API Service", () => {
 
       expect(mockGet).toHaveBeenCalledWith("/control-plane/research-runs");
       expect(result).toEqual(mockResearchRuns);
+    });
+
+    it("should_run_baseline_research", async () => {
+      const mockRequest = {
+        objective: "Run deterministic dry-run momentum baseline",
+        strategyFamily: "cross-sectional momentum",
+        symbol: "005930",
+        benchmark: "KOSPI 200",
+        initialCapital: 10000000,
+      };
+      const mockResearchRun = {
+        id: "rr-baseline-1",
+        objective: mockRequest.objective,
+        strategyFamily: mockRequest.strategyFamily,
+        hypothesis: "Deterministic baseline evaluates historical data only.",
+        status: "proposal_ready",
+        datasetRefs: [],
+        featureRefs: [],
+        benchmark: mockRequest.benchmark,
+        costModel: "10 bps per side",
+        slippageModel: "5 bps fixed haircut",
+        validationWindow: "2025-01-01..2026-05-21",
+        backtestMetrics: {
+          totalReturnPct: 10,
+          benchmarkReturnPct: 8,
+          maxDrawdownPct: 6,
+          sharpeRatio: 1.1,
+          turnoverPct: 50,
+          tradeCount: 12,
+        },
+        artifactRefs: [],
+        knownFailureModes: [],
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+        createdAt: "2026-05-22T08:30:00.000Z",
+        updatedAt: "2026-05-22T08:42:00.000Z",
+      };
+
+      mockPost.mockResolvedValue({ data: mockResearchRun });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.runBaselineResearch(mockRequest);
+
+      expect(mockPost).toHaveBeenCalledWith(
+        "/control-plane/research-runs/run-baseline",
+        mockRequest,
+      );
+      expect(result).toEqual(mockResearchRun);
     });
   });
 });

@@ -175,4 +175,47 @@ describe('ControlPlane research provenance (e2e)', () => {
       })
       .expect(400);
   });
+
+  it('runs the deterministic baseline research endpoint', async () => {
+    const budgetResponse = await request(app.getHttpServer())
+      .post('/control-plane/budgets')
+      .send({
+        name: 'Baseline runner budget',
+        totalBudget: 12_000_000,
+        mode: 'dry_run',
+      })
+      .expect(201);
+
+    const researchRunResponse = await request(app.getHttpServer())
+      .post('/control-plane/research-runs/run-baseline')
+      .send({
+        budgetEnvelopeId: budgetResponse.body.id,
+        objective: 'Run baseline research through HTTP',
+      })
+      .expect(201);
+
+    expect(researchRunResponse.body.budgetEnvelopeId).toBe(
+      budgetResponse.body.id,
+    );
+    expect(researchRunResponse.body.status).toBe('proposal_ready');
+    expect(researchRunResponse.body.advanceEligible).toBe(true);
+    expect(researchRunResponse.body.noLookaheadChecked).toBe(true);
+    expect(researchRunResponse.body.backtestMetrics.tradeCount).toBeGreaterThan(
+      0,
+    );
+    expect(researchRunResponse.body.artifactRefs).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('/run-input.json'),
+        expect.stringContaining('/metrics.json'),
+        expect.stringContaining('/report.md'),
+      ]),
+    );
+    expect(
+      researchRunResponse.body.artifactHashes[
+        researchRunResponse.body.artifactRefs[0]
+      ],
+    ).toMatch(/^sha256:/);
+    expect(researchRunResponse.body.brokerExecutionEnabled).toBe(false);
+    expect(researchRunResponse.body.liveTradingEnabled).toBe(false);
+  });
 });
