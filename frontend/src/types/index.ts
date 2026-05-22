@@ -124,6 +124,21 @@ export interface PaperReadinessSnapshot {
   availableSellNotionalBySymbol?: Record<string, number>;
 }
 
+export interface PaperReservationHold {
+  holdId: string;
+  status: string;
+  idempotencyKey: string;
+  createdAt: string;
+  consumedAt?: string;
+  releasedAt?: string;
+  cashAmount: number;
+  sellNotionalBySymbol: Record<string, number>;
+  availableCashAtHold: number;
+  availableSellNotionalBySymbolAtHold: Record<string, number>;
+  holdHash: string;
+  notes: string[];
+}
+
 export interface PaperOrderSnapshot {
   paperOrderId: string;
   proposalOrderIndex: number;
@@ -227,6 +242,7 @@ export interface PaperOrderPlan {
   submittedAt: string;
   completedAt?: string;
   readinessSnapshot: PaperReadinessSnapshot;
+  reservationHold?: PaperReservationHold;
   orders: PaperOrderSnapshot[];
   fills: PaperOrderFill[];
   portfolioBefore: PortfolioSnapshot;

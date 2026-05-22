@@ -359,6 +359,19 @@ export const DOCUMENTED_PAPER_ORDER_PLANS: PaperOrderPlan[] = [
       reservedSellNotionalBySymbol: {},
       availableSellNotionalBySymbol: {},
     },
+    reservationHold: {
+      holdId: "paper-reservation:docs:001",
+      status: "consumed",
+      idempotencyKey: "docs-paper-plan-001",
+      createdAt: "2026-05-22T09:05:00.000Z",
+      consumedAt: "2026-05-22T09:05:00.000Z",
+      cashAmount: 500_750,
+      sellNotionalBySymbol: {},
+      availableCashAtHold: 10_000_000,
+      availableSellNotionalBySymbolAtHold: {},
+      holdHash: "sha256:docs-reservation-hold",
+      notes: ["Consumed by documented paper order plan."],
+    },
     orders: [
       {
         paperOrderId: "paper-order:docs:0",

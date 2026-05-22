@@ -428,6 +428,16 @@ describe('ControlPlaneService', () => {
     expect(plan.brokerExecutionEnabled).toBe(false);
     expect(plan.liveTradingEnabled).toBe(false);
     expect(plan.paperAccountId).toBeDefined();
+    expect(plan.reservationHold).toEqual(
+      expect.objectContaining({
+        status: 'consumed',
+        idempotencyKey: 'paper-test-1',
+        cashAmount: 500_750,
+        availableCashAtHold: 10_000_000,
+        holdHash: expect.stringMatching(/^sha256:/),
+        consumedAt: '2026-05-23T00:00:00.000Z',
+      }),
+    );
     expect(plan.orders).toHaveLength(1);
     expect(plan.orders[0]).toEqual(
       expect.objectContaining({

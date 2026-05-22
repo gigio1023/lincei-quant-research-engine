@@ -33,6 +33,7 @@ import {
   PaperPositionLedgerEntry,
   PaperReadinessSnapshot,
   PaperReconciliation,
+  PaperReservationHold,
 } from '../../entities/paper-order-plan.entity';
 import { ResearchRun } from '../../entities/research-run.entity';
 import { RiskEvaluation } from '../../entities/risk-evaluation.entity';
@@ -1118,6 +1119,15 @@ export class ControlPlaneService {
       executionControlState: executionControlState.state,
       proposal,
     });
+    const reservationHold =
+      blockedReasons.length === 0
+        ? this.buildPaperReservationHold(
+            proposal.id,
+            idempotencyKey,
+            readinessSnapshot,
+            submittedAt,
+          )
+        : undefined;
     const simulated = this.simulatePaperFills(
       proposal,
       paperPortfolioBefore,
@@ -1150,6 +1160,7 @@ export class ControlPlaneService {
       submittedAt,
       completedAt: blockedReasons.length > 0 ? submittedAt : undefined,
       readinessSnapshot,
+      reservationHold,
       orders: simulated.orders,
       fills: simulated.fills,
       portfolioBefore: paperPortfolioBefore,
@@ -1185,6 +1196,8 @@ export class ControlPlaneService {
     const saved = await this.paperOrderPlanRepository.save(paperOrderPlan);
 
     if (blockedReasons.length === 0 && paperAccount) {
+      this.consumePaperReservationHold(saved, submittedAt);
+      await this.paperOrderPlanRepository.save(saved);
       await this.applyPaperPlanToAccount(saved, paperAccount);
       if (orderPlanApproval) {
         orderPlanApproval.status = 'consumed';
@@ -1201,6 +1214,60 @@ export class ControlPlaneService {
 
   async listPaperOrderPlans(): Promise<PaperOrderPlan[]> {
     return this.paperOrderPlanRepository.find({ order: { updatedAt: 'DESC' } });
+  }
+
+  private buildPaperReservationHold(
+    proposalId: number,
+    idempotencyKey: string,
+    readinessSnapshot: PaperReadinessSnapshot,
+    createdAt: Date,
+  ): PaperReservationHold {
+    const holdHashInput = {
+      proposalId,
+      idempotencyKey,
+      cashAmount: readinessSnapshot.requiredCash,
+      sellNotionalBySymbol: readinessSnapshot.requiredSellNotionalBySymbol,
+      availableCashAtHold: readinessSnapshot.availableCash,
+      availableSellNotionalBySymbolAtHold:
+        readinessSnapshot.availableSellNotionalBySymbol,
+    };
+    const holdHash = this.hashObject(holdHashInput);
+
+    return {
+      holdId: `paper-reservation:${proposalId}:${holdHash}`,
+      status: 'reserved',
+      idempotencyKey,
+      createdAt: createdAt.toISOString(),
+      cashAmount: readinessSnapshot.requiredCash,
+      sellNotionalBySymbol: readinessSnapshot.requiredSellNotionalBySymbol,
+      availableCashAtHold: readinessSnapshot.availableCash,
+      availableSellNotionalBySymbolAtHold:
+        readinessSnapshot.availableSellNotionalBySymbol,
+      holdHash,
+      notes: [
+        'Reservation hold is local paper evidence only.',
+        'No broker cash or broker position was reserved.',
+      ],
+    };
+  }
+
+  private consumePaperReservationHold(
+    plan: PaperOrderPlan,
+    consumedAt: Date,
+  ): void {
+    if (!plan.reservationHold) {
+      return;
+    }
+
+    plan.reservationHold = {
+      ...plan.reservationHold,
+      status: 'consumed',
+      consumedAt: consumedAt.toISOString(),
+      notes: [
+        ...plan.reservationHold.notes,
+        `Consumed by paper order plan ${plan.id}.`,
+      ],
+    };
   }
 
   async getPaperOrderPlan(planId: number): Promise<PaperOrderPlan> {

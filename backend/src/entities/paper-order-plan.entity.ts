@@ -24,6 +24,8 @@ export type PaperOrderPlanStatus =
   | 'failed'
   | 'killed';
 
+export type PaperReservationHoldStatus = 'reserved' | 'consumed' | 'released';
+
 export interface PaperReadinessSnapshot {
   budgetActive: boolean;
   latestRiskAllow: boolean;
@@ -43,6 +45,21 @@ export interface PaperReadinessSnapshot {
   requiredSellNotionalBySymbol: Record<string, number>;
   reservedSellNotionalBySymbol: Record<string, number>;
   availableSellNotionalBySymbol: Record<string, number>;
+}
+
+export interface PaperReservationHold {
+  holdId: string;
+  status: PaperReservationHoldStatus;
+  idempotencyKey: string;
+  createdAt: string;
+  consumedAt?: string;
+  releasedAt?: string;
+  cashAmount: number;
+  sellNotionalBySymbol: Record<string, number>;
+  availableCashAtHold: number;
+  availableSellNotionalBySymbolAtHold: Record<string, number>;
+  holdHash: string;
+  notes: string[];
 }
 
 export interface PaperOrderSnapshot {
@@ -194,6 +211,9 @@ export class PaperOrderPlan {
 
   @Column('json')
   readinessSnapshot: PaperReadinessSnapshot;
+
+  @Column('json', { nullable: true })
+  reservationHold?: PaperReservationHold;
 
   @Column('json')
   orders: PaperOrderSnapshot[];

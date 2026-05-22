@@ -429,10 +429,11 @@ Current status:
 - paper fill, cash ledger, position ledger, and local reconciliation snapshots exist;
 - paper position accounting now records quantity, average price, cost basis, unrealized PnL, and realized PnL in simulated fills, position ledger entries, account positions, and dashboard position rows;
 - paper execution readiness now records reservation evidence for required cash, reserved cash, available cash, required sells, reserved sells, and available sell notional by symbol before fill simulation;
+- filled paper order plans now persist a durable reservation-hold snapshot with hold id, status, cash amount, sell notional by symbol, hold hash, and consumption timestamp;
 - durable paper account state now carries simulated cash, equity, exposure, positions, and applied plan ids across paper cycles;
 - minimal execution-control state and halted/paused/reducing gate exists;
 - frontend dashboard shows paper account state, execution-control state, latest paper plans, fills, reconciliation notes, hashes, and broker/live disabled guardrails;
-- still missing production signing custody, transaction-isolated accounting service, durable reservation holds across DB transactions, and scheduled broker-backed reconciliation.
+- still missing production signing custody, transaction-isolated accounting service, database-enforced reservation lock isolation, and scheduled broker-backed reconciliation.
 
 ### Phase 4: Broker Read-Only
 
@@ -494,7 +495,7 @@ Blocking items:
 - verified broker-backed reconciliation with real Toss schema/client responses;
 - explicit paper account seed/promote workflow exists, but production custody and operator policy still need hardening;
 - schedule leases and an env-gated in-process worker for autonomous runs exist with due/not-due checks, TTL validation, owner-checked release, overlap guard, and cycle keys; distributed DB lock audit, scheduler deployment policy, and auth boundary still need hardening;
-- transaction isolation plus durable reservation holds across DB transactions;
+- transaction isolation plus database-enforced reservation lock isolation;
 - operational monitoring;
 - legal and terms review;
 - explicit live-trading gate.
