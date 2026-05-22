@@ -116,6 +116,12 @@ export interface PaperReadinessSnapshot {
   cashSufficient: boolean;
   positionsSufficient: boolean;
   noDuplicatePlan: boolean;
+  requiredCash?: number;
+  reservedCash?: number;
+  availableCash?: number;
+  requiredSellNotionalBySymbol?: Record<string, number>;
+  reservedSellNotionalBySymbol?: Record<string, number>;
+  availableSellNotionalBySymbol?: Record<string, number>;
 }
 
 export interface PaperOrderSnapshot {

@@ -987,6 +987,108 @@ describe('ControlPlaneService', () => {
     expect(paperAccounts).toHaveLength(0);
   });
 
+  it('subtracts open paper reservations before checking available cash', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Reservation budget',
+      totalBudget: 1_000_000,
+      policy: {
+        maxGrossExposurePct: 100,
+        maxSinglePositionPct: 100,
+        maxOrderNotional: 1_000_000,
+      },
+    });
+    const seededAccount = await service.seedPaperAccount({
+      budgetEnvelopeId: budget.id,
+      cash: 1_000_000,
+      positions: [],
+      actor: 'unit-test-operator',
+      reason: 'Seed account for reservation check.',
+      idempotencyKey: 'seed-reservation-account',
+    });
+    await service.promotePaperAccount(seededAccount.id, {
+      actor: 'unit-test-operator',
+      reason: 'Promote account for reservation check.',
+      idempotencyKey: 'promote-reservation-account',
+      expectedEventHash: paperAccountEvents[0].eventHash,
+    });
+    const researchRun = await service.runBaselineResearch({
+      budgetEnvelopeId: budget.id,
+    });
+    const proposal = await service.createProposal({
+      budgetEnvelopeId: budget.id,
+      researchRunId: researchRun.id,
+      strategyId: 'reservation-v1',
+      ruleId: 'cash-reservation-check',
+      generatedAt: '2026-05-22T23:59:00.000Z',
+      marketDataTimestamp: '2026-05-22T23:55:00.000Z',
+      portfolioSnapshot: {
+        currency: 'KRW',
+        equity: 1_000_000,
+        cash: 1_000_000,
+        grossExposurePct: 0,
+      },
+      orders: [
+        {
+          symbol: '005930',
+          assetClass: 'domestic_stock',
+          side: 'BUY',
+          orderType: 'MARKET',
+          notional: 800_000,
+          targetPositionPct: 80,
+        },
+      ],
+    });
+    const approval = await service.createOrderPlanApproval(proposal.id, {
+      idempotencyKey: 'reservation-paper-plan',
+      approver: 'unit-test-operator',
+      reason: 'Approve reservation check plan.',
+    });
+    paperOrderPlans.push({
+      id: 99,
+      proposalId: 999,
+      paperAccountId: seededAccount.id,
+      status: 'planned',
+      orders: [
+        {
+          paperOrderId: 'paper-order:reserved:0',
+          proposalOrderIndex: 0,
+          symbol: '000660',
+          side: 'BUY',
+          orderType: 'MARKET',
+          requestedNotional: 300_000,
+          marketDataTimestamp: '2026-05-22T23:55:00.000Z',
+          feeModelRef: 'fixed-10bps-paper-fee-v1',
+          slippageModelRef: 'fixed-5bps-paper-slippage-v1',
+          sourceOrder: {
+            symbol: '000660',
+            assetClass: 'domestic_stock',
+            side: 'BUY',
+            orderType: 'MARKET',
+            notional: 300_000,
+          },
+        },
+      ],
+      updatedAt: new Date('2026-05-22T23:58:00.000Z'),
+    } as PaperOrderPlan);
+
+    const plan = await service.paperExecuteProposal(proposal.id, {
+      idempotencyKey: 'reservation-paper-plan',
+      orderPlanApprovalId: approval.id,
+    });
+
+    expect(plan.status).toBe('blocked');
+    expect(plan.blockedReasons).toContain('Paper execution cash check failed');
+    expect(plan.readinessSnapshot).toEqual(
+      expect.objectContaining({
+        requiredCash: 801_200,
+        reservedCash: 300_450,
+        availableCash: 699_550,
+        cashSufficient: false,
+        noDuplicatePlan: true,
+      }),
+    );
+  });
+
   it('blocks paper execution when execution control is halted', async () => {
     const budget = await service.createBudgetEnvelope({
       name: 'Halted budget',

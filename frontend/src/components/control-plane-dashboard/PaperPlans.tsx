@@ -84,6 +84,14 @@ const PaperPlanCard = ({ plan }: { plan: PaperPlan }) => (
         <div>Plan hash: {plan.planHash}</div>
         <div>Proposal hash: {plan.proposalHash}</div>
         <div>Idempotency: {plan.idempotencyKey}</div>
+        <div>
+          Reservations: cash{" "}
+          {formatCurrency(plan.readinessSnapshot.requiredCash ?? 0)}
+          {" / available "}
+          {formatCurrency(plan.readinessSnapshot.availableCash ?? 0)}
+          {" / reserved "}
+          {formatCurrency(plan.readinessSnapshot.reservedCash ?? 0)}
+        </div>
       </div>
     </div>
 

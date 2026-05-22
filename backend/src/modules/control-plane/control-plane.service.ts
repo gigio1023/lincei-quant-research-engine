@@ -73,6 +73,15 @@ interface PaperPositionAccountingState {
   realizedPnl: number;
 }
 
+interface PaperReservationSnapshot {
+  requiredCash: number;
+  reservedCash: number;
+  availableCash: number;
+  requiredSellNotionalBySymbol: Record<string, number>;
+  reservedSellNotionalBySymbol: Record<string, number>;
+  availableSellNotionalBySymbol: Record<string, number>;
+}
+
 @Injectable()
 export class ControlPlaneService {
   private readonly disallowedModelCategories = new Set([
@@ -1071,13 +1080,19 @@ export class ControlPlaneService {
           paperPortfolioBefore,
         )
       : false;
-    const cashSufficient = this.hasSufficientCashForPaper(
+    const reservationSnapshot = await this.buildPaperReservationSnapshot(
       proposal,
       paperPortfolioBefore,
+      paperAccount,
     );
-    const positionsSufficient = this.hasSufficientPositionsForPaper(
-      proposal,
-      paperPortfolioBefore,
+    const cashSufficient =
+      reservationSnapshot.availableCash >= reservationSnapshot.requiredCash;
+    const positionsSufficient = Object.entries(
+      reservationSnapshot.requiredSellNotionalBySymbol,
+    ).every(
+      ([symbol, requiredNotional]) =>
+        (reservationSnapshot.availableSellNotionalBySymbol[symbol] ?? 0) >=
+        requiredNotional,
     );
     const readinessSnapshot: PaperReadinessSnapshot = {
       budgetActive: budget?.status === 'active',
@@ -1092,6 +1107,7 @@ export class ControlPlaneService {
       cashSufficient,
       positionsSufficient,
       noDuplicatePlan,
+      ...reservationSnapshot,
     };
     const blockedReasons = this.getPaperExecutionBlockedReasons({
       latestEvaluation,
@@ -1837,6 +1853,29 @@ export class ControlPlaneService {
     return plans.find((plan) => plan.idempotencyKey === idempotencyKey) ?? null;
   }
 
+  private async findOpenPaperReservations(
+    paperAccountId?: number,
+  ): Promise<PaperOrderPlan[]> {
+    if (!paperAccountId) {
+      return [];
+    }
+
+    const plans = await this.paperOrderPlanRepository.find({
+      order: { updatedAt: 'DESC' },
+    });
+    const reservingStatuses: PaperOrderPlan['status'][] = [
+      'planned',
+      'simulating',
+      'partially_filled',
+    ];
+
+    return plans.filter(
+      (plan) =>
+        plan.paperAccountId === paperAccountId &&
+        reservingStatuses.includes(plan.status),
+    );
+  }
+
   private riskEvaluationMatchesProposal(
     evaluation: RiskEvaluation,
     proposal: InvestmentProposal,
@@ -1856,32 +1895,104 @@ export class ControlPlaneService {
     );
   }
 
-  private hasSufficientCashForPaper(
+  private async buildPaperReservationSnapshot(
     proposal: InvestmentProposal,
     portfolio: PortfolioSnapshot,
-  ): boolean {
-    const requiredCash = proposal.orders
-      .filter((order) => order.side === 'BUY')
-      .reduce(
-        (total, order) =>
+    paperAccount: PaperAccount | null,
+  ): Promise<PaperReservationSnapshot> {
+    const openReservations = await this.findOpenPaperReservations(
+      paperAccount?.id,
+    );
+    const requiredCash = this.calculatePaperBuyRequirement(proposal.orders);
+    const reservedCash = this.roundMoney(
+      openReservations.reduce(
+        (total, plan) =>
           total +
-          order.notional +
-          this.roundMoney(order.notional * 0.001) +
-          this.roundMoney(order.notional * 0.0005),
+          this.calculatePaperBuyRequirement(
+            plan.orders.map((order) => ({
+              side: order.side,
+              notional: order.requestedNotional,
+            })),
+          ),
         0,
-      );
-
-    return portfolio.cash >= this.roundMoney(requiredCash);
-  }
-
-  private hasSufficientPositionsForPaper(
-    proposal: InvestmentProposal,
-    portfolio: PortfolioSnapshot,
-  ): boolean {
+      ),
+    );
     const availableBySymbol = this.positionsToMarketValueMap(
       portfolio.positions,
     );
-    const requiredSellBySymbol = proposal.orders
+    const requiredSellNotionalBySymbol = this.calculatePaperSellRequirements(
+      proposal.orders,
+    );
+    const reservedSellNotionalBySymbol = openReservations.reduce<
+      Record<string, number>
+    >((reserved, plan) => {
+      const planRequirements = this.calculatePaperSellRequirements(
+        plan.orders.map((order) => ({
+          symbol: order.symbol,
+          side: order.side,
+          notional: order.requestedNotional,
+        })),
+      );
+
+      for (const [symbol, notional] of Object.entries(planRequirements)) {
+        reserved[symbol] = this.roundMoney((reserved[symbol] ?? 0) + notional);
+      }
+
+      return reserved;
+    }, {});
+    const allSellSymbols = Array.from(
+      new Set([
+        ...Object.keys(availableBySymbol),
+        ...Object.keys(requiredSellNotionalBySymbol),
+        ...Object.keys(reservedSellNotionalBySymbol),
+      ]),
+    );
+    const availableSellNotionalBySymbol = Object.fromEntries(
+      allSellSymbols.map((symbol) => [
+        symbol,
+        this.roundMoney(
+          Math.max(
+            0,
+            (availableBySymbol[symbol] ?? 0) -
+              (reservedSellNotionalBySymbol[symbol] ?? 0),
+          ),
+        ),
+      ]),
+    );
+
+    return {
+      requiredCash,
+      reservedCash,
+      availableCash: this.roundMoney(
+        Math.max(0, portfolio.cash - reservedCash),
+      ),
+      requiredSellNotionalBySymbol,
+      reservedSellNotionalBySymbol,
+      availableSellNotionalBySymbol,
+    };
+  }
+
+  private calculatePaperBuyRequirement(
+    orders: Array<Pick<ProposedOrder, 'side' | 'notional'>>,
+  ): number {
+    return this.roundMoney(
+      orders
+        .filter((order) => order.side === 'BUY')
+        .reduce(
+          (total, order) =>
+            total +
+            order.notional +
+            this.roundMoney(order.notional * 0.001) +
+            this.roundMoney(order.notional * 0.0005),
+          0,
+        ),
+    );
+  }
+
+  private calculatePaperSellRequirements(
+    orders: Array<Pick<ProposedOrder, 'symbol' | 'side' | 'notional'>>,
+  ): Record<string, number> {
+    return orders
       .filter((order) => order.side === 'SELL')
       .reduce<Record<string, number>>((required, order) => {
         required[order.symbol] = this.roundMoney(
@@ -1890,11 +2001,6 @@ export class ControlPlaneService {
 
         return required;
       }, {});
-
-    return Object.entries(requiredSellBySymbol).every(
-      ([symbol, requiredNotional]) =>
-        (availableBySymbol[symbol] ?? 0) >= requiredNotional,
-    );
   }
 
   private getPaperExecutionBlockedReasons(input: {

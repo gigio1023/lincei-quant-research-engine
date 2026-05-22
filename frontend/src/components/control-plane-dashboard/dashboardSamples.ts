@@ -351,6 +351,12 @@ export const DOCUMENTED_PAPER_ORDER_PLANS: PaperOrderPlan[] = [
       cashSufficient: true,
       positionsSufficient: true,
       noDuplicatePlan: true,
+      requiredCash: 500_750,
+      reservedCash: 0,
+      availableCash: 10_000_000,
+      requiredSellNotionalBySymbol: {},
+      reservedSellNotionalBySymbol: {},
+      availableSellNotionalBySymbol: {},
     },
     orders: [
       {
