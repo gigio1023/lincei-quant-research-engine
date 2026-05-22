@@ -102,6 +102,73 @@ Currently, no authentication is required for the API endpoints. This will be upd
         "Reuters": 150,
         "Bloomberg": 120
       }
+      }
+    ```
+
+### Risk Gate
+
+#### `GET /risk-gate/status`
+
+-   **Description**: Returns the deterministic control-plane status. Broker execution is disabled.
+-   **Response**:
+    ```json
+    {
+      "brokerExecutionEnabled": false,
+      "liveTradingEnabled": false,
+      "defaultPolicy": {
+        "maxGrossExposurePct": 100,
+        "maxSinglePositionPct": 20,
+        "maxOrderNotional": 1000000,
+        "maxDailyLossPct": 3,
+        "maxDrawdownPct": 10,
+        "maxDataAgeMinutes": 60
+      }
+    }
+    ```
+
+#### `POST /risk-gate/evaluate`
+
+-   **Description**: Evaluates a proposal against deterministic safety rules. This endpoint does not place orders and does not call broker APIs.
+-   **Response Decisions**:
+    -   `ALLOW`: dry-run proposal is inside policy limits.
+    -   `REVIEW`: proposal is not denied, but human approval or missing provenance review is required.
+    -   `DENY`: proposal violates hard policy.
+-   **Example Request**:
+    ```json
+    {
+      "mode": "dry_run",
+      "actor": "strategy",
+      "strategyId": "momentum-v1",
+      "ruleId": "long-only-breakout",
+      "generatedAt": "2026-05-22T11:59:00.000Z",
+      "marketDataTimestamp": "2026-05-22T11:55:00.000Z",
+      "portfolio": {
+        "currency": "KRW",
+        "equity": 10000000,
+        "cash": 10000000,
+        "grossExposurePct": 0
+      },
+      "orders": [
+        {
+          "symbol": "005930",
+          "assetClass": "domestic_stock",
+          "side": "BUY",
+          "orderType": "MARKET",
+          "notional": 500000,
+          "targetPositionPct": 5
+        }
+      ]
+    }
+    ```
+-   **Example Response**:
+    ```json
+    {
+      "decision": "ALLOW",
+      "mode": "dry_run",
+      "brokerExecutionEnabled": false,
+      "requiresHumanApproval": false,
+      "reasons": [],
+      "approvedOrderCount": 1
     }
     ```
 
@@ -119,4 +186,4 @@ interface Report {
   createdAt: string; // ISO 8601
   updatedAt: string; // ISO 8601
 }
-``` 
+```

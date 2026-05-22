@@ -107,6 +107,15 @@ flowchart TD
 | Database  | SQLite |
 | AI        | Gemini 2.5 Flash (primary), GPT-4.1-nano (fallback) |
 
+## Autonomous Control Plane
+
+This repo is moving toward an autonomous investment control plane, but it is not a live-trading bot yet.
+
+- System spec: [SPEC.md](SPEC.md)
+- Execution readiness: [docs/execution-readiness.md](docs/execution-readiness.md)
+- Toss Open API readiness: [docs/toss-open-api-readiness.md](docs/toss-open-api-readiness.md)
+- Local reference projects: [references/reference-register.md](references/reference-register.md)
+
 ## Quick Start
 
 ### For Development

@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 import { ReportsModule } from './modules/reports/reports.module';
 import { NewsModule } from './modules/news/news.module';
 import { LlmModule } from './modules/llm/llm.module';
+import { RiskGateModule } from './modules/risk-gate/risk-gate.module';
 import { Report } from './entities/report.entity';
 import { NewsSource } from './entities/news-source.entity';
 
@@ -30,6 +31,7 @@ import { NewsSource } from './entities/news-source.entity';
     ReportsModule,
     NewsModule,
     LlmModule,
+    RiskGateModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,0 +1,352 @@
+# Lincei Autonomous Investment Control Plane
+
+## Goal
+
+Build an autonomous investment system that can turn a budget into researched, risk-checked, monitored investment actions. The system should eventually support:
+
+1. research ideas from market data, news, filings, and user goals;
+2. produce reproducible signals and portfolio proposals;
+3. run deterministic risk checks before any execution;
+4. execute only through a small broker adapter that has no LLM access;
+5. monitor holdings, errors, drawdown, and recovery rules after execution.
+
+The target user goal is aggressive asset growth, but the engineering goal is not "let an AI trade freely." The system must be able to say no, reduce exposure, or stop trading when the evidence or risk state is weak.
+
+## Current State
+
+The repository is currently a NestJS + React investment report application:
+
+- Backend: scheduled news collection, LLM-assisted analysis, SQLite reports.
+- Frontend: report and testing dashboard.
+- No broker adapter exists.
+- No paper-trading or live-trading execution path exists.
+- No real-money workflow is executable from this repo today.
+
+This PR starts the next shape by adding a deterministic backend risk gate and the specification for the larger control plane.
+
+## Non-Goals
+
+These are not in the initial scope:
+
+- unrestricted live trading;
+- LLM output directly placing orders;
+- leverage, margin, shorting, options, futures, HFT, or crypto derivatives;
+- broker credentials inside research prompts, reports, or frontend state;
+- copying architecture blindly from reference projects;
+- hiding failed experiments or only keeping winning backtests.
+
+## System Shape
+
+```mermaid
+flowchart LR
+    B["Budget Envelope"] --> R["Research Engine"]
+    R --> P["Portfolio Proposal"]
+    P --> G["Deterministic Risk Gate"]
+    G -->|deny| D["Reject + Report"]
+    G -->|review| H["Human Review"]
+    G -->|allow paper| PE["Paper Execution"]
+    H -->|signed approval| LE["Live Execution Enclave"]
+    LE --> S["Broker Snapshot + Reconciliation"]
+    S --> M["Monitoring + Kill Switch"]
+    M --> R
+```
+
+## Core Components
+
+### 1. Budget Envelope
+
+The user should define a budget envelope before automation begins.
+
+It must include:
+
+- cash budget;
+- allowed markets and assets;
+- max single position size;
+- max gross exposure;
+- daily loss limit;
+- drawdown limit;
+- rebalance frequency;
+- whether paper mode, broker read-only mode, or live mode is allowed.
+
+The budget envelope is not a suggestion. It is the hard policy boundary for later agents.
+
+### 2. Research Engine
+
+The research engine should generate proposals, not orders.
+
+Inputs:
+
+- market data;
+- news and event extraction;
+- filings and macro context;
+- benchmark and sector data;
+- user budget envelope.
+
+Outputs:
+
+- hypothesis;
+- feature and signal definitions;
+- timestamped data lineage;
+- backtest or simulation result;
+- transaction cost assumption;
+- proposal with target positions;
+- reasons why the proposal can fail.
+
+LLMs may summarize, classify, and propose hypotheses. LLMs must not be treated as validated alpha.
+
+### 3. Portfolio Proposal
+
+A proposal is a typed object that can be tested and rejected.
+
+It should include:
+
+- strategy id and version;
+- rule id or deterministic provenance;
+- generated timestamp;
+- market data timestamp;
+- target asset list;
+- target weights or order intents;
+- expected turnover;
+- benchmark;
+- drawdown and scenario notes;
+- whether human approval is required.
+
+### 4. Risk Gate
+
+The risk gate is deterministic. It should not call an LLM and should not call a broker.
+
+The first backend slice is `POST /risk-gate/evaluate`. It returns:
+
+- `ALLOW`;
+- `REVIEW`;
+- `DENY`;
+- reasons;
+- policy snapshot;
+- `brokerExecutionEnabled: false`.
+
+Minimum checks:
+
+- reject live mode in this repo until a separate live gate is implemented;
+- reject broker credentials or broker account ids in evaluation requests;
+- reject any execution intent other than `evaluate_only`;
+- reject stale or future-dated market data;
+- reject LLM-only proposals without strategy and rule provenance;
+- reject shorting, leverage, derivatives, crypto derivatives, and unknown assets;
+- reject orders over max notional;
+- reject single-position concentration;
+- reject gross exposure above policy;
+- reject daily loss and drawdown breaches;
+- mark paper or live-adjacent actions for human review unless explicitly approved.
+
+### 5. Execution Enclave
+
+Execution must be a separate module or service with a narrow API.
+
+Rules:
+
+- no LLM import;
+- no research module import;
+- no prompt text;
+- no arbitrary generated code;
+- only signed approved order plans;
+- broker credentials only in the execution environment;
+- every order has idempotency keys, dry-run support, and audit logs;
+- every fill is reconciled against broker snapshots.
+
+Initial execution should be paper only. Live mode requires a separate design review.
+
+### 6. Broker Adapter
+
+The first broker candidate is Toss Securities Open API because the official pages now expose Open API guidance. The current repo should treat Toss as a future adapter, not as an implemented execution path.
+
+Adapter boundary:
+
+- auth token client;
+- accounts and holdings snapshot;
+- market data client;
+- order preview where available;
+- order placement only after signed control-plane approval;
+- cancel and reconciliation;
+- rate limit and retry rules.
+
+No adapter should expose raw broker credentials to the frontend or LLM layer.
+
+### 7. Monitoring and Recovery
+
+The system must monitor:
+
+- broker connectivity;
+- order state;
+- partial fills;
+- duplicate order risk;
+- holdings mismatch;
+- daily PnL;
+- drawdown;
+- stale data;
+- missing benchmark;
+- strategy drift;
+- unexpected cash usage.
+
+Recovery means a deterministic stop, reduce, or liquidate workflow. It does not mean asking an LLM to "make the money back."
+
+## Reference Projects Policy
+
+Reference projects live under `references/projects/` and are intentionally git-ignored. They are used for inspection only.
+
+Important rule: reference does not mean copy. We should study proven patterns, then choose the smallest design that fits this project.
+
+Reference use:
+
+- Lean / QuantConnect: backtest engine shape, algorithm lifecycle, data normalization, result reporting.
+- Lean CLI: local/cloud workflow shape and command boundaries.
+- NautilusTrader: event-driven execution architecture and adapters.
+- Alpaca-py: small broker SDK boundary ideas.
+- Freqtrade: dry-run mode, protections, config validation, operational safety gates.
+- Hummingbot: connector separation and kill-switch style controls.
+- Qlib / vectorbt: research sweeps and reproducible experiment patterns.
+- Zipline / Backtrader / bt: baseline portfolio and backtest interfaces.
+- FinRL: research reference only; reinforcement learning is not an initial allocator.
+
+When adopting a reference pattern, cite the inspected file or function in the design note and re-express the behavior in Lincei terms. Similar role names are acceptable, but behavior must be implemented from this project's requirements and covered by local tests.
+
+High-value patterns to adapt:
+
+- explicit run lifecycle, config, output, and shutdown handling;
+- handler and adapter boundaries rather than strategy-owned infrastructure;
+- hard environment separation between research, backtest, paper, sandbox, and live;
+- staged flow from signal to portfolio target to risk to execution;
+- pre-execution risk checks;
+- control states such as `idle`, `running`, `paused`, `halted`, `stopping`;
+- no-lookahead timestamp handling;
+- durable experiment and proposal ledgers.
+
+Patterns to avoid:
+
+- live broker account sync before read-only and paper gates exist;
+- direct order, force-entry, force-exit, or liquidation controls in app code;
+- crypto bot runtime assumptions as the default product model;
+- treating vectorized simulations as broker execution behavior;
+- heavy experiment infrastructure before a small local ledger exists;
+- stringly config mutation when typed contracts are practical.
+
+## Initial Implementation Plan
+
+### Phase 0: Safe Control Plane Start
+
+Deliverables:
+
+- tracked `SPEC.md`;
+- ignored `references/projects/` with a tracked README;
+- reference register with clone URLs and current commits;
+- Toss Open API readiness note;
+- backend risk gate module;
+- unit tests for deterministic denial/review rules.
+
+Exit criteria:
+
+- backend tests pass;
+- backend builds;
+- reference clones are git-ignored;
+- no broker order path exists.
+
+### Phase 1: Proposal Contracts
+
+Add durable proposal schemas and storage:
+
+- budget envelope entity;
+- proposal entity;
+- risk gate evaluation entity;
+- audit log;
+- report link from proposal to research evidence.
+
+Exit criteria:
+
+- every proposal has data timestamps and provenance;
+- no proposal can be evaluated without policy;
+- every rejection is stored.
+
+### Phase 2: Research Automation
+
+Add automated research runs:
+
+- market/news ingestion schedule;
+- strategy hypothesis generator;
+- backtest runner;
+- benchmark comparison;
+- transaction cost and slippage assumptions;
+- report generation for passed and failed runs.
+
+Exit criteria:
+
+- failed experiments are visible;
+- no-lookahead and timestamp alignment tests exist;
+- reports include costs, turnover, concentration, drawdown, and benchmark.
+
+### Phase 3: Paper Execution
+
+Add paper execution enclave:
+
+- signed order plan format;
+- paper broker adapter;
+- reconciliation loop;
+- kill switch;
+- frontend review surface.
+
+Exit criteria:
+
+- paper orders can run end to end;
+- duplicate order protection exists;
+- kill switch is tested;
+- no real broker credentials are required.
+
+### Phase 4: Broker Read-Only
+
+Add broker read-only mode:
+
+- Toss or another broker account snapshot;
+- holdings import;
+- cash import;
+- reconciliation against internal paper state.
+
+Exit criteria:
+
+- broker API credentials stay outside LLM/frontend state;
+- no order endpoint is callable;
+- stale snapshots are detected.
+
+### Phase 5: Tiny Live Pilot
+
+Only after a separate design review:
+
+- one broker adapter;
+- tiny budget cap;
+- long-only liquid stocks or ETFs;
+- explicit human approval;
+- immediate kill switch;
+- daily reconciliation;
+- rollback plan.
+
+Exit criteria:
+
+- broker terms are reviewed;
+- account permissions are understood;
+- live order path has integration tests and dry-run parity;
+- maximum loss is bounded before the first order.
+
+## Real-Money Readiness
+
+Current verdict: not ready.
+
+The system is not ready for "deposit money and let it invest." After this PR it can evaluate a proposal against deterministic policy, but it cannot research, allocate, execute, or recover capital end to end.
+
+Blocking items:
+
+- Toss API access and API key approval;
+- exact OpenAPI schema review;
+- broker adapter implementation;
+- paper execution;
+- signed human approval;
+- reconciliation;
+- operational monitoring;
+- legal and terms review;
+- explicit live-trading gate.
