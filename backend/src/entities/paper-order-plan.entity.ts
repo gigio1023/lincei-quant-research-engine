@@ -71,6 +71,11 @@ export interface PaperFill {
   slippage: number;
   netCashDelta: number;
   positionDelta: number;
+  averagePriceBefore?: number;
+  costBasisBefore?: number;
+  costBasisAfter?: number;
+  realizedPnl?: number;
+  realizedPnlAfter?: number;
   status: 'filled' | 'rejected';
   rejectionReason?: string;
 }
@@ -92,7 +97,11 @@ export interface PaperPositionLedgerEntry {
   symbol: string;
   quantityDelta: number;
   notionalDelta: number;
+  quantityAfter?: number;
   positionNotionalAfter: number;
+  averagePriceAfter?: number;
+  costBasisAfter?: number;
+  realizedPnl?: number;
 }
 
 export interface PaperReconciliation {

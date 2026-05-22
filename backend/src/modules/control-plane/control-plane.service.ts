@@ -65,6 +65,14 @@ import {
   UpdateExecutionControlRequest,
 } from './control-plane.types';
 
+interface PaperPositionAccountingState {
+  marketValue: number;
+  quantity: number;
+  averagePrice: number;
+  costBasis: number;
+  realizedPnl: number;
+}
+
 @Injectable()
 export class ControlPlaneService {
   private readonly disallowedModelCategories = new Set([
@@ -2054,6 +2062,8 @@ export class ControlPlaneService {
     let endingCash = startingCash;
     let totalExecutionCost = 0;
     const endingPositions: Record<string, number> = { ...startingPositions };
+    const positionAccounting =
+      this.buildPaperPositionAccounting(portfolioBefore);
     const cashLedger: PaperCashLedgerEntry[] = [];
     const positionLedger: PaperPositionLedgerEntry[] = [];
     const fills = orders.map((order): PaperFill => {
@@ -2063,6 +2073,16 @@ export class ControlPlaneService {
         this.roundQuantity(order.requestedNotional / fillPrice);
       const fee = this.roundMoney(order.requestedNotional * 0.001);
       const slippage = this.roundMoney(order.requestedNotional * 0.0005);
+      const executionCost = this.roundMoney(fee + slippage);
+      const previousAccounting = positionAccounting[order.symbol] ?? {
+        marketValue: endingPositions[order.symbol] ?? 0,
+        quantity: 0,
+        averagePrice: fillPrice,
+        costBasis: 0,
+        realizedPnl: 0,
+      };
+      const costBasisBefore = previousAccounting.costBasis;
+      const averagePriceBefore = previousAccounting.averagePrice;
       const signedCashImpact =
         order.side === 'SELL'
           ? order.requestedNotional - fee - slippage
@@ -2073,11 +2093,25 @@ export class ControlPlaneService {
         order.side === 'SELL'
           ? -order.requestedNotional
           : order.requestedNotional;
+      const nextAccounting = this.applyPaperPositionAccountingFill(
+        previousAccounting,
+        order.side,
+        quantity,
+        order.requestedNotional,
+        executionCost,
+      );
       endingCash += signedCashImpact;
-      totalExecutionCost += fee + slippage;
+      totalExecutionCost += executionCost;
       endingPositions[order.symbol] = this.roundMoney(
         (endingPositions[order.symbol] ?? 0) + notionalDelta,
       );
+      if (Math.abs(endingPositions[order.symbol]) < 0.01) {
+        endingPositions[order.symbol] = 0;
+      }
+      positionAccounting[order.symbol] = {
+        ...nextAccounting,
+        marketValue: endingPositions[order.symbol],
+      };
       const paperFillId = `${order.paperOrderId}:fill:0`;
       cashLedger.push({
         paperCashEventId: `${paperFillId}:cash`,
@@ -2095,7 +2129,13 @@ export class ControlPlaneService {
         symbol: order.symbol,
         quantityDelta: positionDelta,
         notionalDelta: this.roundMoney(notionalDelta),
+        quantityAfter: nextAccounting.quantity,
         positionNotionalAfter: endingPositions[order.symbol],
+        averagePriceAfter: nextAccounting.averagePrice,
+        costBasisAfter: nextAccounting.costBasis,
+        realizedPnl: this.roundMoney(
+          nextAccounting.realizedPnl - previousAccounting.realizedPnl,
+        ),
       });
 
       return {
@@ -2114,6 +2154,13 @@ export class ControlPlaneService {
         slippage,
         netCashDelta: this.roundMoney(signedCashImpact),
         positionDelta,
+        averagePriceBefore,
+        costBasisBefore,
+        costBasisAfter: nextAccounting.costBasis,
+        realizedPnl: this.roundMoney(
+          nextAccounting.realizedPnl - previousAccounting.realizedPnl,
+        ),
+        realizedPnlAfter: nextAccounting.realizedPnl,
         status: 'filled',
       };
     });
@@ -2123,6 +2170,7 @@ export class ControlPlaneService {
       proposal,
       portfolioBefore,
       endingPositions,
+      positionAccounting,
     );
     const portfolioAfter = {
       ...proposal.portfolioSnapshot,
@@ -2184,6 +2232,7 @@ export class ControlPlaneService {
     proposal: InvestmentProposal,
     portfolioBefore: PortfolioSnapshot,
     endingPositions: Record<string, number>,
+    positionAccounting: Record<string, PaperPositionAccountingState>,
   ) {
     const originalPositions = portfolioBefore.positions ?? [];
     const originalBySymbol = new Map(
@@ -2207,8 +2256,99 @@ export class ControlPlaneService {
             portfolioBefore.equity === 0
               ? 0
               : this.roundMoney((marketValue / portfolioBefore.equity) * 100),
+          quantity: positionAccounting[symbol]?.quantity,
+          averagePrice: positionAccounting[symbol]?.averagePrice,
+          costBasis: positionAccounting[symbol]?.costBasis,
+          unrealizedPnl: this.roundMoney(
+            marketValue - (positionAccounting[symbol]?.costBasis ?? 0),
+          ),
+          realizedPnl: positionAccounting[symbol]?.realizedPnl,
         };
       });
+  }
+
+  private buildPaperPositionAccounting(
+    portfolio: PortfolioSnapshot,
+  ): Record<string, PaperPositionAccountingState> {
+    return Object.fromEntries(
+      (portfolio.positions ?? []).map((position) => {
+        const quantity =
+          position.quantity && position.quantity > 0
+            ? position.quantity
+            : this.roundQuantity(position.marketValue);
+        const costBasis = this.roundMoney(
+          position.costBasis ?? position.marketValue,
+        );
+        const averagePrice =
+          position.averagePrice ??
+          (quantity === 0 ? 0 : this.roundMoney(costBasis / quantity));
+
+        return [
+          position.symbol,
+          {
+            marketValue: this.roundMoney(position.marketValue),
+            quantity,
+            averagePrice,
+            costBasis,
+            realizedPnl: this.roundMoney(position.realizedPnl ?? 0),
+          },
+        ];
+      }),
+    );
+  }
+
+  private applyPaperPositionAccountingFill(
+    current: PaperPositionAccountingState,
+    side: ProposedOrder['side'],
+    quantity: number,
+    notional: number,
+    executionCost: number,
+  ): PaperPositionAccountingState {
+    if (side === 'SELL') {
+      const quantitySold = this.roundQuantity(
+        Math.min(quantity, current.quantity),
+      );
+      const costBasisReduction =
+        current.quantity === 0
+          ? 0
+          : this.roundMoney(
+              current.costBasis * (quantitySold / current.quantity),
+            );
+      const nextQuantity = this.roundQuantity(current.quantity - quantitySold);
+      const nextCostBasis = this.roundMoney(
+        Math.max(0, current.costBasis - costBasisReduction),
+      );
+      const realizedPnl = this.roundMoney(
+        current.realizedPnl + notional - executionCost - costBasisReduction,
+      );
+
+      return {
+        marketValue: this.roundMoney(
+          Math.max(0, current.marketValue - notional),
+        ),
+        quantity: nextQuantity,
+        averagePrice:
+          nextQuantity === 0
+            ? 0
+            : this.roundMoney(nextCostBasis / nextQuantity),
+        costBasis: nextCostBasis,
+        realizedPnl,
+      };
+    }
+
+    const nextQuantity = this.roundQuantity(current.quantity + quantity);
+    const nextCostBasis = this.roundMoney(
+      current.costBasis + notional + executionCost,
+    );
+
+    return {
+      marketValue: this.roundMoney(current.marketValue + notional),
+      quantity: nextQuantity,
+      averagePrice:
+        nextQuantity === 0 ? 0 : this.roundMoney(nextCostBasis / nextQuantity),
+      costBasis: nextCostBasis,
+      realizedPnl: current.realizedPnl,
+    };
   }
 
   private positionsToMarketValueMap(
@@ -2548,6 +2688,22 @@ export class ControlPlaneService {
             position.weightPct === undefined
               ? undefined
               : this.roundMoney(position.weightPct),
+          quantity:
+            position.quantity === undefined
+              ? undefined
+              : this.roundQuantity(position.quantity),
+          averagePrice:
+            position.averagePrice === undefined
+              ? undefined
+              : this.roundMoney(position.averagePrice),
+          costBasis:
+            position.costBasis === undefined
+              ? undefined
+              : this.roundMoney(position.costBasis),
+          realizedPnl:
+            position.realizedPnl === undefined
+              ? undefined
+              : this.roundMoney(position.realizedPnl),
         }))
         .sort((left, right) => left.symbol.localeCompare(right.symbol)),
     });

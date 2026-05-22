@@ -452,6 +452,10 @@ describe('ControlPlaneService', () => {
         feeCurrency: 'KRW',
         slippage: 250,
         netCashDelta: -500_750,
+        costBasisBefore: 0,
+        costBasisAfter: 500_750,
+        realizedPnl: 0,
+        realizedPnlAfter: 0,
         status: 'filled',
       }),
     );
@@ -466,7 +470,11 @@ describe('ControlPlaneService', () => {
         symbol: '005930',
         quantityDelta: 500_000,
         notionalDelta: 500_000,
+        quantityAfter: 500_000,
         positionNotionalAfter: 500_000,
+        averagePriceAfter: 1,
+        costBasisAfter: 500_750,
+        realizedPnl: 0,
       }),
     ]);
     expect(plan.endingCash).toBe(9_499_250);
@@ -509,6 +517,9 @@ describe('ControlPlaneService', () => {
         symbol: '005930',
         marketValue: 500_000,
         weightPct: 5,
+        quantity: 500_000,
+        costBasis: 500_750,
+        unrealizedPnl: -750,
       }),
     ]);
     expect(paperAccounts[0].cashLedger).toHaveLength(1);
@@ -733,6 +744,10 @@ describe('ControlPlaneService', () => {
         side: 'SELL',
         filledNotional: 1_000_000,
         netCashDelta: 998_500,
+        costBasisBefore: 3_500_000,
+        costBasisAfter: 2_500_000,
+        realizedPnl: -1_500,
+        realizedPnlAfter: -1_500,
       }),
     );
     expect(recoveredAccount.cash).toBe(7_498_500);
@@ -740,6 +755,9 @@ describe('ControlPlaneService', () => {
       expect.objectContaining({
         symbol: '005930',
         marketValue: 2_500_000,
+        quantity: 2_500_000,
+        costBasis: 2_500_000,
+        realizedPnl: -1_500,
       }),
     );
     expect(recoveredAccount.brokerExecutionEnabled).toBe(false);

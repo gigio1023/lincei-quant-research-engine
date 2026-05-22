@@ -63,6 +63,11 @@ export interface PositionSnapshot {
   assetClass: AssetClass;
   marketValue: number;
   weightPct: number;
+  quantity?: number;
+  averagePrice?: number;
+  costBasis?: number;
+  unrealizedPnl?: number;
+  realizedPnl?: number;
 }
 
 export interface PortfolioSnapshot {
@@ -145,6 +150,11 @@ export interface PaperOrderFill {
   slippage: number;
   netCashDelta: number;
   positionDelta: number;
+  averagePriceBefore?: number;
+  costBasisBefore?: number;
+  costBasisAfter?: number;
+  realizedPnl?: number;
+  realizedPnlAfter?: number;
   status: string;
   rejectionReason?: string;
 }
@@ -166,7 +176,11 @@ export interface PaperPositionLedgerEntry {
   symbol: string;
   quantityDelta: number;
   notionalDelta: number;
+  quantityAfter?: number;
   positionNotionalAfter: number;
+  averagePriceAfter?: number;
+  costBasisAfter?: number;
+  realizedPnl?: number;
 }
 
 export interface PaperOrderReconciliation {

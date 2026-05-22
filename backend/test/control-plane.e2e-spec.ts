@@ -758,6 +758,9 @@ describe('ControlPlane research provenance (e2e)', () => {
         symbol: '005930',
         side: 'SELL',
         filledNotional: 1_000_000,
+        costBasisBefore: 3_500_000,
+        costBasisAfter: 2_500_000,
+        realizedPnl: -1_500,
       }),
     );
     expect(paperResponse.body.brokerExecutionEnabled).toBe(false);
@@ -768,6 +771,9 @@ describe('ControlPlane research provenance (e2e)', () => {
       expect.objectContaining({
         symbol: '005930',
         marketValue: 2_500_000,
+        quantity: 2_500_000,
+        costBasis: 2_500_000,
+        realizedPnl: -1_500,
       }),
     ]);
   });

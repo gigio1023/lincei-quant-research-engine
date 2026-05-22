@@ -322,6 +322,7 @@ all broker/live execution flags remain `false`.
 - **Description**: Returns the latest active local paper account state after explicit seed and promotion. This is read-only and does not create an account. It returns `404` until an operator has seeded and promoted a paper account.
 - **Response Notes**:
   - returns cash, equity, gross exposure, positions, applied plan ids, account-level cash ledger, and account-level position ledger;
+  - paper positions can include simulator accounting fields: `quantity`, `averagePrice`, `costBasis`, `unrealizedPnl`, and `realizedPnl`;
   - `brokerExecutionEnabled` and `liveTradingEnabled` are always `false`;
   - current ledger arrays are local simulator evidence, not broker truth.
 
@@ -502,6 +503,7 @@ all broker/live execution flags remain `false`.
   - without an active matching signed approval it remains blocked for review;
   - `status` is `filled`, `blocked`, `reconciled`, or `reconciliation_failed` for the current implementation;
   - each plan stores `orderPlanApprovalId`, `proposalHash`, `riskRequestHash`, `planHash`, `readinessSnapshot`, immutable paper order ids, fill events, cash ledger rows, position ledger rows, portfolio before/after snapshots, reconciliation state, and kill-switch snapshot;
+  - fill and position-ledger rows include simulator quantity, average-price, cost-basis, and realized-PnL evidence;
   - filled plans update the durable local paper account so later paper cycles start from accumulated simulated state;
   - `brokerExecutionEnabled` and `liveTradingEnabled` are always `false`.
 

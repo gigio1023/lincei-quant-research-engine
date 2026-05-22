@@ -194,6 +194,20 @@ const Positions = ({ model }: PaperAccountStateProps) => {
               <span className="col-span-3 text-xs uppercase text-[#707a8a]">
                 {position.assetClass}
               </span>
+              <span className="col-span-3 font-mono text-xs text-[#929aa5]">
+                qty {position.quantity?.toLocaleString() ?? "n/a"} / avg{" "}
+                {position.averagePrice === undefined
+                  ? "n/a"
+                  : formatCurrency(position.averagePrice)}{" "}
+                / cost{" "}
+                {position.costBasis === undefined
+                  ? "n/a"
+                  : formatCurrency(position.costBasis)}{" "}
+                / realized{" "}
+                {position.realizedPnl === undefined
+                  ? "n/a"
+                  : formatSignedCurrency(position.realizedPnl)}
+              </span>
             </div>
           ))}
         </div>

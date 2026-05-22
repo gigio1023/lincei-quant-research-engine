@@ -43,6 +43,11 @@ export interface PositionSnapshot {
   assetClass: AssetClass;
   marketValue: number;
   weightPct: number;
+  quantity?: number;
+  averagePrice?: number;
+  costBasis?: number;
+  unrealizedPnl?: number;
+  realizedPnl?: number;
 }
 
 export interface PortfolioSnapshot {
