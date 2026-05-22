@@ -570,6 +570,67 @@ describe("API Service", () => {
       expect(result).toEqual(mockExecutionControl);
     });
 
+    it("should_get_autonomous_runs", async () => {
+      const mockRuns = [
+        {
+          id: "run-1",
+          objective: "Autonomously prepare a paper allocation",
+          status: "risk_checked",
+          currentStage: "risk_evaluated",
+          budgetEnvelopeId: "budget-1",
+          researchRunId: "rr-1",
+          proposalId: "proposal-1",
+          riskEvaluationId: "risk-1",
+          timeline: [
+            {
+              at: "2026-05-22T09:00:00.000Z",
+              stage: "risk_checked",
+              message: "Risk evaluation returned ALLOW.",
+            },
+          ],
+          lastAction: "Risk evaluation returned ALLOW",
+          nextAction: "Wait for signed paper approval.",
+          createdAt: "2026-05-22T08:55:00.000Z",
+          updatedAt: "2026-05-22T09:00:00.000Z",
+        },
+      ];
+
+      mockGet.mockResolvedValue({ data: mockRuns });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.getRuns();
+
+      expect(mockGet).toHaveBeenCalledWith("/control-plane/runs");
+      expect(result).toEqual(mockRuns);
+    });
+
+    it("should_advance_autonomous_run", async () => {
+      const mockRun = {
+        id: "run-1",
+        objective: "Autonomously prepare a paper allocation",
+        status: "risk_checked",
+        currentStage: "risk_evaluated",
+        timeline: [],
+        createdAt: "2026-05-22T08:55:00.000Z",
+        updatedAt: "2026-05-22T09:00:00.000Z",
+      };
+
+      mockPost.mockResolvedValue({ data: mockRun });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.advanceRun("run-1", {
+        attemptPaperExecution: false,
+      });
+
+      expect(mockPost).toHaveBeenCalledWith(
+        "/control-plane/runs/run-1/advance",
+        {
+          attemptPaperExecution: false,
+        },
+      );
+      expect(result).toEqual(mockRun);
+    });
+
     it("should_execute_proposal_paper", async () => {
       const mockPaperOrderPlan = {
         id: "paper-plan-1",

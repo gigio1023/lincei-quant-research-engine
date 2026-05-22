@@ -1,5 +1,7 @@
 import axios from "axios";
 import {
+  AdvanceAutonomousRunRequest,
+  AutonomousRun,
   BrokerSnapshot,
   BudgetEnvelope,
   ControlPlaneStatus,
@@ -109,6 +111,22 @@ export const controlPlaneApi = {
 
   getOrderPlanApprovals: async (): Promise<OrderPlanApproval[]> => {
     const response = await api.get("/control-plane/order-plan-approvals");
+    return response.data;
+  },
+
+  getRuns: async (): Promise<AutonomousRun[]> => {
+    const response = await api.get("/control-plane/runs");
+    return response.data;
+  },
+
+  advanceRun: async (
+    runId: string | number,
+    request: AdvanceAutonomousRunRequest = {},
+  ): Promise<AutonomousRun> => {
+    const response = await api.post(
+      `/control-plane/runs/${runId}/advance`,
+      request,
+    );
     return response.data;
   },
 

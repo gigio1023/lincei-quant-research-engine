@@ -41,7 +41,16 @@ export class AutonomousRun {
   budgetEnvelopeId?: number;
 
   @Column({ nullable: true })
+  researchRunId?: number;
+
+  @Column({ nullable: true })
   proposalId?: number;
+
+  @Column({ nullable: true })
+  riskEvaluationId?: number;
+
+  @Column({ nullable: true })
+  paperOrderPlanId?: number;
 
   @Column('json')
   timeline: RunTimelineEvent[];

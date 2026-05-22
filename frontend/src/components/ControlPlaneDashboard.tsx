@@ -1,3 +1,4 @@
+import { AutonomousRunLedger } from "./control-plane-dashboard/AutonomousRunLedger";
 import { BrokerSnapshotPanel } from "./control-plane-dashboard/BrokerSnapshotPanel";
 import { DashboardHeader } from "./control-plane-dashboard/DashboardHeader";
 import { PaperExecutionPanel } from "./control-plane-dashboard/PaperExecutionPanel";
@@ -15,6 +16,7 @@ const ControlPlaneDashboard = () => {
       <div className="mx-auto max-w-[1440px] space-y-4">
         <DashboardHeader model={model} />
         <WorkflowActionRail model={model} />
+        <AutonomousRunLedger model={model} />
         <section className="grid gap-4 xl:grid-cols-[0.82fr_1.18fr_0.72fr]">
           <ReadinessPanel model={model} />
           <div className="space-y-4">

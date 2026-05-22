@@ -1031,6 +1031,139 @@ describe('ControlPlaneService', () => {
         stage: 'idle',
       }),
     );
-    expect(run.nextAction).toContain('Attach budget envelope');
+    expect(run.nextAction).toContain('active budget envelope');
+  });
+
+  it('advances an autonomous run through research, proposal, and risk evaluation', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Autonomous budget',
+      totalBudget: 10_000_000,
+    });
+    const run = await service.createRun({
+      objective: 'Automatically research and allocate the budget',
+      budgetEnvelopeId: budget.id,
+    });
+
+    const advanced = await service.advanceRun(run.id, {
+      attemptPaperExecution: false,
+    });
+
+    expect(advanced.status).toBe('risk_checked');
+    expect(advanced.budgetEnvelopeId).toBe(budget.id);
+    expect(advanced.researchRunId).toBe(researchRuns[0].id);
+    expect(advanced.proposalId).toBe(proposals[0].id);
+    expect(advanced.riskEvaluationId).toBe(evaluations[0].id);
+    expect(researchRuns).toHaveLength(1);
+    expect(proposals).toHaveLength(1);
+    expect(evaluations).toHaveLength(1);
+    expect(paperOrderPlans).toHaveLength(0);
+    expect(proposals[0]).toEqual(
+      expect.objectContaining({
+        actor: 'scheduler',
+        strategyId: 'momentum_baseline:autonomous-baseline',
+        brokerExecutionEnabled: false,
+      }),
+    );
+    expect(proposals[0].orders[0]).toEqual(
+      expect.objectContaining({
+        side: 'BUY',
+        notional: 1_000_000,
+        targetPositionPct: 10,
+      }),
+    );
+    expect(evaluations[0]).toEqual(
+      expect.objectContaining({
+        decision: 'ALLOW',
+        brokerExecutionEnabled: false,
+      }),
+    );
+    expect(advanced.timeline.map((event) => event.stage)).toEqual(
+      expect.arrayContaining(['researching', 'proposed', 'risk_checked']),
+    );
+    expect(advanced.nextAction).toContain('signed paper approval');
+  });
+
+  it('blocks autonomous advancement when execution control is paused', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Paused autonomous budget',
+      totalBudget: 10_000_000,
+    });
+    await service.updateExecutionControlState({
+      state: 'paused',
+      actor: 'operator',
+      reason: 'Pause automation for review.',
+    });
+    const run = await service.createRun({
+      objective: 'Attempt to advance while paused',
+      budgetEnvelopeId: budget.id,
+    });
+
+    const advanced = await service.advanceRun(run.id);
+
+    expect(advanced.status).toBe('paused');
+    expect(advanced.currentStage).toBe('execution_control_blocked');
+    expect(researchRuns).toHaveLength(0);
+    expect(proposals).toHaveLength(0);
+    expect(paperOrderPlans).toHaveLength(0);
+  });
+
+  it('continues an approved autonomous run into one paper plan', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Paper autonomous budget',
+      totalBudget: 10_000_000,
+    });
+    const run = await service.createRun({
+      objective: 'Advance into approved paper execution',
+      budgetEnvelopeId: budget.id,
+    });
+    const riskChecked = await service.advanceRun(run.id, {
+      attemptPaperExecution: false,
+    });
+    const account = await service.seedPaperAccount({
+      budgetEnvelopeId: budget.id,
+      cash: 10_000_000,
+      actor: 'operator',
+      reason: 'Seed before autonomous paper execution.',
+      idempotencyKey: 'autonomous-paper-seed',
+    });
+    await service.promotePaperAccount(account.id, {
+      actor: 'operator',
+      reason: 'Promote before autonomous paper execution.',
+      idempotencyKey: 'autonomous-paper-promote',
+      expectedEventHash: paperAccountEvents[0].eventHash,
+    });
+    const approval = await service.createOrderPlanApproval(
+      riskChecked.proposalId,
+      {
+        approver: 'operator',
+        reason: 'Approve autonomous paper order plan.',
+        idempotencyKey: 'autonomous-paper-approval',
+      },
+    );
+
+    const paperAdvanced = await service.advanceRun(run.id);
+    const repeated = await service.advanceRun(run.id);
+
+    expect(paperAdvanced.status).toBe('paper_ready');
+    expect(paperAdvanced.paperOrderPlanId).toBe(paperOrderPlans[0].id);
+    expect(repeated.paperOrderPlanId).toBe(paperOrderPlans[0].id);
+    expect(paperOrderPlans).toHaveLength(1);
+    expect(paperOrderPlans[0]).toEqual(
+      expect.objectContaining({
+        proposalId: riskChecked.proposalId,
+        orderPlanApprovalId: approval.id,
+        status: 'filled',
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+    expect(orderPlanApprovals[0].status).toBe('consumed');
+    expect(paperAccountEvents).toHaveLength(3);
+    expect(paperAccountEvents[2]).toEqual(
+      expect.objectContaining({
+        eventType: 'paper_order_plan',
+        sourceId: paperOrderPlans[0].id,
+      }),
+    );
   });
 });

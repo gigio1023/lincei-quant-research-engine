@@ -231,6 +231,60 @@ describe('ControlPlane research provenance (e2e)', () => {
     expect(researchRunResponse.body.liveTradingEnabled).toBe(false);
   });
 
+  it('advances an autonomous run through research proposal and risk', async () => {
+    const budgetResponse = await request(app.getHttpServer())
+      .post('/control-plane/budgets')
+      .send({
+        name: 'Autonomous e2e budget',
+        totalBudget: 10_000_000,
+        mode: 'dry_run',
+      })
+      .expect(201);
+
+    const runResponse = await request(app.getHttpServer())
+      .post('/control-plane/runs')
+      .send({
+        objective: 'Autonomously research and prepare a dry-run allocation',
+        budgetEnvelopeId: budgetResponse.body.id,
+      })
+      .expect(201);
+
+    expect(runResponse.body.status).toBe('idle');
+    expect(runResponse.body.budgetEnvelopeId).toBe(budgetResponse.body.id);
+
+    const advancedResponse = await request(app.getHttpServer())
+      .post(`/control-plane/runs/${runResponse.body.id}/advance`)
+      .send({ attemptPaperExecution: false })
+      .expect(201);
+
+    expect(advancedResponse.body.status).toBe('risk_checked');
+    expect(advancedResponse.body.researchRunId).toEqual(expect.any(Number));
+    expect(advancedResponse.body.proposalId).toEqual(expect.any(Number));
+    expect(advancedResponse.body.riskEvaluationId).toEqual(expect.any(Number));
+    expect(advancedResponse.body.nextAction).toContain('signed paper approval');
+    expect(advancedResponse.body.timeline).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ stage: 'researching' }),
+        expect.objectContaining({ stage: 'proposed' }),
+        expect.objectContaining({ stage: 'risk_checked' }),
+      ]),
+    );
+
+    const proposalsResponse = await request(app.getHttpServer())
+      .get('/control-plane/proposals')
+      .expect(200);
+    const autonomousProposal = proposalsResponse.body.find(
+      (proposal: { id: number }) =>
+        proposal.id === advancedResponse.body.proposalId,
+    );
+    expect(autonomousProposal).toEqual(
+      expect.objectContaining({
+        actor: 'scheduler',
+        brokerExecutionEnabled: false,
+      }),
+    );
+  });
+
   it('paper executes an allowed proposal without broker access', async () => {
     const generatedAt = new Date(Date.now() - 60_000).toISOString();
     const marketDataTimestamp = new Date(Date.now() - 5 * 60_000).toISOString();

@@ -135,6 +135,15 @@ export interface UpdateExecutionControlRequest {
   reason: string;
 }
 
+export interface CreateAutonomousRunRequest {
+  objective: string;
+  budgetEnvelopeId?: number;
+}
+
+export interface AdvanceAutonomousRunRequest {
+  attemptPaperExecution?: boolean;
+}
+
 export interface ControlPlaneStatus {
   brokerExecutionEnabled: false;
   liveTradingReady: false;

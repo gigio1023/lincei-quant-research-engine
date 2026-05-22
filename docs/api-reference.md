@@ -451,13 +451,24 @@ all broker/live execution flags remain `false`.
 - **Example Request**:
   ```json
   {
-    "objective": "Research and allocate dry-run budget"
+    "objective": "Research and allocate dry-run budget",
+    "budgetEnvelopeId": 1
   }
   ```
 
 #### `GET /control-plane/runs`
 
 - **Description**: Lists autonomous-run ledger entries.
+
+#### `POST /control-plane/runs/:id/advance`
+
+- **Description**: Advances one autonomous run through the safe control-plane path. It can run deterministic baseline research, generate a budget-capped proposal, evaluate risk, and, only when an active paper account plus signed approval already exist, consume the approval into one paper order plan. It never enables broker execution or live trading.
+- **Example Request**:
+  ```json
+  {
+    "attemptPaperExecution": true
+  }
+  ```
 
 ## Data Models
 

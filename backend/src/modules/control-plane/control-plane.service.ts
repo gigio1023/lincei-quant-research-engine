@@ -38,11 +38,14 @@ import { RiskEvaluation } from '../../entities/risk-evaluation.entity';
 import { RiskGateService } from '../risk-gate/risk-gate.service';
 import {
   PortfolioSnapshot,
+  ProposedOrder,
   RiskGateRequest,
 } from '../risk-gate/risk-gate.types';
 import { buildBaselineResearchRunRequest } from './baseline-research-runner';
 import {
+  AdvanceAutonomousRunRequest,
   ControlPlaneStatus,
+  CreateAutonomousRunRequest,
   CreateBudgetEnvelopeRequest,
   CreateInvestmentProposalRequest,
   CreateOrderPlanApprovalRequest,
@@ -2313,10 +2316,35 @@ export class ControlPlaneService {
     return reasons;
   }
 
-  async createRun(objective: string): Promise<AutonomousRun> {
+  async createRun(
+    request: CreateAutonomousRunRequest | string,
+  ): Promise<AutonomousRun> {
+    const objective =
+      typeof request === 'string' ? request : request.objective?.trim();
+
+    if (!objective) {
+      throw new BadRequestException('Autonomous run requires objective');
+    }
+
+    const budgetEnvelopeId =
+      typeof request === 'string' ? undefined : request.budgetEnvelopeId;
+
+    if (budgetEnvelopeId) {
+      const budget = await this.budgetRepository.findOne({
+        where: { id: budgetEnvelopeId },
+      });
+
+      if (!budget) {
+        throw new NotFoundException(
+          `Budget envelope ${budgetEnvelopeId} not found`,
+        );
+      }
+    }
+
     const now = new Date().toISOString();
     const run = this.runRepository.create({
       objective,
+      budgetEnvelopeId,
       status: 'idle',
       currentStage: 'budget_defined',
       timeline: [
@@ -2327,7 +2355,9 @@ export class ControlPlaneService {
         },
       ],
       lastAction: 'Created run ledger entry',
-      nextAction: 'Attach budget envelope and generate a proposal',
+      nextAction: budgetEnvelopeId
+        ? 'Advance run to generate research, proposal, and risk evaluation'
+        : 'Attach or create an active budget envelope before advancing',
     });
 
     return this.runRepository.save(run);
@@ -2335,5 +2365,300 @@ export class ControlPlaneService {
 
   async listRuns(): Promise<AutonomousRun[]> {
     return this.runRepository.find({ order: { updatedAt: 'DESC' } });
+  }
+
+  async advanceRun(
+    runId: number,
+    request: AdvanceAutonomousRunRequest = {},
+  ): Promise<AutonomousRun> {
+    const run = await this.runRepository.findOne({ where: { id: runId } });
+
+    if (!run) {
+      throw new NotFoundException(`Autonomous run ${runId} not found`);
+    }
+
+    try {
+      const executionControl = await this.getExecutionControlState();
+      if (
+        executionControl.state === 'paused' ||
+        executionControl.state === 'halted'
+      ) {
+        run.status = executionControl.state;
+        run.currentStage = 'execution_control_blocked';
+        run.lastAction = `Execution control is ${executionControl.state}`;
+        run.nextAction =
+          'Resume execution control before advancing the autonomous run';
+        this.appendRunTimeline(
+          run,
+          executionControl.state,
+          `Run did not advance because execution control is ${executionControl.state}.`,
+        );
+        return this.runRepository.save(run);
+      }
+
+      const budget = await this.findBudgetForRun(run);
+
+      if (!budget) {
+        run.status = 'failed';
+        run.currentStage = 'budget_missing';
+        run.lastAction = 'Budget lookup failed';
+        run.nextAction = 'Create or attach an active budget envelope';
+        run.error = 'Autonomous run requires an active budget envelope';
+        this.appendRunTimeline(run, 'failed', run.error);
+        return this.runRepository.save(run);
+      }
+
+      run.budgetEnvelopeId = budget.id;
+      run.status = 'researching';
+      run.currentStage = 'research_running';
+      run.lastAction = `Selected budget envelope ${budget.id}`;
+      run.nextAction = 'Run deterministic baseline research';
+      this.appendRunTimeline(
+        run,
+        'researching',
+        `Selected budget ${budget.name} (${budget.currency} ${budget.totalBudget}).`,
+      );
+      await this.runRepository.save(run);
+
+      const researchRun = run.researchRunId
+        ? await this.researchRunRepository.findOne({
+            where: { id: run.researchRunId },
+          })
+        : await this.runBaselineResearch({
+            budgetEnvelopeId: budget.id,
+            objective: run.objective,
+            initialCapital: budget.totalBudget,
+          });
+
+      if (!researchRun) {
+        throw new NotFoundException(
+          `Research run ${run.researchRunId} not found`,
+        );
+      }
+
+      run.researchRunId = researchRun.id;
+      this.appendRunTimeline(
+        run,
+        'researching',
+        `Research run ${researchRun.id} finished with status ${researchRun.status}.`,
+      );
+
+      if (!researchRun.advanceEligible) {
+        run.status = 'failed';
+        run.currentStage = 'research_blocked';
+        run.lastAction = `Research run ${researchRun.id} is blocked`;
+        run.nextAction =
+          'Review research blocked reasons before proposal generation';
+        run.error = researchRun.blockedReasons.join('; ');
+        this.appendRunTimeline(run, 'failed', run.error);
+        return this.runRepository.save(run);
+      }
+
+      const proposal = run.proposalId
+        ? await this.proposalRepository.findOne({
+            where: { id: run.proposalId },
+          })
+        : await this.createBaselineProposalFromRun(researchRun, budget);
+
+      if (!proposal) {
+        throw new NotFoundException(`Proposal ${run.proposalId} not found`);
+      }
+
+      run.proposalId = proposal.id;
+      run.status = 'proposed';
+      run.currentStage = 'proposal_generated';
+      run.lastAction = `Generated proposal ${proposal.id}`;
+      run.nextAction = 'Evaluate proposal risk';
+      this.appendRunTimeline(
+        run,
+        'proposed',
+        `Proposal ${proposal.id} generated with ${proposal.orders.length} order(s).`,
+      );
+      await this.runRepository.save(run);
+
+      const evaluation = run.riskEvaluationId
+        ? await this.riskEvaluationRepository.findOne({
+            where: { id: run.riskEvaluationId },
+          })
+        : await this.evaluateProposal(proposal.id);
+
+      if (!evaluation) {
+        throw new NotFoundException(
+          `Risk evaluation ${run.riskEvaluationId} not found`,
+        );
+      }
+
+      run.riskEvaluationId = evaluation.id;
+      run.status = 'risk_checked';
+      run.currentStage = 'risk_evaluated';
+      run.lastAction = `Risk evaluation ${evaluation.id} returned ${evaluation.decision}`;
+      run.nextAction =
+        evaluation.decision === 'ALLOW'
+          ? 'Wait for signed paper approval and active paper account before execution'
+          : 'Resolve risk decision before paper execution';
+      this.appendRunTimeline(
+        run,
+        'risk_checked',
+        `Risk evaluation ${evaluation.id} returned ${evaluation.decision}.`,
+      );
+
+      const paperPlan =
+        request.attemptPaperExecution === false
+          ? null
+          : await this.tryPaperExecutionForRun(proposal);
+
+      if (paperPlan) {
+        run.paperOrderPlanId = paperPlan.id;
+        run.status =
+          paperPlan.status === 'blocked' ? 'risk_checked' : 'paper_ready';
+        run.currentStage =
+          paperPlan.status === 'blocked'
+            ? 'paper_execution_blocked'
+            : 'paper_execution_recorded';
+        run.lastAction = `Paper order plan ${paperPlan.id} ${paperPlan.status}`;
+        run.nextAction =
+          paperPlan.status === 'blocked'
+            ? paperPlan.blockedReasons.join('; ')
+            : 'Reconcile paper order plan and broker read-only snapshot';
+        this.appendRunTimeline(
+          run,
+          run.status,
+          `Paper order plan ${paperPlan.id} ${paperPlan.status}.`,
+        );
+      }
+
+      run.error = undefined;
+      return this.runRepository.save(run);
+    } catch (error) {
+      run.status = 'failed';
+      run.currentStage = 'failed';
+      run.error =
+        error instanceof Error ? error.message : 'Autonomous run failed';
+      run.lastAction = 'Autonomous run advance failed';
+      run.nextAction = 'Inspect the failed run timeline and fix the blocker';
+      this.appendRunTimeline(run, 'failed', run.error);
+      return this.runRepository.save(run);
+    }
+  }
+
+  private async findBudgetForRun(
+    run: AutonomousRun,
+  ): Promise<BudgetEnvelope | null> {
+    if (run.budgetEnvelopeId) {
+      return this.budgetRepository.findOne({
+        where: { id: run.budgetEnvelopeId },
+      });
+    }
+
+    return this.budgetRepository.findOne({
+      where: { status: 'active' },
+      order: { updatedAt: 'DESC' },
+    });
+  }
+
+  private async createBaselineProposalFromRun(
+    researchRun: ResearchRun,
+    budget: BudgetEnvelope,
+  ): Promise<InvestmentProposal> {
+    const generatedAt = new Date().toISOString();
+    const investableBudget = this.roundMoney(
+      budget.totalBudget * (1 - budget.cashReservePct / 100),
+    );
+    const maxSinglePositionNotional = this.roundMoney(
+      budget.totalBudget * ((budget.policy?.maxSinglePositionPct ?? 20) / 100),
+    );
+    const orderNotional = this.roundMoney(
+      Math.min(
+        investableBudget,
+        maxSinglePositionNotional,
+        budget.policy?.maxOrderNotional ?? 1_000_000,
+      ),
+    );
+    const symbol =
+      researchRun.datasetRefs[0]?.universe?.[0] ?? 'SAMPLE_MOMENTUM_BASKET';
+    const order: ProposedOrder = {
+      symbol,
+      assetClass: 'domestic_etf',
+      side: 'BUY',
+      orderType: 'MARKET',
+      notional: orderNotional,
+      targetPositionPct: this.roundMoney(
+        (orderNotional / budget.totalBudget) * 100,
+      ),
+    };
+
+    return this.createProposal({
+      budgetEnvelopeId: budget.id,
+      researchRunId: researchRun.id,
+      strategyId: `${researchRun.strategyFamily}:autonomous-baseline`,
+      ruleId: 'budget-capped-single-position-v1',
+      actor: 'scheduler',
+      generatedAt,
+      marketDataTimestamp: generatedAt,
+      portfolioSnapshot: {
+        currency: budget.currency,
+        equity: budget.totalBudget,
+        cash: budget.totalBudget,
+        grossExposurePct: 0,
+        positions: [],
+      },
+      orders: [order],
+      thesis:
+        'Autonomous baseline proposal generated from a reproducible research run and capped by the active budget risk policy.',
+      evidenceRefs: researchRun.artifactRefs,
+    });
+  }
+
+  private async tryPaperExecutionForRun(
+    proposal: InvestmentProposal,
+  ): Promise<PaperOrderPlan | null> {
+    const existingPlan = (
+      await this.findPaperOrderPlansForProposal(proposal.id)
+    )
+      .filter((plan) => plan.status !== 'blocked')
+      .sort(
+        (left, right) =>
+          (right.updatedAt?.getTime?.() ?? right.id ?? 0) -
+          (left.updatedAt?.getTime?.() ?? left.id ?? 0),
+      )[0];
+
+    if (existingPlan) {
+      return existingPlan;
+    }
+
+    const activeApproval = (
+      await this.orderPlanApprovalRepository.find({
+        order: { updatedAt: 'DESC' },
+      })
+    ).find(
+      (approval) =>
+        approval.proposalId === proposal.id && approval.status === 'active',
+    );
+    const paperAccount = await this.findPaperAccountForProposal(proposal);
+
+    if (!activeApproval || !paperAccount) {
+      return null;
+    }
+
+    return this.paperExecuteProposal(proposal.id, {
+      idempotencyKey: activeApproval.idempotencyKey,
+      orderPlanApprovalId: activeApproval.id,
+      expectedRiskEvaluationId: activeApproval.riskEvaluationId,
+    });
+  }
+
+  private appendRunTimeline(
+    run: AutonomousRun,
+    stage: AutonomousRun['status'],
+    message: string,
+  ): void {
+    run.timeline = [
+      ...(run.timeline ?? []),
+      {
+        at: new Date().toISOString(),
+        stage,
+        message,
+      },
+    ];
   }
 }

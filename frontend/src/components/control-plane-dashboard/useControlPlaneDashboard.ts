@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { controlPlaneApi, riskGateApi } from "../../services/api";
 import {
+  AutonomousRun,
   BrokerSnapshot,
   BudgetEnvelope,
   ControlPlaneReadinessItem,
@@ -18,6 +19,7 @@ import {
 } from "../../types";
 import {
   BASELINE_RESEARCH_REQUEST,
+  DOCUMENTED_AUTONOMOUS_RUNS,
   DOCUMENTED_BROKER_SNAPSHOTS,
   DOCUMENTED_BUDGET_ENVELOPES,
   DOCUMENTED_CONTROL_PLANE_STATUS,
@@ -48,6 +50,7 @@ export interface DashboardModel {
   visibleResearchRuns: ResearchRun[];
   visibleProposals: InvestmentProposal[];
   visibleRiskEvaluations: RiskEvaluation[];
+  visibleRuns: AutonomousRun[];
   visiblePaperOrderPlans: PaperOrderPlan[];
   visiblePaperAccount: PaperAccount | null;
   visiblePaperAccountEvents: PaperAccountEvent[];
@@ -58,6 +61,7 @@ export interface DashboardModel {
   latestBrokerSnapshot?: BrokerSnapshot;
   latestOrderPlanApproval?: OrderPlanApproval;
   latestReconciledPlan?: PaperOrderPlan;
+  latestRun?: AutonomousRun;
   workflowStages: WorkflowStage[];
   recentPaperLedgerChanges: PaperLedgerChange[];
   paperExecutionReadiness: ControlPlaneReadinessItem;
@@ -67,6 +71,7 @@ export interface DashboardModel {
     researchRuns: string;
     proposals: string;
     riskEvaluations: string;
+    runs: string;
     paperOrderPlans: string;
     paperAccount: string;
     paperAccountEvents: string;
@@ -79,6 +84,7 @@ export interface DashboardModel {
     researchRuns: string | null;
     proposals: string | null;
     riskEvaluations: string | null;
+    runs: string | null;
     paperOrderPlans: string | null;
     paperAccount: string | null;
     paperAccountEvents: string | null;
@@ -91,6 +97,7 @@ export interface DashboardModel {
     budgets: boolean;
     proposals: boolean;
     riskEvaluations: boolean;
+    runs: boolean;
     paperAccount: boolean;
     paperAccountEvents: boolean;
     paperOrderPlans: boolean;
@@ -99,8 +106,10 @@ export interface DashboardModel {
   };
   baselineResearchSuccess: string | null;
   runningBaselineResearch: boolean;
+  advancingRun: boolean;
   readinessReadyCount: number;
   runBaselineResearch: () => Promise<void>;
+  advanceLatestRun: () => Promise<void>;
 }
 
 const idEquals = (
@@ -305,6 +314,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const [riskEvaluations, setRiskEvaluations] = useState<
     RiskEvaluation[] | null
   >(null);
+  const [runs, setRuns] = useState<AutonomousRun[] | null>(null);
   const [paperAccount, setPaperAccount] = useState<PaperAccount | null>(null);
   const [paperAccountEvents, setPaperAccountEvents] = useState<
     PaperAccountEvent[] | null
@@ -325,6 +335,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const [loadingResearchRuns, setLoadingResearchRuns] = useState(true);
   const [loadingProposals, setLoadingProposals] = useState(true);
   const [loadingRiskEvaluations, setLoadingRiskEvaluations] = useState(true);
+  const [loadingRuns, setLoadingRuns] = useState(true);
   const [loadingPaperAccount, setLoadingPaperAccount] = useState(true);
   const [loadingPaperAccountEvents, setLoadingPaperAccountEvents] =
     useState(true);
@@ -341,6 +352,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const [riskEvaluationsError, setRiskEvaluationsError] = useState<
     string | null
   >(null);
+  const [runsError, setRunsError] = useState<string | null>(null);
   const [paperOrderPlansError, setPaperOrderPlansError] = useState<
     string | null
   >(null);
@@ -357,6 +369,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     string | null
   >(null);
   const [runningBaselineResearch, setRunningBaselineResearch] = useState(false);
+  const [advancingRun, setAdvancingRun] = useState(false);
   const [baselineResearchError, setBaselineResearchError] = useState<
     string | null
   >(null);
@@ -376,6 +389,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           researchRunsStatus,
           proposalsStatus,
           riskEvaluationsStatus,
+          runsStatus,
           paperAccountStatus,
           paperAccountEventsStatus,
           executionControlStatus,
@@ -389,6 +403,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           controlPlaneApi.getResearchRuns(),
           controlPlaneApi.getProposals(),
           controlPlaneApi.getRiskEvaluations(),
+          controlPlaneApi.getRuns(),
           controlPlaneApi.getPaperAccount(),
           controlPlaneApi.getPaperAccountEvents(),
           controlPlaneApi.getExecutionControl(),
@@ -437,6 +452,14 @@ export const useControlPlaneDashboard = (): DashboardModel => {
         } else {
           setRiskEvaluationsError(
             "Risk evaluation API is unavailable. Showing documented sample evaluation.",
+          );
+        }
+        if (runsStatus.status === "fulfilled") {
+          setRuns(runsStatus.value);
+          setRunsError(null);
+        } else {
+          setRunsError(
+            "Autonomous-run API is unavailable. Showing documented sample run.",
           );
         }
         if (paperAccountStatus.status === "fulfilled") {
@@ -505,6 +528,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           setRiskEvaluationsError(
             "Risk evaluation API is unavailable. Showing documented sample evaluation.",
           );
+          setRunsError(
+            "Autonomous-run API is unavailable. Showing documented sample run.",
+          );
           setPaperOrderPlansError(
             "Paper order-plan API is unavailable. Showing documented sample paper plans.",
           );
@@ -528,6 +554,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           setLoadingResearchRuns(false);
           setLoadingProposals(false);
           setLoadingRiskEvaluations(false);
+          setLoadingRuns(false);
           setLoadingPaperAccount(false);
           setLoadingPaperAccountEvents(false);
           setLoadingPaperOrderPlans(false);
@@ -551,6 +578,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const visibleRiskEvaluations =
     riskEvaluations ??
     (loadingRiskEvaluations ? [] : DOCUMENTED_RISK_EVALUATIONS);
+  const visibleRuns = runs ?? (loadingRuns ? [] : DOCUMENTED_AUTONOMOUS_RUNS);
   const visiblePaperOrderPlans =
     paperOrderPlans ??
     (loadingPaperOrderPlans ? [] : DOCUMENTED_PAPER_ORDER_PLANS);
@@ -592,6 +620,58 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     }
   };
 
+  const advanceLatestRun = async () => {
+    const latestRun = runs ? sortByUpdatedAtDesc(runs)[0] : undefined;
+
+    if (!latestRun) {
+      setRunsError("No live autonomous run is available to advance.");
+      return;
+    }
+
+    setAdvancingRun(true);
+    setRunsError(null);
+
+    try {
+      const advancedRun = await controlPlaneApi.advanceRun(latestRun.id, {
+        attemptPaperExecution: true,
+      });
+      const [
+        refreshedResearchRuns,
+        refreshedProposals,
+        refreshedRiskEvaluations,
+        refreshedPaperPlans,
+        refreshedPaperEvents,
+      ] = await Promise.all([
+        controlPlaneApi.getResearchRuns(),
+        controlPlaneApi.getProposals(),
+        controlPlaneApi.getRiskEvaluations(),
+        controlPlaneApi.getPaperOrderPlans(),
+        controlPlaneApi.getPaperAccountEvents(),
+      ]);
+
+      setRuns((currentRuns) => [
+        advancedRun,
+        ...(currentRuns ?? []).filter((run) => run.id !== advancedRun.id),
+      ]);
+      setResearchRuns(refreshedResearchRuns);
+      setProposals(refreshedProposals);
+      setRiskEvaluations(refreshedRiskEvaluations);
+      setPaperOrderPlans(refreshedPaperPlans);
+      setPaperAccountEvents(refreshedPaperEvents);
+      setResearchRunsError(null);
+      setProposalsError(null);
+      setRiskEvaluationsError(null);
+      setPaperOrderPlansError(null);
+      setPaperAccountEventsError(null);
+    } catch {
+      setRunsError(
+        "Autonomous run advance failed. No broker or live order path was called.",
+      );
+    } finally {
+      setAdvancingRun(false);
+    }
+  };
+
   return {
     status: riskGateStatus ?? DOCUMENTED_STATUS,
     controlStatus,
@@ -599,6 +679,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     visibleResearchRuns: researchRuns ?? DOCUMENTED_RESEARCH_RUNS,
     visibleProposals,
     visibleRiskEvaluations,
+    visibleRuns,
     visiblePaperOrderPlans,
     visiblePaperAccount: paperAccount,
     visiblePaperAccountEvents,
@@ -622,6 +703,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     latestReconciledPlan: sortByUpdatedAtDesc(visiblePaperOrderPlans).find(
       (plan) => plan.reconciliation.reconciledAt,
     ),
+    latestRun: sortByUpdatedAtDesc(visibleRuns)[0],
     workflowStages: buildWorkflowStages({
       budgets: visibleBudgets,
       researchRuns: researchRuns ?? DOCUMENTED_RESEARCH_RUNS,
@@ -667,6 +749,11 @@ export const useControlPlaneDashboard = (): DashboardModel => {
         : loadingRiskEvaluations
           ? "Loading risk evaluations"
           : "Documented risk sample",
+      runs: runs
+        ? "Live autonomous runs"
+        : loadingRuns
+          ? "Loading autonomous runs"
+          : "Documented run sample",
       paperOrderPlans: paperOrderPlans
         ? "Live paper plans"
         : loadingPaperOrderPlans
@@ -699,6 +786,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       researchRuns: researchRunsError,
       proposals: proposalsError,
       riskEvaluations: riskEvaluationsError,
+      runs: runsError,
       paperOrderPlans: paperOrderPlansError,
       paperAccount: paperAccountError,
       paperAccountEvents: paperAccountEventsError,
@@ -711,6 +799,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       budgets: loadingBudgets,
       proposals: loadingProposals,
       riskEvaluations: loadingRiskEvaluations,
+      runs: loadingRuns,
       paperAccount: loadingPaperAccount,
       paperAccountEvents: loadingPaperAccountEvents,
       paperOrderPlans: loadingPaperOrderPlans,
@@ -719,8 +808,10 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     },
     baselineResearchSuccess,
     runningBaselineResearch,
+    advancingRun,
     readinessReadyCount: controlStatus.readiness.filter((item) => item.ready)
       .length,
     runBaselineResearch,
+    advanceLatestRun,
   };
 };

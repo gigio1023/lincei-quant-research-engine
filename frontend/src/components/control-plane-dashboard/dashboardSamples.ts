@@ -1,4 +1,5 @@
 import {
+  AutonomousRun,
   BrokerSnapshot,
   BudgetEnvelope,
   InvestmentProposal,
@@ -168,6 +169,47 @@ export const DOCUMENTED_RISK_EVALUATIONS: RiskEvaluation[] = [
     requiresHumanApproval: false,
     evaluatedAt: "2026-05-22T09:02:00.000Z",
     createdAt: "2026-05-22T09:02:00.000Z",
+  },
+];
+
+export const DOCUMENTED_AUTONOMOUS_RUNS: AutonomousRun[] = [
+  {
+    id: "run-docs-001",
+    objective: "Autonomously prepare a dry-run allocation from budget",
+    status: "risk_checked",
+    currentStage: "risk_evaluated",
+    budgetEnvelopeId: "budget-docs-dry-run",
+    researchRunId: "rr-docs-momentum-001",
+    proposalId: "proposal-docs-momentum-001",
+    riskEvaluationId: "risk-docs-001",
+    timeline: [
+      {
+        at: "2026-05-22T08:50:00.000Z",
+        stage: "idle",
+        message: "Run created. Waiting for research and proposal generation.",
+      },
+      {
+        at: "2026-05-22T08:52:00.000Z",
+        stage: "researching",
+        message:
+          "Research run rr-docs-momentum-001 finished with status proposal_ready.",
+      },
+      {
+        at: "2026-05-22T08:54:00.000Z",
+        stage: "proposed",
+        message: "Proposal proposal-docs-momentum-001 generated with 1 order.",
+      },
+      {
+        at: "2026-05-22T08:55:00.000Z",
+        stage: "risk_checked",
+        message: "Risk evaluation risk-docs-001 returned ALLOW.",
+      },
+    ],
+    lastAction: "Risk evaluation risk-docs-001 returned ALLOW",
+    nextAction:
+      "Wait for signed paper approval and active paper account before execution",
+    createdAt: "2026-05-22T08:50:00.000Z",
+    updatedAt: "2026-05-22T08:55:00.000Z",
   },
 ];
 

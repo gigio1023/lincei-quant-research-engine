@@ -466,7 +466,7 @@ Exit criteria:
 
 Current verdict: not ready.
 
-The system is not ready for "deposit money and let it invest." After this PR it can create reproducible baseline research runs, evaluate proposals against deterministic policy, and simulate paper order plans against a durable local paper account with ledger/reconciliation evidence. It still cannot allocate, execute, or recover real capital end to end.
+The system is not ready for "deposit money and let it invest." After this PR it can create reproducible baseline research runs, advance an autonomous run through budget-bound research, proposal generation, and risk evaluation, and simulate approved paper order plans against a durable local paper account with ledger/reconciliation evidence. It still cannot allocate, execute, or recover real capital end to end.
 
 Blocking items:
 
@@ -475,7 +475,8 @@ Blocking items:
 - verified Toss broker adapter implementation;
 - production signing custody for human approvals;
 - scheduled broker read-only polling and broker-backed reconciliation;
-- explicit paper account seed/promote workflow;
+- explicit paper account seed/promote workflow exists, but production custody and operator policy still need hardening;
+- schedule leases for autonomous runs;
 - transaction isolation plus quantity, cost basis, realized PnL, and reservation accounting;
 - operational monitoring;
 - legal and terms review;

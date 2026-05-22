@@ -19,6 +19,8 @@ vi.mock("../services/api", () => ({
     getPaperOrderPlans: vi.fn(),
     getBrokerSnapshots: vi.fn(),
     getOrderPlanApprovals: vi.fn(),
+    getRuns: vi.fn(),
+    advanceRun: vi.fn(),
     runBaselineResearch: vi.fn(),
   },
 }));
@@ -263,6 +265,35 @@ const mockRiskEvaluations = [
     requiresHumanApproval: false,
     evaluatedAt: "2026-05-22T09:02:00.000Z",
     createdAt: "2026-05-22T09:02:00.000Z",
+  },
+];
+
+const mockAutonomousRuns = [
+  {
+    id: "run-api-1",
+    objective: "Autonomously prepare API paper allocation",
+    status: "risk_checked",
+    currentStage: "risk_evaluated",
+    budgetEnvelopeId: "budget-api-1",
+    researchRunId: "rr-api-1",
+    proposalId: "proposal-api-1",
+    riskEvaluationId: "risk-api-1",
+    timeline: [
+      {
+        at: "2026-05-22T08:50:00.000Z",
+        stage: "idle",
+        message: "Run created.",
+      },
+      {
+        at: "2026-05-22T09:02:00.000Z",
+        stage: "risk_checked",
+        message: "Risk evaluation risk-api-1 returned ALLOW.",
+      },
+    ],
+    lastAction: "Risk evaluation risk-api-1 returned ALLOW",
+    nextAction: "Wait for signed paper approval and active paper account.",
+    createdAt: "2026-05-22T08:50:00.000Z",
+    updatedAt: "2026-05-22T09:02:00.000Z",
   },
 ];
 
@@ -582,6 +613,7 @@ describe("ControlPlaneDashboard", () => {
     vi.mocked(controlPlaneApi.getRiskEvaluations).mockResolvedValue(
       mockRiskEvaluations,
     );
+    vi.mocked(controlPlaneApi.getRuns).mockResolvedValue(mockAutonomousRuns);
     vi.mocked(controlPlaneApi.getPaperAccount).mockResolvedValue(
       mockPaperAccount,
     );
@@ -603,6 +635,9 @@ describe("ControlPlaneDashboard", () => {
     vi.mocked(controlPlaneApi.runBaselineResearch).mockResolvedValue(
       mockBaselineResearchRun,
     );
+    vi.mocked(controlPlaneApi.advanceRun).mockResolvedValue(
+      mockAutonomousRuns[0],
+    );
   });
 
   it("should_render_read_only_control_plane_status", async () => {
@@ -622,6 +657,17 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("Live budgets")).toBeInTheDocument();
     expect(screen.getByText("Live proposals")).toBeInTheDocument();
     expect(screen.getByText("Live risk evaluations")).toBeInTheDocument();
+    expect(screen.getByText("Automation Action Ledger")).toBeInTheDocument();
+    expect(screen.getByText("Live autonomous runs")).toBeInTheDocument();
+    expect(screen.getByText("run-api-1")).toBeInTheDocument();
+    expect(
+      screen.getByText("Autonomously prepare API paper allocation"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Wait for signed paper approval and active paper account.",
+      ),
+    ).toBeInTheDocument();
     expect(
       screen.getByText((content) => content.includes("API dry-run budget")),
     ).toBeInTheDocument();
@@ -722,6 +768,7 @@ describe("ControlPlaneDashboard", () => {
     vi.mocked(controlPlaneApi.getRiskEvaluations).mockRejectedValue(
       new Error("offline"),
     );
+    vi.mocked(controlPlaneApi.getRuns).mockRejectedValue(new Error("offline"));
     vi.mocked(controlPlaneApi.getPaperAccount).mockRejectedValue(
       new Error("offline"),
     );
@@ -749,6 +796,7 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("Live trading")).toBeInTheDocument();
     expect(screen.getAllByText("Blocked").length).toBeGreaterThan(0);
     expect(screen.getByText("Documented sample runs")).toBeInTheDocument();
+    expect(screen.getByText("Documented run sample")).toBeInTheDocument();
     expect(
       screen.getByText(
         "Validate a dry-run momentum baseline before any proposal",
@@ -855,6 +903,38 @@ describe("ControlPlaneDashboard", () => {
       screen.getByText("Run deterministic dry-run momentum baseline backtest"),
     ).toBeInTheDocument();
     expect(screen.getByText("+9.2%")).toBeInTheDocument();
+  });
+
+  it("should_advance_latest_autonomous_run_and_refresh_ledgers", async () => {
+    const advancedRun = {
+      ...mockAutonomousRuns[0],
+      status: "paper_ready",
+      currentStage: "paper_execution_recorded",
+      paperOrderPlanId: "paper-plan-api-1",
+      nextAction: "Reconcile paper order plan and broker read-only snapshot",
+      updatedAt: "2026-05-22T09:06:00.000Z",
+    };
+    vi.mocked(controlPlaneApi.advanceRun).mockResolvedValue(advancedRun);
+
+    render(<ControlPlaneDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Live autonomous runs")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Advance latest run" }));
+
+    await waitFor(() => {
+      expect(controlPlaneApi.advanceRun).toHaveBeenCalledWith("run-api-1", {
+        attemptPaperExecution: true,
+      });
+    });
+    expect(controlPlaneApi.getResearchRuns).toHaveBeenCalledTimes(2);
+    expect(
+      await screen.findByText(
+        "Reconcile paper order plan and broker read-only snapshot",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("should_show_failure_when_baseline_dry_run_backtest_fails", async () => {

@@ -20,6 +20,8 @@ import { RiskEvaluation } from '../../entities/risk-evaluation.entity';
 import { ControlPlaneService } from './control-plane.service';
 import {
   ControlPlaneStatus,
+  AdvanceAutonomousRunRequest,
+  CreateAutonomousRunRequest,
   CreateBudgetEnvelopeRequest,
   CreateInvestmentProposalRequest,
   CreateOrderPlanApprovalRequest,
@@ -202,12 +204,22 @@ export class ControlPlaneController {
   }
 
   @Post('runs')
-  createRun(@Body('objective') objective: string): Promise<AutonomousRun> {
-    return this.controlPlaneService.createRun(objective);
+  createRun(
+    @Body() request: CreateAutonomousRunRequest,
+  ): Promise<AutonomousRun> {
+    return this.controlPlaneService.createRun(request);
   }
 
   @Get('runs')
   listRuns(): Promise<AutonomousRun[]> {
     return this.controlPlaneService.listRuns();
+  }
+
+  @Post('runs/:id/advance')
+  advanceRun(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() request: AdvanceAutonomousRunRequest = {},
+  ): Promise<AutonomousRun> {
+    return this.controlPlaneService.advanceRun(id, request);
   }
 }

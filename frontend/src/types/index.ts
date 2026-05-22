@@ -540,6 +540,52 @@ export interface RiskEvaluation {
   createdAt: string;
 }
 
+export type AutonomousRunStatus =
+  | "idle"
+  | "researching"
+  | "proposed"
+  | "risk_checked"
+  | "paper_ready"
+  | "paused"
+  | "halted"
+  | "completed"
+  | "failed";
+
+export interface RunTimelineEvent {
+  at: string;
+  stage: AutonomousRunStatus;
+  message: string;
+}
+
+export interface AutonomousRun {
+  id: number | string;
+  objective: string;
+  status: AutonomousRunStatus;
+  currentStage: string;
+  budgetEnvelopeId?: number | string;
+  researchRunId?: number | string;
+  proposalId?: number | string;
+  riskEvaluationId?: number | string;
+  paperOrderPlanId?: number | string;
+  timeline: RunTimelineEvent[];
+  lastAction?: string;
+  nextAction?: string;
+  error?: string;
+  startedAt?: string;
+  completedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAutonomousRunRequest {
+  objective: string;
+  budgetEnvelopeId?: number;
+}
+
+export interface AdvanceAutonomousRunRequest {
+  attemptPaperExecution?: boolean;
+}
+
 export interface ResearchRunWindow {
   start: string;
   end: string;
