@@ -577,6 +577,52 @@ describe("API Service", () => {
       expect(result).toEqual(mockStatus);
     });
 
+    it("should_get_broker_fills", async () => {
+      const mockBrokerFills = [
+        {
+          id: "broker-fill-1",
+          provider: "manual",
+          brokerFillRefHash: "sha256:fill",
+          status: "imported",
+          symbol: "005930",
+          side: "BUY",
+          quantity: 1,
+          fillPrice: 50_000,
+          grossNotional: 50_000,
+          fee: 50,
+          feeCurrency: "KRW",
+          currency: "KRW",
+          filledAt: "2026-05-22T09:00:00.000Z",
+          asOf: "2026-05-22T09:00:00.000Z",
+          reconciliation: {
+            status: "not_checked",
+            symbolMatched: false,
+            sideMatched: false,
+            quantityMatched: false,
+            notionalMatched: false,
+            feeMatched: false,
+            brokerQuantity: 1,
+            brokerGrossNotional: 50_000,
+            brokerFee: 50,
+            tolerance: 0.01,
+            notes: [],
+          },
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+          createdAt: "2026-05-22T09:00:00.000Z",
+          updatedAt: "2026-05-22T09:00:00.000Z",
+        },
+      ];
+
+      mockGet.mockResolvedValue({ data: mockBrokerFills });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.getBrokerFills();
+
+      expect(mockGet).toHaveBeenCalledWith("/control-plane/broker-fills");
+      expect(result).toEqual(mockBrokerFills);
+    });
+
     it("should_get_order_plan_approvals", async () => {
       const mockApprovals = [
         {

@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { AutonomousRun } from '../../entities/autonomous-run.entity';
 import { AutonomousRunSchedule } from '../../entities/autonomous-run-schedule.entity';
+import { BrokerFill } from '../../entities/broker-fill.entity';
 import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
@@ -33,6 +34,7 @@ import {
   CreateInvestmentProposalRequest,
   CreateOrderPlanApprovalRequest,
   CreateResearchRunRequest,
+  ImportBrokerFillRequest,
   ImportBrokerSnapshotRequest,
   PaperExecuteProposalRequest,
   PromotePaperAccountRequest,
@@ -145,6 +147,18 @@ export class ControlPlaneController {
     @Body() request: ImportBrokerSnapshotRequest,
   ): Promise<BrokerSnapshot> {
     return this.controlPlaneService.importBrokerSnapshot(request);
+  }
+
+  @Post('broker-fills/import-read-only')
+  importBrokerFill(
+    @Body() request: ImportBrokerFillRequest,
+  ): Promise<BrokerFill> {
+    return this.controlPlaneService.importBrokerFill(request);
+  }
+
+  @Get('broker-fills')
+  listBrokerFills(): Promise<BrokerFill[]> {
+    return this.controlPlaneService.listBrokerFills();
   }
 
   @Get('broker-snapshots')

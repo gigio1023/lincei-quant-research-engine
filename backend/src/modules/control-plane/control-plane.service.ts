@@ -9,6 +9,10 @@ import { IsNull, LessThanOrEqual, Repository } from 'typeorm';
 import { AutonomousRun } from '../../entities/autonomous-run.entity';
 import { AutonomousRunSchedule } from '../../entities/autonomous-run-schedule.entity';
 import {
+  BrokerFill,
+  BrokerFillReconciliation,
+} from '../../entities/broker-fill.entity';
+import {
   BrokerSnapshot,
   BrokerSnapshotReconciliation,
 } from '../../entities/broker-snapshot.entity';
@@ -54,6 +58,7 @@ import {
   CreateInvestmentProposalRequest,
   CreateOrderPlanApprovalRequest,
   CreateResearchRunRequest,
+  ImportBrokerFillRequest,
   ImportBrokerSnapshotRequest,
   PaperExecuteProposalRequest,
   PromotePaperAccountRequest,
@@ -101,6 +106,8 @@ export class ControlPlaneService {
   constructor(
     @InjectRepository(BudgetEnvelope)
     private readonly budgetRepository: Repository<BudgetEnvelope>,
+    @InjectRepository(BrokerFill)
+    private readonly brokerFillRepository: Repository<BrokerFill>,
     @InjectRepository(BrokerSnapshot)
     private readonly brokerSnapshotRepository: Repository<BrokerSnapshot>,
     @InjectRepository(InvestmentProposal)
@@ -144,6 +151,7 @@ export class ControlPlaneService {
     const paperOrderPlanCount = await this.paperOrderPlanRepository.count();
     const paperReservationHoldCount =
       await this.paperReservationHoldRepository.count();
+    const brokerFillCount = await this.brokerFillRepository.count();
     const brokerSnapshotCount = await this.brokerSnapshotRepository.count();
     const executionControlState = await this.getExecutionControlState();
     const runCount = await this.runRepository.count();
@@ -238,6 +246,11 @@ export class ControlPlaneService {
           key: 'brokerSnapshotLedgerReady',
           ready: brokerSnapshotCount > 0,
           detail: `${brokerSnapshotCount} broker read-only snapshots imported`,
+        },
+        {
+          key: 'brokerFillLedgerReady',
+          ready: true,
+          detail: `${brokerFillCount} broker read-only fill records imported`,
         },
         {
           key: 'liveTradingReady',
@@ -887,6 +900,101 @@ export class ControlPlaneService {
   async listBrokerSnapshots(): Promise<BrokerSnapshot[]> {
     return this.brokerSnapshotRepository.find({
       order: { asOf: 'DESC', updatedAt: 'DESC' },
+    });
+  }
+
+  async importBrokerFill(
+    request: ImportBrokerFillRequest,
+  ): Promise<BrokerFill> {
+    this.assertReadOnlyBrokerFillRequest(request);
+
+    const filledAt = new Date(request.filledAt);
+    const asOf = request.asOf ? new Date(request.asOf) : filledAt;
+
+    if (Number.isNaN(filledAt.getTime()) || Number.isNaN(asOf.getTime())) {
+      throw new BadRequestException(
+        'Broker fill filledAt/asOf must be valid dates',
+      );
+    }
+
+    if (filledAt.getTime() > Date.now() + 60_000) {
+      throw new BadRequestException('Broker fill filledAt cannot be future');
+    }
+
+    if (request.quantity <= 0 || request.fillPrice <= 0) {
+      throw new BadRequestException(
+        'Broker fill quantity and fillPrice must be positive',
+      );
+    }
+
+    const fee = this.roundMoney(request.fee ?? 0);
+
+    if (fee < 0) {
+      throw new BadRequestException('Broker fill fee cannot be negative');
+    }
+
+    const grossNotional = this.roundMoney(
+      request.grossNotional ?? request.quantity * request.fillPrice,
+    );
+
+    if (grossNotional <= 0) {
+      throw new BadRequestException(
+        'Broker fill grossNotional must be positive',
+      );
+    }
+
+    const reconciliation: BrokerFillReconciliation = {
+      status: 'not_checked',
+      symbolMatched: false,
+      sideMatched: false,
+      quantityMatched: false,
+      notionalMatched: false,
+      feeMatched: false,
+      brokerQuantity: request.quantity,
+      brokerGrossNotional: grossNotional,
+      brokerFee: fee,
+      tolerance: 0.01,
+      notes: [
+        'Imported as read-only broker fill evidence. No order endpoint was called.',
+        'Fill reconciliation against a paper fill is not implemented yet.',
+      ],
+    };
+
+    return this.brokerFillRepository.save(
+      this.brokerFillRepository.create({
+        provider: request.provider ?? 'manual',
+        sourceRef: request.sourceRef,
+        accountRefHash: request.accountRef
+          ? this.hashObject({ accountRef: request.accountRef })
+          : undefined,
+        brokerOrderRefHash: request.brokerOrderRef
+          ? this.hashObject({ brokerOrderRef: request.brokerOrderRef })
+          : undefined,
+        brokerFillRefHash: this.hashObject({
+          provider: request.provider ?? 'manual',
+          brokerFillRef: request.brokerFillRef,
+        }),
+        status: 'imported',
+        symbol: request.symbol,
+        side: request.side,
+        quantity: request.quantity,
+        fillPrice: request.fillPrice,
+        grossNotional,
+        fee,
+        feeCurrency: request.feeCurrency ?? request.currency ?? 'KRW',
+        currency: request.currency ?? 'KRW',
+        filledAt,
+        asOf,
+        reconciliation,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+  }
+
+  async listBrokerFills(): Promise<BrokerFill[]> {
+    return this.brokerFillRepository.find({
+      order: { filledAt: 'DESC', updatedAt: 'DESC' },
     });
   }
 
@@ -2729,6 +2837,37 @@ export class ControlPlaneService {
     if (presentDisallowedKey) {
       throw new BadRequestException(
         `Broker read-only snapshots cannot include ${presentDisallowedKey}`,
+      );
+    }
+  }
+
+  private assertReadOnlyBrokerFillRequest(
+    request: ImportBrokerFillRequest,
+  ): void {
+    const disallowedKeys = [
+      'brokerCredentials',
+      'accessToken',
+      'refreshToken',
+      'secret',
+      'clientSecret',
+      'apiKey',
+      'accountId',
+      'order',
+      'orders',
+      'orderPayload',
+      'clientOrderId',
+      'placeOrder',
+      'cancelOrder',
+      'modifyOrder',
+    ];
+    const presentDisallowedKey = disallowedKeys.find(
+      (key) =>
+        (request as unknown as Record<string, unknown>)[key] !== undefined,
+    );
+
+    if (presentDisallowedKey) {
+      throw new BadRequestException(
+        `Broker read-only fills cannot include ${presentDisallowedKey}`,
       );
     }
   }

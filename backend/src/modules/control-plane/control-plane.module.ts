@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AutonomousRunSchedule } from '../../entities/autonomous-run-schedule.entity';
 import { AutonomousRun } from '../../entities/autonomous-run.entity';
+import { BrokerFill } from '../../entities/broker-fill.entity';
 import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
@@ -25,6 +26,7 @@ import { TossReadOnlyBrokerService } from './toss-read-only-broker.service';
     TypeOrmModule.forFeature([
       AutonomousRun,
       AutonomousRunSchedule,
+      BrokerFill,
       BrokerSnapshot,
       BudgetEnvelope,
       ExecutionControlState,

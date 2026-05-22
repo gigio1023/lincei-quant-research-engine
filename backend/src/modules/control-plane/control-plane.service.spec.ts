@@ -1,5 +1,6 @@
 import { AutonomousRun } from '../../entities/autonomous-run.entity';
 import { AutonomousRunSchedule } from '../../entities/autonomous-run-schedule.entity';
+import { BrokerFill } from '../../entities/broker-fill.entity';
 import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
@@ -17,6 +18,7 @@ import { ControlPlaneService } from './control-plane.service';
 describe('ControlPlaneService', () => {
   let service: ControlPlaneService;
   let budgets: BudgetEnvelope[];
+  let brokerFills: BrokerFill[];
   let brokerSnapshots: BrokerSnapshot[];
   let orderPlanApprovals: OrderPlanApproval[];
   let researchRuns: ResearchRun[];
@@ -98,6 +100,7 @@ describe('ControlPlaneService', () => {
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(new Date('2026-05-23T00:00:00.000Z'));
     budgets = [];
+    brokerFills = [];
     brokerSnapshots = [];
     orderPlanApprovals = [];
     researchRuns = [];
@@ -112,6 +115,7 @@ describe('ControlPlaneService', () => {
     runSchedules = [];
     service = new ControlPlaneService(
       makeRepository(budgets) as any,
+      makeRepository(brokerFills) as any,
       makeRepository(brokerSnapshots) as any,
       makeRepository(proposals) as any,
       makeRepository(orderPlanApprovals) as any,
@@ -885,6 +889,72 @@ describe('ControlPlaneService', () => {
     ).rejects.toThrow('Broker read-only snapshots cannot include');
 
     expect(brokerSnapshots).toHaveLength(0);
+  });
+
+  it('imports read-only broker fill evidence without enabling broker execution', async () => {
+    const fill = await service.importBrokerFill({
+      provider: 'manual',
+      sourceRef: 'operator-fill-import',
+      accountRef: 'raw-account-id-must-be-hashed',
+      brokerOrderRef: 'broker-order-123',
+      brokerFillRef: 'broker-fill-123',
+      symbol: '005930',
+      side: 'BUY',
+      quantity: 10,
+      fillPrice: 50_000,
+      fee: 500,
+      filledAt: '2026-05-22T23:59:00.000Z',
+    });
+
+    expect(fill).toEqual(
+      expect.objectContaining({
+        provider: 'manual',
+        sourceRef: 'operator-fill-import',
+        status: 'imported',
+        symbol: '005930',
+        side: 'BUY',
+        quantity: 10,
+        fillPrice: 50_000,
+        grossNotional: 500_000,
+        fee: 500,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+    expect(fill.accountRefHash).toMatch(/^sha256:/);
+    expect(fill.brokerOrderRefHash).toMatch(/^sha256:/);
+    expect(fill.brokerFillRefHash).toMatch(/^sha256:/);
+    expect(fill).not.toHaveProperty('accountRef');
+    expect(fill.reconciliation.status).toBe('not_checked');
+    expect(await service.listBrokerFills()).toHaveLength(1);
+  });
+
+  it('rejects broker fill imports that include credentials or order intent', async () => {
+    await expect(
+      service.importBrokerFill({
+        brokerFillRef: 'broker-fill-secret',
+        symbol: '005930',
+        side: 'BUY',
+        quantity: 1,
+        fillPrice: 50_000,
+        filledAt: '2026-05-22T23:59:00.000Z',
+        accessToken: 'secret',
+      } as any),
+    ).rejects.toThrow('Broker read-only fills cannot include');
+
+    await expect(
+      service.importBrokerFill({
+        brokerFillRef: 'broker-fill-order',
+        symbol: '005930',
+        side: 'BUY',
+        quantity: 1,
+        fillPrice: 50_000,
+        filledAt: '2026-05-22T23:59:00.000Z',
+        orderPayload: { symbol: '005930' },
+      } as any),
+    ).rejects.toThrow('Broker read-only fills cannot include');
+
+    expect(brokerFills).toHaveLength(0);
   });
 
   it('persists a blocked paper plan when risk approval is missing', async () => {

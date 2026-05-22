@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import * as request from 'supertest';
 import { AutonomousRun } from '../src/entities/autonomous-run.entity';
 import { AutonomousRunSchedule } from '../src/entities/autonomous-run-schedule.entity';
+import { BrokerFill } from '../src/entities/broker-fill.entity';
 import { BrokerSnapshot } from '../src/entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../src/entities/budget-envelope.entity';
 import { ExecutionControlState } from '../src/entities/execution-control-state.entity';
@@ -29,6 +30,7 @@ describe('ControlPlane research provenance (e2e)', () => {
           entities: [
             AutonomousRun,
             AutonomousRunSchedule,
+            BrokerFill,
             BrokerSnapshot,
             BudgetEnvelope,
             ExecutionControlState,
@@ -625,6 +627,33 @@ describe('ControlPlane research provenance (e2e)', () => {
     expect(latestBrokerSnapshotResponse.body.id).toBe(
       brokerSnapshotResponse.body.id,
     );
+
+    const brokerFillResponse = await request(app.getHttpServer())
+      .post('/control-plane/broker-fills/import-read-only')
+      .send({
+        provider: 'manual',
+        accountRef: 'e2e-account-ref',
+        brokerOrderRef: 'e2e-broker-order',
+        brokerFillRef: 'e2e-broker-fill',
+        sourceRef: 'operator-fill-import',
+        symbol: '005930',
+        side: 'BUY',
+        quantity: 1,
+        fillPrice: 50_000,
+        fee: 50,
+        filledAt: new Date(Date.now() - 10 * 60_000).toISOString(),
+      })
+      .expect(201);
+
+    expect(brokerFillResponse.body.accountRefHash).toMatch(/^sha256:/);
+    expect(brokerFillResponse.body.brokerExecutionEnabled).toBe(false);
+    expect(brokerFillResponse.body.liveTradingEnabled).toBe(false);
+    expect(brokerFillResponse.body.reconciliation.status).toBe('not_checked');
+
+    const brokerFillsResponse = await request(app.getHttpServer())
+      .get('/control-plane/broker-fills')
+      .expect(200);
+    expect(brokerFillsResponse.body[0].id).toBe(brokerFillResponse.body.id);
 
     await request(app.getHttpServer())
       .post('/control-plane/broker-snapshots/import-read-only')

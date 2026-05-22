@@ -17,9 +17,9 @@ const ControlPlaneDashboard = () => {
         <DashboardHeader model={model} />
         <WorkflowActionRail model={model} />
         <AutonomousRunLedger model={model} />
-        <section className="grid gap-4 xl:grid-cols-[0.82fr_1.18fr_0.72fr]">
+        <section className="grid gap-4 xl:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)_minmax(0,0.72fr)]">
           <ReadinessPanel model={model} />
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             <ResearchLedgerPanel model={model} />
             <PaperExecutionPanel model={model} />
             <BrokerSnapshotPanel model={model} />

@@ -4,6 +4,7 @@ import {
   AutonomousRun,
   AutonomousRunSchedule,
   BrokerAdapterStatus,
+  BrokerFill,
   BrokerSnapshot,
   BudgetEnvelope,
   ControlPlaneStatus,
@@ -112,6 +113,11 @@ export const controlPlaneApi = {
 
   getBrokerSnapshots: async (): Promise<BrokerSnapshot[]> => {
     const response = await api.get("/control-plane/broker-snapshots");
+    return response.data;
+  },
+
+  getBrokerFills: async (): Promise<BrokerFill[]> => {
+    const response = await api.get("/control-plane/broker-fills");
     return response.data;
   },
 

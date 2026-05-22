@@ -18,6 +18,7 @@ vi.mock("../services/api", () => ({
     getExecutionControl: vi.fn(),
     getPaperOrderPlans: vi.fn(),
     getBrokerSnapshots: vi.fn(),
+    getBrokerFills: vi.fn(),
     getBrokerAdapterStatus: vi.fn(),
     getOrderPlanApprovals: vi.fn(),
     getRuns: vi.fn(),
@@ -854,6 +855,7 @@ describe("ControlPlaneDashboard", () => {
     vi.mocked(controlPlaneApi.getBrokerSnapshots).mockResolvedValue(
       mockBrokerSnapshots,
     );
+    vi.mocked(controlPlaneApi.getBrokerFills).mockResolvedValue([]);
     vi.mocked(controlPlaneApi.getBrokerAdapterStatus).mockResolvedValue(
       mockBrokerAdapterStatus,
     );
@@ -1036,6 +1038,9 @@ describe("ControlPlaneDashboard", () => {
       new Error("offline"),
     );
     vi.mocked(controlPlaneApi.getBrokerSnapshots).mockRejectedValue(
+      new Error("offline"),
+    );
+    vi.mocked(controlPlaneApi.getBrokerFills).mockRejectedValue(
       new Error("offline"),
     );
     vi.mocked(controlPlaneApi.getBrokerAdapterStatus).mockRejectedValue(

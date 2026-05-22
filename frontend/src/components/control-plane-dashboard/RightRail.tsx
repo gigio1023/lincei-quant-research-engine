@@ -14,7 +14,7 @@ interface RightRailProps {
 }
 
 export const RightRail = ({ model }: RightRailProps) => (
-  <aside className="space-y-4">
+  <aside className="min-w-0 space-y-4">
     <RiskPolicyCard model={model} />
     <OrderPlanApprovalPanel model={model} />
     <LatestRiskEvaluationCard model={model} />

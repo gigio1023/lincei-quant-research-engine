@@ -12,6 +12,7 @@ interface BrokerSnapshotPanelProps {
 
 export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
   const snapshot = model.latestBrokerSnapshot;
+  const fill = model.latestBrokerFill;
   const adapter = model.visibleBrokerAdapterStatus;
   const readyCapabilityCount = adapter.capabilities.filter(
     (capability) =>
@@ -38,6 +39,11 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
       {model.errors.brokerSnapshots && (
         <div className="mx-4 mt-4 rounded-lg border border-[#f0b90b]/30 bg-[#f0b90b]/10 p-3 text-xs font-semibold text-[#fcd535]">
           {model.errors.brokerSnapshots}
+        </div>
+      )}
+      {model.errors.brokerFills && (
+        <div className="mx-4 mt-4 rounded-lg border border-[#f0b90b]/30 bg-[#f0b90b]/10 p-3 text-xs font-semibold text-[#fcd535]">
+          {model.errors.brokerFills}
         </div>
       )}
       {model.errors.brokerAdapter && (
@@ -322,6 +328,49 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
           No broker read-only snapshot has been imported yet.
         </div>
       )}
+
+      <div className="border-t border-[#2b3139] p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="text-[11px] font-bold uppercase text-[#707a8a]">
+              {model.sources.brokerFills}
+            </div>
+            <h4 className="mt-1 text-sm font-bold text-white">
+              Broker Fill Evidence
+            </h4>
+          </div>
+          <div className="font-mono text-xs font-bold text-[#eaecef]">
+            {model.visibleBrokerFills.length} fills
+          </div>
+        </div>
+
+        {fill ? (
+          <div className="mt-3 grid gap-2 md:grid-cols-4">
+            {[
+              ["Symbol", fill.symbol],
+              ["Side", fill.side],
+              ["Notional", formatCurrency(fill.grossNotional, fill.currency)],
+              ["Recon", fill.reconciliation.status],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3"
+              >
+                <div className="text-[11px] font-bold uppercase text-[#707a8a]">
+                  {label}
+                </div>
+                <div className="mt-1 truncate font-mono text-sm font-bold text-[#eaecef]">
+                  {value}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-3 rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3 text-xs font-semibold text-[#707a8a]">
+            No broker read-only fill evidence has been imported yet.
+          </div>
+        )}
+      </div>
     </section>
   );
 };

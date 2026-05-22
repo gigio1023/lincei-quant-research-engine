@@ -399,6 +399,36 @@ all broker/live execution flags remain `false`.
 
 - **Description**: Returns the latest imported read-only broker snapshot. Returns `404` until a snapshot has been imported.
 
+#### `POST /control-plane/broker-fills/import-read-only`
+
+- **Description**: Imports read-only broker fill evidence. This is a provider-neutral ledger step for later broker fill polling and paper-fill matching. It does not call a broker, does not store raw account/order/fill refs, rejects credential/order payload fields, and cannot place, cancel, or modify orders.
+- **Example Request**:
+  ```json
+  {
+    "provider": "manual",
+    "accountRef": "operator-visible-account-ref",
+    "brokerOrderRef": "broker-order-123",
+    "brokerFillRef": "broker-fill-123",
+    "sourceRef": "manual-fill-import-20260523",
+    "symbol": "005930",
+    "side": "BUY",
+    "quantity": 10,
+    "fillPrice": 50000,
+    "fee": 500,
+    "filledAt": "2026-05-23T09:00:00.000Z"
+  }
+  ```
+- **Response Notes**:
+  - returns a `BrokerFill`;
+  - `accountRef`, `brokerOrderRef`, and `brokerFillRef` are stored only as hashes;
+  - `reconciliation.status` starts as `not_checked`;
+  - `brokerCredentials`, tokens, account ids, and order payload fields are rejected;
+  - `brokerExecutionEnabled` and `liveTradingEnabled` are always `false`.
+
+#### `GET /control-plane/broker-fills`
+
+- **Description**: Lists imported read-only broker fill evidence ordered by fill timestamp.
+
 #### `GET /control-plane/broker-adapter/status`
 
 - **Description**: Returns the provider-neutral broker adapter readiness contract. The current first candidate is Toss. This endpoint reports evidence only; it does not trigger polls, place orders, or expose secrets. It reports whether required credential environment variables are present, whether credential custody is production-ready, whether the OpenAPI schema and sandbox have been operator-verified, read-only polling state, and which broker capabilities remain blocked.

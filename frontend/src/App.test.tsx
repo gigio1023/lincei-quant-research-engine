@@ -89,6 +89,7 @@ vi.mock("./services/api", () => ({
     ),
     getPaperOrderPlans: vi.fn(() => Promise.resolve([])),
     getBrokerSnapshots: vi.fn(() => Promise.resolve([])),
+    getBrokerFills: vi.fn(() => Promise.resolve([])),
     getBrokerAdapterStatus: vi.fn(() =>
       Promise.resolve({
         provider: "toss",

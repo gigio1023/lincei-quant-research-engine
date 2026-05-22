@@ -449,6 +449,56 @@ export interface BrokerSnapshot {
   updatedAt: string;
 }
 
+export type BrokerFillStatus = "imported" | "matched" | "mismatch";
+
+export interface BrokerFillReconciliation {
+  status: "not_checked" | "matched" | "mismatch";
+  checkedAt?: string;
+  paperOrderPlanId?: number | string;
+  paperFillId?: string;
+  symbolMatched: boolean;
+  sideMatched: boolean;
+  quantityMatched: boolean;
+  notionalMatched: boolean;
+  feeMatched: boolean;
+  brokerQuantity: number;
+  brokerGrossNotional: number;
+  brokerFee: number;
+  expectedQuantity?: number;
+  expectedGrossNotional?: number;
+  expectedFee?: number;
+  quantityDiff?: number;
+  notionalDiff?: number;
+  feeDiff?: number;
+  tolerance: number;
+  notes: string[];
+}
+
+export interface BrokerFill {
+  id: number | string;
+  provider: BrokerSnapshotProvider;
+  sourceRef?: string;
+  accountRefHash?: string;
+  brokerOrderRefHash?: string;
+  brokerFillRefHash: string;
+  status: BrokerFillStatus;
+  symbol: string;
+  side: OrderSide;
+  quantity: number;
+  fillPrice: number;
+  grossNotional: number;
+  fee: number;
+  feeCurrency: string;
+  currency: string;
+  filledAt: string;
+  asOf: string;
+  reconciliation: BrokerFillReconciliation;
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type BrokerAdapterProvider = "toss" | "manual" | "simulated";
 
 export type BrokerAdapterCapabilityStatus =

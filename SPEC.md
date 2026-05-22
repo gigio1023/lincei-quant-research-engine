@@ -242,6 +242,8 @@ Current read-only slice:
 - `POST /control-plane/broker-snapshots/import-read-only` accepts manual/imported snapshots and rejects broker credentials, account ids, tokens, order payloads, and order intent fields;
 - `GET /control-plane/broker-snapshots` and `GET /control-plane/broker-snapshots/latest` expose read-only snapshot history;
 - `POST /control-plane/broker-snapshots/:id/reconcile-paper` compares a broker snapshot with the active paper account and records cash, equity, position, tolerance, age, stale, match, or mismatch evidence;
+- `broker_fills` stores imported read-only fill evidence with hashed account/order/fill refs, symbol, side, quantity, price, notional, fee, timestamp, reconciliation status, and hard `brokerExecutionEnabled/liveTradingEnabled: false` flags;
+- `POST /control-plane/broker-fills/import-read-only` and `GET /control-plane/broker-fills` expose the fill evidence ledger without accepting credentials, order payloads, or callable order intent;
 - `GET /control-plane/broker-adapter/status` exposes a provider-neutral Toss readiness contract for credential presence, credential custody, OpenAPI schema verification, sandbox verification, read-only enablement, and blocked order capabilities without exposing secrets;
 - the dashboard shows a Broker Snapshot Monitor next to paper execution so the user can see whether external account truth matches internal paper state;
 - this is not a Toss client yet and cannot call Toss, place, cancel, modify, preview, or route orders.
@@ -455,7 +457,8 @@ Current status:
 - provider-neutral Toss adapter readiness contract reports credential/schema/sandbox/read-only/order-placement gates;
 - disabled-by-default Toss read-only poll worker exists and only allowlists token, account, and holdings reads before importing mapped snapshots through the same broker snapshot ledger;
 - imported Toss read-only snapshots attempt automatic reconciliation against the active paper account and report the latest reconciliation status on the adapter poll status;
-- frontend dashboard shows latest broker snapshot status, Toss readiness gates, and reconciliation notes;
+- read-only broker fill evidence can now be imported into `broker_fills`; automatic broker fill polling and paper-fill matching are still blocked;
+- frontend dashboard shows latest broker snapshot status, broker fill evidence, Toss readiness gates, and reconciliation notes;
 - still missing verified Toss schema responses, production credential custody, provider-specific rate-limit/error handling, fill polling, order custody, and broker write controls.
 
 Exit criteria:

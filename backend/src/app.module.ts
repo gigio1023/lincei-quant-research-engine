@@ -9,6 +9,7 @@ import { NewsModule } from './modules/news/news.module';
 import { LlmModule } from './modules/llm/llm.module';
 import { RiskGateModule } from './modules/risk-gate/risk-gate.module';
 import { ControlPlaneModule } from './modules/control-plane/control-plane.module';
+import { BrokerFill } from './entities/broker-fill.entity';
 import { Report } from './entities/report.entity';
 import { NewsSource } from './entities/news-source.entity';
 import { OrderPlanApproval } from './entities/order-plan-approval.entity';
@@ -38,6 +39,7 @@ import { PaperReservationHoldRecord } from './entities/paper-reservation-hold.en
         entities: [
           Report,
           NewsSource,
+          BrokerFill,
           OrderPlanApproval,
           PaperAccountEvent,
           BudgetEnvelope,

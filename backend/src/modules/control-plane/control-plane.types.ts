@@ -141,6 +141,24 @@ export interface ImportBrokerSnapshotRequest {
   positions?: PortfolioSnapshot['positions'];
 }
 
+export interface ImportBrokerFillRequest {
+  provider?: BrokerSnapshotProvider;
+  sourceRef?: string;
+  accountRef?: string;
+  brokerOrderRef?: string;
+  brokerFillRef: string;
+  symbol: string;
+  side: ProposedOrder['side'];
+  quantity: number;
+  fillPrice: number;
+  grossNotional?: number;
+  fee?: number;
+  feeCurrency?: string;
+  currency?: string;
+  filledAt: string;
+  asOf?: string;
+}
+
 export interface ReconcileBrokerSnapshotRequest {
   paperAccountId?: number;
   tolerance?: number;
