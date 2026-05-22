@@ -7,6 +7,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { AutonomousRun } from '../../entities/autonomous-run.entity';
+import { AutonomousRunSchedule } from '../../entities/autonomous-run-schedule.entity';
 import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
@@ -19,8 +20,9 @@ import { ResearchRun } from '../../entities/research-run.entity';
 import { RiskEvaluation } from '../../entities/risk-evaluation.entity';
 import { ControlPlaneService } from './control-plane.service';
 import {
-  ControlPlaneStatus,
   AdvanceAutonomousRunRequest,
+  ControlPlaneStatus,
+  CreateAutonomousRunScheduleRequest,
   CreateAutonomousRunRequest,
   CreateBudgetEnvelopeRequest,
   CreateInvestmentProposalRequest,
@@ -33,6 +35,7 @@ import {
   ReconcilePaperOrderPlanRequest,
   RunBaselineResearchRequest,
   SeedPaperAccountRequest,
+  TickAutonomousRunScheduleRequest,
   UpdateExecutionControlRequest,
 } from './control-plane.types';
 
@@ -208,6 +211,26 @@ export class ControlPlaneController {
     @Body() request: CreateAutonomousRunRequest,
   ): Promise<AutonomousRun> {
     return this.controlPlaneService.createRun(request);
+  }
+
+  @Post('run-schedules')
+  createRunSchedule(
+    @Body() request: CreateAutonomousRunScheduleRequest,
+  ): Promise<AutonomousRunSchedule> {
+    return this.controlPlaneService.createRunSchedule(request);
+  }
+
+  @Get('run-schedules')
+  listRunSchedules(): Promise<AutonomousRunSchedule[]> {
+    return this.controlPlaneService.listRunSchedules();
+  }
+
+  @Post('run-schedules/:id/tick')
+  tickRunSchedule(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() request: TickAutonomousRunScheduleRequest = {},
+  ): Promise<AutonomousRun> {
+    return this.controlPlaneService.tickRunSchedule(id, request);
   }
 
   @Get('runs')

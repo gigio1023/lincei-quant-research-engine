@@ -604,6 +604,70 @@ describe("API Service", () => {
       expect(result).toEqual(mockRuns);
     });
 
+    it("should_get_autonomous_run_schedules", async () => {
+      const mockSchedules = [
+        {
+          id: "schedule-1",
+          budgetEnvelopeId: "budget-1",
+          objective: "Run scheduled autonomous paper allocation",
+          mode: "dry_run",
+          cadenceMinutes: 60,
+          nextRunAt: "2026-05-22T10:00:00.000Z",
+          enabled: true,
+          attemptPaperExecution: false,
+          lastRunId: "run-1",
+          lastCycleKey: "schedule:1:2026-05-22T09:00:00.000Z",
+          lastTickAt: "2026-05-22T09:00:00.000Z",
+          leaseOwner: null,
+          leaseExpiresAt: null,
+          lastError: null,
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+          createdAt: "2026-05-22T08:55:00.000Z",
+          updatedAt: "2026-05-22T09:00:00.000Z",
+        },
+      ];
+
+      mockGet.mockResolvedValue({ data: mockSchedules });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.getRunSchedules();
+
+      expect(mockGet).toHaveBeenCalledWith("/control-plane/run-schedules");
+      expect(result).toEqual(mockSchedules);
+    });
+
+    it("should_tick_autonomous_run_schedule", async () => {
+      const mockRun = {
+        id: "run-1",
+        objective: "Autonomously prepare a paper allocation",
+        status: "risk_checked",
+        currentStage: "risk_evaluated",
+        scheduleId: "schedule-1",
+        cycleKey: "schedule:1:2026-05-22T09:00:00.000Z",
+        timeline: [],
+        createdAt: "2026-05-22T08:55:00.000Z",
+        updatedAt: "2026-05-22T09:00:00.000Z",
+      };
+
+      mockPost.mockResolvedValue({ data: mockRun });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.tickRunSchedule("schedule-1", {
+        leaseOwner: "browser",
+        attemptPaperExecution: false,
+      });
+
+      expect(mockPost).toHaveBeenCalledWith(
+        "/control-plane/run-schedules/schedule-1/tick",
+        {
+          leaseOwner: "browser",
+          attemptPaperExecution: false,
+        },
+      );
+      expect(result).toEqual(mockRun);
+    });
+
     it("should_advance_autonomous_run", async () => {
       const mockRun = {
         id: "run-1",

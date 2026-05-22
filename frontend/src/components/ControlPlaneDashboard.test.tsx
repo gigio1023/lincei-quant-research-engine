@@ -20,7 +20,9 @@ vi.mock("../services/api", () => ({
     getBrokerSnapshots: vi.fn(),
     getOrderPlanApprovals: vi.fn(),
     getRuns: vi.fn(),
+    getRunSchedules: vi.fn(),
     advanceRun: vi.fn(),
+    tickRunSchedule: vi.fn(),
     runBaselineResearch: vi.fn(),
   },
 }));
@@ -275,6 +277,8 @@ const mockAutonomousRuns = [
     status: "risk_checked",
     currentStage: "risk_evaluated",
     budgetEnvelopeId: "budget-api-1",
+    scheduleId: "schedule-api-1",
+    cycleKey: "schedule:schedule-api-1:2026-05-22T08:50:00.000Z",
     researchRunId: "rr-api-1",
     proposalId: "proposal-api-1",
     riskEvaluationId: "risk-api-1",
@@ -293,6 +297,29 @@ const mockAutonomousRuns = [
     lastAction: "Risk evaluation risk-api-1 returned ALLOW",
     nextAction: "Wait for signed paper approval and active paper account.",
     createdAt: "2026-05-22T08:50:00.000Z",
+    updatedAt: "2026-05-22T09:02:00.000Z",
+  },
+];
+
+const mockAutonomousRunSchedules = [
+  {
+    id: "schedule-api-1",
+    budgetEnvelopeId: "budget-api-1",
+    objective: "Autonomously prepare API paper allocation",
+    mode: "dry_run",
+    cadenceMinutes: 60,
+    nextRunAt: "2026-05-22T09:50:00.000Z",
+    enabled: true,
+    attemptPaperExecution: false,
+    lastRunId: "run-api-1",
+    lastCycleKey: "schedule:schedule-api-1:2026-05-22T08:50:00.000Z",
+    lastTickAt: "2026-05-22T08:50:00.000Z",
+    leaseOwner: null,
+    leaseExpiresAt: null,
+    lastError: null,
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+    createdAt: "2026-05-22T08:45:00.000Z",
     updatedAt: "2026-05-22T09:02:00.000Z",
   },
 ];
@@ -614,6 +641,9 @@ describe("ControlPlaneDashboard", () => {
       mockRiskEvaluations,
     );
     vi.mocked(controlPlaneApi.getRuns).mockResolvedValue(mockAutonomousRuns);
+    vi.mocked(controlPlaneApi.getRunSchedules).mockResolvedValue(
+      mockAutonomousRunSchedules,
+    );
     vi.mocked(controlPlaneApi.getPaperAccount).mockResolvedValue(
       mockPaperAccount,
     );
@@ -659,6 +689,8 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("Live risk evaluations")).toBeInTheDocument();
     expect(screen.getByText("Automation Action Ledger")).toBeInTheDocument();
     expect(screen.getByText("Live autonomous runs")).toBeInTheDocument();
+    expect(screen.getByText("Live run schedules")).toBeInTheDocument();
+    expect(screen.getAllByText("schedule-api-1").length).toBeGreaterThan(0);
     expect(screen.getByText("run-api-1")).toBeInTheDocument();
     expect(
       screen.getByText("Autonomously prepare API paper allocation"),
@@ -769,6 +801,9 @@ describe("ControlPlaneDashboard", () => {
       new Error("offline"),
     );
     vi.mocked(controlPlaneApi.getRuns).mockRejectedValue(new Error("offline"));
+    vi.mocked(controlPlaneApi.getRunSchedules).mockRejectedValue(
+      new Error("offline"),
+    );
     vi.mocked(controlPlaneApi.getPaperAccount).mockRejectedValue(
       new Error("offline"),
     );
@@ -797,6 +832,7 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getAllByText("Blocked").length).toBeGreaterThan(0);
     expect(screen.getByText("Documented sample runs")).toBeInTheDocument();
     expect(screen.getByText("Documented run sample")).toBeInTheDocument();
+    expect(screen.getByText("Documented schedule sample")).toBeInTheDocument();
     expect(
       screen.getByText(
         "Validate a dry-run momentum baseline before any proposal",
@@ -934,6 +970,43 @@ describe("ControlPlaneDashboard", () => {
       await screen.findByText(
         "Reconcile paper order plan and broker read-only snapshot",
       ),
+    ).toBeInTheDocument();
+  });
+
+  it("should_keep_advanced_run_when_a_refresh_after_advance_fails", async () => {
+    const advancedRun = {
+      ...mockAutonomousRuns[0],
+      status: "paper_ready",
+      currentStage: "paper_execution_recorded",
+      paperOrderPlanId: "paper-plan-api-1",
+      nextAction: "Reconcile paper order plan and broker read-only snapshot",
+      updatedAt: "2026-05-22T09:06:00.000Z",
+    };
+    vi.mocked(controlPlaneApi.advanceRun).mockResolvedValue(advancedRun);
+
+    render(<ControlPlaneDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Live autonomous runs")).toBeInTheDocument();
+    });
+
+    vi.mocked(controlPlaneApi.getRunSchedules).mockRejectedValueOnce(
+      new Error("refresh failed"),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Advance latest run" }));
+
+    expect(
+      await screen.findByText(
+        "Reconcile paper order plan and broker read-only snapshot",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Autonomous run advance failed. No broker or live order path was called.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Schedule refresh failed after automation action."),
     ).toBeInTheDocument();
   });
 

@@ -135,6 +135,24 @@ export interface UpdateExecutionControlRequest {
   reason: string;
 }
 
+export interface CreateAutonomousRunScheduleRequest {
+  budgetEnvelopeId: number;
+  objective: string;
+  mode?: RiskGateMode;
+  cadenceMinutes?: number;
+  nextRunAt?: string;
+  enabled?: boolean;
+  attemptPaperExecution?: boolean;
+}
+
+export interface TickAutonomousRunScheduleRequest {
+  actor?: string;
+  force?: boolean;
+  leaseOwner?: string;
+  leaseTtlSeconds?: number;
+  attemptPaperExecution?: boolean;
+}
+
 export interface CreateAutonomousRunRequest {
   objective: string;
   budgetEnvelopeId?: number;

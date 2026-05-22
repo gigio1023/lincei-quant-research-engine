@@ -23,6 +23,7 @@ const statusClass = (status: AutonomousRunStatus) => {
 
 export const AutonomousRunLedger = ({ model }: AutonomousRunLedgerProps) => {
   const run = model.latestRun;
+  const schedule = model.latestRunSchedule;
 
   return (
     <section className="rounded-xl border border-[#2b3139] bg-[#181a20]">
@@ -35,28 +36,87 @@ export const AutonomousRunLedger = ({ model }: AutonomousRunLedgerProps) => {
             <span className="font-semibold text-[#929aa5]">
               {model.sources.runs}
             </span>
+            <span className="font-semibold text-[#929aa5]">
+              {model.sources.runSchedules}
+            </span>
             <span className="font-bold text-[#f6465d]">Live broker off</span>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={model.advanceLatestRun}
-          disabled={
-            !run ||
-            model.loading.runs ||
-            model.advancingRun ||
-            model.sources.runs !== "Live autonomous runs"
-          }
-          className="h-10 rounded-md bg-[#fcd535] px-4 text-sm font-bold text-[#181a20] transition hover:bg-[#f0b90b] disabled:cursor-not-allowed disabled:bg-[#3a3a1f] disabled:text-[#707a8a]"
-        >
-          {model.advancingRun ? "Advancing run" : "Advance latest run"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={model.tickLatestSchedule}
+            disabled={
+              !schedule ||
+              model.loading.runSchedules ||
+              model.tickingSchedule ||
+              model.sources.runSchedules !== "Live run schedules"
+            }
+            className="h-10 rounded-md border border-[#2b3139] bg-[#1e2329] px-4 text-sm font-bold text-white transition hover:bg-[#2b3139] disabled:cursor-not-allowed disabled:text-[#707a8a]"
+          >
+            {model.tickingSchedule ? "Ticking schedule" : "Tick schedule"}
+          </button>
+          <button
+            type="button"
+            onClick={model.advanceLatestRun}
+            disabled={
+              !run ||
+              model.loading.runs ||
+              model.advancingRun ||
+              model.sources.runs !== "Live autonomous runs"
+            }
+            className="h-10 rounded-md bg-[#fcd535] px-4 text-sm font-bold text-[#181a20] transition hover:bg-[#f0b90b] disabled:cursor-not-allowed disabled:bg-[#3a3a1f] disabled:text-[#707a8a]"
+          >
+            {model.advancingRun ? "Advancing run" : "Advance latest run"}
+          </button>
+        </div>
       </div>
 
       <div className="p-4">
         {model.errors.runs && (
           <div className="mb-3 rounded-lg border border-[#f0b90b]/30 bg-[#f0b90b]/10 p-3 text-xs font-semibold text-[#fcd535]">
             {model.errors.runs}
+          </div>
+        )}
+        {model.errors.runSchedules && (
+          <div className="mb-3 rounded-lg border border-[#f0b90b]/30 bg-[#f0b90b]/10 p-3 text-xs font-semibold text-[#fcd535]">
+            {model.errors.runSchedules}
+          </div>
+        )}
+
+        {schedule && (
+          <div className="mb-4 grid gap-2 rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3 text-xs md:grid-cols-3 xl:grid-cols-6">
+            {[
+              ["schedule", schedule.id],
+              ["state", schedule.enabled ? "enabled" : "disabled"],
+              ["cadence", `${schedule.cadenceMinutes}m`],
+              ["next", new Date(schedule.nextRunAt).toLocaleString()],
+              ["lease", schedule.leaseOwner ?? "free"],
+              [
+                "expires",
+                schedule.leaseExpiresAt
+                  ? new Date(schedule.leaseExpiresAt).toLocaleString()
+                  : "none",
+              ],
+              [
+                "last tick",
+                schedule.lastTickAt
+                  ? new Date(schedule.lastTickAt).toLocaleString()
+                  : "none",
+              ],
+              ["paper", schedule.attemptPaperExecution ? "attempt" : "off"],
+              ["last cycle", schedule.lastCycleKey ?? "none"],
+              ["last error", schedule.lastError ?? "none"],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <div className="font-bold uppercase text-[#707a8a]">
+                  {label}
+                </div>
+                <div className="mt-1 truncate font-mono font-bold text-[#eaecef]">
+                  {value}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
@@ -89,6 +149,8 @@ export const AutonomousRunLedger = ({ model }: AutonomousRunLedgerProps) => {
                 {[
                   ["run", run.id],
                   ["stage", run.currentStage],
+                  ["schedule", run.scheduleId ?? "none"],
+                  ["cycle", run.cycleKey ?? "none"],
                   ["budget", run.budgetEnvelopeId ?? "none"],
                   ["research", run.researchRunId ?? "none"],
                   ["proposal", run.proposalId ?? "none"],

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AutonomousRunSchedule } from '../../entities/autonomous-run-schedule.entity';
 import { AutonomousRun } from '../../entities/autonomous-run.entity';
 import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
@@ -19,6 +20,7 @@ import { ControlPlaneService } from './control-plane.service';
   imports: [
     TypeOrmModule.forFeature([
       AutonomousRun,
+      AutonomousRunSchedule,
       BrokerSnapshot,
       BudgetEnvelope,
       ExecutionControlState,

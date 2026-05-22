@@ -4,6 +4,7 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
 } from 'typeorm';
 
 export type AutonomousRunStatus =
@@ -23,6 +24,9 @@ export interface RunTimelineEvent {
   message: string;
 }
 
+@Index('IDX_autonomous_run_schedule_cycle', ['scheduleId', 'cycleKey'], {
+  unique: true,
+})
 @Entity('autonomous_runs')
 export class AutonomousRun {
   @PrimaryGeneratedColumn()
@@ -39,6 +43,12 @@ export class AutonomousRun {
 
   @Column({ nullable: true })
   budgetEnvelopeId?: number;
+
+  @Column({ nullable: true })
+  scheduleId?: number;
+
+  @Column({ nullable: true })
+  cycleKey?: string;
 
   @Column({ nullable: true })
   researchRunId?: number;

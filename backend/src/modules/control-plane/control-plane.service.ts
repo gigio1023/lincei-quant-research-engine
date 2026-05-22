@@ -5,8 +5,9 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash } from 'crypto';
-import { Repository } from 'typeorm';
+import { IsNull, LessThanOrEqual, Repository } from 'typeorm';
 import { AutonomousRun } from '../../entities/autonomous-run.entity';
+import { AutonomousRunSchedule } from '../../entities/autonomous-run-schedule.entity';
 import {
   BrokerSnapshot,
   BrokerSnapshotReconciliation,
@@ -45,6 +46,7 @@ import { buildBaselineResearchRunRequest } from './baseline-research-runner';
 import {
   AdvanceAutonomousRunRequest,
   ControlPlaneStatus,
+  CreateAutonomousRunScheduleRequest,
   CreateAutonomousRunRequest,
   CreateBudgetEnvelopeRequest,
   CreateInvestmentProposalRequest,
@@ -57,6 +59,7 @@ import {
   ReconcilePaperOrderPlanRequest,
   RunBaselineResearchRequest,
   SeedPaperAccountRequest,
+  TickAutonomousRunScheduleRequest,
   UpdateExecutionControlRequest,
 } from './control-plane.types';
 
@@ -91,6 +94,8 @@ export class ControlPlaneService {
     private readonly riskEvaluationRepository: Repository<RiskEvaluation>,
     @InjectRepository(AutonomousRun)
     private readonly runRepository: Repository<AutonomousRun>,
+    @InjectRepository(AutonomousRunSchedule)
+    private readonly runScheduleRepository: Repository<AutonomousRunSchedule>,
     private readonly riskGateService: RiskGateService,
   ) {}
 
@@ -982,11 +987,11 @@ export class ControlPlaneService {
           where: { status: 'active' },
           order: { updatedAt: 'DESC' },
         });
-    let paperAccount = await this.findPaperAccountForProposal(proposal);
+    const paperAccount = await this.findPaperAccountForProposal(proposal);
     const paperPortfolioBefore = paperAccount
       ? this.buildPaperAccountPortfolio(paperAccount)
       : this.buildSeedPaperPortfolioForProposal(proposal, budget);
-    let orderPlanApproval = await this.findOrderPlanApprovalForPaperExecution(
+    const orderPlanApproval = await this.findOrderPlanApprovalForPaperExecution(
       proposal.id,
       request,
     );
@@ -2367,6 +2372,185 @@ export class ControlPlaneService {
     return this.runRepository.find({ order: { updatedAt: 'DESC' } });
   }
 
+  async createRunSchedule(
+    request: CreateAutonomousRunScheduleRequest,
+  ): Promise<AutonomousRunSchedule> {
+    this.validateCreateRunScheduleRequest(request);
+
+    if (!request.objective?.trim()) {
+      throw new BadRequestException('Autonomous schedule requires objective');
+    }
+
+    const budget = await this.budgetRepository.findOne({
+      where: { id: request.budgetEnvelopeId },
+    });
+
+    if (!budget) {
+      throw new NotFoundException(
+        `Budget envelope ${request.budgetEnvelopeId} not found`,
+      );
+    }
+
+    if (budget.status !== 'active') {
+      throw new BadRequestException(
+        'Autonomous schedule requires an active budget envelope',
+      );
+    }
+
+    const cadenceMinutes = request.cadenceMinutes ?? 60;
+    const mode = request.mode ?? 'dry_run';
+
+    const nextRunAt = request.nextRunAt
+      ? new Date(request.nextRunAt)
+      : new Date();
+
+    if (Number.isNaN(nextRunAt.getTime())) {
+      throw new BadRequestException('Autonomous schedule nextRunAt is invalid');
+    }
+
+    return this.runScheduleRepository.save(
+      this.runScheduleRepository.create({
+        budgetEnvelopeId: budget.id,
+        objective: request.objective.trim(),
+        mode,
+        cadenceMinutes,
+        nextRunAt,
+        enabled: request.enabled ?? true,
+        attemptPaperExecution:
+          mode === 'paper' && (request.attemptPaperExecution ?? true),
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+  }
+
+  async listRunSchedules(): Promise<AutonomousRunSchedule[]> {
+    return this.runScheduleRepository.find({ order: { updatedAt: 'DESC' } });
+  }
+
+  async tickRunSchedule(
+    scheduleId: number,
+    request: TickAutonomousRunScheduleRequest = {},
+  ): Promise<AutonomousRun> {
+    this.validateTickRunScheduleRequest(request);
+
+    const schedule = await this.runScheduleRepository.findOne({
+      where: { id: scheduleId },
+    });
+
+    if (!schedule) {
+      throw new NotFoundException(
+        `Autonomous schedule ${scheduleId} not found`,
+      );
+    }
+
+    const now = new Date();
+    const force = request.force ?? false;
+
+    if (!schedule.enabled && !force) {
+      throw new BadRequestException('Autonomous schedule is disabled');
+    }
+
+    if (schedule.nextRunAt.getTime() > now.getTime() && !force) {
+      throw new BadRequestException('Autonomous schedule is not due yet');
+    }
+
+    const leaseTtlSeconds = request.leaseTtlSeconds ?? 120;
+    const leaseOwner = (
+      request.leaseOwner ??
+      request.actor ??
+      'manual-tick'
+    ).trim();
+    const leaseExpiresAt = new Date(now.getTime() + leaseTtlSeconds * 1000);
+    const cycleKey = `schedule:${schedule.id}:${schedule.nextRunAt.toISOString()}`;
+    const leaseResult = await this.runScheduleRepository.update(
+      [
+        { id: schedule.id, leaseExpiresAt: IsNull() },
+        { id: schedule.id, leaseExpiresAt: LessThanOrEqual(now) },
+      ],
+      {
+        leaseOwner,
+        leaseExpiresAt,
+        lastTickAt: now,
+        lastError: null,
+      },
+    );
+
+    if (!leaseResult.affected) {
+      throw new BadRequestException(
+        `Autonomous schedule is already leased by ${schedule.leaseOwner ?? 'unknown'}`,
+      );
+    }
+
+    try {
+      const budget = await this.budgetRepository.findOne({
+        where: { id: schedule.budgetEnvelopeId, status: 'active' },
+      });
+
+      if (!budget) {
+        throw new BadRequestException(
+          'Autonomous schedule requires an active budget envelope',
+        );
+      }
+
+      let run = await this.findRunByScheduleCycle(schedule.id, cycleKey);
+
+      if (!run) {
+        run = this.runRepository.create({
+          objective: schedule.objective,
+          budgetEnvelopeId: schedule.budgetEnvelopeId,
+          scheduleId: schedule.id,
+          cycleKey,
+          status: 'idle',
+          currentStage: 'budget_defined',
+          startedAt: new Date(),
+          timeline: [
+            {
+              at: new Date().toISOString(),
+              stage: 'idle',
+              message: 'Created run ledger entry',
+            },
+          ],
+          lastAction: 'Created run ledger entry',
+          nextAction:
+            'Advance run to generate research, proposal, and risk evaluation',
+        });
+        this.appendRunTimeline(
+          run,
+          'idle',
+          `Schedule ${schedule.id} tick acquired by ${leaseOwner}.`,
+        );
+        run = await this.runRepository.save(run);
+      }
+
+      const advancedRun = await this.advanceRun(run.id, {
+        attemptPaperExecution:
+          schedule.mode === 'paper' &&
+          (request.attemptPaperExecution ?? schedule.attemptPaperExecution),
+      });
+      const nextRunAt = new Date(
+        schedule.nextRunAt.getTime() + schedule.cadenceMinutes * 60_000,
+      );
+      await this.releaseScheduleLease(schedule, leaseOwner, leaseExpiresAt, {
+        lastRunId: advancedRun.id,
+        lastCycleKey: cycleKey,
+        nextRunAt,
+        lastError:
+          advancedRun.status === 'failed' ? (advancedRun.error ?? null) : null,
+      });
+
+      return advancedRun;
+    } catch (error) {
+      await this.releaseScheduleLease(schedule, leaseOwner, leaseExpiresAt, {
+        lastError:
+          error instanceof Error
+            ? error.message
+            : 'Autonomous schedule tick failed',
+      });
+      throw error;
+    }
+  }
+
   async advanceRun(
     runId: number,
     request: AdvanceAutonomousRunRequest = {},
@@ -2546,13 +2730,129 @@ export class ControlPlaneService {
   ): Promise<BudgetEnvelope | null> {
     if (run.budgetEnvelopeId) {
       return this.budgetRepository.findOne({
-        where: { id: run.budgetEnvelopeId },
+        where: { id: run.budgetEnvelopeId, status: 'active' },
       });
     }
 
     return this.budgetRepository.findOne({
       where: { status: 'active' },
       order: { updatedAt: 'DESC' },
+    });
+  }
+
+  private validateCreateRunScheduleRequest(
+    request: CreateAutonomousRunScheduleRequest,
+  ): void {
+    if (
+      !Number.isInteger(request.budgetEnvelopeId) ||
+      request.budgetEnvelopeId <= 0
+    ) {
+      throw new BadRequestException(
+        'Autonomous schedule requires a positive budgetEnvelopeId',
+      );
+    }
+
+    const allowedModes = new Set(['dry_run', 'paper', 'broker_read_only']);
+
+    if (request.mode && !allowedModes.has(request.mode)) {
+      throw new BadRequestException(
+        'Autonomous schedules cannot enable live trading',
+      );
+    }
+
+    if (
+      request.cadenceMinutes !== undefined &&
+      (!Number.isInteger(request.cadenceMinutes) || request.cadenceMinutes < 5)
+    ) {
+      throw new BadRequestException(
+        'Autonomous schedule cadence must be at least 5 minutes',
+      );
+    }
+
+    this.validateOptionalBoolean(
+      request.enabled,
+      'Autonomous schedule enabled must be boolean',
+    );
+    this.validateOptionalBoolean(
+      request.attemptPaperExecution,
+      'Autonomous schedule attemptPaperExecution must be boolean',
+    );
+  }
+
+  private validateTickRunScheduleRequest(
+    request: TickAutonomousRunScheduleRequest,
+  ): void {
+    this.validateOptionalBoolean(
+      request.force,
+      'Autonomous schedule force must be boolean',
+    );
+    this.validateOptionalBoolean(
+      request.attemptPaperExecution,
+      'Autonomous schedule attemptPaperExecution must be boolean',
+    );
+
+    if (
+      request.leaseTtlSeconds !== undefined &&
+      (!Number.isInteger(request.leaseTtlSeconds) ||
+        request.leaseTtlSeconds < 1 ||
+        request.leaseTtlSeconds > 3600)
+    ) {
+      throw new BadRequestException(
+        'Autonomous schedule leaseTtlSeconds must be between 1 and 3600',
+      );
+    }
+
+    this.validateOptionalNonEmptyString(
+      request.actor,
+      'Autonomous schedule actor must be a non-empty string',
+    );
+    this.validateOptionalNonEmptyString(
+      request.leaseOwner,
+      'Autonomous schedule leaseOwner must be a non-empty string',
+    );
+  }
+
+  private validateOptionalBoolean(value: unknown, message: string): void {
+    if (value !== undefined && typeof value !== 'boolean') {
+      throw new BadRequestException(message);
+    }
+  }
+
+  private validateOptionalNonEmptyString(
+    value: unknown,
+    message: string,
+  ): void {
+    if (value !== undefined && (typeof value !== 'string' || !value.trim())) {
+      throw new BadRequestException(message);
+    }
+  }
+
+  private async releaseScheduleLease(
+    schedule: AutonomousRunSchedule,
+    leaseOwner: string,
+    leaseExpiresAt: Date,
+    update: Partial<AutonomousRunSchedule>,
+  ): Promise<void> {
+    await this.runScheduleRepository.update(
+      {
+        id: schedule.id,
+        leaseOwner,
+        leaseExpiresAt,
+      },
+      {
+        ...update,
+        leaseOwner: null,
+        leaseExpiresAt: null,
+      },
+    );
+  }
+
+  private async findRunByScheduleCycle(
+    scheduleId: number,
+    cycleKey: string,
+  ): Promise<AutonomousRun | null> {
+    return this.runRepository.findOne({
+      where: { scheduleId, cycleKey },
     });
   }
 

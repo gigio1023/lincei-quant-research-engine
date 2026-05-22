@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import * as request from 'supertest';
 import { AutonomousRun } from '../src/entities/autonomous-run.entity';
+import { AutonomousRunSchedule } from '../src/entities/autonomous-run-schedule.entity';
 import { BrokerSnapshot } from '../src/entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../src/entities/budget-envelope.entity';
 import { ExecutionControlState } from '../src/entities/execution-control-state.entity';
@@ -26,6 +27,7 @@ describe('ControlPlane research provenance (e2e)', () => {
           database: ':memory:',
           entities: [
             AutonomousRun,
+            AutonomousRunSchedule,
             BrokerSnapshot,
             BudgetEnvelope,
             ExecutionControlState,
@@ -281,6 +283,70 @@ describe('ControlPlane research provenance (e2e)', () => {
       expect.objectContaining({
         actor: 'scheduler',
         brokerExecutionEnabled: false,
+      }),
+    );
+  });
+
+  it('ticks an autonomous run schedule through the same safe advance path', async () => {
+    const budgetResponse = await request(app.getHttpServer())
+      .post('/control-plane/budgets')
+      .send({
+        name: 'Scheduled autonomous e2e budget',
+        totalBudget: 10_000_000,
+        mode: 'dry_run',
+      })
+      .expect(201);
+
+    const scheduleResponse = await request(app.getHttpServer())
+      .post('/control-plane/run-schedules')
+      .send({
+        budgetEnvelopeId: budgetResponse.body.id,
+        objective: 'Tick scheduled autonomous research',
+        cadenceMinutes: 30,
+        nextRunAt: new Date(Date.now() - 60_000).toISOString(),
+      })
+      .expect(201);
+
+    expect(scheduleResponse.body.enabled).toBe(true);
+    expect(scheduleResponse.body.attemptPaperExecution).toBe(false);
+    expect(scheduleResponse.body.brokerExecutionEnabled).toBe(false);
+
+    await request(app.getHttpServer())
+      .post(`/control-plane/run-schedules/${scheduleResponse.body.id}/tick`)
+      .send({
+        force: 'false',
+      })
+      .expect(400);
+
+    const tickResponse = await request(app.getHttpServer())
+      .post(`/control-plane/run-schedules/${scheduleResponse.body.id}/tick`)
+      .send({
+        leaseOwner: 'e2e-scheduler',
+        attemptPaperExecution: false,
+      })
+      .expect(201);
+
+    expect(tickResponse.body.status).toBe('risk_checked');
+    expect(tickResponse.body.scheduleId).toBe(scheduleResponse.body.id);
+    expect(tickResponse.body.cycleKey).toContain(
+      `schedule:${scheduleResponse.body.id}:`,
+    );
+    expect(tickResponse.body.researchRunId).toEqual(expect.any(Number));
+    expect(tickResponse.body.proposalId).toEqual(expect.any(Number));
+    expect(tickResponse.body.riskEvaluationId).toEqual(expect.any(Number));
+
+    const schedulesResponse = await request(app.getHttpServer())
+      .get('/control-plane/run-schedules')
+      .expect(200);
+    const updatedSchedule = schedulesResponse.body.find(
+      (schedule: { id: number }) => schedule.id === scheduleResponse.body.id,
+    );
+    expect(updatedSchedule).toEqual(
+      expect.objectContaining({
+        lastRunId: tickResponse.body.id,
+        leaseOwner: null,
+        leaseExpiresAt: null,
+        liveTradingEnabled: false,
       }),
     );
   });

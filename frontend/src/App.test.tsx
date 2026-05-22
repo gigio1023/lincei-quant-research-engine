@@ -80,7 +80,9 @@ vi.mock("./services/api", () => ({
     getBrokerSnapshots: vi.fn(() => Promise.resolve([])),
     getOrderPlanApprovals: vi.fn(() => Promise.resolve([])),
     getRuns: vi.fn(() => Promise.resolve([])),
+    getRunSchedules: vi.fn(() => Promise.resolve([])),
     advanceRun: vi.fn(),
+    tickRunSchedule: vi.fn(),
   },
 }));
 

@@ -1,5 +1,6 @@
 import {
   AutonomousRun,
+  AutonomousRunSchedule,
   BrokerSnapshot,
   BudgetEnvelope,
   InvestmentProposal,
@@ -209,6 +210,29 @@ export const DOCUMENTED_AUTONOMOUS_RUNS: AutonomousRun[] = [
     nextAction:
       "Wait for signed paper approval and active paper account before execution",
     createdAt: "2026-05-22T08:50:00.000Z",
+    updatedAt: "2026-05-22T08:55:00.000Z",
+  },
+];
+
+export const DOCUMENTED_AUTONOMOUS_RUN_SCHEDULES: AutonomousRunSchedule[] = [
+  {
+    id: "schedule-docs-001",
+    budgetEnvelopeId: "budget-docs-dry-run",
+    objective: "Tick documented autonomous dry-run allocation",
+    mode: "dry_run",
+    cadenceMinutes: 60,
+    nextRunAt: "2026-05-22T09:50:00.000Z",
+    enabled: true,
+    attemptPaperExecution: false,
+    lastRunId: "run-docs-001",
+    lastCycleKey: "schedule:schedule-docs-001:2026-05-22T08:50:00.000Z",
+    lastTickAt: "2026-05-22T08:50:00.000Z",
+    leaseOwner: null,
+    leaseExpiresAt: null,
+    lastError: null,
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+    createdAt: "2026-05-22T08:45:00.000Z",
     updatedAt: "2026-05-22T08:55:00.000Z",
   },
 ];

@@ -460,6 +460,59 @@ all broker/live execution flags remain `false`.
 
 - **Description**: Lists autonomous-run ledger entries.
 
+#### `POST /control-plane/run-schedules`
+
+- **Description**: Creates an autonomous run schedule for an active budget. The schedule stores cadence, next-run timestamp, paper-execution intent, and lease fields for duplicate-tick protection. It never enables broker execution or live trading. `cadenceMinutes` must be at least 5. `mode` can be `dry_run`, `paper`, or `broker_read_only`; `live` is rejected. `dry_run` and `broker_read_only` schedules keep paper execution off even if a caller asks for it.
+- **Example Request**:
+  ```json
+  {
+    "budgetEnvelopeId": 1,
+    "objective": "Research and allocate dry-run budget every hour",
+    "cadenceMinutes": 60,
+    "mode": "dry_run",
+    "attemptPaperExecution": false
+  }
+  ```
+- **Example Response**:
+  ```json
+  {
+    "id": 1,
+    "budgetEnvelopeId": 1,
+    "objective": "Research and allocate dry-run budget every hour",
+    "mode": "dry_run",
+    "cadenceMinutes": 60,
+    "nextRunAt": "2026-05-23T00:00:00.000Z",
+    "enabled": true,
+    "attemptPaperExecution": false,
+    "lastRunId": null,
+    "lastCycleKey": null,
+    "lastTickAt": null,
+    "leaseOwner": null,
+    "leaseExpiresAt": null,
+    "lastError": null,
+    "brokerExecutionEnabled": false,
+    "liveTradingEnabled": false
+  }
+  ```
+
+#### `GET /control-plane/run-schedules`
+
+- **Description**: Lists autonomous run schedules ordered by latest update.
+
+#### `POST /control-plane/run-schedules/:id/tick`
+
+- **Description**: Atomically acquires a short-lived schedule lease, creates or resumes the due autonomous run cycle, and advances that run through the same safe path as `POST /control-plane/runs/:id/advance`. Repeated ticks are guarded by the schedule lease and cycle key. `force` can bypass disabled/not-due checks but not an active lease. `leaseTtlSeconds` must be between 1 and 3600. Tick failures are stored in `lastError`.
+- **Example Request**:
+  ```json
+  {
+    "actor": "scheduler",
+    "leaseOwner": "scheduler-worker-1",
+    "leaseTtlSeconds": 120,
+    "force": false,
+    "attemptPaperExecution": false
+  }
+  ```
+
 #### `POST /control-plane/runs/:id/advance`
 
 - **Description**: Advances one autonomous run through the safe control-plane path. It can run deterministic baseline research, generate a budget-capped proposal, evaluate risk, and, only when an active paper account plus signed approval already exist, consume the approval into one paper order plan. It never enables broker execution or live trading.

@@ -563,6 +563,8 @@ export interface AutonomousRun {
   status: AutonomousRunStatus;
   currentStage: string;
   budgetEnvelopeId?: number | string;
+  scheduleId?: number | string;
+  cycleKey?: string;
   researchRunId?: number | string;
   proposalId?: number | string;
   riskEvaluationId?: number | string;
@@ -583,6 +585,45 @@ export interface CreateAutonomousRunRequest {
 }
 
 export interface AdvanceAutonomousRunRequest {
+  attemptPaperExecution?: boolean;
+}
+
+export interface AutonomousRunSchedule {
+  id: number | string;
+  budgetEnvelopeId: number | string;
+  objective: string;
+  mode: RiskGateMode;
+  cadenceMinutes: number;
+  nextRunAt: string;
+  enabled: boolean;
+  attemptPaperExecution: boolean;
+  lastRunId?: number | string | null;
+  lastCycleKey?: string | null;
+  lastTickAt?: string | null;
+  leaseOwner?: string | null;
+  leaseExpiresAt?: string | null;
+  lastError?: string | null;
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAutonomousRunScheduleRequest {
+  budgetEnvelopeId: number;
+  objective: string;
+  mode?: RiskGateMode;
+  cadenceMinutes?: number;
+  nextRunAt?: string;
+  enabled?: boolean;
+  attemptPaperExecution?: boolean;
+}
+
+export interface TickAutonomousRunScheduleRequest {
+  actor?: string;
+  force?: boolean;
+  leaseOwner?: string;
+  leaseTtlSeconds?: number;
   attemptPaperExecution?: boolean;
 }
 

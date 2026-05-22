@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { controlPlaneApi, riskGateApi } from "../../services/api";
 import {
   AutonomousRun,
+  AutonomousRunSchedule,
   BrokerSnapshot,
   BudgetEnvelope,
   ControlPlaneReadinessItem,
@@ -20,6 +21,7 @@ import {
 import {
   BASELINE_RESEARCH_REQUEST,
   DOCUMENTED_AUTONOMOUS_RUNS,
+  DOCUMENTED_AUTONOMOUS_RUN_SCHEDULES,
   DOCUMENTED_BROKER_SNAPSHOTS,
   DOCUMENTED_BUDGET_ENVELOPES,
   DOCUMENTED_CONTROL_PLANE_STATUS,
@@ -51,6 +53,7 @@ export interface DashboardModel {
   visibleProposals: InvestmentProposal[];
   visibleRiskEvaluations: RiskEvaluation[];
   visibleRuns: AutonomousRun[];
+  visibleRunSchedules: AutonomousRunSchedule[];
   visiblePaperOrderPlans: PaperOrderPlan[];
   visiblePaperAccount: PaperAccount | null;
   visiblePaperAccountEvents: PaperAccountEvent[];
@@ -62,6 +65,7 @@ export interface DashboardModel {
   latestOrderPlanApproval?: OrderPlanApproval;
   latestReconciledPlan?: PaperOrderPlan;
   latestRun?: AutonomousRun;
+  latestRunSchedule?: AutonomousRunSchedule;
   workflowStages: WorkflowStage[];
   recentPaperLedgerChanges: PaperLedgerChange[];
   paperExecutionReadiness: ControlPlaneReadinessItem;
@@ -72,6 +76,7 @@ export interface DashboardModel {
     proposals: string;
     riskEvaluations: string;
     runs: string;
+    runSchedules: string;
     paperOrderPlans: string;
     paperAccount: string;
     paperAccountEvents: string;
@@ -85,6 +90,7 @@ export interface DashboardModel {
     proposals: string | null;
     riskEvaluations: string | null;
     runs: string | null;
+    runSchedules: string | null;
     paperOrderPlans: string | null;
     paperAccount: string | null;
     paperAccountEvents: string | null;
@@ -98,6 +104,7 @@ export interface DashboardModel {
     proposals: boolean;
     riskEvaluations: boolean;
     runs: boolean;
+    runSchedules: boolean;
     paperAccount: boolean;
     paperAccountEvents: boolean;
     paperOrderPlans: boolean;
@@ -107,9 +114,11 @@ export interface DashboardModel {
   baselineResearchSuccess: string | null;
   runningBaselineResearch: boolean;
   advancingRun: boolean;
+  tickingSchedule: boolean;
   readinessReadyCount: number;
   runBaselineResearch: () => Promise<void>;
   advanceLatestRun: () => Promise<void>;
+  tickLatestSchedule: () => Promise<void>;
 }
 
 const idEquals = (
@@ -315,6 +324,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     RiskEvaluation[] | null
   >(null);
   const [runs, setRuns] = useState<AutonomousRun[] | null>(null);
+  const [runSchedules, setRunSchedules] = useState<
+    AutonomousRunSchedule[] | null
+  >(null);
   const [paperAccount, setPaperAccount] = useState<PaperAccount | null>(null);
   const [paperAccountEvents, setPaperAccountEvents] = useState<
     PaperAccountEvent[] | null
@@ -336,6 +348,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const [loadingProposals, setLoadingProposals] = useState(true);
   const [loadingRiskEvaluations, setLoadingRiskEvaluations] = useState(true);
   const [loadingRuns, setLoadingRuns] = useState(true);
+  const [loadingRunSchedules, setLoadingRunSchedules] = useState(true);
   const [loadingPaperAccount, setLoadingPaperAccount] = useState(true);
   const [loadingPaperAccountEvents, setLoadingPaperAccountEvents] =
     useState(true);
@@ -353,6 +366,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     string | null
   >(null);
   const [runsError, setRunsError] = useState<string | null>(null);
+  const [runSchedulesError, setRunSchedulesError] = useState<string | null>(
+    null,
+  );
   const [paperOrderPlansError, setPaperOrderPlansError] = useState<
     string | null
   >(null);
@@ -370,6 +386,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   >(null);
   const [runningBaselineResearch, setRunningBaselineResearch] = useState(false);
   const [advancingRun, setAdvancingRun] = useState(false);
+  const [tickingSchedule, setTickingSchedule] = useState(false);
   const [baselineResearchError, setBaselineResearchError] = useState<
     string | null
   >(null);
@@ -390,6 +407,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           proposalsStatus,
           riskEvaluationsStatus,
           runsStatus,
+          runSchedulesStatus,
           paperAccountStatus,
           paperAccountEventsStatus,
           executionControlStatus,
@@ -404,6 +422,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           controlPlaneApi.getProposals(),
           controlPlaneApi.getRiskEvaluations(),
           controlPlaneApi.getRuns(),
+          controlPlaneApi.getRunSchedules(),
           controlPlaneApi.getPaperAccount(),
           controlPlaneApi.getPaperAccountEvents(),
           controlPlaneApi.getExecutionControl(),
@@ -460,6 +479,14 @@ export const useControlPlaneDashboard = (): DashboardModel => {
         } else {
           setRunsError(
             "Autonomous-run API is unavailable. Showing documented sample run.",
+          );
+        }
+        if (runSchedulesStatus.status === "fulfilled") {
+          setRunSchedules(runSchedulesStatus.value);
+          setRunSchedulesError(null);
+        } else {
+          setRunSchedulesError(
+            "Autonomous schedule API is unavailable. Showing documented sample schedule.",
           );
         }
         if (paperAccountStatus.status === "fulfilled") {
@@ -531,6 +558,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           setRunsError(
             "Autonomous-run API is unavailable. Showing documented sample run.",
           );
+          setRunSchedulesError(
+            "Autonomous schedule API is unavailable. Showing documented sample schedule.",
+          );
           setPaperOrderPlansError(
             "Paper order-plan API is unavailable. Showing documented sample paper plans.",
           );
@@ -555,6 +585,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           setLoadingProposals(false);
           setLoadingRiskEvaluations(false);
           setLoadingRuns(false);
+          setLoadingRunSchedules(false);
           setLoadingPaperAccount(false);
           setLoadingPaperAccountEvents(false);
           setLoadingPaperOrderPlans(false);
@@ -579,6 +610,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     riskEvaluations ??
     (loadingRiskEvaluations ? [] : DOCUMENTED_RISK_EVALUATIONS);
   const visibleRuns = runs ?? (loadingRuns ? [] : DOCUMENTED_AUTONOMOUS_RUNS);
+  const visibleRunSchedules =
+    runSchedules ??
+    (loadingRunSchedules ? [] : DOCUMENTED_AUTONOMOUS_RUN_SCHEDULES);
   const visiblePaperOrderPlans =
     paperOrderPlans ??
     (loadingPaperOrderPlans ? [] : DOCUMENTED_PAPER_ORDER_PLANS);
@@ -620,6 +654,94 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     }
   };
 
+  const refreshAutomationLedgers = async () => {
+    const [
+      refreshedResearchRuns,
+      refreshedProposals,
+      refreshedRiskEvaluations,
+      refreshedPaperPlans,
+      refreshedPaperEvents,
+      refreshedRunSchedules,
+      refreshedPaperAccount,
+      refreshedOrderPlanApprovals,
+    ] = await Promise.allSettled([
+      controlPlaneApi.getResearchRuns(),
+      controlPlaneApi.getProposals(),
+      controlPlaneApi.getRiskEvaluations(),
+      controlPlaneApi.getPaperOrderPlans(),
+      controlPlaneApi.getPaperAccountEvents(),
+      controlPlaneApi.getRunSchedules(),
+      controlPlaneApi.getPaperAccount(),
+      controlPlaneApi.getOrderPlanApprovals(),
+    ]);
+
+    if (refreshedResearchRuns.status === "fulfilled") {
+      setResearchRuns(refreshedResearchRuns.value);
+      setResearchRunsError(null);
+    } else {
+      setResearchRunsError("Research refresh failed after automation action.");
+    }
+
+    if (refreshedProposals.status === "fulfilled") {
+      setProposals(refreshedProposals.value);
+      setProposalsError(null);
+    } else {
+      setProposalsError("Proposal refresh failed after automation action.");
+    }
+
+    if (refreshedRiskEvaluations.status === "fulfilled") {
+      setRiskEvaluations(refreshedRiskEvaluations.value);
+      setRiskEvaluationsError(null);
+    } else {
+      setRiskEvaluationsError(
+        "Risk evaluation refresh failed after automation action.",
+      );
+    }
+
+    if (refreshedPaperPlans.status === "fulfilled") {
+      setPaperOrderPlans(refreshedPaperPlans.value);
+      setPaperOrderPlansError(null);
+    } else {
+      setPaperOrderPlansError(
+        "Paper order-plan refresh failed after automation action.",
+      );
+    }
+
+    if (refreshedPaperEvents.status === "fulfilled") {
+      setPaperAccountEvents(refreshedPaperEvents.value);
+      setPaperAccountEventsError(null);
+    } else {
+      setPaperAccountEventsError(
+        "Paper account event refresh failed after automation action.",
+      );
+    }
+
+    if (refreshedRunSchedules.status === "fulfilled") {
+      setRunSchedules(refreshedRunSchedules.value);
+      setRunSchedulesError(null);
+    } else {
+      setRunSchedulesError("Schedule refresh failed after automation action.");
+    }
+
+    if (refreshedPaperAccount.status === "fulfilled") {
+      setPaperAccount(refreshedPaperAccount.value);
+      setPaperAccountError(null);
+    } else {
+      setPaperAccountError(
+        "Paper account refresh failed after automation action.",
+      );
+    }
+
+    if (refreshedOrderPlanApprovals.status === "fulfilled") {
+      setOrderPlanApprovals(refreshedOrderPlanApprovals.value);
+      setOrderPlanApprovalsError(null);
+    } else {
+      setOrderPlanApprovalsError(
+        "Approval refresh failed after automation action.",
+      );
+    }
+  };
+
   const advanceLatestRun = async () => {
     const latestRun = runs ? sortByUpdatedAtDesc(runs)[0] : undefined;
 
@@ -635,34 +757,11 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       const advancedRun = await controlPlaneApi.advanceRun(latestRun.id, {
         attemptPaperExecution: true,
       });
-      const [
-        refreshedResearchRuns,
-        refreshedProposals,
-        refreshedRiskEvaluations,
-        refreshedPaperPlans,
-        refreshedPaperEvents,
-      ] = await Promise.all([
-        controlPlaneApi.getResearchRuns(),
-        controlPlaneApi.getProposals(),
-        controlPlaneApi.getRiskEvaluations(),
-        controlPlaneApi.getPaperOrderPlans(),
-        controlPlaneApi.getPaperAccountEvents(),
-      ]);
-
       setRuns((currentRuns) => [
         advancedRun,
         ...(currentRuns ?? []).filter((run) => run.id !== advancedRun.id),
       ]);
-      setResearchRuns(refreshedResearchRuns);
-      setProposals(refreshedProposals);
-      setRiskEvaluations(refreshedRiskEvaluations);
-      setPaperOrderPlans(refreshedPaperPlans);
-      setPaperAccountEvents(refreshedPaperEvents);
-      setResearchRunsError(null);
-      setProposalsError(null);
-      setRiskEvaluationsError(null);
-      setPaperOrderPlansError(null);
-      setPaperAccountEventsError(null);
+      await refreshAutomationLedgers();
     } catch {
       setRunsError(
         "Autonomous run advance failed. No broker or live order path was called.",
@@ -672,14 +771,53 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     }
   };
 
+  const tickLatestSchedule = async () => {
+    const latestSchedule = runSchedules
+      ? sortByUpdatedAtDesc(runSchedules)[0]
+      : undefined;
+
+    if (!latestSchedule) {
+      setRunSchedulesError("No live autonomous schedule is available to tick.");
+      return;
+    }
+
+    setTickingSchedule(true);
+    setRunSchedulesError(null);
+
+    try {
+      const advancedRun = await controlPlaneApi.tickRunSchedule(
+        latestSchedule.id,
+        {
+          leaseOwner: "dashboard-manual-tick",
+          attemptPaperExecution:
+            latestSchedule.mode === "paper" &&
+            latestSchedule.attemptPaperExecution,
+        },
+      );
+      setRuns((currentRuns) => [
+        advancedRun,
+        ...(currentRuns ?? []).filter((run) => run.id !== advancedRun.id),
+      ]);
+      await refreshAutomationLedgers();
+    } catch {
+      setRunSchedulesError(
+        "Autonomous schedule tick failed. No broker or live order path was called.",
+      );
+    } finally {
+      setTickingSchedule(false);
+    }
+  };
+
   return {
     status: riskGateStatus ?? DOCUMENTED_STATUS,
     controlStatus,
     visibleBudgets,
-    visibleResearchRuns: researchRuns ?? DOCUMENTED_RESEARCH_RUNS,
+    visibleResearchRuns:
+      researchRuns ?? (loadingResearchRuns ? [] : DOCUMENTED_RESEARCH_RUNS),
     visibleProposals,
     visibleRiskEvaluations,
     visibleRuns,
+    visibleRunSchedules,
     visiblePaperOrderPlans,
     visiblePaperAccount: paperAccount,
     visiblePaperAccountEvents,
@@ -704,9 +842,11 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       (plan) => plan.reconciliation.reconciledAt,
     ),
     latestRun: sortByUpdatedAtDesc(visibleRuns)[0],
+    latestRunSchedule: sortByUpdatedAtDesc(visibleRunSchedules)[0],
     workflowStages: buildWorkflowStages({
       budgets: visibleBudgets,
-      researchRuns: researchRuns ?? DOCUMENTED_RESEARCH_RUNS,
+      researchRuns:
+        researchRuns ?? (loadingResearchRuns ? [] : DOCUMENTED_RESEARCH_RUNS),
       proposals: visibleProposals,
       riskEvaluations: visibleRiskEvaluations,
       approvals: visibleOrderPlanApprovals,
@@ -754,6 +894,11 @@ export const useControlPlaneDashboard = (): DashboardModel => {
         : loadingRuns
           ? "Loading autonomous runs"
           : "Documented run sample",
+      runSchedules: runSchedules
+        ? "Live run schedules"
+        : loadingRunSchedules
+          ? "Loading run schedules"
+          : "Documented schedule sample",
       paperOrderPlans: paperOrderPlans
         ? "Live paper plans"
         : loadingPaperOrderPlans
@@ -787,6 +932,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       proposals: proposalsError,
       riskEvaluations: riskEvaluationsError,
       runs: runsError,
+      runSchedules: runSchedulesError,
       paperOrderPlans: paperOrderPlansError,
       paperAccount: paperAccountError,
       paperAccountEvents: paperAccountEventsError,
@@ -800,6 +946,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       proposals: loadingProposals,
       riskEvaluations: loadingRiskEvaluations,
       runs: loadingRuns,
+      runSchedules: loadingRunSchedules,
       paperAccount: loadingPaperAccount,
       paperAccountEvents: loadingPaperAccountEvents,
       paperOrderPlans: loadingPaperOrderPlans,
@@ -809,9 +956,11 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     baselineResearchSuccess,
     runningBaselineResearch,
     advancingRun,
+    tickingSchedule,
     readinessReadyCount: controlStatus.readiness.filter((item) => item.ready)
       .length,
     runBaselineResearch,
     advanceLatestRun,
+    tickLatestSchedule,
   };
 };

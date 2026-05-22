@@ -2,6 +2,7 @@ import axios from "axios";
 import {
   AdvanceAutonomousRunRequest,
   AutonomousRun,
+  AutonomousRunSchedule,
   BrokerSnapshot,
   BudgetEnvelope,
   ControlPlaneStatus,
@@ -18,6 +19,7 @@ import {
   RiskEvaluation,
   RunBaselineResearchRequest,
   RiskGateStatus,
+  TickAutonomousRunScheduleRequest,
 } from "../types";
 
 const env = (
@@ -116,6 +118,22 @@ export const controlPlaneApi = {
 
   getRuns: async (): Promise<AutonomousRun[]> => {
     const response = await api.get("/control-plane/runs");
+    return response.data;
+  },
+
+  getRunSchedules: async (): Promise<AutonomousRunSchedule[]> => {
+    const response = await api.get("/control-plane/run-schedules");
+    return response.data;
+  },
+
+  tickRunSchedule: async (
+    scheduleId: string | number,
+    request: TickAutonomousRunScheduleRequest = {},
+  ): Promise<AutonomousRun> => {
+    const response = await api.post(
+      `/control-plane/run-schedules/${scheduleId}/tick`,
+      request,
+    );
     return response.data;
   },
 

@@ -1,4 +1,5 @@
 import { AutonomousRun } from '../../entities/autonomous-run.entity';
+import { AutonomousRunSchedule } from '../../entities/autonomous-run-schedule.entity';
 import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
@@ -25,6 +26,7 @@ describe('ControlPlaneService', () => {
   let executionControlStates: ExecutionControlState[];
   let evaluations: RiskEvaluation[];
   let runs: AutonomousRun[];
+  let runSchedules: AutonomousRunSchedule[];
 
   const makeRepository = <T extends { id?: number }>(items: T[]) => ({
     create: jest.fn((value: Partial<T>) => value as T),
@@ -43,6 +45,51 @@ describe('ControlPlaneService', () => {
         ) ?? null
       );
     }),
+    update: jest.fn(
+      async (criteria: Partial<T> | Partial<T>[], value: Partial<T>) => {
+        const criteriaList = Array.isArray(criteria) ? criteria : [criteria];
+        const matchesValue = (itemValue: unknown, expected: unknown) => {
+          if (
+            expected &&
+            typeof expected === 'object' &&
+            ('_type' in expected || 'type' in expected)
+          ) {
+            const operator = expected as {
+              _type?: string;
+              type?: string;
+              _value?: unknown;
+              value?: unknown;
+            };
+            const type = operator._type ?? operator.type;
+            const value = operator._value ?? operator.value;
+
+            if (type === 'isNull') {
+              return itemValue === null || itemValue === undefined;
+            }
+
+            if (type === 'lessThanOrEqual') {
+              return (
+                itemValue instanceof Date &&
+                value instanceof Date &&
+                itemValue.getTime() <= value.getTime()
+              );
+            }
+          }
+
+          return itemValue === expected;
+        };
+        const matchesCriteria = (item: T, where: Partial<T>) =>
+          Object.entries(where).every(([key, expected]) =>
+            matchesValue(item[key], expected),
+          );
+        const matched = items.filter((item) =>
+          criteriaList.some((where) => matchesCriteria(item, where)),
+        );
+
+        matched.forEach((item) => Object.assign(item, value));
+        return { affected: matched.length };
+      },
+    ),
     count: jest.fn(async () => items.length),
   });
 
@@ -59,6 +106,7 @@ describe('ControlPlaneService', () => {
     executionControlStates = [];
     evaluations = [];
     runs = [];
+    runSchedules = [];
     service = new ControlPlaneService(
       makeRepository(budgets) as any,
       makeRepository(brokerSnapshots) as any,
@@ -71,6 +119,7 @@ describe('ControlPlaneService', () => {
       makeRepository(executionControlStates) as any,
       makeRepository(evaluations) as any,
       makeRepository(runs) as any,
+      makeRepository(runSchedules) as any,
       new RiskGateService(),
     );
   });
@@ -1165,5 +1214,106 @@ describe('ControlPlaneService', () => {
         sourceId: paperOrderPlans[0].id,
       }),
     );
+  });
+
+  it('ticks a due autonomous schedule with a lease and no duplicate cycle', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Scheduled autonomous budget',
+      totalBudget: 10_000_000,
+    });
+    const schedule = await service.createRunSchedule({
+      budgetEnvelopeId: budget.id,
+      objective: 'Run scheduled autonomous baseline',
+      cadenceMinutes: 30,
+      nextRunAt: '2026-05-23T00:00:00.000Z',
+    });
+    expect(schedule.attemptPaperExecution).toBe(false);
+
+    const firstRun = await service.tickRunSchedule(schedule.id, {
+      leaseOwner: 'unit-test-scheduler',
+      attemptPaperExecution: false,
+    });
+    const secondRun = await service.tickRunSchedule(schedule.id, {
+      force: true,
+      leaseOwner: 'unit-test-scheduler',
+      attemptPaperExecution: false,
+    });
+
+    expect(firstRun.status).toBe('risk_checked');
+    expect(firstRun.scheduleId).toBe(schedule.id);
+    expect(firstRun.cycleKey).toBe('schedule:1:2026-05-23T00:00:00.000Z');
+    expect(secondRun.status).toBe('risk_checked');
+    expect(secondRun.cycleKey).toBe('schedule:1:2026-05-23T00:30:00.000Z');
+    expect(runs).toHaveLength(2);
+    expect(researchRuns).toHaveLength(2);
+    expect(proposals).toHaveLength(2);
+    expect(evaluations).toHaveLength(2);
+    expect(runSchedules[0]).toEqual(
+      expect.objectContaining({
+        lastRunId: secondRun.id,
+        lastCycleKey: 'schedule:1:2026-05-23T00:30:00.000Z',
+        leaseOwner: null,
+        leaseExpiresAt: null,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+    expect(runSchedules[0].nextRunAt.toISOString()).toBe(
+      '2026-05-23T01:00:00.000Z',
+    );
+  });
+
+  it('rejects schedule ticks while an active lease exists', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Leased autonomous budget',
+      totalBudget: 10_000_000,
+    });
+    const schedule = await service.createRunSchedule({
+      budgetEnvelopeId: budget.id,
+      objective: 'Run leased autonomous baseline',
+      cadenceMinutes: 30,
+      nextRunAt: '2026-05-23T00:00:00.000Z',
+    });
+    schedule.leaseOwner = 'other-worker';
+    schedule.leaseExpiresAt = new Date('2026-05-23T00:02:00.000Z');
+
+    await expect(service.tickRunSchedule(schedule.id)).rejects.toThrow(
+      'already leased',
+    );
+    expect(runs).toHaveLength(0);
+    expect(researchRuns).toHaveLength(0);
+  });
+
+  it('rejects invalid autonomous schedule and tick inputs before side effects', async () => {
+    await expect(
+      service.createRunSchedule({
+        budgetEnvelopeId: undefined as unknown as number,
+        objective: 'Missing budget id',
+      }),
+    ).rejects.toThrow('positive budgetEnvelopeId');
+
+    const budget = await service.createBudgetEnvelope({
+      name: 'Validated autonomous budget',
+      totalBudget: 10_000_000,
+    });
+    const schedule = await service.createRunSchedule({
+      budgetEnvelopeId: budget.id,
+      objective: 'Run validated autonomous baseline',
+      cadenceMinutes: 30,
+      nextRunAt: '2026-05-23T00:00:00.000Z',
+    });
+
+    await expect(
+      service.tickRunSchedule(schedule.id, {
+        force: 'false' as unknown as boolean,
+      }),
+    ).rejects.toThrow('force must be boolean');
+    await expect(
+      service.tickRunSchedule(schedule.id, {
+        leaseTtlSeconds: 0,
+      }),
+    ).rejects.toThrow('leaseTtlSeconds');
+    expect(runs).toHaveLength(0);
+    expect(researchRuns).toHaveLength(0);
   });
 });
