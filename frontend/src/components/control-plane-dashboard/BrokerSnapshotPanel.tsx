@@ -12,6 +12,11 @@ interface BrokerSnapshotPanelProps {
 
 export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
   const snapshot = model.latestBrokerSnapshot;
+  const adapter = model.visibleBrokerAdapterStatus;
+  const readyCapabilityCount = adapter.capabilities.filter(
+    (capability) =>
+      capability.status === "ready" || capability.status === "configured",
+  ).length;
 
   return (
     <section className="rounded-xl border border-[#2b3139] bg-[#181a20]">
@@ -35,6 +40,91 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
           {model.errors.brokerSnapshots}
         </div>
       )}
+      {model.errors.brokerAdapter && (
+        <div className="mx-4 mt-4 rounded-lg border border-[#f0b90b]/30 bg-[#f0b90b]/10 p-3 text-xs font-semibold text-[#fcd535]">
+          {model.errors.brokerAdapter}
+        </div>
+      )}
+
+      <div className="border-b border-[#2b3139] p-4">
+        <div className="grid gap-3 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[11px] font-bold uppercase text-[#707a8a]">
+                  {model.sources.brokerAdapter}
+                </div>
+                <div className="mt-1 font-mono text-sm font-bold text-white">
+                  {adapter.provider} / {adapter.authMethod}
+                </div>
+                <div className="mt-1 font-mono text-[11px] text-[#707a8a]">
+                  credential {adapter.credentialRef}
+                </div>
+              </div>
+              <span
+                className={`rounded-md border px-2 py-1 text-[11px] font-bold uppercase ${
+                  adapter.readOnlyEnabled
+                    ? "border-[#0ecb81]/40 bg-[#0ecb81]/10 text-[#0ecb81]"
+                    : "border-[#f0b90b]/40 bg-[#f0b90b]/10 text-[#fcd535]"
+                }`}
+              >
+                {adapter.readOnlyEnabled ? "read only ready" : "blocked"}
+              </span>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+              {[
+                ["configured", adapter.configured ? "yes" : "no"],
+                ["schema", adapter.schemaVerified ? "verified" : "missing"],
+                ["sandbox", adapter.sandboxVerified ? "verified" : "missing"],
+                ["live", adapter.liveTradingEnabled ? "enabled" : "off"],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <div className="font-bold uppercase text-[#707a8a]">
+                    {label}
+                  </div>
+                  <div className="mt-1 font-mono font-bold text-[#eaecef]">
+                    {value}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <div className="text-[11px] font-bold uppercase text-[#707a8a]">
+                Broker adapter gates
+              </div>
+              <div className="font-mono text-[11px] font-bold text-[#eaecef]">
+                {readyCapabilityCount}/{adapter.capabilities.length}
+              </div>
+            </div>
+            <div className="grid gap-2 md:grid-cols-2">
+              {adapter.capabilities.slice(0, 6).map((capability) => (
+                <div
+                  key={capability.key}
+                  className="flex items-center justify-between gap-2 rounded-md border border-[#2b3139] px-2 py-1.5 text-xs"
+                >
+                  <span className="truncate text-[#929aa5]">
+                    {capability.key}
+                  </span>
+                  <span
+                    className={`font-mono font-bold ${
+                      capability.status === "ready" ||
+                      capability.status === "configured"
+                        ? "text-[#0ecb81]"
+                        : "text-[#f6465d]"
+                    }`}
+                  >
+                    {capability.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {snapshot ? (
         <div className="grid gap-0 lg:grid-cols-[0.9fr_1.1fr]">

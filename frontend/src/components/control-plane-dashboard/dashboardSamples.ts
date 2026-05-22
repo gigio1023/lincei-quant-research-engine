@@ -1,6 +1,7 @@
 import {
   AutonomousRun,
   AutonomousRunSchedule,
+  BrokerAdapterStatus,
   BrokerSnapshot,
   BudgetEnvelope,
   InvestmentProposal,
@@ -258,6 +259,49 @@ export const DOCUMENTED_RUN_SCHEDULE_WORKER_STATUS: RunScheduleWorkerStatus = {
     skipped: 0,
     items: [],
   },
+};
+
+export const DOCUMENTED_BROKER_ADAPTER_STATUS: BrokerAdapterStatus = {
+  provider: "toss",
+  configured: false,
+  readOnlyEnabled: false,
+  paperTradingEnabled: false,
+  liveTradingEnabled: false,
+  authMethod: "oauth2_client_credentials",
+  credentialRef: "missing",
+  schemaVerified: false,
+  sandboxVerified: false,
+  capabilities: [
+    {
+      key: "credentials",
+      status: "blocked",
+      detail:
+        "TOSS_OPEN_API_CLIENT_ID, TOSS_OPEN_API_CLIENT_SECRET, and TOSS_OPEN_API_ACCOUNT_REF are required.",
+    },
+    {
+      key: "openApiSchema",
+      status: "blocked",
+      detail: "Exact Toss OpenAPI schema is not verified in this repo.",
+    },
+    {
+      key: "readOnlyAccountSnapshot",
+      status: "blocked",
+      detail:
+        "Read-only polling remains disabled until credentials, schema, and BROKER_READ_ONLY_ENABLED=true are present.",
+    },
+    {
+      key: "orderPlacement",
+      status: "blocked",
+      detail:
+        "Live order placement is intentionally blocked until read-only reconciliation, sandbox parity, approval custody, and kill switch runtime exist.",
+    },
+  ],
+  blockers: [
+    "credentials: Toss Open API credentials are missing.",
+    "openApiSchema: Exact Toss OpenAPI schema is not verified.",
+    "orderPlacement: Live order placement is intentionally blocked.",
+  ],
+  brokerExecutionEnabled: false,
 };
 
 export const DOCUMENTED_PAPER_ORDER_PLANS: PaperOrderPlan[] = [

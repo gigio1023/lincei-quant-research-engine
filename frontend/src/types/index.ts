@@ -413,6 +413,48 @@ export interface BrokerSnapshot {
   updatedAt: string;
 }
 
+export type BrokerAdapterProvider = "toss" | "manual" | "simulated";
+
+export type BrokerAdapterCapabilityStatus =
+  | "ready"
+  | "configured"
+  | "blocked"
+  | "not_implemented";
+
+export interface BrokerAdapterCapability {
+  key:
+    | "credentials"
+    | "openApiSchema"
+    | "readOnlyAccountSnapshot"
+    | "holdingsSnapshot"
+    | "orderPreview"
+    | "paperOrSandbox"
+    | "orderPlacement"
+    | "orderCancelReplace"
+    | "fillPolling"
+    | "reconciliation"
+    | "killSwitch";
+  status: BrokerAdapterCapabilityStatus;
+  detail: string;
+}
+
+export interface BrokerAdapterStatus {
+  provider: BrokerAdapterProvider;
+  configured: boolean;
+  readOnlyEnabled: boolean;
+  paperTradingEnabled: boolean;
+  liveTradingEnabled: false;
+  baseUrl?: string;
+  authMethod: string;
+  credentialRef: string;
+  schemaVerified: boolean;
+  sandboxVerified: boolean;
+  lastVerifiedAt?: string;
+  capabilities: BrokerAdapterCapability[];
+  blockers: string[];
+  brokerExecutionEnabled: false;
+}
+
 export interface ImportBrokerSnapshotRequest {
   provider?: BrokerSnapshotProvider;
   sourceRef?: string;

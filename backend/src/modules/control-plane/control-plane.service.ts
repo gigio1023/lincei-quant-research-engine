@@ -188,7 +188,13 @@ export class ControlPlaneService {
           key: 'brokerReadOnlyReady',
           ready: false,
           detail:
-            'Live broker adapter is not implemented; read-only snapshot ledger is available',
+            'Live broker adapter is not implemented; read-only snapshot ledger and adapter readiness contract are available',
+        },
+        {
+          key: 'brokerAdapterContractReady',
+          ready: true,
+          detail:
+            'Provider-neutral Toss readiness contract reports credential, schema, sandbox, read-only, and order-placement gates',
         },
         {
           key: 'brokerSnapshotLedgerReady',

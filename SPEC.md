@@ -242,8 +242,9 @@ Current read-only slice:
 - `POST /control-plane/broker-snapshots/import-read-only` accepts manual/imported snapshots and rejects broker credentials, account ids, tokens, order payloads, and order intent fields;
 - `GET /control-plane/broker-snapshots` and `GET /control-plane/broker-snapshots/latest` expose read-only snapshot history;
 - `POST /control-plane/broker-snapshots/:id/reconcile-paper` compares a broker snapshot with the active paper account and records cash, equity, position, tolerance, age, stale, match, or mismatch evidence;
+- `GET /control-plane/broker-adapter/status` exposes a provider-neutral Toss readiness contract for credential presence, OpenAPI schema verification, sandbox verification, read-only enablement, and blocked order capabilities without exposing secrets;
 - the dashboard shows a Broker Snapshot Monitor next to paper execution so the user can see whether external account truth matches internal paper state;
-- this is not a Toss adapter yet and cannot place, cancel, modify, preview, or route orders.
+- this is not a Toss client yet and cannot call Toss, place, cancel, modify, preview, or route orders.
 
 Toss Securities API must be treated as real-money write access unless an official sandbox or paper environment is verified. Official public pages show OAuth client-credentials, account lookup, holdings, and order examples, but access requires a Toss Securities account, pre-application, and API key issuance. The current public docs do not prove a paper environment.
 
@@ -434,7 +435,8 @@ Current status:
 - broker snapshot entity and read-only import API exist;
 - raw account refs are hashed and credentials/order fields are rejected;
 - broker snapshots can be reconciled against the active paper account for cash, equity, positions, tolerance, and staleness;
-- frontend dashboard shows latest broker snapshot status and reconciliation notes;
+- provider-neutral Toss adapter readiness contract reports credential/schema/sandbox/read-only/order-placement gates;
+- frontend dashboard shows latest broker snapshot status, Toss readiness gates, and reconciliation notes;
 - still missing verified Toss schema/client, real API credentials isolation, provider-specific rate-limit/error handling, and scheduled polling.
 
 Exit criteria:
@@ -472,7 +474,7 @@ Blocking items:
 
 - Toss API access and API key approval;
 - exact OpenAPI schema review;
-- verified Toss broker adapter implementation;
+- verified Toss broker adapter implementation beyond the current readiness contract;
 - production signing custody for human approvals;
 - scheduled broker read-only polling and broker-backed reconciliation;
 - explicit paper account seed/promote workflow exists, but production custody and operator policy still need hardening;

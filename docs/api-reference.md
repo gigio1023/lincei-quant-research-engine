@@ -373,6 +373,38 @@ all broker/live execution flags remain `false`.
 
 - **Description**: Returns the latest imported read-only broker snapshot. Returns `404` until a snapshot has been imported.
 
+#### `GET /control-plane/broker-adapter/status`
+
+- **Description**: Returns the provider-neutral broker adapter readiness contract. The current first candidate is Toss, but this endpoint does not call Toss and never exposes secrets. It reports whether required credential environment variables are present, whether the OpenAPI schema and sandbox have been operator-verified, and which broker capabilities remain blocked.
+- **Example Response**:
+  ```json
+  {
+    "provider": "toss",
+    "configured": false,
+    "readOnlyEnabled": false,
+    "paperTradingEnabled": false,
+    "liveTradingEnabled": false,
+    "authMethod": "oauth2_client_credentials",
+    "credentialRef": "missing",
+    "schemaVerified": false,
+    "sandboxVerified": false,
+    "capabilities": [
+      {
+        "key": "credentials",
+        "status": "blocked",
+        "detail": "TOSS_OPEN_API_CLIENT_ID, TOSS_OPEN_API_CLIENT_SECRET, and TOSS_OPEN_API_ACCOUNT_REF are required."
+      },
+      {
+        "key": "orderPlacement",
+        "status": "blocked",
+        "detail": "Live order placement is intentionally blocked until read-only reconciliation, sandbox parity, approval custody, and kill switch runtime exist."
+      }
+    ],
+    "blockers": ["credentials: Toss Open API credentials are missing."],
+    "brokerExecutionEnabled": false
+  }
+  ```
+
 #### `POST /control-plane/broker-snapshots/:id/reconcile-paper`
 
 - **Description**: Reconciles a broker read-only snapshot against the active paper account. This compares cash, equity, positions, tolerance, and snapshot age. It still does not prove live broker readiness because no verified Toss adapter or broker polling exists yet.

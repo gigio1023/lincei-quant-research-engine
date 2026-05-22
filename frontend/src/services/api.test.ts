@@ -507,6 +507,39 @@ describe("API Service", () => {
       expect(result).toEqual(mockBrokerSnapshots);
     });
 
+    it("should_get_broker_adapter_status", async () => {
+      const mockStatus = {
+        provider: "toss",
+        configured: false,
+        readOnlyEnabled: false,
+        paperTradingEnabled: false,
+        liveTradingEnabled: false,
+        authMethod: "oauth2_client_credentials",
+        credentialRef: "missing",
+        schemaVerified: false,
+        sandboxVerified: false,
+        capabilities: [
+          {
+            key: "orderPlacement",
+            status: "blocked",
+            detail: "Live order placement is intentionally blocked.",
+          },
+        ],
+        blockers: ["orderPlacement: blocked"],
+        brokerExecutionEnabled: false,
+      };
+
+      mockGet.mockResolvedValue({ data: mockStatus });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.getBrokerAdapterStatus();
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/control-plane/broker-adapter/status",
+      );
+      expect(result).toEqual(mockStatus);
+    });
+
     it("should_get_order_plan_approvals", async () => {
       const mockApprovals = [
         {

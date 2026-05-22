@@ -3,6 +3,7 @@ import { controlPlaneApi, riskGateApi } from "../../services/api";
 import {
   AutonomousRun,
   AutonomousRunSchedule,
+  BrokerAdapterStatus,
   BrokerSnapshot,
   BudgetEnvelope,
   ControlPlaneReadinessItem,
@@ -23,6 +24,7 @@ import {
   BASELINE_RESEARCH_REQUEST,
   DOCUMENTED_AUTONOMOUS_RUNS,
   DOCUMENTED_AUTONOMOUS_RUN_SCHEDULES,
+  DOCUMENTED_BROKER_ADAPTER_STATUS,
   DOCUMENTED_BROKER_SNAPSHOTS,
   DOCUMENTED_BUDGET_ENVELOPES,
   DOCUMENTED_CONTROL_PLANE_STATUS,
@@ -61,6 +63,7 @@ export interface DashboardModel {
   visiblePaperAccount: PaperAccount | null;
   visiblePaperAccountEvents: PaperAccountEvent[];
   visibleBrokerSnapshots: BrokerSnapshot[];
+  visibleBrokerAdapterStatus: BrokerAdapterStatus;
   visibleOrderPlanApprovals: OrderPlanApproval[];
   visibleExecutionControl: ExecutionControlState;
   latestPaperOrderPlans: PaperOrderPlan[];
@@ -85,6 +88,7 @@ export interface DashboardModel {
     paperAccount: string;
     paperAccountEvents: string;
     brokerSnapshots: string;
+    brokerAdapter: string;
     orderPlanApprovals: string;
   };
   errors: {
@@ -100,6 +104,7 @@ export interface DashboardModel {
     paperAccount: string | null;
     paperAccountEvents: string | null;
     brokerSnapshots: string | null;
+    brokerAdapter: string | null;
     orderPlanApprovals: string | null;
     baselineResearch: string | null;
   };
@@ -115,6 +120,7 @@ export interface DashboardModel {
     paperAccountEvents: boolean;
     paperOrderPlans: boolean;
     brokerSnapshots: boolean;
+    brokerAdapter: boolean;
     orderPlanApprovals: boolean;
   };
   baselineResearchSuccess: string | null;
@@ -347,6 +353,8 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const [brokerSnapshots, setBrokerSnapshots] = useState<
     BrokerSnapshot[] | null
   >(null);
+  const [brokerAdapterStatus, setBrokerAdapterStatus] =
+    useState<BrokerAdapterStatus | null>(null);
   const [orderPlanApprovals, setOrderPlanApprovals] = useState<
     OrderPlanApproval[] | null
   >(null);
@@ -364,6 +372,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     useState(true);
   const [loadingPaperOrderPlans, setLoadingPaperOrderPlans] = useState(true);
   const [loadingBrokerSnapshots, setLoadingBrokerSnapshots] = useState(true);
+  const [loadingBrokerAdapter, setLoadingBrokerAdapter] = useState(true);
   const [loadingOrderPlanApprovals, setLoadingOrderPlanApprovals] =
     useState(true);
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -394,6 +403,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const [brokerSnapshotsError, setBrokerSnapshotsError] = useState<
     string | null
   >(null);
+  const [brokerAdapterError, setBrokerAdapterError] = useState<string | null>(
+    null,
+  );
   const [orderPlanApprovalsError, setOrderPlanApprovalsError] = useState<
     string | null
   >(null);
@@ -427,6 +439,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           executionControlStatus,
           paperOrderPlansStatus,
           brokerSnapshotsStatus,
+          brokerAdapterStatus,
           orderPlanApprovalsStatus,
         ] = await Promise.allSettled([
           riskGateApi.getStatus(),
@@ -443,6 +456,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           controlPlaneApi.getExecutionControl(),
           controlPlaneApi.getPaperOrderPlans(),
           controlPlaneApi.getBrokerSnapshots(),
+          controlPlaneApi.getBrokerAdapterStatus(),
           controlPlaneApi.getOrderPlanApprovals(),
         ]);
 
@@ -548,6 +562,14 @@ export const useControlPlaneDashboard = (): DashboardModel => {
             "Broker snapshot API is unavailable. Showing documented read-only sample.",
           );
         }
+        if (brokerAdapterStatus.status === "fulfilled") {
+          setBrokerAdapterStatus(brokerAdapterStatus.value);
+          setBrokerAdapterError(null);
+        } else {
+          setBrokerAdapterError(
+            "Broker adapter status API is unavailable. Showing documented Toss readiness sample.",
+          );
+        }
         if (orderPlanApprovalsStatus.status === "fulfilled") {
           setOrderPlanApprovals(orderPlanApprovalsStatus.value);
           setOrderPlanApprovalsError(null);
@@ -596,6 +618,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           setBrokerSnapshotsError(
             "Broker snapshot API is unavailable. Showing documented read-only sample.",
           );
+          setBrokerAdapterError(
+            "Broker adapter status API is unavailable. Showing documented Toss readiness sample.",
+          );
           setOrderPlanApprovalsError(
             "Order-plan approval API is unavailable. Showing documented approval sample.",
           );
@@ -617,6 +642,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           setLoadingPaperAccountEvents(false);
           setLoadingPaperOrderPlans(false);
           setLoadingBrokerSnapshots(false);
+          setLoadingBrokerAdapter(false);
           setLoadingOrderPlanApprovals(false);
         }
       }
@@ -648,6 +674,8 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const visibleBrokerSnapshots =
     brokerSnapshots ??
     (loadingBrokerSnapshots ? [] : DOCUMENTED_BROKER_SNAPSHOTS);
+  const visibleBrokerAdapterStatus =
+    brokerAdapterStatus ?? DOCUMENTED_BROKER_ADAPTER_STATUS;
   const visibleOrderPlanApprovals =
     orderPlanApprovals ??
     (loadingOrderPlanApprovals ? [] : DOCUMENTED_ORDER_PLAN_APPROVALS);
@@ -693,6 +721,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       refreshedRunSchedules,
       refreshedRunScheduleWorkerStatus,
       refreshedPaperAccount,
+      refreshedBrokerAdapterStatus,
       refreshedOrderPlanApprovals,
     ] = await Promise.allSettled([
       controlPlaneApi.getResearchRuns(),
@@ -703,6 +732,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       controlPlaneApi.getRunSchedules(),
       controlPlaneApi.getRunScheduleWorkerStatus(),
       controlPlaneApi.getPaperAccount(),
+      controlPlaneApi.getBrokerAdapterStatus(),
       controlPlaneApi.getOrderPlanApprovals(),
     ]);
 
@@ -769,6 +799,15 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     } else {
       setPaperAccountError(
         "Paper account refresh failed after automation action.",
+      );
+    }
+
+    if (refreshedBrokerAdapterStatus.status === "fulfilled") {
+      setBrokerAdapterStatus(refreshedBrokerAdapterStatus.value);
+      setBrokerAdapterError(null);
+    } else {
+      setBrokerAdapterError(
+        "Broker adapter refresh failed after automation action.",
       );
     }
 
@@ -863,6 +902,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     visiblePaperAccount: paperAccount,
     visiblePaperAccountEvents,
     visibleBrokerSnapshots,
+    visibleBrokerAdapterStatus,
     visibleOrderPlanApprovals,
     visibleExecutionControl: executionControl ?? DOCUMENTED_EXECUTION_CONTROL,
     latestPaperOrderPlans: sortByUpdatedAtDesc(visiblePaperOrderPlans).slice(
@@ -965,6 +1005,11 @@ export const useControlPlaneDashboard = (): DashboardModel => {
         : loadingBrokerSnapshots
           ? "Loading broker snapshots"
           : "Documented broker sample",
+      brokerAdapter: brokerAdapterStatus
+        ? "Live broker adapter"
+        : loadingBrokerAdapter
+          ? "Loading broker adapter"
+          : "Documented broker adapter sample",
       orderPlanApprovals: orderPlanApprovals
         ? "Live signed approvals"
         : loadingOrderPlanApprovals
@@ -984,6 +1029,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       paperAccount: paperAccountError,
       paperAccountEvents: paperAccountEventsError,
       brokerSnapshots: brokerSnapshotsError,
+      brokerAdapter: brokerAdapterError,
       orderPlanApprovals: orderPlanApprovalsError,
       baselineResearch: baselineResearchError,
     },
@@ -999,6 +1045,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       paperAccountEvents: loadingPaperAccountEvents,
       paperOrderPlans: loadingPaperOrderPlans,
       brokerSnapshots: loadingBrokerSnapshots,
+      brokerAdapter: loadingBrokerAdapter,
       orderPlanApprovals: loadingOrderPlanApprovals,
     },
     baselineResearchSuccess,

@@ -636,4 +636,30 @@ describe('ControlPlane research provenance (e2e)', () => {
       })
       .expect(400);
   });
+
+  it('reports broker adapter readiness without exposing credentials or live access', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/control-plane/broker-adapter/status')
+      .expect(200);
+
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        provider: 'toss',
+        configured: false,
+        readOnlyEnabled: false,
+        paperTradingEnabled: false,
+        liveTradingEnabled: false,
+        credentialRef: 'missing',
+        brokerExecutionEnabled: false,
+      }),
+    );
+    expect(response.body.capabilities).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'orderPlacement',
+          status: 'blocked',
+        }),
+      ]),
+    );
+  });
 });

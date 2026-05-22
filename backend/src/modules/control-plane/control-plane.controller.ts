@@ -18,10 +18,12 @@ import { PaperAccount } from '../../entities/paper-account.entity';
 import { PaperOrderPlan } from '../../entities/paper-order-plan.entity';
 import { ResearchRun } from '../../entities/research-run.entity';
 import { RiskEvaluation } from '../../entities/risk-evaluation.entity';
+import { BrokerAdapterReadinessService } from './broker-adapter-readiness.service';
 import { ControlPlaneSchedulerService } from './control-plane-scheduler.service';
 import { ControlPlaneService } from './control-plane.service';
 import {
   AdvanceAutonomousRunRequest,
+  BrokerAdapterStatus,
   ControlPlaneStatus,
   CreateAutonomousRunScheduleRequest,
   CreateAutonomousRunRequest,
@@ -46,6 +48,7 @@ export class ControlPlaneController {
   constructor(
     private readonly controlPlaneService: ControlPlaneService,
     private readonly controlPlaneSchedulerService: ControlPlaneSchedulerService,
+    private readonly brokerAdapterReadinessService: BrokerAdapterReadinessService,
   ) {}
 
   @Get('status')
@@ -147,6 +150,11 @@ export class ControlPlaneController {
   @Get('broker-snapshots/latest')
   getLatestBrokerSnapshot(): Promise<BrokerSnapshot> {
     return this.controlPlaneService.getLatestBrokerSnapshot();
+  }
+
+  @Get('broker-adapter/status')
+  getBrokerAdapterStatus(): BrokerAdapterStatus {
+    return this.brokerAdapterReadinessService.getStatus();
   }
 
   @Post('broker-snapshots/:id/reconcile-paper')

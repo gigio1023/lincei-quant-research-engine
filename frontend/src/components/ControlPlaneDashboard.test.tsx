@@ -18,6 +18,7 @@ vi.mock("../services/api", () => ({
     getExecutionControl: vi.fn(),
     getPaperOrderPlans: vi.fn(),
     getBrokerSnapshots: vi.fn(),
+    getBrokerAdapterStatus: vi.fn(),
     getOrderPlanApprovals: vi.fn(),
     getRuns: vi.fn(),
     getRunSchedules: vi.fn(),
@@ -620,6 +621,42 @@ const mockBrokerSnapshots = [
   },
 ];
 
+const mockBrokerAdapterStatus = {
+  provider: "toss",
+  configured: false,
+  readOnlyEnabled: false,
+  paperTradingEnabled: false,
+  liveTradingEnabled: false,
+  authMethod: "oauth2_client_credentials",
+  credentialRef: "missing",
+  schemaVerified: false,
+  sandboxVerified: false,
+  capabilities: [
+    {
+      key: "credentials",
+      status: "blocked",
+      detail: "Toss credentials are missing.",
+    },
+    {
+      key: "openApiSchema",
+      status: "blocked",
+      detail: "Exact Toss schema is not verified.",
+    },
+    {
+      key: "readOnlyAccountSnapshot",
+      status: "blocked",
+      detail: "Read-only polling remains disabled.",
+    },
+    {
+      key: "orderPlacement",
+      status: "blocked",
+      detail: "Live order placement is intentionally blocked.",
+    },
+  ],
+  blockers: ["orderPlacement: Live order placement is intentionally blocked."],
+  brokerExecutionEnabled: false,
+};
+
 const mockOrderPlanApprovals = [
   {
     id: "approval-api-1",
@@ -691,6 +728,9 @@ describe("ControlPlaneDashboard", () => {
     );
     vi.mocked(controlPlaneApi.getBrokerSnapshots).mockResolvedValue(
       mockBrokerSnapshots,
+    );
+    vi.mocked(controlPlaneApi.getBrokerAdapterStatus).mockResolvedValue(
+      mockBrokerAdapterStatus,
     );
     vi.mocked(controlPlaneApi.getOrderPlanApprovals).mockResolvedValue(
       mockOrderPlanApprovals,
@@ -795,6 +835,11 @@ describe("ControlPlaneDashboard", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Broker Snapshot Monitor")).toBeInTheDocument();
     expect(screen.getByText("Live broker snapshots")).toBeInTheDocument();
+    expect(screen.getByText("Live broker adapter")).toBeInTheDocument();
+    expect(
+      screen.getByText("toss / oauth2_client_credentials"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("orderPlacement")).toBeInTheDocument();
     expect(screen.getByText("manual / operator-import")).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -852,6 +897,9 @@ describe("ControlPlaneDashboard", () => {
     vi.mocked(controlPlaneApi.getBrokerSnapshots).mockRejectedValue(
       new Error("offline"),
     );
+    vi.mocked(controlPlaneApi.getBrokerAdapterStatus).mockRejectedValue(
+      new Error("offline"),
+    );
     vi.mocked(controlPlaneApi.getOrderPlanApprovals).mockRejectedValue(
       new Error("offline"),
     );
@@ -884,6 +932,9 @@ describe("ControlPlaneDashboard", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByText("Documented sample plans")).toBeInTheDocument();
+    expect(
+      screen.getByText("Documented broker adapter sample"),
+    ).toBeInTheDocument();
     expect(screen.getByText("No paper account")).toBeInTheDocument();
     expect(
       screen.getByText((content) =>
