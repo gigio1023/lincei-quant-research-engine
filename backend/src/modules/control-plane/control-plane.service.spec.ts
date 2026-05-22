@@ -4,6 +4,7 @@ import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
 import { OrderPlanApproval } from '../../entities/order-plan-approval.entity';
+import { PaperAccountEvent } from '../../entities/paper-account-event.entity';
 import { PaperAccount } from '../../entities/paper-account.entity';
 import { PaperOrderPlan } from '../../entities/paper-order-plan.entity';
 import { ResearchRun } from '../../entities/research-run.entity';
@@ -19,6 +20,7 @@ describe('ControlPlaneService', () => {
   let researchRuns: ResearchRun[];
   let proposals: InvestmentProposal[];
   let paperAccounts: PaperAccount[];
+  let paperAccountEvents: PaperAccountEvent[];
   let paperOrderPlans: PaperOrderPlan[];
   let executionControlStates: ExecutionControlState[];
   let evaluations: RiskEvaluation[];
@@ -52,6 +54,7 @@ describe('ControlPlaneService', () => {
     researchRuns = [];
     proposals = [];
     paperAccounts = [];
+    paperAccountEvents = [];
     paperOrderPlans = [];
     executionControlStates = [];
     evaluations = [];
@@ -63,6 +66,7 @@ describe('ControlPlaneService', () => {
       makeRepository(orderPlanApprovals) as any,
       makeRepository(researchRuns) as any,
       makeRepository(paperAccounts) as any,
+      makeRepository(paperAccountEvents) as any,
       makeRepository(paperOrderPlans) as any,
       makeRepository(executionControlStates) as any,
       makeRepository(evaluations) as any,
@@ -86,6 +90,100 @@ describe('ControlPlaneService', () => {
     expect(budget.brokerExecutionEnabled).toBe(false);
     expect(budget.liveTradingEnabled).toBe(false);
     expect(budget.policy.allowLiveTrading).toBe(false);
+  });
+
+  it('explicitly seeds a paper account with an append-only event', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Seed budget',
+      totalBudget: 10_000_000,
+    });
+
+    const account = await service.seedPaperAccount({
+      budgetEnvelopeId: budget.id,
+      cash: 9_000_000,
+      positions: [
+        {
+          symbol: '005930',
+          assetClass: 'domestic_stock',
+          marketValue: 1_000_000,
+          weightPct: 10,
+        },
+      ],
+      actor: 'unit-test-operator',
+      reason: 'Seed the paper account before execution.',
+      idempotencyKey: 'seed-paper-account-1',
+    });
+
+    expect(account).toEqual(
+      expect.objectContaining({
+        budgetEnvelopeId: budget.id,
+        status: 'seeded',
+        cash: 9_000_000,
+        equity: 10_000_000,
+        grossExposurePct: 10,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+    expect(paperAccountEvents).toHaveLength(1);
+    expect(paperAccountEvents[0]).toEqual(
+      expect.objectContaining({
+        paperAccountId: account.id,
+        eventType: 'explicit_seed',
+        sequence: 1,
+        cashBefore: 0,
+        cashAfter: 9_000_000,
+        equityAfter: 10_000_000,
+        idempotencyKey: 'seed-paper-account-1',
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+    expect(paperAccountEvents[0].eventHash).toMatch(/^sha256:/);
+
+    const replayed = await service.seedPaperAccount({
+      budgetEnvelopeId: budget.id,
+      cash: 9_000_000,
+      positions: [
+        {
+          symbol: '005930',
+          assetClass: 'domestic_stock',
+          marketValue: 1_000_000,
+          weightPct: 10,
+        },
+      ],
+      actor: 'unit-test-operator',
+      reason: 'Seed the paper account before execution.',
+      idempotencyKey: 'seed-paper-account-1',
+    });
+    expect(replayed.id).toBe(account.id);
+    expect(paperAccountEvents).toHaveLength(1);
+
+    const promoted = await service.promotePaperAccount(account.id, {
+      actor: 'unit-test-operator',
+      reason: 'Promote seeded account for paper execution.',
+      idempotencyKey: 'promote-paper-account-1',
+      expectedEventHash: paperAccountEvents[0].eventHash,
+    });
+    expect(promoted.status).toBe('active');
+    expect(paperAccountEvents).toHaveLength(2);
+    expect(paperAccountEvents[1]).toEqual(
+      expect.objectContaining({
+        eventType: 'account_promoted',
+        sequence: 2,
+        previousEventHash: paperAccountEvents[0].eventHash,
+      }),
+    );
+
+    await expect(
+      service.seedPaperAccount({
+        budgetEnvelopeId: budget.id,
+        cash: 10_000_000,
+        actor: 'unit-test-operator',
+        reason: 'Duplicate active seed.',
+        idempotencyKey: 'seed-paper-account-2',
+      }),
+    ).rejects.toThrow('already exists');
   });
 
   it('stores a proposal and persists the risk evaluation result', async () => {
@@ -172,6 +270,19 @@ describe('ControlPlaneService', () => {
     const budget = await service.createBudgetEnvelope({
       name: 'Paper budget',
       totalBudget: 10_000_000,
+    });
+    const seededAccount = await service.seedPaperAccount({
+      budgetEnvelopeId: budget.id,
+      cash: 10_000_000,
+      actor: 'unit-test-operator',
+      reason: 'Seed paper account before paper execution.',
+      idempotencyKey: 'seed-paper-budget-1',
+    });
+    await service.promotePaperAccount(seededAccount.id, {
+      actor: 'unit-test-operator',
+      reason: 'Promote paper account before paper execution.',
+      idempotencyKey: 'promote-paper-budget-1',
+      expectedEventHash: paperAccountEvents[0].eventHash,
     });
     const researchRun = await service.createResearchRun({
       budgetEnvelopeId: budget.id,
@@ -354,12 +465,36 @@ describe('ControlPlaneService', () => {
     expect(paperAccounts[0].cashLedger).toHaveLength(1);
     expect(paperAccounts[0].positionLedger).toHaveLength(1);
     expect(paperAccounts[0].appliedPlanIds).toEqual([plan.id]);
+    expect(paperAccountEvents).toEqual([
+      expect.objectContaining({
+        eventType: 'explicit_seed',
+        sequence: 1,
+        cashAfter: 10_000_000,
+        eventHash: expect.stringMatching(/^sha256:/),
+      }),
+      expect.objectContaining({
+        eventType: 'account_promoted',
+        sequence: 2,
+        previousEventHash: paperAccountEvents[0].eventHash,
+        eventHash: expect.stringMatching(/^sha256:/),
+      }),
+      expect.objectContaining({
+        eventType: 'paper_order_plan',
+        sourceId: plan.id,
+        sequence: 3,
+        cashBefore: 10_000_000,
+        cashAfter: 9_499_250,
+        previousEventHash: paperAccountEvents[1].eventHash,
+        eventHash: expect.stringMatching(/^sha256:/),
+      }),
+    ]);
 
     const idempotentReplay = await service.paperExecuteProposal(proposal.id, {
       idempotencyKey: 'paper-test-1',
     });
     expect(idempotentReplay.id).toBe(plan.id);
     expect(paperAccounts[0].appliedPlanIds).toEqual([plan.id]);
+    expect(paperAccountEvents).toHaveLength(3);
 
     const reconciled = await service.reconcilePaperOrderPlan(plan.id, {
       notes: ['Unit test reconciliation.'],
@@ -427,6 +562,17 @@ describe('ControlPlaneService', () => {
     );
     expect(paperAccounts[0].cash).toBe(9_248_875);
     expect(paperAccounts[0].appliedPlanIds).toEqual([plan.id, secondPlan.id]);
+    expect(paperAccountEvents).toHaveLength(4);
+    expect(paperAccountEvents[3]).toEqual(
+      expect.objectContaining({
+        eventType: 'paper_order_plan',
+        sourceId: secondPlan.id,
+        sequence: 4,
+        cashBefore: 9_499_250,
+        cashAfter: 9_248_875,
+        previousEventHash: paperAccountEvents[2].eventHash,
+      }),
+    );
     expect(paperAccounts[0].positions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -855,6 +1001,10 @@ describe('ControlPlaneService', () => {
         expect.objectContaining({
           key: 'paperSimulationLedgerReady',
           ready: true,
+        }),
+        expect.objectContaining({
+          key: 'paperAccountEventLedgerReady',
+          ready: false,
         }),
         expect.objectContaining({
           key: 'brokerSnapshotLedgerReady',

@@ -286,6 +286,59 @@ describe("API Service", () => {
       expect(result).toEqual(mockPaperAccount);
     });
 
+    it("should_get_paper_account_events", async () => {
+      const mockPaperAccountEvents = [
+        {
+          id: "paper-account-event-1",
+          paperAccountId: "paper-account-1",
+          eventType: "explicit_seed",
+          idempotencyKey: "seed-1",
+          actor: "operator",
+          reason: "Seed account.",
+          sequence: 1,
+          currency: "KRW",
+          cashBefore: 0,
+          cashAfter: 10000000,
+          equityBefore: 0,
+          equityAfter: 10000000,
+          cashDelta: 10000000,
+          equityDelta: 10000000,
+          requestHash: "sha256:request",
+          eventHash: "sha256:event",
+          eventSnapshot: {
+            paperAccountId: 1,
+            eventType: "explicit_seed",
+            idempotencyKey: "seed-1",
+            actor: "operator",
+            reason: "Seed account.",
+            sequence: 1,
+            currency: "KRW",
+            cashBefore: 0,
+            cashAfter: 10000000,
+            equityBefore: 0,
+            equityAfter: 10000000,
+            positionsBefore: [],
+            positionsAfter: [],
+            requestHash: "sha256:request",
+            recordedAt: "2026-05-22T09:00:00.000Z",
+          },
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+          createdAt: "2026-05-22T09:00:00.000Z",
+        },
+      ];
+
+      mockGet.mockResolvedValue({ data: mockPaperAccountEvents });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.getPaperAccountEvents();
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/control-plane/paper-account/events",
+      );
+      expect(result).toEqual(mockPaperAccountEvents);
+    });
+
     it("should_get_broker_snapshots", async () => {
       const mockBrokerSnapshots = [
         {

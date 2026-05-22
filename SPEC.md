@@ -206,17 +206,19 @@ Current paper slice:
 - `paper_order_plans` records deterministic paper-only order plans;
 - paper execution is derived from a stored proposal, never an arbitrary request body;
 - each plan stores proposal/risk/plan hashes, an idempotency key, readiness snapshot, immutable paper order ids, fill events, cash ledger rows, position ledger rows, portfolio before/after snapshots, reconciliation state, and kill-switch snapshot;
-- `paper_accounts` stores durable paper cash, equity, gross exposure, positions, applied plan ids, and account-level cash/position ledgers across cycles;
-- paper-mode risk evaluation uses the current durable paper account snapshot, or the deterministic seed portfolio before the account exists;
+- `paper_accounts` stores the current durable paper account projection for paper cash, equity, gross exposure, positions, applied plan ids, and account-level cash/position ledgers across cycles;
+- `paper_account_events` stores append-only seed, promotion, and paper-plan account events with per-account sequence, request hash, event hash, and previous-event hash;
+- paper-mode risk evaluation and paper execution require an explicitly seeded and promoted active paper account;
 - `order_plan_approvals` stores durable signed paper approvals with approver, reason, proposal hash, risk request hash, approval hash, idempotency key, status, expiry, and consumed plan id;
 - `POST /control-plane/proposals/:id/paper-execute` returns the same plan for the same idempotency key and has a database uniqueness guard for the proposal/idempotency pair;
 - paper execution requires an active order-plan approval that matches the proposal, paper-mode risk evaluation, and idempotency key;
-- `GET /control-plane/paper-account` exposes the active paper account only after a filled paper execution has seeded it;
+- `POST /control-plane/paper-account/seed`, `POST /control-plane/paper-account/:id/promote`, and `GET /control-plane/paper-account/events` expose the explicit account lifecycle and append-only paper account event chain;
+- `GET /control-plane/paper-account` exposes only an active promoted paper account;
 - `POST /control-plane/paper-order-plans/:id/reconcile` reconciles expected paper cash and positions against account ledger entries for that plan;
 - `GET/POST /control-plane/execution-control` stores a minimal execution-control state (`active`, `paused`, `reducing`, `halted`) and paper execution blocks when the state forbids new exposure;
 - broker and live execution flags remain `false`.
 
-This is a paper simulator ledger, not broker-grade execution readiness. Broker-grade paper readiness still requires production-grade signing custody, explicit account seeding/promotion controls, append-only account ledgers, transaction isolation, scheduled broker read-only polling, and reconciliation against external account truth.
+This is a paper simulator ledger, not broker-grade execution readiness. Broker-grade paper readiness still requires production-grade signing custody, transaction isolation, scheduled broker read-only polling, and reconciliation against external account truth.
 
 ### 6. Broker Adapter
 

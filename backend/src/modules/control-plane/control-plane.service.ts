@@ -18,6 +18,11 @@ import {
 } from '../../entities/execution-control-state.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
 import { OrderPlanApproval } from '../../entities/order-plan-approval.entity';
+import {
+  PaperAccountEvent,
+  PaperAccountEventSnapshot,
+  PaperAccountEventType,
+} from '../../entities/paper-account-event.entity';
 import { PaperAccount } from '../../entities/paper-account.entity';
 import {
   PaperCashLedgerEntry,
@@ -44,9 +49,11 @@ import {
   CreateResearchRunRequest,
   ImportBrokerSnapshotRequest,
   PaperExecuteProposalRequest,
+  PromotePaperAccountRequest,
   ReconcileBrokerSnapshotRequest,
   ReconcilePaperOrderPlanRequest,
   RunBaselineResearchRequest,
+  SeedPaperAccountRequest,
   UpdateExecutionControlRequest,
 } from './control-plane.types';
 
@@ -71,6 +78,8 @@ export class ControlPlaneService {
     private readonly researchRunRepository: Repository<ResearchRun>,
     @InjectRepository(PaperAccount)
     private readonly paperAccountRepository: Repository<PaperAccount>,
+    @InjectRepository(PaperAccountEvent)
+    private readonly paperAccountEventRepository: Repository<PaperAccountEvent>,
     @InjectRepository(PaperOrderPlan)
     private readonly paperOrderPlanRepository: Repository<PaperOrderPlan>,
     @InjectRepository(ExecutionControlState)
@@ -93,6 +102,8 @@ export class ControlPlaneService {
       await this.orderPlanApprovalRepository.count();
     const evaluationCount = await this.riskEvaluationRepository.count();
     const paperAccountCount = await this.paperAccountRepository.count();
+    const paperAccountEventCount =
+      await this.paperAccountEventRepository.count();
     const paperOrderPlanCount = await this.paperOrderPlanRepository.count();
     const brokerSnapshotCount = await this.brokerSnapshotRepository.count();
     const executionControlState = await this.getExecutionControlState();
@@ -154,6 +165,11 @@ export class ControlPlaneService {
           key: 'paperAccountReady',
           ready: paperAccountCount > 0,
           detail: `${paperAccountCount} durable paper account records`,
+        },
+        {
+          key: 'paperAccountEventLedgerReady',
+          ready: paperAccountEventCount > 0,
+          detail: `${paperAccountEventCount} append-only paper account events`,
         },
         {
           key: 'executionControlReady',
@@ -381,9 +397,12 @@ export class ControlPlaneService {
           order: { updatedAt: 'DESC' },
         });
     const paperAccount = await this.findPaperAccountForProposal(proposal);
-    const paperPortfolio = paperAccount
-      ? this.buildPaperAccountPortfolio(paperAccount)
-      : this.buildSeedPaperPortfolioForProposal(proposal, budget);
+    if (!paperAccount) {
+      throw new BadRequestException(
+        'Order-plan approval requires an explicitly promoted paper account',
+      );
+    }
+    const paperPortfolio = this.buildPaperAccountPortfolio(paperAccount);
     const idempotencyKey =
       request.idempotencyKey ?? `paper:proposal:${proposal.id}:approved`;
     const approvalRef = `approval:${proposal.id}:${idempotencyKey}:${request.approver}`;
@@ -483,6 +502,247 @@ export class ControlPlaneService {
 
     throw new NotFoundException(
       'No active paper account exists. A paper execution or explicit seed step must create it first.',
+    );
+  }
+
+  async seedPaperAccount(
+    request: SeedPaperAccountRequest,
+  ): Promise<PaperAccount> {
+    if (!request.actor?.trim()) {
+      throw new BadRequestException('Paper account seed requires actor');
+    }
+
+    if (!request.reason?.trim()) {
+      throw new BadRequestException('Paper account seed requires reason');
+    }
+
+    if (
+      request.cash < 0 ||
+      (request.equity !== undefined && request.equity < 0)
+    ) {
+      throw new BadRequestException(
+        'Paper account seed cash/equity cannot be negative',
+      );
+    }
+
+    const positions = request.positions ?? [];
+    const positionsValue = positions.reduce(
+      (total, position) => total + (position.marketValue ?? 0),
+      0,
+    );
+    const equity =
+      request.equity ?? this.roundMoney(request.cash + positionsValue);
+
+    if (equity < request.cash) {
+      throw new BadRequestException(
+        'Paper account seed equity cannot be below cash',
+      );
+    }
+
+    const budget = request.budgetEnvelopeId
+      ? await this.budgetRepository.findOne({
+          where: { id: request.budgetEnvelopeId },
+        })
+      : null;
+
+    if (request.budgetEnvelopeId && !budget) {
+      throw new NotFoundException(
+        `Budget envelope ${request.budgetEnvelopeId} not found`,
+      );
+    }
+
+    const idempotencyKey =
+      request.idempotencyKey ??
+      `paper-account-seed:${request.budgetEnvelopeId ?? 'default'}:${request.actor}`;
+    const requestHash = this.hashObject({
+      budgetEnvelopeId: request.budgetEnvelopeId,
+      name: request.name,
+      currency: request.currency ?? budget?.currency ?? 'KRW',
+      cash: this.roundMoney(request.cash),
+      equity: this.roundMoney(equity),
+      positions,
+      actor: request.actor,
+      reason: request.reason,
+      idempotencyKey,
+    });
+    const existingSeed =
+      await this.findPaperAccountEventByIdempotencyKey(idempotencyKey);
+
+    if (existingSeed) {
+      this.assertIdempotentEventReplay(existingSeed, requestHash);
+      const existingAccount = await this.paperAccountRepository.findOne({
+        where: { id: existingSeed.paperAccountId },
+      });
+
+      if (existingAccount) {
+        return existingAccount;
+      }
+    }
+
+    const existingAccounts = await this.paperAccountRepository.find({
+      order: { updatedAt: 'DESC' },
+    });
+    const existingAccount = existingAccounts.find(
+      (account) =>
+        ['seeded', 'active'].includes(account.status) &&
+        (request.budgetEnvelopeId
+          ? account.budgetEnvelopeId === request.budgetEnvelopeId
+          : !account.budgetEnvelopeId),
+    );
+
+    if (existingAccount) {
+      throw new BadRequestException(
+        `Paper account ${existingAccount.id} already exists for this scope; seed is intentionally one-time and idempotent`,
+      );
+    }
+
+    const currency = request.currency ?? budget?.currency ?? 'KRW';
+    const grossExposurePct =
+      request.grossExposurePct ??
+      this.calculateGrossExposurePct(positions, equity);
+    const paperAccount = await this.paperAccountRepository.save(
+      this.paperAccountRepository.create({
+        name:
+          request.name ??
+          (budget
+            ? `${budget.name} seeded paper account`
+            : 'Seeded paper account'),
+        budgetEnvelopeId: request.budgetEnvelopeId,
+        status: 'seeded',
+        currency,
+        cash: this.roundMoney(request.cash),
+        equity: this.roundMoney(equity),
+        grossExposurePct,
+        positions,
+        cashLedger: [],
+        positionLedger: [],
+        appliedPlanIds: [],
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+
+    await this.appendPaperAccountEvent({
+      paperAccount,
+      eventType: 'explicit_seed',
+      idempotencyKey,
+      actor: request.actor,
+      reason: request.reason,
+      requestHash,
+      cashBefore: 0,
+      cashAfter: paperAccount.cash,
+      equityBefore: 0,
+      equityAfter: paperAccount.equity,
+      positionsBefore: [],
+      positionsAfter: paperAccount.positions,
+    });
+
+    return paperAccount;
+  }
+
+  async promotePaperAccount(
+    paperAccountId: number,
+    request: PromotePaperAccountRequest,
+  ): Promise<PaperAccount> {
+    if (!request.actor?.trim()) {
+      throw new BadRequestException('Paper account promotion requires actor');
+    }
+
+    if (!request.reason?.trim()) {
+      throw new BadRequestException('Paper account promotion requires reason');
+    }
+
+    const paperAccount = await this.paperAccountRepository.findOne({
+      where: { id: paperAccountId },
+    });
+
+    if (!paperAccount) {
+      throw new NotFoundException(`Paper account ${paperAccountId} not found`);
+    }
+
+    const idempotencyKey =
+      request.idempotencyKey ?? `paper-account-promote:${paperAccount.id}`;
+    const requestHash = this.hashObject({
+      paperAccountId,
+      actor: request.actor,
+      reason: request.reason,
+      expectedEventHash: request.expectedEventHash,
+      expectedCurrentActiveAccountId: request.expectedCurrentActiveAccountId,
+      idempotencyKey,
+    });
+    const existingPromotion =
+      await this.findPaperAccountEventByIdempotencyKey(idempotencyKey);
+
+    if (existingPromotion) {
+      this.assertIdempotentEventReplay(existingPromotion, requestHash);
+      return paperAccount;
+    }
+
+    if (paperAccount.status !== 'seeded') {
+      throw new BadRequestException(
+        `Paper account ${paperAccount.id} must be seeded before promotion`,
+      );
+    }
+
+    const latestEvent = await this.getLatestPaperAccountEvent(paperAccount.id);
+
+    if (!latestEvent || latestEvent.eventType !== 'explicit_seed') {
+      throw new BadRequestException(
+        'Paper account promotion requires an explicit seed event',
+      );
+    }
+
+    if (
+      request.expectedEventHash &&
+      latestEvent.eventHash !== request.expectedEventHash
+    ) {
+      throw new BadRequestException(
+        'Paper account promotion expectedEventHash mismatch',
+      );
+    }
+
+    const activeAccount = await this.findActivePaperAccountForScope(
+      paperAccount.budgetEnvelopeId,
+    );
+
+    if (
+      activeAccount &&
+      activeAccount.id !== request.expectedCurrentActiveAccountId
+    ) {
+      throw new BadRequestException(
+        `Active paper account ${activeAccount.id} already exists for this scope`,
+      );
+    }
+
+    paperAccount.status = 'active';
+    const saved = await this.paperAccountRepository.save(paperAccount);
+    await this.appendPaperAccountEvent({
+      paperAccount: saved,
+      eventType: 'account_promoted',
+      idempotencyKey,
+      actor: request.actor,
+      reason: request.reason,
+      requestHash,
+      cashBefore: saved.cash,
+      cashAfter: saved.cash,
+      equityBefore: saved.equity,
+      equityAfter: saved.equity,
+      positionsBefore: saved.positions,
+      positionsAfter: saved.positions,
+    });
+
+    return saved;
+  }
+
+  async listPaperAccountEvents(): Promise<PaperAccountEvent[]> {
+    const events = await this.paperAccountEventRepository.find({
+      order: { createdAt: 'DESC' },
+    });
+
+    return events.sort(
+      (left, right) =>
+        right.createdAt.getTime() - left.createdAt.getTime() ||
+        right.sequence - left.sequence,
     );
   }
 
@@ -802,6 +1062,7 @@ export class ControlPlaneService {
       paperEngineEnabled: true,
       brokerExecutionDisabled: true,
       liveTradingDisabled: true,
+      explicitPaperAccountActive: Boolean(paperAccount),
       killSwitchArmed: true,
       killSwitchTripped: executionControlState.state !== 'active',
       cashSufficient,
@@ -823,14 +1084,6 @@ export class ControlPlaneService {
       blockedReasons,
       submittedAt,
     );
-
-    if (blockedReasons.length === 0 && !paperAccount) {
-      paperAccount = await this.createPaperAccountForProposal(
-        proposal,
-        budget,
-        paperPortfolioBefore,
-      );
-    }
 
     const planHash = this.hashObject({
       idempotencyKey,
@@ -1223,38 +1476,6 @@ export class ControlPlaneService {
     };
   }
 
-  private async createPaperAccountForProposal(
-    proposal: InvestmentProposal,
-    budget: BudgetEnvelope | null,
-    portfolio: PortfolioSnapshot,
-  ): Promise<PaperAccount> {
-    const existing = await this.findPaperAccountForProposal(proposal);
-
-    if (existing) {
-      return existing;
-    }
-
-    return this.paperAccountRepository.save(
-      this.paperAccountRepository.create({
-        name: budget
-          ? `${budget.name} paper account`
-          : `Proposal ${proposal.id} paper account`,
-        budgetEnvelopeId: proposal.budgetEnvelopeId,
-        status: 'active',
-        currency: portfolio.currency,
-        cash: portfolio.cash,
-        equity: portfolio.equity,
-        grossExposurePct: portfolio.grossExposurePct,
-        positions: portfolio.positions ?? [],
-        cashLedger: [],
-        positionLedger: [],
-        appliedPlanIds: [],
-        brokerExecutionEnabled: false,
-        liveTradingEnabled: false,
-      }),
-    );
-  }
-
   private async applyPaperPlanToAccount(
     plan: PaperOrderPlan,
     paperAccount: PaperAccount,
@@ -1263,6 +1484,9 @@ export class ControlPlaneService {
       return paperAccount;
     }
 
+    const cashBefore = paperAccount.cash;
+    const equityBefore = paperAccount.equity;
+    const positionsBefore = paperAccount.positions ?? [];
     paperAccount.cash = plan.portfolioAfter.cash;
     paperAccount.equity = plan.portfolioAfter.equity;
     paperAccount.positions = plan.portfolioAfter.positions ?? [];
@@ -1278,7 +1502,169 @@ export class ControlPlaneService {
     paperAccount.appliedPlanIds = [...paperAccount.appliedPlanIds, plan.id];
     paperAccount.lastAppliedPlanId = plan.id;
 
-    return this.paperAccountRepository.save(paperAccount);
+    const saved = await this.paperAccountRepository.save(paperAccount);
+    await this.appendPaperAccountEvent({
+      paperAccount: saved,
+      eventType: 'paper_order_plan',
+      sourceId: plan.id,
+      idempotencyKey: `paper-account-plan:${plan.id}`,
+      actor: 'paper-execution-engine',
+      reason: `Applied paper order plan ${plan.id}.`,
+      requestHash: this.hashObject({
+        paperAccountId: saved.id,
+        paperOrderPlanId: plan.id,
+        planHash: plan.planHash,
+        cashBefore,
+        cashAfter: saved.cash,
+        equityBefore,
+        equityAfter: saved.equity,
+      }),
+      cashBefore,
+      cashAfter: saved.cash,
+      equityBefore,
+      equityAfter: saved.equity,
+      positionsBefore,
+      positionsAfter: saved.positions,
+    });
+
+    return saved;
+  }
+
+  private async appendPaperAccountEvent(input: {
+    paperAccount: PaperAccount;
+    eventType: PaperAccountEventType;
+    sourceId?: number;
+    idempotencyKey: string;
+    actor: string;
+    reason: string;
+    requestHash: string;
+    cashBefore: number;
+    cashAfter: number;
+    equityBefore: number;
+    equityAfter: number;
+    positionsBefore: PortfolioSnapshot['positions'];
+    positionsAfter: PortfolioSnapshot['positions'];
+  }): Promise<PaperAccountEvent> {
+    const existing = await this.findPaperAccountEventByIdempotencyKey(
+      input.idempotencyKey,
+    );
+
+    if (existing) {
+      this.assertIdempotentEventReplay(existing, input.requestHash);
+      return existing;
+    }
+
+    const existingEvents = await this.paperAccountEventRepository.find({
+      order: { createdAt: 'ASC' },
+    });
+    const accountEvents = existingEvents
+      .filter((event) => event.paperAccountId === input.paperAccount.id)
+      .sort((left, right) => left.sequence - right.sequence);
+    const previousEvent = accountEvents[accountEvents.length - 1];
+    const sequence = (previousEvent?.sequence ?? 0) + 1;
+    const recordedAt = new Date();
+    const eventSnapshot: PaperAccountEventSnapshot = {
+      paperAccountId: input.paperAccount.id,
+      budgetEnvelopeId: input.paperAccount.budgetEnvelopeId,
+      eventType: input.eventType,
+      sourceId: input.sourceId,
+      idempotencyKey: input.idempotencyKey,
+      actor: input.actor,
+      reason: input.reason,
+      sequence,
+      currency: input.paperAccount.currency,
+      cashBefore: this.roundMoney(input.cashBefore),
+      cashAfter: this.roundMoney(input.cashAfter),
+      equityBefore: this.roundMoney(input.equityBefore),
+      equityAfter: this.roundMoney(input.equityAfter),
+      positionsBefore: input.positionsBefore ?? [],
+      positionsAfter: input.positionsAfter ?? [],
+      previousEventHash: previousEvent?.eventHash,
+      requestHash: input.requestHash,
+      recordedAt: recordedAt.toISOString(),
+    };
+    const eventHash = this.hashObject(eventSnapshot);
+
+    return this.paperAccountEventRepository.save(
+      this.paperAccountEventRepository.create({
+        paperAccountId: input.paperAccount.id,
+        budgetEnvelopeId: input.paperAccount.budgetEnvelopeId,
+        eventType: input.eventType,
+        sourceId: input.sourceId,
+        idempotencyKey: input.idempotencyKey,
+        actor: input.actor,
+        reason: input.reason,
+        sequence,
+        currency: input.paperAccount.currency,
+        cashBefore: eventSnapshot.cashBefore,
+        cashAfter: eventSnapshot.cashAfter,
+        equityBefore: eventSnapshot.equityBefore,
+        equityAfter: eventSnapshot.equityAfter,
+        cashDelta: this.roundMoney(input.cashAfter - input.cashBefore),
+        equityDelta: this.roundMoney(input.equityAfter - input.equityBefore),
+        previousEventHash: previousEvent?.eventHash,
+        requestHash: input.requestHash,
+        eventHash,
+        eventSnapshot,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+  }
+
+  private async findPaperAccountEventByIdempotencyKey(
+    idempotencyKey: string,
+  ): Promise<PaperAccountEvent | null> {
+    const events = await this.paperAccountEventRepository.find({
+      order: { createdAt: 'DESC' },
+    });
+
+    return (
+      events.find((event) => event.idempotencyKey === idempotencyKey) ?? null
+    );
+  }
+
+  private assertIdempotentEventReplay(
+    event: PaperAccountEvent,
+    requestHash: string,
+  ): void {
+    if (event.requestHash !== requestHash) {
+      throw new BadRequestException(
+        `Idempotency key ${event.idempotencyKey} was already used with a different request`,
+      );
+    }
+  }
+
+  private async getLatestPaperAccountEvent(
+    paperAccountId: number,
+  ): Promise<PaperAccountEvent | null> {
+    const events = await this.paperAccountEventRepository.find({
+      order: { createdAt: 'DESC' },
+    });
+
+    return (
+      events
+        .filter((event) => event.paperAccountId === paperAccountId)
+        .sort((left, right) => right.sequence - left.sequence)[0] ?? null
+    );
+  }
+
+  private async findActivePaperAccountForScope(
+    budgetEnvelopeId?: number,
+  ): Promise<PaperAccount | null> {
+    const accounts = await this.paperAccountRepository.find({
+      order: { updatedAt: 'DESC' },
+    });
+
+    return (
+      accounts.find(
+        (account) =>
+          account.status === 'active' &&
+          (budgetEnvelopeId
+            ? account.budgetEnvelopeId === budgetEnvelopeId
+            : !account.budgetEnvelopeId),
+      ) ?? null
+    );
   }
 
   private buildPaperAccountPortfolio(
@@ -1419,6 +1805,12 @@ export class ControlPlaneService {
 
     if (latestEvaluation && !readinessSnapshot.riskMatchesProposal) {
       reasons.push('Latest risk evaluation does not match proposal snapshot');
+    }
+
+    if (!readinessSnapshot.explicitPaperAccountActive) {
+      reasons.push(
+        'Paper execution requires an explicitly promoted paper account',
+      );
     }
 
     if (!orderPlanApproval) {

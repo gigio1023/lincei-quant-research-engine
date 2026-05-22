@@ -84,6 +84,27 @@ export interface CreateOrderPlanApprovalRequest {
   expiresAt?: string;
 }
 
+export interface SeedPaperAccountRequest {
+  budgetEnvelopeId?: number;
+  name?: string;
+  currency?: string;
+  cash: number;
+  equity?: number;
+  grossExposurePct?: number;
+  positions?: PortfolioSnapshot['positions'];
+  actor: string;
+  reason: string;
+  idempotencyKey?: string;
+}
+
+export interface PromotePaperAccountRequest {
+  actor: string;
+  reason: string;
+  idempotencyKey?: string;
+  expectedEventHash?: string;
+  expectedCurrentActiveAccountId?: number;
+}
+
 export interface ReconcilePaperOrderPlanRequest {
   tolerance?: number;
   notes?: string[];

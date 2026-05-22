@@ -11,7 +11,7 @@ import {
   PaperPositionLedgerEntry,
 } from './paper-order-plan.entity';
 
-export type PaperAccountStatus = 'active' | 'paused' | 'archived';
+export type PaperAccountStatus = 'seeded' | 'active' | 'paused' | 'archived';
 
 @Entity('paper_accounts')
 export class PaperAccount {

@@ -105,6 +105,7 @@ export interface PaperReadinessSnapshot {
   paperEngineEnabled: boolean;
   brokerExecutionDisabled: boolean;
   liveTradingDisabled: boolean;
+  explicitPaperAccountActive: boolean;
   killSwitchArmed: boolean;
   killSwitchTripped: boolean;
   cashSufficient: boolean;
@@ -264,6 +265,60 @@ export interface PaperAccount {
   liveTradingEnabled: false;
   createdAt: string;
   updatedAt: string;
+}
+
+export type PaperAccountEventType =
+  | "explicit_seed"
+  | "account_promoted"
+  | "account_archived"
+  | "paper_order_plan"
+  | "reconciliation";
+
+export interface PaperAccountEventSnapshot {
+  paperAccountId: number;
+  budgetEnvelopeId?: number;
+  eventType: PaperAccountEventType;
+  sourceId?: number;
+  idempotencyKey: string;
+  actor: string;
+  reason: string;
+  sequence: number;
+  currency: string;
+  cashBefore: number;
+  cashAfter: number;
+  equityBefore: number;
+  equityAfter: number;
+  positionsBefore: PositionSnapshot[];
+  positionsAfter: PositionSnapshot[];
+  previousEventHash?: string;
+  requestHash: string;
+  recordedAt: string;
+}
+
+export interface PaperAccountEvent {
+  id: number | string;
+  paperAccountId: number | string;
+  budgetEnvelopeId?: number | string;
+  eventType: PaperAccountEventType;
+  sourceId?: number | string;
+  idempotencyKey: string;
+  actor: string;
+  reason: string;
+  sequence: number;
+  currency: string;
+  cashBefore: number;
+  cashAfter: number;
+  equityBefore: number;
+  equityAfter: number;
+  cashDelta: number;
+  equityDelta: number;
+  previousEventHash?: string;
+  requestHash: string;
+  eventHash: string;
+  eventSnapshot: PaperAccountEventSnapshot;
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+  createdAt: string;
 }
 
 export type OrderPlanApprovalStatus =

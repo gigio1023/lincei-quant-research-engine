@@ -63,6 +63,7 @@ vi.mock("./services/api", () => ({
     ),
     getResearchRuns: vi.fn(() => Promise.resolve([])),
     getPaperAccount: vi.fn(() => Promise.reject(new Error("not configured"))),
+    getPaperAccountEvents: vi.fn(() => Promise.resolve([])),
     getExecutionControl: vi.fn(() =>
       Promise.resolve({
         id: "execution-control-test",

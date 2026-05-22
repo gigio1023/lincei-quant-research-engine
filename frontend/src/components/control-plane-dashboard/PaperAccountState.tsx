@@ -28,12 +28,20 @@ export const PaperAccountState = ({ model }: PaperAccountStateProps) => {
           {model.errors.paperAccount}
         </div>
       )}
+      {model.errors.paperAccountEvents && (
+        <div className="mb-3 rounded-lg border border-[#f0b90b]/30 bg-[#f0b90b]/10 p-3 text-xs font-semibold text-[#fcd535]">
+          {model.errors.paperAccountEvents}
+        </div>
+      )}
 
       {!account ? (
-        <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-4 text-sm font-semibold text-[#929aa5]">
-          {model.loading.paperAccount
-            ? "Paper account state is loading."
-            : "No durable paper account has been recorded yet. A filled paper execution must create it first."}
+        <div className="space-y-3">
+          <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-4 text-sm font-semibold text-[#929aa5]">
+            {model.loading.paperAccount
+              ? "Paper account state is loading."
+              : "No promoted paper account is active yet. Seed and promote a paper account before paper execution."}
+          </div>
+          <AccountEventChain model={model} />
         </div>
       ) : (
         <div className="space-y-4">
@@ -160,7 +168,8 @@ const LedgerSummary = ({ model }: PaperAccountStateProps) => (
     </div>
 
     <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
-      <div className="text-xs font-bold uppercase text-[#707a8a]">
+      <AccountEventChain model={model} compact />
+      <div className="mt-3 text-xs font-bold uppercase text-[#707a8a]">
         Recent ledger changes
       </div>
       {model.recentPaperLedgerChanges.length === 0 ? (
@@ -200,5 +209,47 @@ const LedgerSummary = ({ model }: PaperAccountStateProps) => (
         </div>
       )}
     </div>
+  </div>
+);
+
+const AccountEventChain = ({
+  model,
+  compact = false,
+}: PaperAccountStateProps & { compact?: boolean }) => (
+  <div
+    className={
+      compact ? "" : "rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3"
+    }
+  >
+    <div className="flex items-center justify-between gap-3">
+      <div className="text-xs font-bold uppercase text-[#707a8a]">
+        Account event chain
+      </div>
+      <span className="rounded-md border border-[#2b3139] px-2 py-1 text-[10px] font-bold uppercase text-[#929aa5]">
+        {model.sources.paperAccountEvents}
+      </span>
+    </div>
+    {model.visiblePaperAccountEvents.length > 0 ? (
+      <div className="mt-2 rounded-md border border-[#2b3139] bg-[#151a21] p-2 text-xs">
+        <div className="flex items-center justify-between gap-3">
+          <span className="font-mono font-bold text-white">
+            {model.visiblePaperAccountEvents[0].eventType}
+          </span>
+          <span className="font-mono text-[#fcd535]">
+            #{model.visiblePaperAccountEvents[0].sequence}
+          </span>
+        </div>
+        <div className="mt-1 truncate text-[#929aa5]">
+          {model.visiblePaperAccountEvents[0].reason}
+        </div>
+        <div className="mt-1 truncate font-mono text-[#707a8a]">
+          {model.visiblePaperAccountEvents[0].eventHash}
+        </div>
+      </div>
+    ) : (
+      <div className="mt-2 text-sm font-semibold text-[#929aa5]">
+        No paper account events recorded.
+      </div>
+    )}
   </div>
 );

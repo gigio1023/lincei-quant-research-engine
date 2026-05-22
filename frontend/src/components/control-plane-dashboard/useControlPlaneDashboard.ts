@@ -7,6 +7,7 @@ import {
   ExecutionControlState,
   OrderPlanApproval,
   PaperAccount,
+  PaperAccountEvent,
   PaperLedgerChange,
   PaperOrderPlan,
   ResearchRun,
@@ -18,6 +19,7 @@ import {
   DOCUMENTED_CONTROL_PLANE_STATUS,
   DOCUMENTED_EXECUTION_CONTROL,
   DOCUMENTED_ORDER_PLAN_APPROVALS,
+  DOCUMENTED_PAPER_ACCOUNT_EVENTS,
   DOCUMENTED_PAPER_ORDER_PLANS,
   DOCUMENTED_RESEARCH_RUNS,
   DOCUMENTED_STATUS,
@@ -29,6 +31,7 @@ export interface DashboardModel {
   visibleResearchRuns: ResearchRun[];
   visiblePaperOrderPlans: PaperOrderPlan[];
   visiblePaperAccount: PaperAccount | null;
+  visiblePaperAccountEvents: PaperAccountEvent[];
   visibleBrokerSnapshots: BrokerSnapshot[];
   visibleOrderPlanApprovals: OrderPlanApproval[];
   visibleExecutionControl: ExecutionControlState;
@@ -43,6 +46,7 @@ export interface DashboardModel {
     researchRuns: string;
     paperOrderPlans: string;
     paperAccount: string;
+    paperAccountEvents: string;
     brokerSnapshots: string;
     orderPlanApprovals: string;
   };
@@ -51,6 +55,7 @@ export interface DashboardModel {
     researchRuns: string | null;
     paperOrderPlans: string | null;
     paperAccount: string | null;
+    paperAccountEvents: string | null;
     brokerSnapshots: string | null;
     orderPlanApprovals: string | null;
     baselineResearch: string | null;
@@ -58,6 +63,7 @@ export interface DashboardModel {
   loading: {
     researchRuns: boolean;
     paperAccount: boolean;
+    paperAccountEvents: boolean;
     paperOrderPlans: boolean;
     brokerSnapshots: boolean;
     orderPlanApprovals: boolean;
@@ -108,6 +114,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     useState<ControlPlaneStatus | null>(null);
   const [researchRuns, setResearchRuns] = useState<ResearchRun[] | null>(null);
   const [paperAccount, setPaperAccount] = useState<PaperAccount | null>(null);
+  const [paperAccountEvents, setPaperAccountEvents] = useState<
+    PaperAccountEvent[] | null
+  >(null);
   const [executionControl, setExecutionControl] =
     useState<ExecutionControlState | null>(null);
   const [paperOrderPlans, setPaperOrderPlans] = useState<
@@ -122,6 +131,8 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const [loadingStatus, setLoadingStatus] = useState(true);
   const [loadingResearchRuns, setLoadingResearchRuns] = useState(true);
   const [loadingPaperAccount, setLoadingPaperAccount] = useState(true);
+  const [loadingPaperAccountEvents, setLoadingPaperAccountEvents] =
+    useState(true);
   const [loadingPaperOrderPlans, setLoadingPaperOrderPlans] = useState(true);
   const [loadingBrokerSnapshots, setLoadingBrokerSnapshots] = useState(true);
   const [loadingOrderPlanApprovals, setLoadingOrderPlanApprovals] =
@@ -136,6 +147,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const [paperAccountError, setPaperAccountError] = useState<string | null>(
     null,
   );
+  const [paperAccountEventsError, setPaperAccountEventsError] = useState<
+    string | null
+  >(null);
   const [brokerSnapshotsError, setBrokerSnapshotsError] = useState<
     string | null
   >(null);
@@ -160,6 +174,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           controlPlaneStatusResult,
           researchRunsStatus,
           paperAccountStatus,
+          paperAccountEventsStatus,
           executionControlStatus,
           paperOrderPlansStatus,
           brokerSnapshotsStatus,
@@ -169,6 +184,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           controlPlaneApi.getStatus(),
           controlPlaneApi.getResearchRuns(),
           controlPlaneApi.getPaperAccount(),
+          controlPlaneApi.getPaperAccountEvents(),
           controlPlaneApi.getExecutionControl(),
           controlPlaneApi.getPaperOrderPlans(),
           controlPlaneApi.getBrokerSnapshots(),
@@ -200,6 +216,14 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           setPaperAccount(null);
           setPaperAccountError(
             "No live paper account state was returned. A filled paper execution must create one before account values are shown.",
+          );
+        }
+        if (paperAccountEventsStatus.status === "fulfilled") {
+          setPaperAccountEvents(paperAccountEventsStatus.value);
+          setPaperAccountEventsError(null);
+        } else {
+          setPaperAccountEventsError(
+            "Paper account event API is unavailable. Showing documented append-only sample.",
           );
         }
         if (executionControlStatus.status === "fulfilled") {
@@ -245,6 +269,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           setPaperOrderPlansError(
             "Paper order-plan API is unavailable. Showing documented sample paper plans.",
           );
+          setPaperAccountEventsError(
+            "Paper account event API is unavailable. Showing documented append-only sample.",
+          );
           setBrokerSnapshotsError(
             "Broker snapshot API is unavailable. Showing documented read-only sample.",
           );
@@ -260,6 +287,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           setLoadingStatus(false);
           setLoadingResearchRuns(false);
           setLoadingPaperAccount(false);
+          setLoadingPaperAccountEvents(false);
           setLoadingPaperOrderPlans(false);
           setLoadingBrokerSnapshots(false);
           setLoadingOrderPlanApprovals(false);
@@ -283,6 +311,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const visibleOrderPlanApprovals =
     orderPlanApprovals ??
     (loadingOrderPlanApprovals ? [] : DOCUMENTED_ORDER_PLAN_APPROVALS);
+  const visiblePaperAccountEvents =
+    paperAccountEvents ??
+    (loadingPaperAccountEvents ? [] : DOCUMENTED_PAPER_ACCOUNT_EVENTS);
   const controlStatus = controlPlaneStatus ?? DOCUMENTED_CONTROL_PLANE_STATUS;
 
   const runBaselineResearch = async () => {
@@ -318,6 +349,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     visibleResearchRuns: researchRuns ?? DOCUMENTED_RESEARCH_RUNS,
     visiblePaperOrderPlans,
     visiblePaperAccount: paperAccount,
+    visiblePaperAccountEvents,
     visibleBrokerSnapshots,
     visibleOrderPlanApprovals,
     visibleExecutionControl: executionControl ?? DOCUMENTED_EXECUTION_CONTROL,
@@ -368,6 +400,11 @@ export const useControlPlaneDashboard = (): DashboardModel => {
         : loadingPaperAccount
           ? "Loading paper account"
           : "No paper account",
+      paperAccountEvents: paperAccountEvents
+        ? "Live account events"
+        : loadingPaperAccountEvents
+          ? "Loading account events"
+          : "Documented account events",
       brokerSnapshots: brokerSnapshots
         ? "Live broker snapshots"
         : loadingBrokerSnapshots
@@ -384,6 +421,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       researchRuns: researchRunsError,
       paperOrderPlans: paperOrderPlansError,
       paperAccount: paperAccountError,
+      paperAccountEvents: paperAccountEventsError,
       brokerSnapshots: brokerSnapshotsError,
       orderPlanApprovals: orderPlanApprovalsError,
       baselineResearch: baselineResearchError,
@@ -391,6 +429,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     loading: {
       researchRuns: loadingResearchRuns,
       paperAccount: loadingPaperAccount,
+      paperAccountEvents: loadingPaperAccountEvents,
       paperOrderPlans: loadingPaperOrderPlans,
       brokerSnapshots: loadingBrokerSnapshots,
       orderPlanApprovals: loadingOrderPlanApprovals,

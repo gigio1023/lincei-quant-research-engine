@@ -12,6 +12,7 @@ import { ControlPlaneModule } from './modules/control-plane/control-plane.module
 import { Report } from './entities/report.entity';
 import { NewsSource } from './entities/news-source.entity';
 import { OrderPlanApproval } from './entities/order-plan-approval.entity';
+import { PaperAccountEvent } from './entities/paper-account-event.entity';
 import { BudgetEnvelope } from './entities/budget-envelope.entity';
 import { BrokerSnapshot } from './entities/broker-snapshot.entity';
 import { ExecutionControlState } from './entities/execution-control-state.entity';
@@ -36,6 +37,7 @@ import { PaperOrderPlan } from './entities/paper-order-plan.entity';
           Report,
           NewsSource,
           OrderPlanApproval,
+          PaperAccountEvent,
           BudgetEnvelope,
           BrokerSnapshot,
           ExecutionControlState,

@@ -12,6 +12,7 @@ import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
 import { OrderPlanApproval } from '../../entities/order-plan-approval.entity';
+import { PaperAccountEvent } from '../../entities/paper-account-event.entity';
 import { PaperAccount } from '../../entities/paper-account.entity';
 import { PaperOrderPlan } from '../../entities/paper-order-plan.entity';
 import { ResearchRun } from '../../entities/research-run.entity';
@@ -25,9 +26,11 @@ import {
   CreateResearchRunRequest,
   ImportBrokerSnapshotRequest,
   PaperExecuteProposalRequest,
+  PromotePaperAccountRequest,
   ReconcileBrokerSnapshotRequest,
   ReconcilePaperOrderPlanRequest,
   RunBaselineResearchRequest,
+  SeedPaperAccountRequest,
   UpdateExecutionControlRequest,
 } from './control-plane.types';
 
@@ -97,6 +100,26 @@ export class ControlPlaneController {
   @Get('paper-account')
   getPaperAccountState(): Promise<PaperAccount> {
     return this.controlPlaneService.getPaperAccountState();
+  }
+
+  @Post('paper-account/seed')
+  seedPaperAccount(
+    @Body() request: SeedPaperAccountRequest,
+  ): Promise<PaperAccount> {
+    return this.controlPlaneService.seedPaperAccount(request);
+  }
+
+  @Post('paper-account/:id/promote')
+  promotePaperAccount(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() request: PromotePaperAccountRequest,
+  ): Promise<PaperAccount> {
+    return this.controlPlaneService.promotePaperAccount(id, request);
+  }
+
+  @Get('paper-account/events')
+  listPaperAccountEvents(): Promise<PaperAccountEvent[]> {
+    return this.controlPlaneService.listPaperAccountEvents();
   }
 
   @Post('broker-snapshots/import-read-only')

@@ -5,6 +5,7 @@ import {
   ExecutionControlState,
   OrderPlanApproval,
   PaperAccount,
+  PaperAccountEvent,
   PaperOrderPlan,
   PaperExecuteProposalRequest,
   Report,
@@ -65,6 +66,11 @@ export const controlPlaneApi = {
 
   getPaperAccount: async (): Promise<PaperAccount> => {
     const response = await api.get("/control-plane/paper-account");
+    return response.data;
+  },
+
+  getPaperAccountEvents: async (): Promise<PaperAccountEvent[]> => {
+    const response = await api.get("/control-plane/paper-account/events");
     return response.data;
   },
 

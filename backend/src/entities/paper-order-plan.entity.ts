@@ -31,6 +31,7 @@ export interface PaperReadinessSnapshot {
   paperEngineEnabled: boolean;
   brokerExecutionDisabled: boolean;
   liveTradingDisabled: boolean;
+  explicitPaperAccountActive: boolean;
   killSwitchArmed: boolean;
   killSwitchTripped: boolean;
   cashSufficient: boolean;

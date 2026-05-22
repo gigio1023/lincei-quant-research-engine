@@ -8,6 +8,7 @@ import { BudgetEnvelope } from '../src/entities/budget-envelope.entity';
 import { ExecutionControlState } from '../src/entities/execution-control-state.entity';
 import { InvestmentProposal } from '../src/entities/investment-proposal.entity';
 import { OrderPlanApproval } from '../src/entities/order-plan-approval.entity';
+import { PaperAccountEvent } from '../src/entities/paper-account-event.entity';
 import { PaperAccount } from '../src/entities/paper-account.entity';
 import { PaperOrderPlan } from '../src/entities/paper-order-plan.entity';
 import { ResearchRun } from '../src/entities/research-run.entity';
@@ -30,6 +31,7 @@ describe('ControlPlane research provenance (e2e)', () => {
             ExecutionControlState,
             InvestmentProposal,
             OrderPlanApproval,
+            PaperAccountEvent,
             PaperAccount,
             PaperOrderPlan,
             ResearchRun,
@@ -241,6 +243,32 @@ describe('ControlPlane research provenance (e2e)', () => {
         mode: 'dry_run',
       })
       .expect(201);
+    const seededAccountResponse = await request(app.getHttpServer())
+      .post('/control-plane/paper-account/seed')
+      .send({
+        budgetEnvelopeId: budgetResponse.body.id,
+        cash: 10_000_000,
+        actor: 'e2e-operator',
+        reason: 'Explicitly seed the paper account before execution.',
+        idempotencyKey: 'e2e-paper-seed-1',
+      })
+      .expect(201);
+
+    expect(seededAccountResponse.body.cash).toBe(10_000_000);
+    expect(seededAccountResponse.body.status).toBe('seeded');
+    expect(seededAccountResponse.body.brokerExecutionEnabled).toBe(false);
+    const promotedAccountResponse = await request(app.getHttpServer())
+      .post(
+        `/control-plane/paper-account/${seededAccountResponse.body.id}/promote`,
+      )
+      .send({
+        actor: 'e2e-operator',
+        reason: 'Promote the seeded paper account for paper execution.',
+        idempotencyKey: 'e2e-paper-promote-1',
+      })
+      .expect(201);
+
+    expect(promotedAccountResponse.body.status).toBe('active');
     const researchRunResponse = await request(app.getHttpServer())
       .post('/control-plane/research-runs/run-baseline')
       .send({
@@ -382,6 +410,31 @@ describe('ControlPlane research provenance (e2e)', () => {
 
     expect(plansResponse.body).toHaveLength(1);
     expect(plansResponse.body[0].proposalId).toBe(proposalResponse.body.id);
+
+    const accountEventsResponse = await request(app.getHttpServer())
+      .get('/control-plane/paper-account/events')
+      .expect(200);
+    expect(accountEventsResponse.body).toHaveLength(3);
+    expect(accountEventsResponse.body[0]).toEqual(
+      expect.objectContaining({
+        eventType: 'paper_order_plan',
+        sourceId: paperResponse.body.id,
+        sequence: 3,
+      }),
+    );
+    expect(accountEventsResponse.body[1]).toEqual(
+      expect.objectContaining({
+        eventType: 'account_promoted',
+        sequence: 2,
+      }),
+    );
+    expect(accountEventsResponse.body[2]).toEqual(
+      expect.objectContaining({
+        eventType: 'explicit_seed',
+        sequence: 1,
+        cashAfter: 10_000_000,
+      }),
+    );
 
     const approvalsResponse = await request(app.getHttpServer())
       .get('/control-plane/order-plan-approvals')

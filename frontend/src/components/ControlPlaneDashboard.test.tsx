@@ -11,6 +11,7 @@ vi.mock("../services/api", () => ({
     getStatus: vi.fn(),
     getResearchRuns: vi.fn(),
     getPaperAccount: vi.fn(),
+    getPaperAccountEvents: vi.fn(),
     getExecutionControl: vi.fn(),
     getPaperOrderPlans: vi.fn(),
     getBrokerSnapshots: vi.fn(),
@@ -193,6 +194,7 @@ const mockPaperOrderPlans = [
       paperEngineEnabled: true,
       brokerExecutionDisabled: true,
       liveTradingDisabled: true,
+      explicitPaperAccountActive: true,
       killSwitchArmed: true,
       killSwitchTripped: false,
       cashSufficient: true,
@@ -341,6 +343,53 @@ const mockPaperAccount = {
   updatedAt: "2026-05-22T09:06:30.000Z",
 };
 
+const mockPaperAccountEvents = [
+  {
+    id: "paper-account-event-api-2",
+    paperAccountId: mockPaperAccount.id,
+    budgetEnvelopeId: "budget-api-1",
+    eventType: "paper_order_plan",
+    sourceId: "paper-plan-api-1",
+    idempotencyKey: "paper-account-plan:paper-plan-api-1",
+    actor: "paper-execution-engine",
+    reason: "Applied API paper order plan.",
+    sequence: 2,
+    currency: "KRW",
+    cashBefore: 10000000,
+    cashAfter: 9500000,
+    equityBefore: 10000000,
+    equityAfter: 9999850,
+    cashDelta: -500000,
+    equityDelta: -150,
+    previousEventHash: "sha256:account-seed-api",
+    requestHash: "sha256:account-plan-request-api",
+    eventHash: "sha256:account-plan-api",
+    eventSnapshot: {
+      paperAccountId: 1,
+      budgetEnvelopeId: 1,
+      eventType: "paper_order_plan",
+      sourceId: 1,
+      idempotencyKey: "paper-account-plan:paper-plan-api-1",
+      actor: "paper-execution-engine",
+      reason: "Applied API paper order plan.",
+      sequence: 2,
+      currency: "KRW",
+      cashBefore: 10000000,
+      cashAfter: 9500000,
+      equityBefore: 10000000,
+      equityAfter: 9999850,
+      positionsBefore: [],
+      positionsAfter: mockPaperAccount.positions,
+      previousEventHash: "sha256:account-seed-api",
+      requestHash: "sha256:account-plan-request-api",
+      recordedAt: "2026-05-22T09:05:00.000Z",
+    },
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+    createdAt: "2026-05-22T09:05:00.000Z",
+  },
+];
+
 const mockExecutionControl = {
   id: "execution-control-api-1",
   state: "active",
@@ -437,6 +486,9 @@ describe("ControlPlaneDashboard", () => {
     vi.mocked(controlPlaneApi.getPaperAccount).mockResolvedValue(
       mockPaperAccount,
     );
+    vi.mocked(controlPlaneApi.getPaperAccountEvents).mockResolvedValue(
+      mockPaperAccountEvents,
+    );
     vi.mocked(controlPlaneApi.getExecutionControl).mockResolvedValue(
       mockExecutionControl,
     );
@@ -497,6 +549,11 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getAllByText("Positions").length).toBeGreaterThan(0);
     expect(screen.getAllByText("005930").length).toBeGreaterThan(0);
     expect(screen.getByText("Last reconciliation")).toBeInTheDocument();
+    expect(screen.getByText("Account event chain")).toBeInTheDocument();
+    expect(screen.getByText("Live account events")).toBeInTheDocument();
+    expect(
+      screen.getByText("Applied API paper order plan."),
+    ).toBeInTheDocument();
     expect(screen.getByText("Recent ledger changes")).toBeInTheDocument();
     expect(
       screen.getByText("BUY paper fill net cash delta"),
@@ -592,7 +649,7 @@ describe("ControlPlaneDashboard", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "No durable paper account has been recorded yet. A filled paper execution must create it first.",
+        "No promoted paper account is active yet. Seed and promote a paper account before paper execution.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByText("paper-docs-plan-001")).toBeInTheDocument();
