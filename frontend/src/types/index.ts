@@ -90,6 +90,7 @@ export interface ProposedOrder {
 export interface RiskGateRequest {
   mode: RiskGateMode;
   actor: RiskGateActor;
+  researchRunId?: number;
   strategyId?: string;
   ruleId?: string;
   generatedAt: string;
@@ -97,6 +98,7 @@ export interface RiskGateRequest {
   portfolio: PortfolioSnapshot;
   orders: ProposedOrder[];
   policy?: Partial<RiskPolicy>;
+  evidenceRefs?: string[];
   humanApprovalId?: string;
   executionIntent?: ExecutionIntent;
   brokerCredentials?: unknown;
@@ -131,6 +133,83 @@ export interface ControlPlaneStatus {
   liveTradingReady: false;
   readiness: ControlPlaneReadinessItem[];
   blockers: string[];
+}
+
+export interface ResearchRunWindow {
+  start: string;
+  end: string;
+}
+
+export type ResearchRunWindowValue = ResearchRunWindow | string;
+
+export interface ResearchRunBacktestMetrics {
+  startValue?: number;
+  endValue?: number;
+  totalReturnPct: number;
+  benchmarkReturnPct: number;
+  excessReturnPct?: number;
+  annualizedReturnPct?: number;
+  volatilityPct?: number;
+  maxDrawdownPct: number;
+  sharpeRatio: number;
+  sortinoRatio?: number;
+  calmarRatio?: number;
+  informationRatio?: number;
+  turnoverPct: number;
+  grossExposurePct?: number;
+  maxLeverage?: number;
+  totalFees?: number;
+  tradeCount: number;
+  winRatePct?: number;
+  profitFactor?: number;
+}
+
+export interface ResearchDatasetRef {
+  id: string;
+  provider?: string;
+  source?: string;
+  providerUri?: string;
+  windowStart: string;
+  windowEnd: string;
+  availabilityTimestamp: string;
+  marketDataTimestamp?: string;
+  calendar?: string;
+  timezone?: string;
+  frequency?: string;
+  universe?: string[];
+  fields?: string[];
+  adjustmentMode?: string;
+}
+
+export interface ResearchRun {
+  id: number | string;
+  budgetEnvelopeId?: number | string;
+  objective: string;
+  strategyFamily: string;
+  hypothesis: string;
+  status: string;
+  phase?: string;
+  advanceEligible?: boolean;
+  blockedReasons?: string[];
+  datasetRefs: ResearchDatasetRef[];
+  featureRefs: string[];
+  timestampLagRules?: string[];
+  noLookaheadChecked?: boolean;
+  benchmark: string;
+  costModel: string;
+  slippageModel: string;
+  modelName?: string;
+  modelCategory?: string;
+  trainingWindow?: ResearchRunWindowValue;
+  validationWindow: ResearchRunWindowValue;
+  backtestMetrics: ResearchRunBacktestMetrics;
+  artifactRefs: string[];
+  artifactHashes?: Record<string, string>;
+  knownFailureModes: string[];
+  brokerExecutionEnabled?: false;
+  liveTradingEnabled?: false;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type ControlPlaneGateStatus =

@@ -27,6 +27,9 @@ export class InvestmentProposal {
   @Column({ nullable: true })
   budgetEnvelopeId?: number;
 
+  @Column({ nullable: true })
+  researchRunId?: number;
+
   @Column()
   strategyId: string;
 

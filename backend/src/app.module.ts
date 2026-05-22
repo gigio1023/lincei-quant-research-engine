@@ -15,6 +15,7 @@ import { BudgetEnvelope } from './entities/budget-envelope.entity';
 import { InvestmentProposal } from './entities/investment-proposal.entity';
 import { RiskEvaluation } from './entities/risk-evaluation.entity';
 import { AutonomousRun } from './entities/autonomous-run.entity';
+import { ResearchRun } from './entities/research-run.entity';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { AutonomousRun } from './entities/autonomous-run.entity';
           InvestmentProposal,
           RiskEvaluation,
           AutonomousRun,
+          ResearchRun,
         ],
         synchronize: true,
         autoLoadEntities: true,

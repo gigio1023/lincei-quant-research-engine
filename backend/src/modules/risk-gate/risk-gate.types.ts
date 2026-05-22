@@ -70,6 +70,7 @@ export interface ProposedOrder {
 export interface RiskGateRequest {
   mode: RiskGateMode;
   actor: RiskGateActor;
+  researchRunId?: number;
   strategyId?: string;
   ruleId?: string;
   generatedAt: string;
@@ -77,6 +78,7 @@ export interface RiskGateRequest {
   portfolio: PortfolioSnapshot;
   orders: ProposedOrder[];
   policy?: Partial<RiskPolicy>;
+  evidenceRefs?: string[];
   humanApprovalId?: string;
   executionIntent?: ExecutionIntent;
   brokerCredentials?: unknown;

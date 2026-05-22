@@ -138,5 +138,65 @@ describe("API Service", () => {
       expect(mockGet).toHaveBeenCalledWith("/control-plane/status");
       expect(result).toEqual(mockStatus);
     });
+
+    it("should_get_research_runs", async () => {
+      const mockResearchRuns = [
+        {
+          id: "rr-1",
+          objective: "Validate a dry-run momentum baseline",
+          strategyFamily: "cross-sectional momentum",
+          hypothesis: "Momentum outperforms the benchmark after costs.",
+          status: "proposal_ready",
+          phase: "artifacts_persisted",
+          advanceEligible: true,
+          datasetRefs: [
+            {
+              id: "krx-daily-bars",
+              source: "sample",
+              windowStart: "2025-01-01",
+              windowEnd: "2026-05-21",
+              availabilityTimestamp: "2026-05-21T23:50:00.000Z",
+            },
+          ],
+          featureRefs: ["return_60d"],
+          timestampLagRules: [
+            "Signals use data available before proposal time.",
+          ],
+          noLookaheadChecked: true,
+          benchmark: "KOSPI 200",
+          costModel: "10 bps per side",
+          slippageModel: "5 bps fixed haircut",
+          validationWindow: {
+            start: "2025-01-01",
+            end: "2026-05-21",
+          },
+          backtestMetrics: {
+            totalReturnPct: 11.8,
+            benchmarkReturnPct: 7.2,
+            maxDrawdownPct: 8.9,
+            sharpeRatio: 1.14,
+            turnoverPct: 138,
+            tradeCount: 42,
+          },
+          artifactRefs: ["s3://research-runs/rr-1/report.json"],
+          artifactHashes: {
+            "s3://research-runs/rr-1/report.json": "sha256:test",
+          },
+          knownFailureModes: ["Momentum reversal"],
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+          createdAt: "2026-05-22T08:30:00.000Z",
+          updatedAt: "2026-05-22T08:42:00.000Z",
+        },
+      ];
+
+      mockGet.mockResolvedValue({ data: mockResearchRuns });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.getResearchRuns();
+
+      expect(mockGet).toHaveBeenCalledWith("/control-plane/research-runs");
+      expect(result).toEqual(mockResearchRuns);
+    });
   });
 });

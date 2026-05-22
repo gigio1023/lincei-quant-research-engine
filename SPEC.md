@@ -101,17 +101,21 @@ Every autonomous cycle must create a research run before it creates a proposal.
 A research run stores:
 
 - objective and budget envelope id;
+- status, phase, blocked reasons, and advance eligibility;
 - strategy family and hypothesis;
 - dataset ids, windows, and availability timestamps;
 - feature list and timestamp lag rules;
+- no-lookahead check result;
 - benchmark;
 - transaction cost and slippage assumptions;
-- model or baseline name;
+- model or baseline name and model category;
 - training window if a model was trained;
 - validation window;
 - backtest metrics;
-- artifact refs;
+- artifact refs and hashes;
 - known failure modes.
+
+Only a research run with `status: proposal_ready` and `advanceEligible: true` can create a proposal. Blocked research runs must remain visible with their reasons.
 
 Model training is optional, not the default. The first implementation should use deterministic baselines and simple factor/ranking strategies. A trained model can be introduced only when it produces a signal that is evaluated like any other proposal.
 
@@ -135,6 +139,7 @@ A proposal is a typed object that can be tested and rejected.
 
 It should include:
 
+- research run id;
 - strategy id and version;
 - rule id or deterministic provenance;
 - generated timestamp;
@@ -163,6 +168,8 @@ The control-plane slice also provides `POST /control-plane/proposals/:id/evaluat
 
 Minimum checks:
 
+- reject control-plane proposals that do not link to a persisted research run;
+- reject control-plane proposals when the linked research run is not proposal-ready;
 - reject live mode in this repo until a separate live gate is implemented;
 - reject broker credentials or broker account ids in evaluation requests;
 - reject any execution intent other than `evaluate_only`;
@@ -293,6 +300,7 @@ Exit criteria:
 Add durable proposal schemas and storage:
 
 - budget envelope entity;
+- research run entity;
 - proposal entity;
 - risk gate evaluation entity;
 - audit log;
@@ -307,9 +315,12 @@ Exit criteria:
 Current status:
 
 - budget envelope entity exists;
+- research run entity exists;
 - proposal entity exists;
 - risk evaluation entity exists;
 - autonomous run entity exists;
+- proposals require a research run id;
+- proposal creation is blocked unless the research run is proposal-ready;
 - control-plane status and list/create/evaluate endpoints exist;
 - broker execution remains disabled.
 

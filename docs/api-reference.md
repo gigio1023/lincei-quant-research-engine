@@ -174,8 +174,9 @@ Currently, no authentication is required for the API endpoints. This will be upd
 
 ### Control Plane
 
-All control-plane endpoints are evaluation-only. They create budget, proposal,
-risk-evaluation, and run ledger records, but they do not place broker orders.
+All control-plane endpoints are evaluation-only. They create budget, research-run,
+proposal, risk-evaluation, and run ledger records, but they do not place broker
+orders.
 
 #### `GET /control-plane/status`
 
@@ -198,9 +199,58 @@ risk-evaluation, and run ledger records, but they do not place broker orders.
 
 -   **Description**: Lists budget envelopes ordered by latest update.
 
+#### `POST /control-plane/research-runs`
+
+-   **Description**: Stores a reproducible research run before a proposal can be created. This captures dataset windows, availability timestamps, feature refs, lag rules, benchmark, cost/slippage assumptions, model metadata, validation window, backtest metrics, artifacts, and known failure modes.
+-   **Example Request**:
+    ```json
+    {
+      "budgetEnvelopeId": 1,
+      "objective": "Find a liquid long-only allocation candidate",
+      "strategyFamily": "momentum",
+      "hypothesis": "Recent relative strength can outperform the benchmark.",
+      "datasetRefs": [
+        {
+          "id": "krx-daily-bars",
+          "source": "sample",
+          "windowStart": "2025-01-01",
+          "windowEnd": "2026-05-22",
+          "availabilityTimestamp": "2026-05-22T23:50:00.000Z"
+        }
+      ],
+      "featureRefs": ["close_20d_return", "volatility_20d"],
+      "timestampLagRules": ["Signals use data available before proposal time."],
+      "noLookaheadChecked": true,
+      "benchmark": "KOSPI",
+      "costModel": "10bps fixed transaction cost",
+      "slippageModel": "5bps notional slippage",
+      "validationWindow": {
+        "start": "2026-01-01",
+        "end": "2026-05-22"
+      },
+      "backtestMetrics": {
+        "totalReturnPct": 8.2,
+        "benchmarkReturnPct": 3.1,
+        "maxDrawdownPct": 4.3,
+        "sharpeRatio": 1.1,
+        "turnoverPct": 22,
+        "tradeCount": 12
+      },
+      "artifactRefs": ["artifacts/research-runs/momentum-v1/report.md"],
+      "artifactHashes": {
+        "artifacts/research-runs/momentum-v1/report.md": "sha256:test"
+      },
+      "knownFailureModes": ["Trend reversal can cause delayed exits."]
+    }
+    ```
+
+#### `GET /control-plane/research-runs`
+
+-   **Description**: Lists research-run ledger records ordered by latest update.
+
 #### `POST /control-plane/proposals`
 
--   **Description**: Stores a typed investment proposal with portfolio snapshot, orders, thesis, and evidence references.
+-   **Description**: Stores a typed investment proposal with portfolio snapshot, orders, thesis, and evidence references. A `researchRunId` is required, and the linked run must be `proposal_ready` with `advanceEligible: true`.
 
 #### `GET /control-plane/proposals`
 

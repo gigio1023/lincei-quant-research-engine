@@ -1,4 +1,9 @@
 import {
+  BacktestMetrics,
+  ResearchDatasetRef,
+  ResearchWindow,
+} from '../../entities/research-run.entity';
+import {
   PortfolioSnapshot,
   ProposedOrder,
   RiskGateActor,
@@ -19,6 +24,7 @@ export interface CreateBudgetEnvelopeRequest {
 
 export interface CreateInvestmentProposalRequest {
   budgetEnvelopeId?: number;
+  researchRunId: number;
   strategyId: string;
   ruleId: string;
   actor?: RiskGateActor;
@@ -28,6 +34,28 @@ export interface CreateInvestmentProposalRequest {
   orders: ProposedOrder[];
   thesis?: string;
   evidenceRefs?: string[];
+}
+
+export interface CreateResearchRunRequest {
+  budgetEnvelopeId?: number;
+  objective: string;
+  strategyFamily: string;
+  hypothesis: string;
+  datasetRefs: ResearchDatasetRef[];
+  featureRefs: string[];
+  timestampLagRules: string[];
+  noLookaheadChecked: boolean;
+  benchmark: string;
+  costModel: string;
+  slippageModel: string;
+  modelName?: string;
+  modelCategory?: string;
+  trainingWindow?: ResearchWindow;
+  validationWindow: ResearchWindow;
+  backtestMetrics: BacktestMetrics;
+  artifactRefs: string[];
+  artifactHashes: Record<string, string>;
+  knownFailureModes: string[];
 }
 
 export interface ControlPlaneStatus {

@@ -52,10 +52,16 @@ vi.mock("./services/api", () => ({
             ready: true,
             detail: "Deterministic risk gate is registered",
           },
+          {
+            key: "researchRunLedgerReady",
+            ready: true,
+            detail: "Research-run ledger exposes reproducible backtest records",
+          },
         ],
         blockers: ["No paper execution enclave"],
       }),
     ),
+    getResearchRuns: vi.fn(() => Promise.resolve([])),
   },
 }));
 

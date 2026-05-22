@@ -1,6 +1,7 @@
 import { AutonomousRun } from '../../entities/autonomous-run.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
+import { ResearchRun } from '../../entities/research-run.entity';
 import { RiskEvaluation } from '../../entities/risk-evaluation.entity';
 import { RiskGateService } from '../risk-gate/risk-gate.service';
 import { ControlPlaneService } from './control-plane.service';
@@ -8,6 +9,7 @@ import { ControlPlaneService } from './control-plane.service';
 describe('ControlPlaneService', () => {
   let service: ControlPlaneService;
   let budgets: BudgetEnvelope[];
+  let researchRuns: ResearchRun[];
   let proposals: InvestmentProposal[];
   let evaluations: RiskEvaluation[];
   let runs: AutonomousRun[];
@@ -35,12 +37,14 @@ describe('ControlPlaneService', () => {
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(new Date('2026-05-23T00:00:00.000Z'));
     budgets = [];
+    researchRuns = [];
     proposals = [];
     evaluations = [];
     runs = [];
     service = new ControlPlaneService(
       makeRepository(budgets) as any,
       makeRepository(proposals) as any,
+      makeRepository(researchRuns) as any,
       makeRepository(evaluations) as any,
       makeRepository(runs) as any,
       new RiskGateService(),
@@ -69,8 +73,47 @@ describe('ControlPlaneService', () => {
       name: 'Dry run',
       totalBudget: 10_000_000,
     });
+    const researchRun = await service.createResearchRun({
+      budgetEnvelopeId: budget.id,
+      objective: 'Find a liquid long-only dry-run allocation',
+      strategyFamily: 'momentum',
+      hypothesis: 'Large cap momentum can outperform the benchmark.',
+      datasetRefs: [
+        {
+          id: 'krx-daily-bars',
+          source: 'sample',
+          windowStart: '2025-01-01',
+          windowEnd: '2026-05-22',
+          availabilityTimestamp: '2026-05-22T23:50:00.000Z',
+        },
+      ],
+      featureRefs: ['close_20d_return', 'volatility_20d'],
+      timestampLagRules: ['Signals use only data available before close.'],
+      noLookaheadChecked: true,
+      benchmark: 'KOSPI',
+      costModel: '10bps fixed commission and tax estimate',
+      slippageModel: '5bps notional slippage',
+      validationWindow: {
+        start: '2026-01-01',
+        end: '2026-05-22',
+      },
+      backtestMetrics: {
+        totalReturnPct: 8.2,
+        benchmarkReturnPct: 3.1,
+        maxDrawdownPct: 4.3,
+        sharpeRatio: 1.1,
+        turnoverPct: 22,
+        tradeCount: 12,
+      },
+      artifactRefs: ['artifacts/research-runs/momentum-v1/report.md'],
+      artifactHashes: {
+        'artifacts/research-runs/momentum-v1/report.md': 'sha256:test',
+      },
+      knownFailureModes: ['Trend reversal can cause delayed exits.'],
+    });
     const proposal = await service.createProposal({
       budgetEnvelopeId: budget.id,
+      researchRunId: researchRun.id,
       strategyId: 'momentum-v1',
       ruleId: 'long-only-breakout',
       generatedAt: '2026-05-22T23:59:00.000Z',
@@ -98,8 +141,91 @@ describe('ControlPlaneService', () => {
 
     expect(evaluation.decision).toBe('ALLOW');
     expect(evaluation.brokerExecutionEnabled).toBe(false);
+    expect(evaluation.requestSnapshot.researchRunId).toBe(researchRun.id);
     expect(evaluations).toHaveLength(1);
     expect(proposals[0].status).toBe('evaluated');
+    expect(researchRuns[0].status).toBe('proposal_ready');
+    expect(researchRuns[0].phase).toBe('proposal_linked');
+  });
+
+  it('blocks proposal creation when research evidence is incomplete', async () => {
+    const researchRun = await service.createResearchRun({
+      objective: 'Incomplete run',
+      strategyFamily: 'momentum',
+      hypothesis: 'Missing no-lookahead proof should block advancement.',
+      datasetRefs: [
+        {
+          id: 'krx-daily-bars',
+          windowStart: '2025-01-01',
+          windowEnd: '2026-05-22',
+          availabilityTimestamp: '2026-05-22T23:50:00.000Z',
+        },
+      ],
+      featureRefs: ['close_20d_return'],
+      timestampLagRules: ['Signals use only data available before close.'],
+      noLookaheadChecked: false,
+      benchmark: 'KOSPI',
+      costModel: '10bps fixed commission and tax estimate',
+      slippageModel: '5bps notional slippage',
+      validationWindow: {
+        start: '2026-01-01',
+        end: '2026-05-22',
+      },
+      backtestMetrics: {
+        totalReturnPct: 8.2,
+        benchmarkReturnPct: 3.1,
+        maxDrawdownPct: 4.3,
+        sharpeRatio: 1.1,
+        turnoverPct: 22,
+        tradeCount: 12,
+      },
+      artifactRefs: ['artifacts/research-runs/incomplete/report.md'],
+      artifactHashes: {
+        'artifacts/research-runs/incomplete/report.md': 'sha256:test',
+      },
+      knownFailureModes: ['Trend reversal can cause delayed exits.'],
+    });
+
+    expect(researchRun.status).toBe('blocked');
+    expect(researchRun.advanceEligible).toBe(false);
+    expect(researchRun.blockedReasons).toContain(
+      'No-lookahead check must pass before proposal creation',
+    );
+
+    await expect(
+      service.createProposal({
+        researchRunId: researchRun.id,
+        strategyId: 'momentum-v1',
+        ruleId: 'long-only-breakout',
+        generatedAt: '2026-05-22T23:59:00.000Z',
+        marketDataTimestamp: '2026-05-22T23:55:00.000Z',
+        portfolioSnapshot: {
+          currency: 'KRW',
+          equity: 10_000_000,
+          cash: 10_000_000,
+          grossExposurePct: 0,
+        },
+        orders: [],
+      }),
+    ).rejects.toThrow('is not proposal-ready');
+  });
+
+  it('rejects proposal creation without research-run provenance', async () => {
+    await expect(
+      service.createProposal({
+        strategyId: 'momentum-v1',
+        ruleId: 'long-only-breakout',
+        generatedAt: '2026-05-22T23:59:00.000Z',
+        marketDataTimestamp: '2026-05-22T23:55:00.000Z',
+        portfolioSnapshot: {
+          currency: 'KRW',
+          equity: 10_000_000,
+          cash: 10_000_000,
+          grossExposurePct: 0,
+        },
+        orders: [],
+      } as any),
+    ).rejects.toThrow('Proposal requires a researchRunId');
   });
 
   it('reports readiness blockers for paper and live execution', async () => {
@@ -110,6 +236,10 @@ describe('ControlPlaneService', () => {
     expect(status.blockers).toContain('No paper execution enclave');
     expect(status.readiness).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({
+          key: 'researchRunLedgerReady',
+          ready: false,
+        }),
         expect.objectContaining({
           key: 'riskGateReady',
           ready: true,
