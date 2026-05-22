@@ -460,6 +460,7 @@ export type BrokerAdapterCapabilityStatus =
 export interface BrokerAdapterCapability {
   key:
     | "credentials"
+    | "credentialCustody"
     | "openApiSchema"
     | "readOnlyAccountSnapshot"
     | "holdingsSnapshot"
@@ -483,6 +484,7 @@ export interface BrokerAdapterStatus {
   baseUrl?: string;
   authMethod: string;
   credentialRef: string;
+  credentialCustody: BrokerCredentialCustodyStatus;
   schemaVerified: boolean;
   sandboxVerified: boolean;
   lastVerifiedAt?: string;
@@ -490,6 +492,19 @@ export interface BrokerAdapterStatus {
   capabilities: BrokerAdapterCapability[];
   blockers: string[];
   brokerExecutionEnabled: false;
+}
+
+export type BrokerCredentialCustodyMode =
+  | "missing"
+  | "env"
+  | "external_secret_ref";
+
+export interface BrokerCredentialCustodyStatus {
+  mode: BrokerCredentialCustodyMode;
+  configured: boolean;
+  productionReady: boolean;
+  secretRef: string;
+  detail: string;
 }
 
 export interface BrokerAdapterReadOnlyPollStatus {

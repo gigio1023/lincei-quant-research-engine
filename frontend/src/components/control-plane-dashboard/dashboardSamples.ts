@@ -269,6 +269,14 @@ export const DOCUMENTED_BROKER_ADAPTER_STATUS: BrokerAdapterStatus = {
   liveTradingEnabled: false,
   authMethod: "oauth2_client_credentials",
   credentialRef: "missing",
+  credentialCustody: {
+    mode: "missing",
+    configured: false,
+    productionReady: false,
+    secretRef: "missing",
+    detail:
+      "Production trading requires an external secret manager reference before broker write access can be considered.",
+  },
   schemaVerified: false,
   sandboxVerified: false,
   readOnlyPoll: {
@@ -296,6 +304,12 @@ export const DOCUMENTED_BROKER_ADAPTER_STATUS: BrokerAdapterStatus = {
       status: "blocked",
       detail:
         "TOSS_OPEN_API_CLIENT_ID, TOSS_OPEN_API_CLIENT_SECRET, and TOSS_OPEN_API_ACCOUNT_REF are required.",
+    },
+    {
+      key: "credentialCustody",
+      status: "blocked",
+      detail:
+        "Production trading requires an external secret manager reference before broker write access can be considered.",
     },
     {
       key: "openApiSchema",

@@ -87,6 +87,13 @@ vi.mock("./services/api", () => ({
         liveTradingEnabled: false,
         authMethod: "oauth2_client_credentials",
         credentialRef: "missing",
+        credentialCustody: {
+          mode: "missing",
+          configured: false,
+          productionReady: false,
+          secretRef: "missing",
+          detail: "External secret custody is required.",
+        },
         schemaVerified: false,
         sandboxVerified: false,
         readOnlyPoll: {

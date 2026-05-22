@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import {
   BrokerAdapterCapability,
+  BrokerCredentialCustodyMode,
+  BrokerCredentialCustodyStatus,
   BrokerAdapterProvider,
   BrokerAdapterStatus,
 } from './control-plane.types';
@@ -32,6 +34,7 @@ export class BrokerAdapterReadinessService {
     const credentialRef = configured
       ? this.maskCredentialRef(process.env.TOSS_OPEN_API_CLIENT_ID)
       : 'missing';
+    const credentialCustody = this.getCredentialCustodyStatus(configured);
 
     const capabilities: BrokerAdapterCapability[] = [
       {
@@ -40,6 +43,11 @@ export class BrokerAdapterReadinessService {
         detail: configured
           ? 'Toss credential environment variables are present and masked.'
           : 'TOSS_OPEN_API_CLIENT_ID, TOSS_OPEN_API_CLIENT_SECRET, and TOSS_OPEN_API_ACCOUNT_REF are required.',
+      },
+      {
+        key: 'credentialCustody',
+        status: credentialCustody.productionReady ? 'ready' : 'blocked',
+        detail: credentialCustody.detail,
       },
       {
         key: 'openApiSchema',
@@ -115,6 +123,7 @@ export class BrokerAdapterReadinessService {
       baseUrl,
       authMethod: 'oauth2_client_credentials',
       credentialRef,
+      credentialCustody,
       schemaVerified,
       sandboxVerified,
       lastVerifiedAt: process.env.TOSS_OPEN_API_LAST_VERIFIED_AT,
@@ -164,6 +173,77 @@ export class BrokerAdapterReadinessService {
     }
 
     return 'toss';
+  }
+
+  private getCredentialCustodyStatus(
+    credentialsConfigured: boolean,
+  ): BrokerCredentialCustodyStatus {
+    const secretRef =
+      process.env.BROKER_CREDENTIAL_SECRET_REF ??
+      process.env.TOSS_OPEN_API_SECRET_REF;
+    const mode = this.parseCredentialCustodyMode({
+      configuredMode: process.env.BROKER_CREDENTIAL_CUSTODY_MODE,
+      secretRef,
+      credentialsConfigured,
+    });
+
+    if (mode === 'external_secret_ref') {
+      const configured = Boolean(secretRef);
+
+      return {
+        mode,
+        configured,
+        productionReady: configured,
+        secretRef: configured ? this.maskCredentialRef(secretRef) : 'missing',
+        detail: configured
+          ? 'Broker credentials are referenced through an external secret manager handle.'
+          : 'BROKER_CREDENTIAL_SECRET_REF or TOSS_OPEN_API_SECRET_REF is required for external secret custody.',
+      };
+    }
+
+    if (mode === 'env') {
+      return {
+        mode,
+        configured: credentialsConfigured,
+        productionReady: false,
+        secretRef: credentialsConfigured ? 'local-env' : 'missing',
+        detail: credentialsConfigured
+          ? 'Broker credentials are loaded from local environment variables. This is acceptable for development only, not production trading.'
+          : 'Broker credentials are not configured.',
+      };
+    }
+
+    return {
+      mode: 'missing',
+      configured: false,
+      productionReady: false,
+      secretRef: 'missing',
+      detail:
+        'Production trading requires an external secret manager reference before broker write access can be considered.',
+    };
+  }
+
+  private parseCredentialCustodyMode(input: {
+    configuredMode?: string;
+    secretRef?: string;
+    credentialsConfigured: boolean;
+  }): BrokerCredentialCustodyMode {
+    if (
+      input.configuredMode === 'env' ||
+      input.configuredMode === 'external_secret_ref'
+    ) {
+      return input.configuredMode;
+    }
+
+    if (input.secretRef) {
+      return 'external_secret_ref';
+    }
+
+    if (input.credentialsConfigured) {
+      return 'env';
+    }
+
+    return 'missing';
   }
 
   private maskCredentialRef(value: string | undefined): string {

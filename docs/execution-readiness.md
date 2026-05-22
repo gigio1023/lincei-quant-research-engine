@@ -18,7 +18,7 @@ After the initial control-plane work, the repo can run deterministic research, r
 - Local paper reconciliation endpoint.
 - Minimal execution-control state that can block paper execution when paused, reducing, or halted.
 - Manual broker read-only snapshot ledger and paper-account reconciliation.
-- Provider-neutral broker adapter readiness contract for Toss credentials, schema, sandbox, read-only, and order capability gates.
+- Provider-neutral broker adapter readiness contract for Toss credentials, credential custody, schema, sandbox, read-only, and order capability gates.
 - Durable signed paper order-plan approval ledger.
 - Env-gated autonomous run schedule worker and dashboard worker status.
 - Control-plane dashboard view.
@@ -35,7 +35,7 @@ After the initial control-plane work, the repo can run deterministic research, r
 - production-authenticated autonomous scheduler deployment;
 - production kill switch;
 - approved budget capsule storage;
-- production signing custody for order-plan approvals;
+- production credential custody and signing custody for order-plan approvals;
 - broker-grade transaction isolation, database-enforced reservation lock isolation, and external broker reconciliation.
 
 ## Required Gates
@@ -47,7 +47,7 @@ After the initial control-plane work, the repo can run deterministic research, r
 | Proposal contract       | Started | Budget/research-run/proposal/risk-evaluation/run entities and endpoints exist.                                                                                                                                                                                                                                                                                                                                        |
 | Deterministic risk gate | Started | Evaluation-only backend module plus persisted risk-evaluation audit through control-plane.                                                                                                                                                                                                                                                                                                                            |
 | Paper execution         | Started | Deterministic paper simulator ledger, durable signed paper approvals, explicit paper account seed/promote controls, append-only account events, idempotent paper-execute endpoint, idempotent SELL-only recovery proposal replay, quantity/cost-basis/realized-PnL accounting, reservation readiness evidence, reserved-hold-aware availability checks, consumed reservation-hold snapshots, durable local paper account state, local reconciliation, and execution-control state exist. Production signing custody, transaction isolation, database-enforced reservation lock isolation, and broker-backed reconciliation are still missing. |
-| Broker read-only        | Partial | Read-only broker snapshot ledger, disabled-by-default Toss polling worker, automatic paper reconciliation after poll/import, and a provider-neutral Toss adapter readiness contract exist. Verified Toss schema/client responses and credential isolation are still missing.                                                                                                                                              |
+| Broker read-only        | Partial | Read-only broker snapshot ledger, disabled-by-default Toss polling worker, automatic paper reconciliation after poll/import, and a provider-neutral Toss adapter readiness contract with credential-custody evidence exist. Verified Toss schema/client responses and actual external secret-manager wiring are still missing.                                                                                                                                              |
 | Broker write access     | Blocked | Requires separate gated design and credentials.                                                                                                                                                                                                                                                                                                                                                                       |
 | Live trading            | Blocked | No real-money order path is implemented.                                                                                                                                                                                                                                                                                                                                                                              |
 

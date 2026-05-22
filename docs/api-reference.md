@@ -396,7 +396,7 @@ all broker/live execution flags remain `false`.
 
 #### `GET /control-plane/broker-adapter/status`
 
-- **Description**: Returns the provider-neutral broker adapter readiness contract. The current first candidate is Toss. This endpoint reports evidence only; it does not trigger polls, place orders, or expose secrets. It reports whether required credential environment variables are present, whether the OpenAPI schema and sandbox have been operator-verified, read-only polling state, and which broker capabilities remain blocked.
+- **Description**: Returns the provider-neutral broker adapter readiness contract. The current first candidate is Toss. This endpoint reports evidence only; it does not trigger polls, place orders, or expose secrets. It reports whether required credential environment variables are present, whether credential custody is production-ready, whether the OpenAPI schema and sandbox have been operator-verified, read-only polling state, and which broker capabilities remain blocked.
 - **Example Response**:
   ```json
   {
@@ -407,6 +407,13 @@ all broker/live execution flags remain `false`.
     "liveTradingEnabled": false,
     "authMethod": "oauth2_client_credentials",
     "credentialRef": "missing",
+    "credentialCustody": {
+      "mode": "missing",
+      "configured": false,
+      "productionReady": false,
+      "secretRef": "missing",
+      "detail": "Production trading requires an external secret manager reference before broker write access can be considered."
+    },
     "schemaVerified": false,
     "sandboxVerified": false,
     "readOnlyPoll": {
@@ -433,6 +440,11 @@ all broker/live execution flags remain `false`.
         "key": "credentials",
         "status": "blocked",
         "detail": "TOSS_OPEN_API_CLIENT_ID, TOSS_OPEN_API_CLIENT_SECRET, and TOSS_OPEN_API_ACCOUNT_REF are required."
+      },
+      {
+        "key": "credentialCustody",
+        "status": "blocked",
+        "detail": "Production trading requires an external secret manager reference before broker write access can be considered."
       },
       {
         "key": "orderPlacement",

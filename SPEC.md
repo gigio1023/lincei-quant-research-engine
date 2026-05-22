@@ -242,7 +242,7 @@ Current read-only slice:
 - `POST /control-plane/broker-snapshots/import-read-only` accepts manual/imported snapshots and rejects broker credentials, account ids, tokens, order payloads, and order intent fields;
 - `GET /control-plane/broker-snapshots` and `GET /control-plane/broker-snapshots/latest` expose read-only snapshot history;
 - `POST /control-plane/broker-snapshots/:id/reconcile-paper` compares a broker snapshot with the active paper account and records cash, equity, position, tolerance, age, stale, match, or mismatch evidence;
-- `GET /control-plane/broker-adapter/status` exposes a provider-neutral Toss readiness contract for credential presence, OpenAPI schema verification, sandbox verification, read-only enablement, and blocked order capabilities without exposing secrets;
+- `GET /control-plane/broker-adapter/status` exposes a provider-neutral Toss readiness contract for credential presence, credential custody, OpenAPI schema verification, sandbox verification, read-only enablement, and blocked order capabilities without exposing secrets;
 - the dashboard shows a Broker Snapshot Monitor next to paper execution so the user can see whether external account truth matches internal paper state;
 - this is not a Toss client yet and cannot call Toss, place, cancel, modify, preview, or route orders.
 

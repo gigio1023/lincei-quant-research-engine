@@ -16,6 +16,9 @@ describe('BrokerAdapterReadinessService', () => {
     delete process.env.TOSS_OPEN_API_SCHEMA_VERIFIED;
     delete process.env.TOSS_OPEN_API_SANDBOX_VERIFIED;
     delete process.env.TOSS_OPEN_API_LAST_VERIFIED_AT;
+    delete process.env.BROKER_CREDENTIAL_CUSTODY_MODE;
+    delete process.env.BROKER_CREDENTIAL_SECRET_REF;
+    delete process.env.TOSS_OPEN_API_SECRET_REF;
   });
 
   afterEach(() => {
@@ -36,6 +39,12 @@ describe('BrokerAdapterReadinessService', () => {
         liveTradingEnabled: false,
         authMethod: 'oauth2_client_credentials',
         credentialRef: 'missing',
+        credentialCustody: expect.objectContaining({
+          mode: 'missing',
+          configured: false,
+          productionReady: false,
+          secretRef: 'missing',
+        }),
         schemaVerified: false,
         sandboxVerified: false,
         brokerExecutionEnabled: false,
@@ -50,6 +59,7 @@ describe('BrokerAdapterReadinessService', () => {
     expect(status.blockers).toEqual(
       expect.arrayContaining([
         expect.stringContaining('credentials'),
+        expect.stringContaining('credentialCustody'),
         expect.stringContaining('openApiSchema'),
         expect.stringContaining('orderPlacement'),
       ]),
@@ -75,6 +85,12 @@ describe('BrokerAdapterReadinessService', () => {
         readOnlyEnabled: true,
         liveTradingEnabled: false,
         credentialRef: 'cli***456',
+        credentialCustody: expect.objectContaining({
+          mode: 'env',
+          configured: true,
+          productionReady: false,
+          secretRef: 'local-env',
+        }),
         schemaVerified: true,
         sandboxVerified: false,
         lastVerifiedAt: '2026-05-23T00:00:00.000Z',
@@ -93,8 +109,43 @@ describe('BrokerAdapterReadinessService', () => {
           status: 'ready',
         }),
         expect.objectContaining({
+          key: 'credentialCustody',
+          status: 'blocked',
+        }),
+        expect.objectContaining({
           key: 'orderPlacement',
           status: 'blocked',
+        }),
+      ]),
+    );
+  });
+
+  it('marks credential custody ready only with an external secret reference', () => {
+    process.env.BROKER_READ_ONLY_ENABLED = 'true';
+    process.env.TOSS_OPEN_API_CLIENT_ID = 'client-123456';
+    process.env.TOSS_OPEN_API_CLIENT_SECRET = 'secret-value';
+    process.env.TOSS_OPEN_API_ACCOUNT_SEQ = 'acct-123456789';
+    process.env.TOSS_OPEN_API_SCHEMA_VERIFIED = 'true';
+    process.env.BROKER_CREDENTIAL_CUSTODY_MODE = 'external_secret_ref';
+    process.env.BROKER_CREDENTIAL_SECRET_REF = 'aws-secrets:toss-prod-key';
+
+    const service = new BrokerAdapterReadinessService();
+
+    const status = service.getStatus();
+
+    expect(status.credentialCustody).toEqual(
+      expect.objectContaining({
+        mode: 'external_secret_ref',
+        configured: true,
+        productionReady: true,
+        secretRef: 'aws***key',
+      }),
+    );
+    expect(status.capabilities).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'credentialCustody',
+          status: 'ready',
         }),
       ]),
     );

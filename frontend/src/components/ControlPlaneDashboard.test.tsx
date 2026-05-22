@@ -712,6 +712,13 @@ const mockBrokerAdapterStatus = {
   liveTradingEnabled: false,
   authMethod: "oauth2_client_credentials",
   credentialRef: "missing",
+  credentialCustody: {
+    mode: "missing",
+    configured: false,
+    productionReady: false,
+    secretRef: "missing",
+    detail: "External secret custody is required.",
+  },
   schemaVerified: false,
   sandboxVerified: false,
   readOnlyPoll: {
@@ -738,6 +745,11 @@ const mockBrokerAdapterStatus = {
       key: "credentials",
       status: "blocked",
       detail: "Toss credentials are missing.",
+    },
+    {
+      key: "credentialCustody",
+      status: "blocked",
+      detail: "External secret custody is required.",
     },
     {
       key: "openApiSchema",

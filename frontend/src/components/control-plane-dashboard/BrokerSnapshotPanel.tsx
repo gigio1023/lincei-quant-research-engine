@@ -60,6 +60,9 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
                 <div className="mt-1 font-mono text-[11px] text-[#707a8a]">
                   credential {adapter.credentialRef}
                 </div>
+                <div className="mt-1 font-mono text-[11px] text-[#707a8a]">
+                  custody {adapter.credentialCustody.secretRef}
+                </div>
               </div>
               <span
                 className={`rounded-md border px-2 py-1 text-[11px] font-bold uppercase ${
@@ -75,6 +78,14 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
             <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
               {[
                 ["configured", adapter.configured ? "yes" : "no"],
+                [
+                  "custody",
+                  adapter.credentialCustody.productionReady
+                    ? "external"
+                    : adapter.credentialCustody.configured
+                      ? "env only"
+                      : "missing",
+                ],
                 [
                   "poller",
                   adapter.readOnlyPoll.enabled
