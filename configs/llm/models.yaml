@@ -1,0 +1,12 @@
+fast_llm:
+  provider: configurable
+  model: configurable-fast-model
+  purpose: JSON extraction and cheap classification
+deep_reasoning_llm:
+  provider: configurable
+  model: configurable-frontier-model
+  purpose: multi-hop research and risk review
+critic_llm:
+  provider: configurable
+  model: configurable-frontier-model
+  purpose: skeptical review and hallucination checks

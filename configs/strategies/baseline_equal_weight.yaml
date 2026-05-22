@@ -1,0 +1,7 @@
+strategy_name: baseline_equal_weight_etf
+tickers: [SPY, QQQ, TLT]
+benchmark: SPY
+rebalance: monthly
+annual_cost_bps: 10
+slippage_bps: 5
+risk_free_rate: 0.0
