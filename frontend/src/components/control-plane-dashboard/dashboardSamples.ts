@@ -1,10 +1,42 @@
 import {
   BrokerSnapshot,
+  BudgetEnvelope,
+  InvestmentProposal,
   OrderPlanApproval,
   PaperAccountEvent,
   PaperOrderPlan,
   ResearchRun,
+  RiskEvaluation,
 } from "../../types";
+
+export const DOCUMENTED_BUDGET_ENVELOPES: BudgetEnvelope[] = [
+  {
+    id: "budget-docs-dry-run",
+    name: "Documented aggressive dry-run budget",
+    status: "active",
+    mode: "dry_run",
+    currency: "KRW",
+    totalBudget: 10_000_000,
+    cashReservePct: 20,
+    allowedAssetClasses: ["cash", "domestic_stock", "domestic_etf"],
+    policy: {
+      maxGrossExposurePct: 100,
+      maxSinglePositionPct: 20,
+      maxOrderNotional: 1_000_000,
+      maxDailyLossPct: 3,
+      maxDrawdownPct: 10,
+      maxDataAgeMinutes: 60,
+      allowedAssetClasses: ["cash", "domestic_stock", "domestic_etf"],
+      allowLiveTrading: false,
+      requireHumanApproval: true,
+    },
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+    notes: "Documented sample budget for dashboard fallback.",
+    createdAt: "2026-05-22T08:20:00.000Z",
+    updatedAt: "2026-05-22T08:20:00.000Z",
+  },
+];
 
 export const DOCUMENTED_RESEARCH_RUNS: ResearchRun[] = [
   {
@@ -57,6 +89,85 @@ export const DOCUMENTED_RESEARCH_RUNS: ResearchRun[] = [
     liveTradingEnabled: false,
     createdAt: "2026-05-22T08:30:00.000Z",
     updatedAt: "2026-05-22T08:42:00.000Z",
+  },
+];
+
+export const DOCUMENTED_INVESTMENT_PROPOSALS: InvestmentProposal[] = [
+  {
+    id: "proposal-docs-momentum-001",
+    budgetEnvelopeId: "budget-docs-dry-run",
+    researchRunId: "rr-docs-momentum-001",
+    strategyId: "momentum-v1",
+    ruleId: "long-only-breakout",
+    actor: "strategy",
+    status: "paper_ready",
+    generatedAt: "2026-05-22T09:00:00.000Z",
+    marketDataTimestamp: "2026-05-22T08:55:00.000Z",
+    portfolioSnapshot: {
+      currency: "KRW",
+      equity: 10_000_000,
+      cash: 10_000_000,
+      grossExposurePct: 0,
+      positions: [],
+    },
+    orders: [
+      {
+        symbol: "005930",
+        assetClass: "domestic_stock",
+        side: "BUY",
+        orderType: "MARKET",
+        notional: 500_000,
+        targetPositionPct: 5,
+      },
+    ],
+    thesis: "Documented momentum allocation after reproducible backtest.",
+    evidenceRefs: ["s3://research-runs/docs/momentum-001/report.json"],
+    brokerExecutionEnabled: false,
+    requiresHumanApproval: false,
+    createdAt: "2026-05-22T09:00:00.000Z",
+    updatedAt: "2026-05-22T09:03:00.000Z",
+  },
+];
+
+export const DOCUMENTED_RISK_EVALUATIONS: RiskEvaluation[] = [
+  {
+    id: "risk-docs-001",
+    proposalId: "proposal-docs-momentum-001",
+    decision: "ALLOW",
+    reasons: ["Paper-mode order stays inside documented policy limits."],
+    requestSnapshot: {
+      mode: "paper",
+      actor: "strategy",
+      researchRunId: 1,
+      strategyId: "momentum-v1",
+      ruleId: "long-only-breakout",
+      generatedAt: "2026-05-22T09:00:00.000Z",
+      marketDataTimestamp: "2026-05-22T08:55:00.000Z",
+      portfolio: {
+        currency: "KRW",
+        equity: 10_000_000,
+        cash: 10_000_000,
+        grossExposurePct: 0,
+        positions: [],
+      },
+      orders: DOCUMENTED_INVESTMENT_PROPOSALS[0].orders,
+      evidenceRefs: ["s3://research-runs/docs/momentum-001/report.json"],
+      executionIntent: "evaluate_only",
+    },
+    responseSnapshot: {
+      decision: "ALLOW",
+      evaluatedAt: "2026-05-22T09:02:00.000Z",
+      mode: "paper",
+      brokerExecutionEnabled: false,
+      requiresHumanApproval: false,
+      reasons: ["Paper-mode order stays inside documented policy limits."],
+      policy: DOCUMENTED_BUDGET_ENVELOPES[0].policy,
+      approvedOrderCount: 1,
+    },
+    brokerExecutionEnabled: false,
+    requiresHumanApproval: false,
+    evaluatedAt: "2026-05-22T09:02:00.000Z",
+    createdAt: "2026-05-22T09:02:00.000Z",
   },
 ];
 

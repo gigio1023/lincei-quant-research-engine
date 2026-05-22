@@ -1,9 +1,4 @@
-import {
-  CONTROL_PLANE_STAGES,
-  EXAMPLE_EVALUATION,
-  EXAMPLE_REQUEST,
-  SAFETY_GATES,
-} from "./dashboardConstants";
+import { CONTROL_PLANE_STAGES, SAFETY_GATES } from "./dashboardConstants";
 import { OrderPlanApprovalPanel } from "./OrderPlanApprovalPanel";
 import {
   decisionClasses,
@@ -22,7 +17,7 @@ export const RightRail = ({ model }: RightRailProps) => (
   <aside className="space-y-4">
     <RiskPolicyCard model={model} />
     <OrderPlanApprovalPanel model={model} />
-    <ExampleEvaluationCard />
+    <LatestRiskEvaluationCard model={model} />
     <SafetyGatesCard />
     <LifecycleCard />
   </aside>
@@ -66,41 +61,58 @@ const RiskPolicyCard = ({ model }: RightRailProps) => (
   </section>
 );
 
-const ExampleEvaluationCard = () => {
-  const exampleOrder = EXAMPLE_REQUEST.orders[0];
+const LatestRiskEvaluationCard = ({ model }: RightRailProps) => {
+  const evaluation = [...model.visibleRiskEvaluations].sort(
+    (leftEvaluation, rightEvaluation) =>
+      new Date(rightEvaluation.evaluatedAt).getTime() -
+      new Date(leftEvaluation.evaluatedAt).getTime(),
+  )[0];
 
   return (
     <section className="rounded-xl border border-[#2b3139] bg-[#181a20] p-4">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-base font-bold text-white">Example Evaluation</h3>
-        <span
-          className={`${decisionClasses[EXAMPLE_EVALUATION.decision]} rounded-md border px-2 py-1 text-[11px] font-bold`}
-        >
-          {EXAMPLE_EVALUATION.decision}
-        </span>
+        <h3 className="text-base font-bold text-white">Latest Risk</h3>
+        {evaluation ? (
+          <span
+            className={`${decisionClasses[evaluation.decision]} rounded-md border px-2 py-1 text-[11px] font-bold`}
+          >
+            {evaluation.decision}
+          </span>
+        ) : (
+          <span className="rounded-md border border-[#f0b90b]/30 bg-[#f0b90b]/10 px-2 py-1 text-[11px] font-bold text-[#fcd535]">
+            missing
+          </span>
+        )}
       </div>
-      <div className="mt-3 divide-y divide-[#2b3139] text-xs">
-        {[
-          ["mode", EXAMPLE_EVALUATION.mode],
-          [
-            "broker flag",
-            formatBoolean(EXAMPLE_EVALUATION.brokerExecutionEnabled),
-          ],
-          [
-            "requiresHumanApproval",
-            formatBoolean(EXAMPLE_EVALUATION.requiresHumanApproval),
-          ],
-          ["symbol", exampleOrder.symbol],
-          ["notional", formatCurrency(exampleOrder.notional)],
-        ].map(([label, value]) => (
-          <div key={label} className="flex justify-between gap-3 py-2">
-            <span className="text-[#707a8a]">{label}</span>
-            <span className="text-right font-mono font-bold text-[#eaecef]">
-              {value}
-            </span>
+      {evaluation ? (
+        <div className="mt-3 divide-y divide-[#2b3139] text-xs">
+          {[
+            ["source", `risk ${evaluation.id}`],
+            ["proposal", evaluation.proposalId ?? "none"],
+            ["mode", evaluation.responseSnapshot.mode],
+            ["broker flag", formatBoolean(evaluation.brokerExecutionEnabled)],
+            [
+              "requiresHumanApproval",
+              formatBoolean(evaluation.requiresHumanApproval),
+            ],
+            ["orders", evaluation.responseSnapshot.approvedOrderCount],
+          ].map(([label, value]) => (
+            <div key={label} className="flex justify-between gap-3 py-2">
+              <span className="text-[#707a8a]">{label}</span>
+              <span className="text-right font-mono font-bold text-[#eaecef]">
+                {value}
+              </span>
+            </div>
+          ))}
+          <div className="py-2 text-[#929aa5]">
+            {evaluation.reasons[0] ?? "Risk evaluation recorded."}
           </div>
-        ))}
-      </div>
+        </div>
+      ) : (
+        <div className="mt-3 rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3 text-sm font-semibold text-[#929aa5]">
+          No risk evaluation has been recorded yet.
+        </div>
+      )}
     </section>
   );
 };

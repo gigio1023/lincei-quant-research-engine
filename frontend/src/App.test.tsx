@@ -61,7 +61,10 @@ vi.mock("./services/api", () => ({
         blockers: ["No paper execution enclave"],
       }),
     ),
+    getBudgets: vi.fn(() => Promise.resolve([])),
     getResearchRuns: vi.fn(() => Promise.resolve([])),
+    getProposals: vi.fn(() => Promise.resolve([])),
+    getRiskEvaluations: vi.fn(() => Promise.resolve([])),
     getPaperAccount: vi.fn(() => Promise.reject(new Error("not configured"))),
     getPaperAccountEvents: vi.fn(() => Promise.resolve([])),
     getExecutionControl: vi.fn(() =>

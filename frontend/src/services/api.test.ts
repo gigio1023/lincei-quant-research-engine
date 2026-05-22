@@ -140,6 +140,44 @@ describe("API Service", () => {
       expect(result).toEqual(mockStatus);
     });
 
+    it("should_get_budgets", async () => {
+      const mockBudgets = [
+        {
+          id: "budget-1",
+          name: "Dry-run budget",
+          status: "active",
+          mode: "dry_run",
+          currency: "KRW",
+          totalBudget: 10000000,
+          cashReservePct: 20,
+          allowedAssetClasses: ["cash", "domestic_stock"],
+          policy: {
+            maxGrossExposurePct: 100,
+            maxSinglePositionPct: 20,
+            maxOrderNotional: 1000000,
+            maxDailyLossPct: 3,
+            maxDrawdownPct: 10,
+            maxDataAgeMinutes: 60,
+            allowedAssetClasses: ["cash", "domestic_stock"],
+            allowLiveTrading: false,
+            requireHumanApproval: true,
+          },
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+          createdAt: "2026-05-22T09:00:00.000Z",
+          updatedAt: "2026-05-22T09:00:00.000Z",
+        },
+      ];
+
+      mockGet.mockResolvedValue({ data: mockBudgets });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.getBudgets();
+
+      expect(mockGet).toHaveBeenCalledWith("/control-plane/budgets");
+      expect(result).toEqual(mockBudgets);
+    });
+
     it("should_get_research_runs", async () => {
       const mockResearchRuns = [
         {
@@ -198,6 +236,96 @@ describe("API Service", () => {
 
       expect(mockGet).toHaveBeenCalledWith("/control-plane/research-runs");
       expect(result).toEqual(mockResearchRuns);
+    });
+
+    it("should_get_proposals", async () => {
+      const mockProposals = [
+        {
+          id: "proposal-1",
+          budgetEnvelopeId: "budget-1",
+          researchRunId: "rr-1",
+          strategyId: "momentum-v1",
+          ruleId: "long-only-breakout",
+          actor: "strategy",
+          status: "paper_ready",
+          generatedAt: "2026-05-22T09:00:00.000Z",
+          marketDataTimestamp: "2026-05-22T08:55:00.000Z",
+          portfolioSnapshot: {
+            currency: "KRW",
+            equity: 10000000,
+            cash: 10000000,
+            grossExposurePct: 0,
+          },
+          orders: [],
+          brokerExecutionEnabled: false,
+          requiresHumanApproval: false,
+          createdAt: "2026-05-22T09:00:00.000Z",
+          updatedAt: "2026-05-22T09:00:00.000Z",
+        },
+      ];
+
+      mockGet.mockResolvedValue({ data: mockProposals });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.getProposals();
+
+      expect(mockGet).toHaveBeenCalledWith("/control-plane/proposals");
+      expect(result).toEqual(mockProposals);
+    });
+
+    it("should_get_risk_evaluations", async () => {
+      const mockRiskEvaluations = [
+        {
+          id: "risk-1",
+          proposalId: "proposal-1",
+          decision: "ALLOW",
+          reasons: ["Inside limits."],
+          requestSnapshot: {
+            mode: "paper",
+            actor: "strategy",
+            generatedAt: "2026-05-22T09:00:00.000Z",
+            portfolio: {
+              currency: "KRW",
+              equity: 10000000,
+              cash: 10000000,
+              grossExposurePct: 0,
+            },
+            orders: [],
+          },
+          responseSnapshot: {
+            decision: "ALLOW",
+            evaluatedAt: "2026-05-22T09:01:00.000Z",
+            mode: "paper",
+            brokerExecutionEnabled: false,
+            requiresHumanApproval: false,
+            reasons: ["Inside limits."],
+            policy: {
+              maxGrossExposurePct: 100,
+              maxSinglePositionPct: 20,
+              maxOrderNotional: 1000000,
+              maxDailyLossPct: 3,
+              maxDrawdownPct: 10,
+              maxDataAgeMinutes: 60,
+              allowedAssetClasses: ["cash", "domestic_stock"],
+              allowLiveTrading: false,
+              requireHumanApproval: true,
+            },
+            approvedOrderCount: 1,
+          },
+          brokerExecutionEnabled: false,
+          requiresHumanApproval: false,
+          evaluatedAt: "2026-05-22T09:01:00.000Z",
+          createdAt: "2026-05-22T09:01:00.000Z",
+        },
+      ];
+
+      mockGet.mockResolvedValue({ data: mockRiskEvaluations });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.getRiskEvaluations();
+
+      expect(mockGet).toHaveBeenCalledWith("/control-plane/risk-evaluations");
+      expect(result).toEqual(mockRiskEvaluations);
     });
 
     it("should_get_paper_order_plans", async () => {

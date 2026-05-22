@@ -9,7 +9,10 @@ vi.mock("../services/api", () => ({
   },
   controlPlaneApi: {
     getStatus: vi.fn(),
+    getBudgets: vi.fn(),
     getResearchRuns: vi.fn(),
+    getProposals: vi.fn(),
+    getRiskEvaluations: vi.fn(),
     getPaperAccount: vi.fn(),
     getPaperAccountEvents: vi.fn(),
     getExecutionControl: vi.fn(),
@@ -73,6 +76,24 @@ const mockControlPlaneStatus = {
   ],
   blockers: ["No production signed order-plan workflow"],
 };
+
+const mockBudgets = [
+  {
+    id: "budget-api-1",
+    name: "API dry-run budget",
+    status: "active",
+    mode: "dry_run",
+    currency: "KRW",
+    totalBudget: 10000000,
+    cashReservePct: 20,
+    allowedAssetClasses: ["cash", "domestic_stock", "domestic_etf"],
+    policy: mockRiskGateStatus.defaultPolicy,
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+    createdAt: "2026-05-22T08:20:00.000Z",
+    updatedAt: "2026-05-22T08:20:00.000Z",
+  },
+];
 
 const mockResearchRuns = [
   {
@@ -171,6 +192,79 @@ const mockBaselineResearchRun = {
   createdAt: "2026-05-22T09:00:00.000Z",
   updatedAt: "2026-05-22T09:12:00.000Z",
 };
+
+const mockProposals = [
+  {
+    id: "proposal-api-1",
+    budgetEnvelopeId: "budget-api-1",
+    researchRunId: "rr-api-1",
+    strategyId: "momentum-v1",
+    ruleId: "long-only-breakout",
+    actor: "strategy",
+    status: "paper_ready",
+    generatedAt: "2026-05-22T09:00:00.000Z",
+    marketDataTimestamp: "2026-05-22T08:55:00.000Z",
+    portfolioSnapshot: {
+      currency: "KRW",
+      equity: 10000000,
+      cash: 10000000,
+      grossExposurePct: 0,
+      positions: [],
+    },
+    orders: [
+      {
+        symbol: "005930",
+        assetClass: "domestic_stock",
+        side: "BUY",
+        orderType: "MARKET",
+        notional: 500000,
+        targetPositionPct: 5,
+      },
+    ],
+    thesis: "API momentum proposal.",
+    evidenceRefs: ["s3://research-runs/rr-api-1/report.json"],
+    brokerExecutionEnabled: false,
+    requiresHumanApproval: false,
+    createdAt: "2026-05-22T09:00:00.000Z",
+    updatedAt: "2026-05-22T09:03:00.000Z",
+  },
+];
+
+const mockRiskEvaluations = [
+  {
+    id: "risk-api-1",
+    proposalId: "proposal-api-1",
+    decision: "ALLOW",
+    reasons: ["API paper proposal is inside policy limits."],
+    requestSnapshot: {
+      mode: "paper",
+      actor: "strategy",
+      researchRunId: 1,
+      strategyId: "momentum-v1",
+      ruleId: "long-only-breakout",
+      generatedAt: "2026-05-22T09:00:00.000Z",
+      marketDataTimestamp: "2026-05-22T08:55:00.000Z",
+      portfolio: mockProposals[0].portfolioSnapshot,
+      orders: mockProposals[0].orders,
+      evidenceRefs: mockProposals[0].evidenceRefs,
+      executionIntent: "evaluate_only",
+    },
+    responseSnapshot: {
+      decision: "ALLOW",
+      evaluatedAt: "2026-05-22T09:02:00.000Z",
+      mode: "paper",
+      brokerExecutionEnabled: false,
+      requiresHumanApproval: false,
+      reasons: ["API paper proposal is inside policy limits."],
+      policy: mockRiskGateStatus.defaultPolicy,
+      approvedOrderCount: 1,
+    },
+    brokerExecutionEnabled: false,
+    requiresHumanApproval: false,
+    evaluatedAt: "2026-05-22T09:02:00.000Z",
+    createdAt: "2026-05-22T09:02:00.000Z",
+  },
+];
 
 const mockPaperOrderPlans = [
   {
@@ -480,8 +574,13 @@ describe("ControlPlaneDashboard", () => {
     vi.mocked(controlPlaneApi.getStatus).mockResolvedValue(
       mockControlPlaneStatus,
     );
+    vi.mocked(controlPlaneApi.getBudgets).mockResolvedValue(mockBudgets);
     vi.mocked(controlPlaneApi.getResearchRuns).mockResolvedValue(
       mockResearchRuns,
+    );
+    vi.mocked(controlPlaneApi.getProposals).mockResolvedValue(mockProposals);
+    vi.mocked(controlPlaneApi.getRiskEvaluations).mockResolvedValue(
+      mockRiskEvaluations,
     );
     vi.mocked(controlPlaneApi.getPaperAccount).mockResolvedValue(
       mockPaperAccount,
@@ -519,6 +618,18 @@ describe("ControlPlaneDashboard", () => {
     await waitFor(() => {
       expect(screen.getByText("Live API status")).toBeInTheDocument();
     });
+    expect(screen.getByText("Autonomous Action Chain")).toBeInTheDocument();
+    expect(screen.getByText("Live budgets")).toBeInTheDocument();
+    expect(screen.getByText("Live proposals")).toBeInTheDocument();
+    expect(screen.getByText("Live risk evaluations")).toBeInTheDocument();
+    expect(
+      screen.getByText((content) => content.includes("API dry-run budget")),
+    ).toBeInTheDocument();
+    expect(screen.getByText("proposal proposal-api-1")).toBeInTheDocument();
+    expect(screen.getAllByText("risk risk-api-1").length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("API paper proposal is inside policy limits.").length,
+    ).toBeGreaterThan(0);
     expect(screen.getByText("System Readiness Matrix")).toBeInTheDocument();
     expect(screen.getByText("riskGateReady")).toBeInTheDocument();
     expect(screen.getByText("researchRunLedgerReady")).toBeInTheDocument();
@@ -578,8 +689,12 @@ describe("ControlPlaneDashboard", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Signed Order Approval")).toBeInTheDocument();
     expect(screen.getByText("Live signed approvals")).toBeInTheDocument();
-    expect(screen.getByText("approval approval-api-1")).toBeInTheDocument();
-    expect(screen.getByText("Approve API paper plan.")).toBeInTheDocument();
+    expect(
+      screen.getAllByText("approval approval-api-1").length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText("Approve API paper plan.").length,
+    ).toBeGreaterThan(0);
     expect(
       screen.getAllByText("brokerExecutionEnabled: false").length,
     ).toBeGreaterThanOrEqual(1);
@@ -595,7 +710,16 @@ describe("ControlPlaneDashboard", () => {
     vi.mocked(controlPlaneApi.getStatus).mockRejectedValue(
       new Error("offline"),
     );
+    vi.mocked(controlPlaneApi.getBudgets).mockRejectedValue(
+      new Error("offline"),
+    );
     vi.mocked(controlPlaneApi.getResearchRuns).mockRejectedValue(
+      new Error("offline"),
+    );
+    vi.mocked(controlPlaneApi.getProposals).mockRejectedValue(
+      new Error("offline"),
+    );
+    vi.mocked(controlPlaneApi.getRiskEvaluations).mockRejectedValue(
       new Error("offline"),
     );
     vi.mocked(controlPlaneApi.getPaperAccount).mockRejectedValue(
@@ -669,6 +793,22 @@ describe("ControlPlaneDashboard", () => {
     expect(
       screen.getByText("No research runs recorded yet."),
     ).toBeInTheDocument();
+  });
+
+  it("should_show_next_action_when_research_is_ready_but_proposal_is_missing", async () => {
+    vi.mocked(controlPlaneApi.getProposals).mockResolvedValue([]);
+    vi.mocked(controlPlaneApi.getRiskEvaluations).mockResolvedValue([]);
+
+    render(<ControlPlaneDashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Autonomous Action Chain")).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByText("Create proposal from proposal-ready research run"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("No proposal risk evaluation")).toBeInTheDocument();
   });
 
   it("should_show_empty_state_when_live_paper_plan_ledger_is_empty", async () => {

@@ -240,7 +240,7 @@ export interface ExecutionControlState {
   createdAt: string;
 }
 
-export type PaperAccountStatus = "active" | "paused" | "archived";
+export type PaperAccountStatus = "seeded" | "active" | "paused" | "archived";
 
 export type PaperLedgerChange =
   | ({ kind: "cash"; id: string } & PaperCashLedgerEntry)
@@ -478,6 +478,66 @@ export interface ControlPlaneStatus {
   liveTradingReady: false;
   readiness: ControlPlaneReadinessItem[];
   blockers: string[];
+}
+
+export type BudgetEnvelopeStatus = "draft" | "active" | "paused" | "archived";
+
+export interface BudgetEnvelope {
+  id: number | string;
+  name: string;
+  status: BudgetEnvelopeStatus;
+  mode: RiskGateMode;
+  currency: string;
+  totalBudget: number;
+  cashReservePct: number;
+  allowedAssetClasses: AssetClass[];
+  policy: RiskPolicy;
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type InvestmentProposalStatus =
+  | "generated"
+  | "evaluated"
+  | "rejected"
+  | "needs_review"
+  | "paper_ready"
+  | "archived";
+
+export interface InvestmentProposal {
+  id: number | string;
+  budgetEnvelopeId?: number | string;
+  researchRunId?: number | string;
+  strategyId: string;
+  ruleId: string;
+  actor: RiskGateActor;
+  status: InvestmentProposalStatus;
+  generatedAt: string;
+  marketDataTimestamp: string;
+  portfolioSnapshot: PortfolioSnapshot;
+  orders: ProposedOrder[];
+  thesis?: string;
+  evidenceRefs?: string[];
+  brokerExecutionEnabled: false;
+  requiresHumanApproval: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RiskEvaluation {
+  id: number | string;
+  proposalId?: number | string;
+  decision: RiskGateDecision;
+  reasons: string[];
+  requestSnapshot: RiskGateRequest;
+  responseSnapshot: RiskGateResponse;
+  brokerExecutionEnabled: false;
+  requiresHumanApproval: boolean;
+  evaluatedAt: string;
+  createdAt: string;
 }
 
 export interface ResearchRunWindow {

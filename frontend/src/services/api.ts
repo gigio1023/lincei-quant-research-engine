@@ -1,8 +1,10 @@
 import axios from "axios";
 import {
   BrokerSnapshot,
+  BudgetEnvelope,
   ControlPlaneStatus,
   ExecutionControlState,
+  InvestmentProposal,
   OrderPlanApproval,
   PaperAccount,
   PaperAccountEvent,
@@ -11,6 +13,7 @@ import {
   Report,
   ReportsResponse,
   ResearchRun,
+  RiskEvaluation,
   RunBaselineResearchRequest,
   RiskGateStatus,
 } from "../types";
@@ -59,8 +62,23 @@ export const controlPlaneApi = {
     return response.data;
   },
 
+  getBudgets: async (): Promise<BudgetEnvelope[]> => {
+    const response = await api.get("/control-plane/budgets");
+    return response.data;
+  },
+
   getResearchRuns: async (): Promise<ResearchRun[]> => {
     const response = await api.get("/control-plane/research-runs");
+    return response.data;
+  },
+
+  getProposals: async (): Promise<InvestmentProposal[]> => {
+    const response = await api.get("/control-plane/proposals");
+    return response.data;
+  },
+
+  getRiskEvaluations: async (): Promise<RiskEvaluation[]> => {
+    const response = await api.get("/control-plane/risk-evaluations");
     return response.data;
   },
 

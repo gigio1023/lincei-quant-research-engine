@@ -2,33 +2,52 @@ import { useEffect, useState } from "react";
 import { controlPlaneApi, riskGateApi } from "../../services/api";
 import {
   BrokerSnapshot,
+  BudgetEnvelope,
   ControlPlaneReadinessItem,
   ControlPlaneStatus,
   ExecutionControlState,
+  InvestmentProposal,
   OrderPlanApproval,
   PaperAccount,
   PaperAccountEvent,
   PaperLedgerChange,
   PaperOrderPlan,
   ResearchRun,
+  RiskEvaluation,
   RiskGateStatus,
 } from "../../types";
 import {
   BASELINE_RESEARCH_REQUEST,
   DOCUMENTED_BROKER_SNAPSHOTS,
+  DOCUMENTED_BUDGET_ENVELOPES,
   DOCUMENTED_CONTROL_PLANE_STATUS,
   DOCUMENTED_EXECUTION_CONTROL,
+  DOCUMENTED_INVESTMENT_PROPOSALS,
   DOCUMENTED_ORDER_PLAN_APPROVALS,
   DOCUMENTED_PAPER_ACCOUNT_EVENTS,
   DOCUMENTED_PAPER_ORDER_PLANS,
+  DOCUMENTED_RISK_EVALUATIONS,
   DOCUMENTED_RESEARCH_RUNS,
   DOCUMENTED_STATUS,
 } from "./dashboardConstants";
 
+export interface WorkflowStage {
+  key: string;
+  label: string;
+  status: string;
+  detail: string;
+  source: string;
+  ready: boolean;
+  blocked: boolean;
+}
+
 export interface DashboardModel {
   status: RiskGateStatus;
   controlStatus: ControlPlaneStatus;
+  visibleBudgets: BudgetEnvelope[];
   visibleResearchRuns: ResearchRun[];
+  visibleProposals: InvestmentProposal[];
+  visibleRiskEvaluations: RiskEvaluation[];
   visiblePaperOrderPlans: PaperOrderPlan[];
   visiblePaperAccount: PaperAccount | null;
   visiblePaperAccountEvents: PaperAccountEvent[];
@@ -39,11 +58,15 @@ export interface DashboardModel {
   latestBrokerSnapshot?: BrokerSnapshot;
   latestOrderPlanApproval?: OrderPlanApproval;
   latestReconciledPlan?: PaperOrderPlan;
+  workflowStages: WorkflowStage[];
   recentPaperLedgerChanges: PaperLedgerChange[];
   paperExecutionReadiness: ControlPlaneReadinessItem;
   sources: {
     status: string;
+    budgets: string;
     researchRuns: string;
+    proposals: string;
+    riskEvaluations: string;
     paperOrderPlans: string;
     paperAccount: string;
     paperAccountEvents: string;
@@ -52,7 +75,10 @@ export interface DashboardModel {
   };
   errors: {
     status: string | null;
+    budgets: string | null;
     researchRuns: string | null;
+    proposals: string | null;
+    riskEvaluations: string | null;
     paperOrderPlans: string | null;
     paperAccount: string | null;
     paperAccountEvents: string | null;
@@ -62,6 +88,9 @@ export interface DashboardModel {
   };
   loading: {
     researchRuns: boolean;
+    budgets: boolean;
+    proposals: boolean;
+    riskEvaluations: boolean;
     paperAccount: boolean;
     paperAccountEvents: boolean;
     paperOrderPlans: boolean;
@@ -74,12 +103,170 @@ export interface DashboardModel {
   runBaselineResearch: () => Promise<void>;
 }
 
-const sortByUpdatedAtDesc = (plans: PaperOrderPlan[]) =>
-  [...plans].sort(
-    (leftPlan, rightPlan) =>
-      new Date(rightPlan.updatedAt).getTime() -
-      new Date(leftPlan.updatedAt).getTime(),
+const idEquals = (
+  left: number | string | undefined,
+  right: number | string | undefined,
+) =>
+  left !== undefined && right !== undefined && String(left) === String(right);
+
+const sortByUpdatedAtDesc = <T extends { updatedAt: string }>(items: T[]) =>
+  [...items].sort(
+    (leftItem, rightItem) =>
+      new Date(rightItem.updatedAt).getTime() -
+      new Date(leftItem.updatedAt).getTime(),
   );
+
+const sortRiskEvaluations = (evaluations: RiskEvaluation[]) =>
+  [...evaluations].sort(
+    (leftEvaluation, rightEvaluation) =>
+      new Date(rightEvaluation.evaluatedAt).getTime() -
+      new Date(leftEvaluation.evaluatedAt).getTime(),
+  );
+
+const buildWorkflowStages = (input: {
+  budgets: BudgetEnvelope[];
+  researchRuns: ResearchRun[];
+  proposals: InvestmentProposal[];
+  riskEvaluations: RiskEvaluation[];
+  approvals: OrderPlanApproval[];
+  paperPlans: PaperOrderPlan[];
+  brokerSnapshots: BrokerSnapshot[];
+  paperAccount: PaperAccount | null;
+}): WorkflowStage[] => {
+  const latestProposal = sortByUpdatedAtDesc(input.proposals)[0];
+  const latestResearchRun =
+    input.researchRuns.find((run) =>
+      idEquals(run.id, latestProposal?.researchRunId),
+    ) ?? sortByUpdatedAtDesc(input.researchRuns)[0];
+  const latestBudget =
+    input.budgets.find((budget) =>
+      idEquals(budget.id, latestProposal?.budgetEnvelopeId),
+    ) ??
+    input.budgets.find((budget) =>
+      idEquals(budget.id, latestResearchRun?.budgetEnvelopeId),
+    ) ??
+    input.budgets.find((budget) => budget.status === "active") ??
+    sortByUpdatedAtDesc(input.budgets)[0];
+  const latestRiskEvaluation =
+    input.riskEvaluations.find((evaluation) =>
+      idEquals(evaluation.proposalId, latestProposal?.id),
+    ) ?? sortRiskEvaluations(input.riskEvaluations)[0];
+  const latestApproval =
+    input.approvals.find((approval) =>
+      idEquals(approval.proposalId, latestProposal?.id),
+    ) ?? sortByUpdatedAtDesc(input.approvals)[0];
+  const latestPaperPlan =
+    input.paperPlans.find((plan) =>
+      idEquals(plan.proposalId, latestProposal?.id),
+    ) ?? sortByUpdatedAtDesc(input.paperPlans)[0];
+  const latestBrokerSnapshot = [...input.brokerSnapshots].sort(
+    (leftSnapshot, rightSnapshot) =>
+      new Date(rightSnapshot.asOf).getTime() -
+      new Date(leftSnapshot.asOf).getTime(),
+  )[0];
+  const proposalMissingAfterReadyResearch =
+    Boolean(latestResearchRun?.advanceEligible) && !latestProposal;
+
+  return [
+    {
+      key: "budget",
+      label: "Budget",
+      status: latestBudget?.status ?? "missing",
+      detail: latestBudget
+        ? `${latestBudget.name} / ${latestBudget.currency} ${latestBudget.totalBudget.toLocaleString()}`
+        : "No active budget envelope",
+      source: latestBudget ? `budget ${latestBudget.id}` : "missing",
+      ready: latestBudget?.status === "active",
+      blocked: !latestBudget || latestBudget.status !== "active",
+    },
+    {
+      key: "research",
+      label: "Research",
+      status: latestResearchRun?.status ?? "missing",
+      detail: latestResearchRun
+        ? `${latestResearchRun.strategyFamily} / ${latestResearchRun.benchmark}`
+        : "No reproducible research run",
+      source: latestResearchRun ? `run ${latestResearchRun.id}` : "missing",
+      ready: Boolean(latestResearchRun?.advanceEligible),
+      blocked: !latestResearchRun || !latestResearchRun.advanceEligible,
+    },
+    {
+      key: "proposal",
+      label: "Proposal",
+      status: latestProposal?.status ?? "missing",
+      detail: latestProposal
+        ? `${latestProposal.strategyId} / ${latestProposal.orders.length} orders`
+        : proposalMissingAfterReadyResearch
+          ? "Create proposal from proposal-ready research run"
+          : "No generated proposal",
+      source: latestProposal ? `proposal ${latestProposal.id}` : "missing",
+      ready: Boolean(latestProposal),
+      blocked: !latestProposal,
+    },
+    {
+      key: "risk",
+      label: "Risk",
+      status: latestRiskEvaluation?.decision ?? "missing",
+      detail: latestRiskEvaluation
+        ? (latestRiskEvaluation.reasons[0] ?? "Risk evaluation recorded")
+        : "No proposal risk evaluation",
+      source: latestRiskEvaluation
+        ? `risk ${latestRiskEvaluation.id}`
+        : "missing",
+      ready: latestRiskEvaluation?.decision === "ALLOW",
+      blocked:
+        !latestRiskEvaluation || latestRiskEvaluation.decision !== "ALLOW",
+    },
+    {
+      key: "approval",
+      label: "Approval",
+      status: latestApproval?.status ?? "missing",
+      detail: latestApproval
+        ? latestApproval.reason
+        : "No signed paper order approval",
+      source: latestApproval ? `approval ${latestApproval.id}` : "missing",
+      ready: Boolean(latestApproval),
+      blocked: !latestApproval,
+    },
+    {
+      key: "account",
+      label: "Paper Account",
+      status: input.paperAccount?.status ?? "missing",
+      detail: input.paperAccount
+        ? `${input.paperAccount.name} / cash ${input.paperAccount.cash.toLocaleString()}`
+        : "Seed and promote a paper account",
+      source: input.paperAccount
+        ? `account ${input.paperAccount.id}`
+        : "missing",
+      ready: input.paperAccount?.status === "active",
+      blocked: input.paperAccount?.status !== "active",
+    },
+    {
+      key: "paper",
+      label: "Paper Execution",
+      status: latestPaperPlan?.status ?? "missing",
+      detail: latestPaperPlan
+        ? `${latestPaperPlan.orders.length} orders / ${latestPaperPlan.fills.length} fills`
+        : "No paper order plan",
+      source: latestPaperPlan ? `plan ${latestPaperPlan.id}` : "missing",
+      ready: ["filled", "reconciled"].includes(latestPaperPlan?.status ?? ""),
+      blocked: !latestPaperPlan || latestPaperPlan.status === "blocked",
+    },
+    {
+      key: "broker",
+      label: "Broker Truth",
+      status: latestBrokerSnapshot?.status ?? "missing",
+      detail: latestBrokerSnapshot
+        ? `${latestBrokerSnapshot.provider} snapshot / ${latestBrokerSnapshot.reconciliation.status}`
+        : "No read-only broker snapshot",
+      source: latestBrokerSnapshot
+        ? `snapshot ${latestBrokerSnapshot.id}`
+        : "missing",
+      ready: latestBrokerSnapshot?.status === "matched",
+      blocked: latestBrokerSnapshot?.status !== "matched",
+    },
+  ];
+};
 
 const mergeLedgerChanges = (account: PaperAccount | null) => {
   if (!account) {
@@ -112,7 +299,12 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   );
   const [controlPlaneStatus, setControlPlaneStatus] =
     useState<ControlPlaneStatus | null>(null);
+  const [budgets, setBudgets] = useState<BudgetEnvelope[] | null>(null);
   const [researchRuns, setResearchRuns] = useState<ResearchRun[] | null>(null);
+  const [proposals, setProposals] = useState<InvestmentProposal[] | null>(null);
+  const [riskEvaluations, setRiskEvaluations] = useState<
+    RiskEvaluation[] | null
+  >(null);
   const [paperAccount, setPaperAccount] = useState<PaperAccount | null>(null);
   const [paperAccountEvents, setPaperAccountEvents] = useState<
     PaperAccountEvent[] | null
@@ -129,7 +321,10 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     OrderPlanApproval[] | null
   >(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
+  const [loadingBudgets, setLoadingBudgets] = useState(true);
   const [loadingResearchRuns, setLoadingResearchRuns] = useState(true);
+  const [loadingProposals, setLoadingProposals] = useState(true);
+  const [loadingRiskEvaluations, setLoadingRiskEvaluations] = useState(true);
   const [loadingPaperAccount, setLoadingPaperAccount] = useState(true);
   const [loadingPaperAccountEvents, setLoadingPaperAccountEvents] =
     useState(true);
@@ -138,9 +333,14 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const [loadingOrderPlanApprovals, setLoadingOrderPlanApprovals] =
     useState(true);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [budgetsError, setBudgetsError] = useState<string | null>(null);
   const [researchRunsError, setResearchRunsError] = useState<string | null>(
     null,
   );
+  const [proposalsError, setProposalsError] = useState<string | null>(null);
+  const [riskEvaluationsError, setRiskEvaluationsError] = useState<
+    string | null
+  >(null);
   const [paperOrderPlansError, setPaperOrderPlansError] = useState<
     string | null
   >(null);
@@ -172,7 +372,10 @@ export const useControlPlaneDashboard = (): DashboardModel => {
         const [
           riskStatus,
           controlPlaneStatusResult,
+          budgetsStatus,
           researchRunsStatus,
+          proposalsStatus,
+          riskEvaluationsStatus,
           paperAccountStatus,
           paperAccountEventsStatus,
           executionControlStatus,
@@ -182,7 +385,10 @@ export const useControlPlaneDashboard = (): DashboardModel => {
         ] = await Promise.allSettled([
           riskGateApi.getStatus(),
           controlPlaneApi.getStatus(),
+          controlPlaneApi.getBudgets(),
           controlPlaneApi.getResearchRuns(),
+          controlPlaneApi.getProposals(),
+          controlPlaneApi.getRiskEvaluations(),
           controlPlaneApi.getPaperAccount(),
           controlPlaneApi.getPaperAccountEvents(),
           controlPlaneApi.getExecutionControl(),
@@ -201,12 +407,36 @@ export const useControlPlaneDashboard = (): DashboardModel => {
         if (controlPlaneStatusResult.status === "fulfilled") {
           setControlPlaneStatus(controlPlaneStatusResult.value);
         }
+        if (budgetsStatus.status === "fulfilled") {
+          setBudgets(budgetsStatus.value);
+          setBudgetsError(null);
+        } else {
+          setBudgetsError(
+            "Budget envelope API is unavailable. Showing documented sample budget.",
+          );
+        }
         if (researchRunsStatus.status === "fulfilled") {
           setResearchRuns(researchRunsStatus.value);
           setResearchRunsError(null);
         } else {
           setResearchRunsError(
             "Research-run ledger API is unavailable. Showing documented sample runs.",
+          );
+        }
+        if (proposalsStatus.status === "fulfilled") {
+          setProposals(proposalsStatus.value);
+          setProposalsError(null);
+        } else {
+          setProposalsError(
+            "Proposal ledger API is unavailable. Showing documented sample proposal.",
+          );
+        }
+        if (riskEvaluationsStatus.status === "fulfilled") {
+          setRiskEvaluations(riskEvaluationsStatus.value);
+          setRiskEvaluationsError(null);
+        } else {
+          setRiskEvaluationsError(
+            "Risk evaluation API is unavailable. Showing documented sample evaluation.",
           );
         }
         if (paperAccountStatus.status === "fulfilled") {
@@ -263,8 +493,17 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       } catch {
         if (!ignore) {
           setStatusError("Control-plane status APIs are unavailable.");
+          setBudgetsError(
+            "Budget envelope API is unavailable. Showing documented sample budget.",
+          );
           setResearchRunsError(
             "Research-run ledger API is unavailable. Showing documented sample runs.",
+          );
+          setProposalsError(
+            "Proposal ledger API is unavailable. Showing documented sample proposal.",
+          );
+          setRiskEvaluationsError(
+            "Risk evaluation API is unavailable. Showing documented sample evaluation.",
           );
           setPaperOrderPlansError(
             "Paper order-plan API is unavailable. Showing documented sample paper plans.",
@@ -285,7 +524,10 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       } finally {
         if (!ignore) {
           setLoadingStatus(false);
+          setLoadingBudgets(false);
           setLoadingResearchRuns(false);
+          setLoadingProposals(false);
+          setLoadingRiskEvaluations(false);
           setLoadingPaperAccount(false);
           setLoadingPaperAccountEvents(false);
           setLoadingPaperOrderPlans(false);
@@ -302,6 +544,13 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     };
   }, []);
 
+  const visibleBudgets =
+    budgets ?? (loadingBudgets ? [] : DOCUMENTED_BUDGET_ENVELOPES);
+  const visibleProposals =
+    proposals ?? (loadingProposals ? [] : DOCUMENTED_INVESTMENT_PROPOSALS);
+  const visibleRiskEvaluations =
+    riskEvaluations ??
+    (loadingRiskEvaluations ? [] : DOCUMENTED_RISK_EVALUATIONS);
   const visiblePaperOrderPlans =
     paperOrderPlans ??
     (loadingPaperOrderPlans ? [] : DOCUMENTED_PAPER_ORDER_PLANS);
@@ -346,7 +595,10 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   return {
     status: riskGateStatus ?? DOCUMENTED_STATUS,
     controlStatus,
+    visibleBudgets,
     visibleResearchRuns: researchRuns ?? DOCUMENTED_RESEARCH_RUNS,
+    visibleProposals,
+    visibleRiskEvaluations,
     visiblePaperOrderPlans,
     visiblePaperAccount: paperAccount,
     visiblePaperAccountEvents,
@@ -370,6 +622,16 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     latestReconciledPlan: sortByUpdatedAtDesc(visiblePaperOrderPlans).find(
       (plan) => plan.reconciliation.reconciledAt,
     ),
+    workflowStages: buildWorkflowStages({
+      budgets: visibleBudgets,
+      researchRuns: researchRuns ?? DOCUMENTED_RESEARCH_RUNS,
+      proposals: visibleProposals,
+      riskEvaluations: visibleRiskEvaluations,
+      approvals: visibleOrderPlanApprovals,
+      paperPlans: visiblePaperOrderPlans,
+      brokerSnapshots: visibleBrokerSnapshots,
+      paperAccount,
+    }),
     recentPaperLedgerChanges: mergeLedgerChanges(paperAccount),
     paperExecutionReadiness: controlStatus.readiness.find(
       (item) => item.key === "paperExecutionReady",
@@ -385,11 +647,26 @@ export const useControlPlaneDashboard = (): DashboardModel => {
         : loadingStatus
           ? "Loading API status"
           : "Documented fallback",
+      budgets: budgets
+        ? "Live budgets"
+        : loadingBudgets
+          ? "Loading budgets"
+          : "Documented budget sample",
       researchRuns: researchRuns
         ? "Live research ledger"
         : loadingResearchRuns
           ? "Loading research ledger"
           : "Documented sample runs",
+      proposals: proposals
+        ? "Live proposals"
+        : loadingProposals
+          ? "Loading proposals"
+          : "Documented proposal sample",
+      riskEvaluations: riskEvaluations
+        ? "Live risk evaluations"
+        : loadingRiskEvaluations
+          ? "Loading risk evaluations"
+          : "Documented risk sample",
       paperOrderPlans: paperOrderPlans
         ? "Live paper plans"
         : loadingPaperOrderPlans
@@ -418,7 +695,10 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     },
     errors: {
       status: statusError,
+      budgets: budgetsError,
       researchRuns: researchRunsError,
+      proposals: proposalsError,
+      riskEvaluations: riskEvaluationsError,
       paperOrderPlans: paperOrderPlansError,
       paperAccount: paperAccountError,
       paperAccountEvents: paperAccountEventsError,
@@ -428,6 +708,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     },
     loading: {
       researchRuns: loadingResearchRuns,
+      budgets: loadingBudgets,
+      proposals: loadingProposals,
+      riskEvaluations: loadingRiskEvaluations,
       paperAccount: loadingPaperAccount,
       paperAccountEvents: loadingPaperAccountEvents,
       paperOrderPlans: loadingPaperOrderPlans,
