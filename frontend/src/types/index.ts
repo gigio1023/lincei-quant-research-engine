@@ -499,6 +499,13 @@ export interface BrokerFill {
   updatedAt: string;
 }
 
+export interface ReconcileBrokerFillRequest {
+  paperOrderPlanId?: number | string;
+  paperFillId?: string;
+  tolerance?: number;
+  notes?: string[];
+}
+
 export type BrokerAdapterProvider = "toss" | "manual" | "simulated";
 
 export type BrokerAdapterCapabilityStatus =

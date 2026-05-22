@@ -138,6 +138,7 @@ describe('ControlPlane research provenance (e2e)', () => {
             side: 'BUY',
             orderType: 'MARKET',
             notional: 500_000,
+            price: 50_000,
             targetPositionPct: 5,
           },
         ],
@@ -434,6 +435,7 @@ describe('ControlPlane research provenance (e2e)', () => {
             side: 'BUY',
             orderType: 'MARKET',
             notional: 500_000,
+            price: 50_000,
             targetPositionPct: 5,
           },
         ],
@@ -638,9 +640,9 @@ describe('ControlPlane research provenance (e2e)', () => {
         sourceRef: 'operator-fill-import',
         symbol: '005930',
         side: 'BUY',
-        quantity: 1,
+        quantity: 10,
         fillPrice: 50_000,
-        fee: 50,
+        fee: 500,
         filledAt: new Date(Date.now() - 10 * 60_000).toISOString(),
       })
       .expect(201);
@@ -648,7 +650,32 @@ describe('ControlPlane research provenance (e2e)', () => {
     expect(brokerFillResponse.body.accountRefHash).toMatch(/^sha256:/);
     expect(brokerFillResponse.body.brokerExecutionEnabled).toBe(false);
     expect(brokerFillResponse.body.liveTradingEnabled).toBe(false);
-    expect(brokerFillResponse.body.reconciliation.status).toBe('not_checked');
+    expect(brokerFillResponse.body.status).toBe('matched');
+    expect(brokerFillResponse.body.reconciliation).toMatchObject({
+      status: 'matched',
+      paperOrderPlanId: paperResponse.body.id,
+      paperFillId: paperResponse.body.fills[0].paperFillId,
+      symbolMatched: true,
+      sideMatched: true,
+      quantityMatched: true,
+      notionalMatched: true,
+      feeMatched: true,
+    });
+
+    const brokerFillReconcileResponse = await request(app.getHttpServer())
+      .post(
+        `/control-plane/broker-fills/${brokerFillResponse.body.id}/reconcile-paper`,
+      )
+      .send({
+        paperOrderPlanId: paperResponse.body.id,
+        paperFillId: paperResponse.body.fills[0].paperFillId,
+        tolerance: 0.01,
+        notes: ['E2E broker fill reconciliation.'],
+      })
+      .expect(201);
+    expect(brokerFillReconcileResponse.body.reconciliation.notes).toContain(
+      'E2E broker fill reconciliation.',
+    );
 
     const brokerFillsResponse = await request(app.getHttpServer())
       .get('/control-plane/broker-fills')

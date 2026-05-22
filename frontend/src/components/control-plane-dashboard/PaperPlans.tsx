@@ -102,7 +102,7 @@ const PaperPlanCard = ({ plan }: { plan: PaperPlan }) => (
       </div>
     </div>
 
-    <div className="grid gap-0 md:grid-cols-3">
+    <div className="grid gap-0 2xl:grid-cols-3">
       <PlanOrders plan={plan} />
       <PlanFills plan={plan} />
       <PlanReconciliation plan={plan} />
@@ -111,7 +111,7 @@ const PaperPlanCard = ({ plan }: { plan: PaperPlan }) => (
 );
 
 const PlanOrders = ({ plan }: { plan: PaperPlan }) => (
-  <div className="border-b border-[#2b3139] p-3 md:border-b-0 md:border-r">
+  <div className="border-b border-[#2b3139] p-3 2xl:border-b-0 2xl:border-r">
     <div className="text-xs font-bold uppercase text-[#707a8a]">
       Planned orders
     </div>
@@ -119,7 +119,7 @@ const PlanOrders = ({ plan }: { plan: PaperPlan }) => (
       {plan.orders.map((order) => (
         <div
           key={`${plan.id}-${order.symbol}-${order.side}`}
-          className="grid grid-cols-[1fr_auto] gap-3 text-xs"
+          className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 text-xs"
         >
           <span className="font-mono font-bold text-white">{order.symbol}</span>
           <span className="font-mono text-[#eaecef]">
@@ -132,7 +132,7 @@ const PlanOrders = ({ plan }: { plan: PaperPlan }) => (
 );
 
 const PlanFills = ({ plan }: { plan: PaperPlan }) => (
-  <div className="border-b border-[#2b3139] p-3 md:border-b-0 md:border-r">
+  <div className="border-b border-[#2b3139] p-3 2xl:border-b-0 2xl:border-r">
     <div className="text-xs font-bold uppercase text-[#707a8a]">
       Paper fills
     </div>
@@ -145,7 +145,7 @@ const PlanFills = ({ plan }: { plan: PaperPlan }) => (
         {plan.fills.map((fill) => (
           <div
             key={`${plan.id}-${fill.symbol}-${fill.side}-${fill.status}`}
-            className="grid grid-cols-[1fr_auto] gap-3 text-xs"
+            className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 text-xs"
           >
             <span className="font-mono font-bold text-white">
               {fill.symbol}
@@ -208,6 +208,6 @@ const Row = ({
 }) => (
   <div className="flex justify-between gap-3">
     <span className="text-[#929aa5]">{label}</span>
-    <span className={`font-mono ${valueClass}`}>{value}</span>
+    <span className={`text-right font-mono ${valueClass}`}>{value}</span>
   </div>
 );

@@ -19,6 +19,7 @@ vi.mock("../services/api", () => ({
     getPaperOrderPlans: vi.fn(),
     getBrokerSnapshots: vi.fn(),
     getBrokerFills: vi.fn(),
+    reconcileBrokerFill: vi.fn(),
     getBrokerAdapterStatus: vi.fn(),
     getOrderPlanApprovals: vi.fn(),
     getRuns: vi.fn(),
@@ -716,6 +717,56 @@ const mockBrokerSnapshots = [
   },
 ];
 
+const mockBrokerFills = [
+  {
+    id: "broker-fill-api-1",
+    provider: "manual",
+    sourceRef: "operator-fill-import",
+    accountRefHash: "sha256:broker-account",
+    brokerOrderRefHash: "sha256:broker-order",
+    brokerFillRefHash: "sha256:broker-fill",
+    status: "matched",
+    symbol: "005930",
+    side: "BUY",
+    quantity: 6.8,
+    fillPrice: 73500,
+    grossNotional: 499800,
+    fee: 500,
+    feeCurrency: "KRW",
+    currency: "KRW",
+    filledAt: "2026-05-22T09:06:00.000Z",
+    asOf: "2026-05-22T09:07:00.000Z",
+    reconciliation: {
+      status: "matched",
+      checkedAt: "2026-05-22T09:08:00.000Z",
+      paperOrderPlanId: "paper-plan-api-1",
+      paperFillId: "paper-order:proposal-api-1:0:fill:0",
+      symbolMatched: true,
+      sideMatched: true,
+      quantityMatched: true,
+      notionalMatched: true,
+      feeMatched: true,
+      brokerQuantity: 6.8,
+      brokerGrossNotional: 499800,
+      brokerFee: 500,
+      expectedQuantity: 6.8,
+      expectedGrossNotional: 499800,
+      expectedFee: 500,
+      quantityDiff: 0,
+      notionalDiff: 0,
+      feeDiff: 0,
+      tolerance: 0.01,
+      notes: [
+        "Broker fill compared against paper fill paper-order:proposal-api-1:0:fill:0 from paper order plan paper-plan-api-1.",
+      ],
+    },
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+    createdAt: "2026-05-22T09:07:00.000Z",
+    updatedAt: "2026-05-22T09:08:00.000Z",
+  },
+];
+
 const mockBrokerAdapterStatus = {
   provider: "toss",
   configured: false,
@@ -855,7 +906,9 @@ describe("ControlPlaneDashboard", () => {
     vi.mocked(controlPlaneApi.getBrokerSnapshots).mockResolvedValue(
       mockBrokerSnapshots,
     );
-    vi.mocked(controlPlaneApi.getBrokerFills).mockResolvedValue([]);
+    vi.mocked(controlPlaneApi.getBrokerFills).mockResolvedValue(
+      mockBrokerFills,
+    );
     vi.mocked(controlPlaneApi.getBrokerAdapterStatus).mockResolvedValue(
       mockBrokerAdapterStatus,
     );
@@ -987,6 +1040,18 @@ describe("ControlPlaneDashboard", () => {
     expect(
       screen.getByText(
         "Broker snapshot compared against active paper account state.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Broker Fill Evidence")).toBeInTheDocument();
+    expect(screen.getByText("API broker fills")).toBeInTheDocument();
+    expect(screen.getByText("plan paper-plan-api-1")).toBeInTheDocument();
+    expect(
+      screen.getAllByText(/paper-order:proposal-api-1:0:fill:0/).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByText("Qty diff")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Broker fill compared against paper fill paper-order:proposal-api-1:0:fill:0 from paper order plan paper-plan-api-1.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByText("Signed Order Approval")).toBeInTheDocument();

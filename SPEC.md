@@ -457,8 +457,8 @@ Current status:
 - provider-neutral Toss adapter readiness contract reports credential/schema/sandbox/read-only/order-placement gates;
 - disabled-by-default Toss read-only poll worker exists and only allowlists token, account, and holdings reads before importing mapped snapshots through the same broker snapshot ledger;
 - imported Toss read-only snapshots attempt automatic reconciliation against the active paper account and report the latest reconciliation status on the adapter poll status;
-- read-only broker fill evidence can now be imported into `broker_fills`; automatic broker fill polling and paper-fill matching are still blocked;
-- frontend dashboard shows latest broker snapshot status, broker fill evidence, Toss readiness gates, and reconciliation notes;
+- read-only broker fill evidence can now be imported into `broker_fills` and matched against paper fills; automatic provider fill polling is still blocked;
+- frontend dashboard shows latest broker snapshot status, broker fill evidence, paper-fill match details, Toss readiness gates, and reconciliation notes;
 - still missing verified Toss schema responses, production credential custody, provider-specific rate-limit/error handling, fill polling, order custody, and broker write controls.
 
 Exit criteria:

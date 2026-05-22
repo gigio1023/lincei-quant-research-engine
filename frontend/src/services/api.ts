@@ -15,6 +15,7 @@ import {
   PaperAccountEvent,
   PaperOrderPlan,
   PaperExecuteProposalRequest,
+  ReconcileBrokerFillRequest,
   Report,
   ReportsResponse,
   ResearchRun,
@@ -118,6 +119,17 @@ export const controlPlaneApi = {
 
   getBrokerFills: async (): Promise<BrokerFill[]> => {
     const response = await api.get("/control-plane/broker-fills");
+    return response.data;
+  },
+
+  reconcileBrokerFill: async (
+    id: number | string,
+    request: ReconcileBrokerFillRequest = {},
+  ): Promise<BrokerFill> => {
+    const response = await api.post(
+      `/control-plane/broker-fills/${id}/reconcile-paper`,
+      request,
+    );
     return response.data;
   },
 

@@ -62,6 +62,7 @@ import {
   ImportBrokerSnapshotRequest,
   PaperExecuteProposalRequest,
   PromotePaperAccountRequest,
+  ReconcileBrokerFillRequest,
   ReconcileBrokerSnapshotRequest,
   ReconcilePaperOrderPlanRequest,
   RunBaselineResearchRequest,
@@ -202,7 +203,7 @@ export class ControlPlaneService {
         {
           key: 'paperExecutionReady',
           ready: false,
-          detail: `Paper simulator ledger registered with ${paperOrderPlanCount} paper order plans; broker-grade readiness is blocked by production signing custody, broker reconciliation, and kill switch runtime`,
+          detail: `Paper simulator ledger registered with ${paperOrderPlanCount} paper order plans; broker-grade readiness is blocked by production signing custody, automatic broker polling, and kill switch runtime`,
         },
         {
           key: 'paperSimulationLedgerReady',
@@ -234,7 +235,7 @@ export class ControlPlaneService {
           key: 'brokerReadOnlyReady',
           ready: false,
           detail:
-            'Live broker adapter is not implemented; read-only snapshot ledger and adapter readiness contract are available',
+            'Live broker adapter is not implemented; read-only snapshot/fill ledgers and adapter readiness contract are available',
         },
         {
           key: 'brokerAdapterContractReady',
@@ -261,7 +262,7 @@ export class ControlPlaneService {
       blockers: [
         'No verified Toss read-only adapter schema or credentials',
         'No production signed order-plan workflow',
-        'No broker reconciliation loop',
+        'No automatic broker polling loop',
         'No production kill switch runtime',
         ...liveTradingGate.blockers,
       ],
@@ -274,7 +275,7 @@ export class ControlPlaneService {
       'Broker write access is disabled',
       'Production credential custody is not wired',
       'Production kill switch runtime is not ready',
-      'Broker fill polling and reconciliation are not verified',
+      'Broker fill polling is not automated or verified with a live provider',
     ];
 
     return {
@@ -956,11 +957,11 @@ export class ControlPlaneService {
       tolerance: 0.01,
       notes: [
         'Imported as read-only broker fill evidence. No order endpoint was called.',
-        'Fill reconciliation against a paper fill is not implemented yet.',
+        'Fill reconciliation against local paper fills is attempted automatically.',
       ],
     };
 
-    return this.brokerFillRepository.save(
+    const savedFill = await this.brokerFillRepository.save(
       this.brokerFillRepository.create({
         provider: request.provider ?? 'manual',
         sourceRef: request.sourceRef,
@@ -990,12 +991,34 @@ export class ControlPlaneService {
         liveTradingEnabled: false,
       }),
     );
+
+    return this.reconcileBrokerFillAgainstPaper(savedFill, {
+      tolerance: reconciliation.tolerance,
+      notes: [
+        'Automatic paper-fill matching attempted immediately after import.',
+      ],
+    });
   }
 
   async listBrokerFills(): Promise<BrokerFill[]> {
     return this.brokerFillRepository.find({
       order: { filledAt: 'DESC', updatedAt: 'DESC' },
     });
+  }
+
+  async reconcileBrokerFill(
+    fillId: number,
+    request: ReconcileBrokerFillRequest = {},
+  ): Promise<BrokerFill> {
+    const brokerFill = await this.brokerFillRepository.findOne({
+      where: { id: fillId },
+    });
+
+    if (!brokerFill) {
+      throw new NotFoundException(`Broker fill ${fillId} not found`);
+    }
+
+    return this.reconcileBrokerFillAgainstPaper(brokerFill, request);
   }
 
   async getLatestBrokerSnapshot(): Promise<BrokerSnapshot> {
@@ -1107,6 +1130,180 @@ export class ControlPlaneService {
     };
 
     return this.brokerSnapshotRepository.save(snapshot);
+  }
+
+  private async reconcileBrokerFillAgainstPaper(
+    brokerFill: BrokerFill,
+    request: ReconcileBrokerFillRequest = {},
+  ): Promise<BrokerFill> {
+    const tolerance = request.tolerance ?? brokerFill.reconciliation.tolerance;
+    const candidate = await this.findPaperFillMatchForBrokerFill(
+      brokerFill,
+      request,
+    );
+    const checkedAt = new Date();
+
+    if (!candidate) {
+      brokerFill.status = 'mismatch';
+      brokerFill.reconciliation = {
+        ...brokerFill.reconciliation,
+        status: 'mismatch',
+        checkedAt: checkedAt.toISOString(),
+        symbolMatched: false,
+        sideMatched: false,
+        quantityMatched: false,
+        notionalMatched: false,
+        feeMatched: false,
+        brokerQuantity: brokerFill.quantity,
+        brokerGrossNotional: brokerFill.grossNotional,
+        brokerFee: brokerFill.fee,
+        tolerance,
+        notes: [
+          ...brokerFill.reconciliation.notes,
+          ...(request.notes ?? []),
+          request.paperOrderPlanId
+            ? `No matching paper fill found in paper order plan ${request.paperOrderPlanId}.`
+            : 'No matching paper fill found for this broker fill evidence.',
+        ],
+      };
+
+      return this.brokerFillRepository.save(brokerFill);
+    }
+
+    const quantityDiff = this.roundQuantity(
+      brokerFill.quantity - candidate.paperFill.quantity,
+    );
+    const notionalDiff = this.roundMoney(
+      brokerFill.grossNotional - candidate.paperFill.grossNotional,
+    );
+    const feeDiff = this.roundMoney(brokerFill.fee - candidate.paperFill.fee);
+    const symbolMatched = brokerFill.symbol === candidate.paperFill.symbol;
+    const sideMatched = brokerFill.side === candidate.paperFill.side;
+    const quantityMatched = Math.abs(quantityDiff) <= tolerance;
+    const notionalMatched = Math.abs(notionalDiff) <= tolerance;
+    const feeCurrencyMatched =
+      brokerFill.feeCurrency === candidate.paperFill.feeCurrency;
+    const feeMatched = Math.abs(feeDiff) <= tolerance && feeCurrencyMatched;
+    const status =
+      symbolMatched &&
+      sideMatched &&
+      quantityMatched &&
+      notionalMatched &&
+      feeMatched
+        ? 'matched'
+        : 'mismatch';
+
+    brokerFill.status = status;
+    brokerFill.reconciliation = {
+      ...brokerFill.reconciliation,
+      status,
+      checkedAt: checkedAt.toISOString(),
+      paperOrderPlanId: candidate.plan.id,
+      paperFillId: candidate.paperFill.paperFillId,
+      symbolMatched,
+      sideMatched,
+      quantityMatched,
+      notionalMatched,
+      feeMatched,
+      brokerQuantity: brokerFill.quantity,
+      brokerGrossNotional: brokerFill.grossNotional,
+      brokerFee: brokerFill.fee,
+      expectedQuantity: candidate.paperFill.quantity,
+      expectedGrossNotional: candidate.paperFill.grossNotional,
+      expectedFee: candidate.paperFill.fee,
+      quantityDiff,
+      notionalDiff,
+      feeDiff,
+      tolerance,
+      notes: [
+        ...brokerFill.reconciliation.notes,
+        ...(request.notes ?? []),
+        `Broker fill compared against paper fill ${candidate.paperFill.paperFillId} from paper order plan ${candidate.plan.id}.`,
+        feeCurrencyMatched
+          ? 'Broker fee currency matches paper fee currency.'
+          : `Broker fee currency ${brokerFill.feeCurrency} differs from paper fee currency ${candidate.paperFill.feeCurrency}.`,
+      ],
+    };
+
+    return this.brokerFillRepository.save(brokerFill);
+  }
+
+  private async findPaperFillMatchForBrokerFill(
+    brokerFill: BrokerFill,
+    request: ReconcileBrokerFillRequest,
+  ): Promise<{ plan: PaperOrderPlan; paperFill: PaperFill } | null> {
+    const plans = request.paperOrderPlanId
+      ? await this.findRequestedBrokerFillPaperPlan(request.paperOrderPlanId)
+      : await this.paperOrderPlanRepository.find({
+          order: { updatedAt: 'DESC' },
+        });
+
+    const candidates = plans.flatMap((plan) =>
+      plan.fills
+        .filter((paperFill) =>
+          request.paperFillId
+            ? paperFill.paperFillId === request.paperFillId
+            : paperFill.status === 'filled',
+        )
+        .map((paperFill) => ({
+          plan,
+          paperFill,
+          symbolMatched: brokerFill.symbol === paperFill.symbol,
+          sideMatched: brokerFill.side === paperFill.side,
+          quantityDiff: Math.abs(
+            this.roundQuantity(brokerFill.quantity - paperFill.quantity),
+          ),
+          notionalDiff: Math.abs(
+            this.roundMoney(brokerFill.grossNotional - paperFill.grossNotional),
+          ),
+          feeDiff: Math.abs(this.roundMoney(brokerFill.fee - paperFill.fee)),
+          timeDiffMs: Math.abs(
+            brokerFill.filledAt.getTime() -
+              new Date(paperFill.timestamp).getTime(),
+          ),
+        })),
+    );
+
+    if (candidates.length === 0) {
+      return null;
+    }
+
+    candidates.sort((left, right) => {
+      const leftScore =
+        (left.symbolMatched ? 0 : 1) +
+        (left.sideMatched ? 0 : 1) +
+        left.notionalDiff / 1_000_000 +
+        left.quantityDiff / 1_000_000 +
+        left.feeDiff / 1_000_000 +
+        left.timeDiffMs / 86_400_000;
+      const rightScore =
+        (right.symbolMatched ? 0 : 1) +
+        (right.sideMatched ? 0 : 1) +
+        right.notionalDiff / 1_000_000 +
+        right.quantityDiff / 1_000_000 +
+        right.feeDiff / 1_000_000 +
+        right.timeDiffMs / 86_400_000;
+
+      return leftScore - rightScore;
+    });
+
+    return candidates[0];
+  }
+
+  private async findRequestedBrokerFillPaperPlan(
+    paperOrderPlanId: number,
+  ): Promise<PaperOrderPlan[]> {
+    const plan = await this.paperOrderPlanRepository.findOne({
+      where: { id: paperOrderPlanId },
+    });
+
+    if (!plan) {
+      throw new NotFoundException(
+        `Paper order plan ${paperOrderPlanId} not found`,
+      );
+    }
+
+    return [plan];
   }
 
   async getExecutionControlState(): Promise<ExecutionControlState> {

@@ -38,6 +38,7 @@ import {
   ImportBrokerSnapshotRequest,
   PaperExecuteProposalRequest,
   PromotePaperAccountRequest,
+  ReconcileBrokerFillRequest,
   ReconcileBrokerSnapshotRequest,
   ReconcilePaperOrderPlanRequest,
   RunRecoveryProposalRequest,
@@ -159,6 +160,14 @@ export class ControlPlaneController {
   @Get('broker-fills')
   listBrokerFills(): Promise<BrokerFill[]> {
     return this.controlPlaneService.listBrokerFills();
+  }
+
+  @Post('broker-fills/:id/reconcile-paper')
+  reconcileBrokerFill(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() request: ReconcileBrokerFillRequest = {},
+  ): Promise<BrokerFill> {
+    return this.controlPlaneService.reconcileBrokerFill(id, request);
   }
 
   @Get('broker-snapshots')

@@ -159,6 +159,13 @@ export interface ImportBrokerFillRequest {
   asOf?: string;
 }
 
+export interface ReconcileBrokerFillRequest {
+  paperOrderPlanId?: number;
+  paperFillId?: string;
+  tolerance?: number;
+  notes?: string[];
+}
+
 export interface ReconcileBrokerSnapshotRequest {
   paperAccountId?: number;
   tolerance?: number;

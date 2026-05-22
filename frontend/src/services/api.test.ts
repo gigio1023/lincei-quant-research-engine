@@ -583,7 +583,7 @@ describe("API Service", () => {
           id: "broker-fill-1",
           provider: "manual",
           brokerFillRefHash: "sha256:fill",
-          status: "imported",
+          status: "matched",
           symbol: "005930",
           side: "BUY",
           quantity: 1,
@@ -595,15 +595,24 @@ describe("API Service", () => {
           filledAt: "2026-05-22T09:00:00.000Z",
           asOf: "2026-05-22T09:00:00.000Z",
           reconciliation: {
-            status: "not_checked",
-            symbolMatched: false,
-            sideMatched: false,
-            quantityMatched: false,
-            notionalMatched: false,
-            feeMatched: false,
+            status: "matched",
+            checkedAt: "2026-05-22T09:01:00.000Z",
+            paperOrderPlanId: "paper-plan-1",
+            paperFillId: "paper-order:1:0:fill:0",
+            symbolMatched: true,
+            sideMatched: true,
+            quantityMatched: true,
+            notionalMatched: true,
+            feeMatched: true,
             brokerQuantity: 1,
             brokerGrossNotional: 50_000,
             brokerFee: 50,
+            expectedQuantity: 1,
+            expectedGrossNotional: 50_000,
+            expectedFee: 50,
+            quantityDiff: 0,
+            notionalDiff: 0,
+            feeDiff: 0,
             tolerance: 0.01,
             notes: [],
           },
@@ -621,6 +630,72 @@ describe("API Service", () => {
 
       expect(mockGet).toHaveBeenCalledWith("/control-plane/broker-fills");
       expect(result).toEqual(mockBrokerFills);
+    });
+
+    it("should_reconcile_broker_fill", async () => {
+      const mockBrokerFill = {
+        id: "broker-fill-1",
+        provider: "manual",
+        brokerFillRefHash: "sha256:fill",
+        status: "matched",
+        symbol: "005930",
+        side: "BUY",
+        quantity: 1,
+        fillPrice: 50_000,
+        grossNotional: 50_000,
+        fee: 50,
+        feeCurrency: "KRW",
+        currency: "KRW",
+        filledAt: "2026-05-22T09:00:00.000Z",
+        asOf: "2026-05-22T09:00:00.000Z",
+        reconciliation: {
+          status: "matched",
+          paperOrderPlanId: "paper-plan-1",
+          paperFillId: "paper-order:1:0:fill:0",
+          symbolMatched: true,
+          sideMatched: true,
+          quantityMatched: true,
+          notionalMatched: true,
+          feeMatched: true,
+          brokerQuantity: 1,
+          brokerGrossNotional: 50_000,
+          brokerFee: 50,
+          expectedQuantity: 1,
+          expectedGrossNotional: 50_000,
+          expectedFee: 50,
+          quantityDiff: 0,
+          notionalDiff: 0,
+          feeDiff: 0,
+          tolerance: 0.01,
+          notes: ["Broker fill compared against paper fill."],
+        },
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+        createdAt: "2026-05-22T09:00:00.000Z",
+        updatedAt: "2026-05-22T09:01:00.000Z",
+      };
+
+      mockPost.mockResolvedValue({ data: mockBrokerFill });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.reconcileBrokerFill(
+        "broker-fill-1",
+        {
+          paperOrderPlanId: "paper-plan-1",
+          paperFillId: "paper-order:1:0:fill:0",
+          tolerance: 0.01,
+        },
+      );
+
+      expect(mockPost).toHaveBeenCalledWith(
+        "/control-plane/broker-fills/broker-fill-1/reconcile-paper",
+        {
+          paperOrderPlanId: "paper-plan-1",
+          paperFillId: "paper-order:1:0:fill:0",
+          tolerance: 0.01,
+        },
+      );
+      expect(result).toEqual(mockBrokerFill);
     });
 
     it("should_get_order_plan_approvals", async () => {

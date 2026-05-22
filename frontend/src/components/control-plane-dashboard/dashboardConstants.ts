@@ -65,7 +65,7 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
       "Broker write access is disabled",
       "Production credential custody is not wired",
       "Production kill switch runtime is not ready",
-      "Broker fill polling and reconciliation are not verified",
+      "Broker fill polling is not automated or verified with a live provider",
     ],
     detail:
       "Live trading gate is disabled until broker write access, credential custody, kill switch, fill polling, and reconciliation are verified.",
@@ -138,13 +138,13 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
       key: "liveTradingReady",
       ready: false,
       detail:
-        "Live trading gate is disabled until broker write access, credential custody, kill switch, fill polling, and reconciliation are verified.",
+        "Live trading gate is disabled until broker write access, credential custody, kill switch, and live-provider fill polling are verified.",
     },
   ],
   blockers: [
     "No verified Toss read-only adapter schema or credentials",
     "No production signed order-plan workflow",
-    "No broker reconciliation loop",
+    "No automatic broker polling loop",
     "No production kill switch runtime",
   ],
 };

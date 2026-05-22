@@ -345,25 +345,85 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
         </div>
 
         {fill ? (
-          <div className="mt-3 grid gap-2 md:grid-cols-4">
-            {[
-              ["Symbol", fill.symbol],
-              ["Side", fill.side],
-              ["Notional", formatCurrency(fill.grossNotional, fill.currency)],
-              ["Recon", fill.reconciliation.status],
-            ].map(([label, value]) => (
-              <div
-                key={label}
-                className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3"
-              >
-                <div className="text-[11px] font-bold uppercase text-[#707a8a]">
-                  {label}
+          <div className="mt-3 space-y-3">
+            <div className="grid gap-2 md:grid-cols-4">
+              {[
+                ["Symbol", fill.symbol],
+                ["Side", fill.side],
+                ["Notional", formatCurrency(fill.grossNotional, fill.currency)],
+                ["Recon", fill.reconciliation.status],
+              ].map(([label, value]) => (
+                <BrokerFillMetric key={label} label={label} value={value} />
+              ))}
+            </div>
+            <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
+              <div className="flex min-w-0 flex-col gap-2">
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold uppercase text-[#707a8a]">
+                    Paper Match
+                  </div>
+                  <div className="mt-1 truncate font-mono text-sm font-bold text-[#eaecef]">
+                    {fill.reconciliation.paperOrderPlanId
+                      ? `plan ${fill.reconciliation.paperOrderPlanId}`
+                      : "no plan"}{" "}
+                    / {fill.reconciliation.paperFillId ?? "no fill"}
+                  </div>
                 </div>
-                <div className="mt-1 truncate font-mono text-sm font-bold text-[#eaecef]">
-                  {value}
+                <div className="font-mono text-xs font-bold text-[#929aa5]">
+                  checked{" "}
+                  {fill.reconciliation.checkedAt
+                    ? formatDateTime(fill.reconciliation.checkedAt)
+                    : "not yet"}
                 </div>
               </div>
-            ))}
+              <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+                {[
+                  [
+                    "Qty diff",
+                    formatNumber(fill.reconciliation.quantityDiff ?? 0),
+                  ],
+                  [
+                    "Notional diff",
+                    formatCurrency(fill.reconciliation.notionalDiff ?? 0),
+                  ],
+                  [
+                    "Fee diff",
+                    formatCurrency(fill.reconciliation.feeDiff ?? 0),
+                  ],
+                ].map(([label, value]) => (
+                  <BrokerFillMetric key={label} label={label} value={value} />
+                ))}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(
+                  [
+                    ["symbol", fill.reconciliation.symbolMatched],
+                    ["side", fill.reconciliation.sideMatched],
+                    ["quantity", fill.reconciliation.quantityMatched],
+                    ["notional", fill.reconciliation.notionalMatched],
+                    ["fee", fill.reconciliation.feeMatched],
+                  ] as [string, boolean][]
+                ).map(([label, matched]) => (
+                  <span
+                    key={label}
+                    className={`rounded-md border px-2 py-1 text-[11px] font-bold uppercase ${
+                      matched
+                        ? "border-[#0ecb81]/30 bg-[#0ecb81]/10 text-[#0ecb81]"
+                        : "border-[#f6465d]/30 bg-[#f6465d]/10 text-[#f6465d]"
+                    }`}
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
+              <div className="mt-3 space-y-1">
+                {fill.reconciliation.notes.slice(-2).map((note) => (
+                  <div key={note} className="text-xs leading-5 text-[#929aa5]">
+                    {note}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         ) : (
           <div className="mt-3 rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3 text-xs font-semibold text-[#707a8a]">
@@ -374,3 +434,20 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
     </section>
   );
 };
+
+const BrokerFillMetric = ({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number | undefined;
+}) => (
+  <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
+    <div className="text-[11px] font-bold uppercase text-[#707a8a]">
+      {label}
+    </div>
+    <div className="mt-1 truncate font-mono text-sm font-bold text-[#eaecef]">
+      {value ?? "n/a"}
+    </div>
+  </div>
+);

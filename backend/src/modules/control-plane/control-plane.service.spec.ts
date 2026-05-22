@@ -910,7 +910,7 @@ describe('ControlPlaneService', () => {
       expect.objectContaining({
         provider: 'manual',
         sourceRef: 'operator-fill-import',
-        status: 'imported',
+        status: 'mismatch',
         symbol: '005930',
         side: 'BUY',
         quantity: 10,
@@ -925,8 +925,83 @@ describe('ControlPlaneService', () => {
     expect(fill.brokerOrderRefHash).toMatch(/^sha256:/);
     expect(fill.brokerFillRefHash).toMatch(/^sha256:/);
     expect(fill).not.toHaveProperty('accountRef');
-    expect(fill.reconciliation.status).toBe('not_checked');
+    expect(fill.status).toBe('mismatch');
+    expect(fill.reconciliation.status).toBe('mismatch');
+    expect(fill.reconciliation.notes).toContain(
+      'No matching paper fill found for this broker fill evidence.',
+    );
     expect(await service.listBrokerFills()).toHaveLength(1);
+  });
+
+  it('matches imported broker fill evidence against a paper fill', async () => {
+    paperOrderPlans.push({
+      id: 7,
+      proposalId: 3,
+      status: 'filled',
+      fills: [
+        {
+          paperFillId: 'paper-order:3:0:fill:0',
+          paperOrderId: 'paper-order:3:0',
+          timestamp: '2026-05-22T23:58:00.000Z',
+          symbol: '005930',
+          side: 'BUY',
+          quantity: 10,
+          fillPrice: 50_000,
+          grossNotional: 500_000,
+          requestedNotional: 500_000,
+          filledNotional: 500_000,
+          fee: 500,
+          feeCurrency: 'KRW',
+          slippage: 250,
+          netCashDelta: -500_750,
+          positionDelta: 10,
+          status: 'filled',
+        },
+      ],
+      updatedAt: new Date('2026-05-22T23:58:00.000Z'),
+    } as PaperOrderPlan);
+
+    const fill = await service.importBrokerFill({
+      provider: 'manual',
+      brokerFillRef: 'broker-fill-paper-match',
+      symbol: '005930',
+      side: 'BUY',
+      quantity: 10,
+      fillPrice: 50_000,
+      fee: 500,
+      filledAt: '2026-05-22T23:59:00.000Z',
+    });
+
+    expect(fill.status).toBe('matched');
+    expect(fill.reconciliation).toEqual(
+      expect.objectContaining({
+        status: 'matched',
+        paperOrderPlanId: 7,
+        paperFillId: 'paper-order:3:0:fill:0',
+        symbolMatched: true,
+        sideMatched: true,
+        quantityMatched: true,
+        notionalMatched: true,
+        feeMatched: true,
+        expectedQuantity: 10,
+        expectedGrossNotional: 500_000,
+        expectedFee: 500,
+        quantityDiff: 0,
+        notionalDiff: 0,
+        feeDiff: 0,
+      }),
+    );
+
+    const reconciled = await service.reconcileBrokerFill(fill.id, {
+      paperOrderPlanId: 7,
+      paperFillId: 'paper-order:3:0:fill:0',
+      tolerance: 0.01,
+      notes: ['Unit test explicit broker-fill reconciliation.'],
+    });
+
+    expect(reconciled.reconciliation.notes).toContain(
+      'Unit test explicit broker-fill reconciliation.',
+    );
   });
 
   it('rejects broker fill imports that include credentials or order intent', async () => {

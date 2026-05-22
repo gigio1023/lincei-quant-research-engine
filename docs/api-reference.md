@@ -401,7 +401,7 @@ all broker/live execution flags remain `false`.
 
 #### `POST /control-plane/broker-fills/import-read-only`
 
-- **Description**: Imports read-only broker fill evidence. This is a provider-neutral ledger step for later broker fill polling and paper-fill matching. It does not call a broker, does not store raw account/order/fill refs, rejects credential/order payload fields, and cannot place, cancel, or modify orders.
+- **Description**: Imports read-only broker fill evidence and immediately attempts to match it against existing paper fills. This is a provider-neutral ledger step for later broker fill polling. It does not call a broker, does not store raw account/order/fill refs, rejects credential/order payload fields, and cannot place, cancel, or modify orders.
 - **Example Request**:
   ```json
   {
@@ -421,13 +421,26 @@ all broker/live execution flags remain `false`.
 - **Response Notes**:
   - returns a `BrokerFill`;
   - `accountRef`, `brokerOrderRef`, and `brokerFillRef` are stored only as hashes;
-  - `reconciliation.status` starts as `not_checked`;
+  - `reconciliation.status` becomes `matched` or `mismatch` after automatic paper-fill matching;
   - `brokerCredentials`, tokens, account ids, and order payload fields are rejected;
   - `brokerExecutionEnabled` and `liveTradingEnabled` are always `false`.
 
 #### `GET /control-plane/broker-fills`
 
 - **Description**: Lists imported read-only broker fill evidence ordered by fill timestamp.
+
+#### `POST /control-plane/broker-fills/:id/reconcile-paper`
+
+- **Description**: Re-runs read-only broker fill matching against paper fills. Optional `paperOrderPlanId` and `paperFillId` constrain the match. This updates only the local `BrokerFill.reconciliation` evidence and never calls a broker or places orders.
+- **Example Request**:
+  ```json
+  {
+    "paperOrderPlanId": 7,
+    "paperFillId": "paper-order:3:0:fill:0",
+    "tolerance": 0.01,
+    "notes": ["Operator-requested fill reconciliation."]
+  }
+  ```
 
 #### `GET /control-plane/broker-adapter/status`
 
