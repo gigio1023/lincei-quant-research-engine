@@ -1,4 +1,9 @@
-import { BrokerSnapshot, PaperOrderPlan, ResearchRun } from "../../types";
+import {
+  BrokerSnapshot,
+  OrderPlanApproval,
+  PaperOrderPlan,
+  ResearchRun,
+} from "../../types";
 
 export const DOCUMENTED_RESEARCH_RUNS: ResearchRun[] = [
   {
@@ -61,6 +66,7 @@ export const DOCUMENTED_PAPER_ORDER_PLANS: PaperOrderPlan[] = [
     researchRunId: "rr-docs-momentum-001",
     budgetEnvelopeId: "budget-docs-dry-run",
     riskEvaluationId: "risk-docs-001",
+    orderPlanApprovalId: "approval-docs-001",
     proposalHash: "sha256:docs-proposal",
     riskRequestHash: "sha256:docs-risk",
     planHash: "sha256:docs-plan",
@@ -187,6 +193,42 @@ export const DOCUMENTED_PAPER_ORDER_PLANS: PaperOrderPlan[] = [
     blockedReasons: [],
     createdAt: "2026-05-22T09:04:00.000Z",
     updatedAt: "2026-05-22T09:06:30.000Z",
+  },
+];
+
+export const DOCUMENTED_ORDER_PLAN_APPROVALS: OrderPlanApproval[] = [
+  {
+    id: "approval-docs-001",
+    proposalId: "proposal-docs-momentum-001",
+    budgetEnvelopeId: "budget-docs-dry-run",
+    riskEvaluationId: "risk-docs-001",
+    idempotencyKey: "docs-paper-plan-001",
+    mode: "paper",
+    approver: "documented-operator",
+    reason: "Approve documented paper execution sample.",
+    status: "consumed",
+    proposalHash: "sha256:docs-proposal",
+    riskRequestHash: "sha256:docs-risk",
+    approvalHash: "sha256:docs-approval",
+    approvalSnapshot: {
+      proposalId: 1,
+      riskEvaluationId: 1,
+      mode: "paper",
+      approver: "documented-operator",
+      reason: "Approve documented paper execution sample.",
+      idempotencyKey: "docs-paper-plan-001",
+      approvedOrderCount: 1,
+      approvedAt: "2026-05-22T09:03:00.000Z",
+      proposalHash: "sha256:docs-proposal",
+      riskRequestHash: "sha256:docs-risk",
+    },
+    approvedAt: "2026-05-22T09:03:00.000Z",
+    consumedAt: "2026-05-22T09:05:00.000Z",
+    consumedByPaperOrderPlanId: "paper-docs-plan-001",
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+    createdAt: "2026-05-22T09:03:00.000Z",
+    updatedAt: "2026-05-22T09:05:00.000Z",
   },
 ];
 

@@ -354,22 +354,44 @@ all broker/live execution flags remain `false`.
   }
   ```
 
+#### `POST /control-plane/proposals/:id/order-plan-approvals`
+
+- **Description**: Creates a durable signed approval record for paper-only execution of a stored proposal. The service builds a paper-mode `ALLOW` risk evaluation from the current paper account snapshot or deterministic seed portfolio, hashes the proposal/risk/approval payloads, stores approver and reason, and keeps broker/live execution disabled.
+- **Example Request**:
+  ```json
+  {
+    "idempotencyKey": "paper:proposal:1:risk:4",
+    "approver": "operator@example.com",
+    "reason": "Approve this paper cycle after reviewing the risk gate.",
+    "expiresAt": "2026-05-24T00:00:00.000Z"
+  }
+  ```
+- **Response Notes**:
+  - returns an `OrderPlanApproval`;
+  - `status` starts as `active` and becomes `consumed` after a filled paper order plan uses it;
+  - approval records store `proposalHash`, `riskRequestHash`, `approvalHash`, `approvalSnapshot`, `idempotencyKey`, expiry, approver, reason, and consumed plan id;
+  - `mode` is always `paper`, and `brokerExecutionEnabled` / `liveTradingEnabled` are always `false`.
+
+#### `GET /control-plane/order-plan-approvals`
+
+- **Description**: Lists durable paper order-plan approvals ordered by latest approval time.
+
 #### `POST /control-plane/proposals/:id/paper-execute`
 
-- **Description**: Creates or replays an idempotent paper-only order plan from a stored proposal. Orders are derived from the proposal; arbitrary order payloads, broker credentials, and account ids are not accepted. The endpoint requires an `ALLOW` risk evaluation matching the current paper account snapshot or deterministic seed portfolio, sufficient paper cash/positions, no active duplicate plan, and an execution-control state that permits the action.
+- **Description**: Creates or replays an idempotent paper-only order plan from a stored proposal. Orders are derived from the proposal; arbitrary order payloads, broker credentials, and account ids are not accepted. The endpoint requires an active signed paper order-plan approval, an `ALLOW` paper-mode risk evaluation matching the current paper account snapshot or deterministic seed portfolio, sufficient paper cash/positions, no active duplicate plan, and an execution-control state that permits the action.
 - **Example Request**:
   ```json
   {
     "idempotencyKey": "paper:proposal:1:risk:4",
     "expectedRiskEvaluationId": 4,
-    "humanApprovalId": "paper-approval-20260523-001"
+    "orderPlanApprovalId": 7
   }
   ```
 - **Response Notes**:
   - returns a `PaperOrderPlan`;
-  - if the latest matching risk evaluation is not a paper-mode `ALLOW`, the service creates a paper-mode risk evaluation using `humanApprovalId`; without approval it remains blocked for review;
+  - without an active matching signed approval it remains blocked for review;
   - `status` is `filled`, `blocked`, `reconciled`, or `reconciliation_failed` for the current implementation;
-  - each plan stores `proposalHash`, `riskRequestHash`, `planHash`, `readinessSnapshot`, immutable paper order ids, fill events, cash ledger rows, position ledger rows, portfolio before/after snapshots, reconciliation state, and kill-switch snapshot;
+  - each plan stores `orderPlanApprovalId`, `proposalHash`, `riskRequestHash`, `planHash`, `readinessSnapshot`, immutable paper order ids, fill events, cash ledger rows, position ledger rows, portfolio before/after snapshots, reconciliation state, and kill-switch snapshot;
   - filled plans update the durable local paper account so later paper cycles start from accumulated simulated state;
   - `brokerExecutionEnabled` and `liveTradingEnabled` are always `false`.
 

@@ -4,6 +4,7 @@ import {
   EXAMPLE_REQUEST,
   SAFETY_GATES,
 } from "./dashboardConstants";
+import { OrderPlanApprovalPanel } from "./OrderPlanApprovalPanel";
 import {
   decisionClasses,
   formatBoolean,
@@ -20,6 +21,7 @@ interface RightRailProps {
 export const RightRail = ({ model }: RightRailProps) => (
   <aside className="space-y-4">
     <RiskPolicyCard model={model} />
+    <OrderPlanApprovalPanel model={model} />
     <ExampleEvaluationCard />
     <SafetyGatesCard />
     <LifecycleCard />

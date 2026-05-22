@@ -73,7 +73,7 @@ Required before real-money use:
 3. generate a typed client in an isolated broker adapter package;
 4. implement read-only account and holdings snapshots first;
 5. implement paper execution or a local simulator with the same order-plan interface;
-6. add signed human approval and idempotency keys;
+6. add production signing custody for durable approval records and idempotency keys;
 7. add reconciliation and kill-switch tests;
 8. only then consider a tiny live pilot.
 

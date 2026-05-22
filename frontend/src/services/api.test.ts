@@ -326,6 +326,51 @@ describe("API Service", () => {
       expect(result).toEqual(mockBrokerSnapshots);
     });
 
+    it("should_get_order_plan_approvals", async () => {
+      const mockApprovals = [
+        {
+          id: "approval-1",
+          proposalId: "proposal-1",
+          riskEvaluationId: "risk-1",
+          idempotencyKey: "paper-1",
+          mode: "paper",
+          approver: "operator",
+          reason: "Approve paper plan.",
+          status: "active",
+          proposalHash: "sha256:proposal",
+          riskRequestHash: "sha256:risk",
+          approvalHash: "sha256:approval",
+          approvalSnapshot: {
+            proposalId: 1,
+            riskEvaluationId: 1,
+            mode: "paper",
+            approver: "operator",
+            reason: "Approve paper plan.",
+            idempotencyKey: "paper-1",
+            approvedOrderCount: 1,
+            approvedAt: "2026-05-22T09:00:00.000Z",
+            proposalHash: "sha256:proposal",
+            riskRequestHash: "sha256:risk",
+          },
+          approvedAt: "2026-05-22T09:00:00.000Z",
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+          createdAt: "2026-05-22T09:00:00.000Z",
+          updatedAt: "2026-05-22T09:00:00.000Z",
+        },
+      ];
+
+      mockGet.mockResolvedValue({ data: mockApprovals });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.getOrderPlanApprovals();
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/control-plane/order-plan-approvals",
+      );
+      expect(result).toEqual(mockApprovals);
+    });
+
     it("should_get_execution_control", async () => {
       const mockExecutionControl = {
         id: "execution-control-1",

@@ -3,6 +3,7 @@ import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
+import { OrderPlanApproval } from '../../entities/order-plan-approval.entity';
 import { PaperAccount } from '../../entities/paper-account.entity';
 import { PaperOrderPlan } from '../../entities/paper-order-plan.entity';
 import { ResearchRun } from '../../entities/research-run.entity';
@@ -14,6 +15,7 @@ describe('ControlPlaneService', () => {
   let service: ControlPlaneService;
   let budgets: BudgetEnvelope[];
   let brokerSnapshots: BrokerSnapshot[];
+  let orderPlanApprovals: OrderPlanApproval[];
   let researchRuns: ResearchRun[];
   let proposals: InvestmentProposal[];
   let paperAccounts: PaperAccount[];
@@ -46,6 +48,7 @@ describe('ControlPlaneService', () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-05-23T00:00:00.000Z'));
     budgets = [];
     brokerSnapshots = [];
+    orderPlanApprovals = [];
     researchRuns = [];
     proposals = [];
     paperAccounts = [];
@@ -57,6 +60,7 @@ describe('ControlPlaneService', () => {
       makeRepository(budgets) as any,
       makeRepository(brokerSnapshots) as any,
       makeRepository(proposals) as any,
+      makeRepository(orderPlanApprovals) as any,
       makeRepository(researchRuns) as any,
       makeRepository(paperAccounts) as any,
       makeRepository(paperOrderPlans) as any,
@@ -234,13 +238,19 @@ describe('ControlPlaneService', () => {
     });
 
     await service.evaluateProposal(proposal.id);
+    const approval = await service.createOrderPlanApproval(proposal.id, {
+      idempotencyKey: 'paper-test-1',
+      approver: 'unit-test-operator',
+      reason: 'Approve the first paper execution cycle.',
+    });
     const plan = await service.paperExecuteProposal(proposal.id, {
       idempotencyKey: 'paper-test-1',
-      humanApprovalId: 'approval-paper-test-1',
+      orderPlanApprovalId: approval.id,
     });
 
     expect(plan.status).toBe('filled');
     expect(plan.riskEvaluationId).toBe(evaluations[1].id);
+    expect(plan.orderPlanApprovalId).toBe(approval.id);
     expect(plan.idempotencyKey).toBe('paper-test-1');
     expect(plan.proposalHash).toMatch(/^sha256:/);
     expect(plan.riskRequestHash).toMatch(/^sha256:/);
@@ -314,6 +324,15 @@ describe('ControlPlaneService', () => {
     expect(evaluations).toHaveLength(2);
     expect(evaluations[1].responseSnapshot.mode).toBe('paper');
     expect(evaluations[1].decision).toBe('ALLOW');
+    expect(orderPlanApprovals).toHaveLength(1);
+    expect(orderPlanApprovals[0]).toEqual(
+      expect.objectContaining({
+        status: 'consumed',
+        consumedByPaperOrderPlanId: plan.id,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
     expect(paperAccounts).toHaveLength(1);
     expect(plan.paperAccountId).toBe(paperAccounts[0].id);
     expect(paperAccounts[0]).toEqual(
@@ -378,9 +397,17 @@ describe('ControlPlaneService', () => {
     });
     expect(paperAccounts[0].cash).toBe(9_499_250);
 
+    const secondApproval = await service.createOrderPlanApproval(
+      secondProposal.id,
+      {
+        idempotencyKey: 'paper-test-2',
+        approver: 'unit-test-operator',
+        reason: 'Approve the second paper execution cycle.',
+      },
+    );
     const secondPlan = await service.paperExecuteProposal(secondProposal.id, {
       idempotencyKey: 'paper-test-2',
-      humanApprovalId: 'approval-paper-test-2',
+      orderPlanApprovalId: secondApproval.id,
     });
     expect(secondProposal.budgetEnvelopeId).toBe(budget.id);
     expect(paperAccounts).toHaveLength(1);

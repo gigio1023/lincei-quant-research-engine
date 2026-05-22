@@ -147,6 +147,9 @@ export class PaperOrderPlan {
   paperAccountId?: number;
 
   @Column({ nullable: true })
+  orderPlanApprovalId?: number;
+
+  @Column({ nullable: true })
   riskEvaluationId?: number;
 
   @Column()

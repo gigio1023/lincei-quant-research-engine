@@ -7,6 +7,7 @@ import { BrokerSnapshot } from '../src/entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../src/entities/budget-envelope.entity';
 import { ExecutionControlState } from '../src/entities/execution-control-state.entity';
 import { InvestmentProposal } from '../src/entities/investment-proposal.entity';
+import { OrderPlanApproval } from '../src/entities/order-plan-approval.entity';
 import { PaperAccount } from '../src/entities/paper-account.entity';
 import { PaperOrderPlan } from '../src/entities/paper-order-plan.entity';
 import { ResearchRun } from '../src/entities/research-run.entity';
@@ -28,6 +29,7 @@ describe('ControlPlane research provenance (e2e)', () => {
             BudgetEnvelope,
             ExecutionControlState,
             InvestmentProposal,
+            OrderPlanApproval,
             PaperAccount,
             PaperOrderPlan,
             ResearchRun,
@@ -281,13 +283,28 @@ describe('ControlPlane research provenance (e2e)', () => {
       )
       .expect(201);
 
+    const approvalResponse = await request(app.getHttpServer())
+      .post(
+        `/control-plane/proposals/${proposalResponse.body.id}/order-plan-approvals`,
+      )
+      .send({
+        idempotencyKey: 'e2e-paper-plan-1',
+        approver: 'e2e-operator',
+        reason: 'Approve paper execution evidence.',
+      })
+      .expect(201);
+
+    expect(approvalResponse.body.status).toBe('active');
+    expect(approvalResponse.body.approvalHash).toMatch(/^sha256:/);
+    expect(approvalResponse.body.brokerExecutionEnabled).toBe(false);
+
     const paperResponse = await request(app.getHttpServer())
       .post(
         `/control-plane/proposals/${proposalResponse.body.id}/paper-execute`,
       )
       .send({
         idempotencyKey: 'e2e-paper-plan-1',
-        humanApprovalId: 'approval-e2e-paper-1',
+        orderPlanApprovalId: approvalResponse.body.id,
       })
       .expect(201);
 
@@ -296,6 +313,9 @@ describe('ControlPlane research provenance (e2e)', () => {
       evaluationResponse.body.id,
     );
     expect(paperResponse.body.idempotencyKey).toBe('e2e-paper-plan-1');
+    expect(paperResponse.body.orderPlanApprovalId).toBe(
+      approvalResponse.body.id,
+    );
     expect(paperResponse.body.proposalHash).toMatch(/^sha256:/);
     expect(paperResponse.body.planHash).toMatch(/^sha256:/);
     expect(paperResponse.body.readinessSnapshot.latestRiskAllow).toBe(true);
@@ -362,6 +382,17 @@ describe('ControlPlane research provenance (e2e)', () => {
 
     expect(plansResponse.body).toHaveLength(1);
     expect(plansResponse.body[0].proposalId).toBe(proposalResponse.body.id);
+
+    const approvalsResponse = await request(app.getHttpServer())
+      .get('/control-plane/order-plan-approvals')
+      .expect(200);
+    expect(approvalsResponse.body[0]).toEqual(
+      expect.objectContaining({
+        id: approvalResponse.body.id,
+        status: 'consumed',
+        consumedByPaperOrderPlanId: paperResponse.body.id,
+      }),
+    );
 
     const brokerSnapshotResponse = await request(app.getHttpServer())
       .post('/control-plane/broker-snapshots/import-read-only')

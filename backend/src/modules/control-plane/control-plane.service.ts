@@ -17,6 +17,7 @@ import {
   ExecutionControlStateValue,
 } from '../../entities/execution-control-state.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
+import { OrderPlanApproval } from '../../entities/order-plan-approval.entity';
 import { PaperAccount } from '../../entities/paper-account.entity';
 import {
   PaperCashLedgerEntry,
@@ -39,6 +40,7 @@ import {
   ControlPlaneStatus,
   CreateBudgetEnvelopeRequest,
   CreateInvestmentProposalRequest,
+  CreateOrderPlanApprovalRequest,
   CreateResearchRunRequest,
   ImportBrokerSnapshotRequest,
   PaperExecuteProposalRequest,
@@ -63,6 +65,8 @@ export class ControlPlaneService {
     private readonly brokerSnapshotRepository: Repository<BrokerSnapshot>,
     @InjectRepository(InvestmentProposal)
     private readonly proposalRepository: Repository<InvestmentProposal>,
+    @InjectRepository(OrderPlanApproval)
+    private readonly orderPlanApprovalRepository: Repository<OrderPlanApproval>,
     @InjectRepository(ResearchRun)
     private readonly researchRunRepository: Repository<ResearchRun>,
     @InjectRepository(PaperAccount)
@@ -85,6 +89,8 @@ export class ControlPlaneService {
     });
     const researchRunCount = await this.researchRunRepository.count();
     const proposalCount = await this.proposalRepository.count();
+    const orderPlanApprovalCount =
+      await this.orderPlanApprovalRepository.count();
     const evaluationCount = await this.riskEvaluationRepository.count();
     const paperAccountCount = await this.paperAccountRepository.count();
     const paperOrderPlanCount = await this.paperOrderPlanRepository.count();
@@ -124,6 +130,11 @@ export class ControlPlaneService {
           detail: `${evaluationCount} risk evaluations`,
         },
         {
+          key: 'signedOrderPlanApprovalReady',
+          ready: orderPlanApprovalCount > 0,
+          detail: `${orderPlanApprovalCount} signed order-plan approvals`,
+        },
+        {
           key: 'autonomousRunLedgerReady',
           ready: runCount > 0,
           detail: `${runCount} autonomous run records`,
@@ -131,7 +142,7 @@ export class ControlPlaneService {
         {
           key: 'paperExecutionReady',
           ready: false,
-          detail: `Paper simulator ledger registered with ${paperOrderPlanCount} paper order plans; broker-grade readiness is blocked by missing signed order plans, broker reconciliation, and kill switch runtime`,
+          detail: `Paper simulator ledger registered with ${paperOrderPlanCount} paper order plans; broker-grade readiness is blocked by production signing custody, broker reconciliation, and kill switch runtime`,
         },
         {
           key: 'paperSimulationLedgerReady',
@@ -169,7 +180,7 @@ export class ControlPlaneService {
       ],
       blockers: [
         'No verified Toss read-only adapter schema or credentials',
-        'No signed order-plan workflow',
+        'No production signed order-plan workflow',
         'No broker reconciliation loop',
         'No production kill switch runtime',
       ],
@@ -338,6 +349,125 @@ export class ControlPlaneService {
   async listRiskEvaluations(): Promise<RiskEvaluation[]> {
     return this.riskEvaluationRepository.find({
       order: { evaluatedAt: 'DESC' },
+    });
+  }
+
+  async createOrderPlanApproval(
+    proposalId: number,
+    request: CreateOrderPlanApprovalRequest,
+  ): Promise<OrderPlanApproval> {
+    const proposal = await this.proposalRepository.findOne({
+      where: { id: proposalId },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException(`Proposal ${proposalId} not found`);
+    }
+
+    if (!request.approver?.trim()) {
+      throw new BadRequestException('Order-plan approval requires approver');
+    }
+
+    if (!request.reason?.trim()) {
+      throw new BadRequestException('Order-plan approval requires reason');
+    }
+
+    const budget = proposal.budgetEnvelopeId
+      ? await this.budgetRepository.findOne({
+          where: { id: proposal.budgetEnvelopeId },
+        })
+      : await this.budgetRepository.findOne({
+          where: { status: 'active' },
+          order: { updatedAt: 'DESC' },
+        });
+    const paperAccount = await this.findPaperAccountForProposal(proposal);
+    const paperPortfolio = paperAccount
+      ? this.buildPaperAccountPortfolio(paperAccount)
+      : this.buildSeedPaperPortfolioForProposal(proposal, budget);
+    const idempotencyKey =
+      request.idempotencyKey ?? `paper:proposal:${proposal.id}:approved`;
+    const approvalRef = `approval:${proposal.id}:${idempotencyKey}:${request.approver}`;
+    const latestEvaluation = await this.evaluateProposalForPaperExecution(
+      proposal,
+      budget,
+      approvalRef,
+      paperPortfolio,
+    );
+
+    if (
+      request.expectedRiskEvaluationId !== undefined &&
+      latestEvaluation.id !== request.expectedRiskEvaluationId
+    ) {
+      throw new BadRequestException(
+        `Expected risk evaluation ${request.expectedRiskEvaluationId} does not match approval evaluation ${latestEvaluation.id}`,
+      );
+    }
+
+    if (latestEvaluation.decision !== 'ALLOW') {
+      throw new BadRequestException(
+        `Order-plan approval requires paper-mode ALLOW risk evaluation, got ${latestEvaluation.decision}`,
+      );
+    }
+
+    const expiresAt = request.expiresAt ? new Date(request.expiresAt) : null;
+
+    if (expiresAt && Number.isNaN(expiresAt.getTime())) {
+      throw new BadRequestException('Order-plan approval expiresAt is invalid');
+    }
+
+    if (expiresAt && expiresAt.getTime() <= Date.now()) {
+      throw new BadRequestException('Order-plan approval cannot be expired');
+    }
+
+    const proposalHash = this.hashProposal(proposal);
+    const riskRequestHash = this.hashObject(latestEvaluation.requestSnapshot);
+    const approvedAt = new Date();
+    const approvalSnapshot = {
+      proposalId: proposal.id,
+      riskEvaluationId: latestEvaluation.id,
+      mode: 'paper' as const,
+      approver: request.approver,
+      reason: request.reason,
+      idempotencyKey,
+      approvedOrderCount: latestEvaluation.responseSnapshot.approvedOrderCount,
+      approvedAt: approvedAt.toISOString(),
+      expiresAt: expiresAt?.toISOString(),
+      proposalHash,
+      riskRequestHash,
+    };
+    const approvalHash = this.hashObject(approvalSnapshot);
+
+    const approval = await this.orderPlanApprovalRepository.save(
+      this.orderPlanApprovalRepository.create({
+        proposalId: proposal.id,
+        budgetEnvelopeId: proposal.budgetEnvelopeId,
+        riskEvaluationId: latestEvaluation.id,
+        idempotencyKey,
+        mode: 'paper',
+        approver: request.approver,
+        reason: request.reason,
+        status: 'active',
+        proposalHash,
+        riskRequestHash,
+        approvalHash,
+        approvalSnapshot,
+        approvedAt,
+        expiresAt: expiresAt ?? undefined,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+
+    proposal.status = 'paper_ready';
+    proposal.requiresHumanApproval = false;
+    await this.proposalRepository.save(proposal);
+
+    return approval;
+  }
+
+  async listOrderPlanApprovals(): Promise<OrderPlanApproval[]> {
+    return this.orderPlanApprovalRepository.find({
+      order: { updatedAt: 'DESC' },
     });
   }
 
@@ -593,7 +723,15 @@ export class ControlPlaneService {
     const paperPortfolioBefore = paperAccount
       ? this.buildPaperAccountPortfolio(paperAccount)
       : this.buildSeedPaperPortfolioForProposal(proposal, budget);
-    let latestEvaluation = await this.findLatestRiskEvaluation(proposal.id);
+    let orderPlanApproval = await this.findOrderPlanApprovalForPaperExecution(
+      proposal.id,
+      request,
+    );
+    let latestEvaluation = orderPlanApproval
+      ? await this.riskEvaluationRepository.findOne({
+          where: { id: orderPlanApproval.riskEvaluationId },
+        })
+      : await this.findLatestRiskEvaluation(proposal.id);
     const hasPaperAllow =
       latestEvaluation?.decision === 'ALLOW' &&
       latestEvaluation.responseSnapshot.mode === 'paper' &&
@@ -607,13 +745,14 @@ export class ControlPlaneService {
       latestEvaluation = await this.evaluateProposalForPaperExecution(
         proposal,
         budget,
-        request.humanApprovalId,
+        orderPlanApproval?.approvalHash,
         paperPortfolioBefore,
       );
     }
     const submittedAt = new Date();
     const idempotencyKey =
       request.idempotencyKey ??
+      orderPlanApproval?.idempotencyKey ??
       `paper:proposal:${proposal.id}:risk:${latestEvaluation?.id ?? 'none'}`;
     const existingIdempotentPlan =
       await this.findPaperOrderPlanByIdempotencyKey(
@@ -637,18 +776,7 @@ export class ControlPlaneService {
         'reconciled',
       ].includes(plan.status),
     );
-    const proposalHash = this.hashObject({
-      proposalId: proposal.id,
-      budgetEnvelopeId: proposal.budgetEnvelopeId,
-      researchRunId: proposal.researchRunId,
-      strategyId: proposal.strategyId,
-      ruleId: proposal.ruleId,
-      generatedAt: proposal.generatedAt,
-      marketDataTimestamp: proposal.marketDataTimestamp,
-      portfolioSnapshot: proposal.portfolioSnapshot,
-      orders: proposal.orders,
-      evidenceRefs: proposal.evidenceRefs,
-    });
+    const proposalHash = this.hashProposal(proposal);
     const riskRequestHash = latestEvaluation
       ? this.hashObject(latestEvaluation.requestSnapshot)
       : undefined;
@@ -683,6 +811,8 @@ export class ControlPlaneService {
     const blockedReasons = this.getPaperExecutionBlockedReasons({
       latestEvaluation,
       expectedRiskEvaluationId: request.expectedRiskEvaluationId,
+      orderPlanApproval,
+      idempotencyKey,
       readinessSnapshot,
       executionControlState: executionControlState.state,
       proposal,
@@ -706,6 +836,7 @@ export class ControlPlaneService {
       idempotencyKey,
       proposalHash,
       riskRequestHash,
+      orderPlanApprovalHash: orderPlanApproval?.approvalHash,
       readinessSnapshot,
       orders: simulated.orders,
       blockedReasons,
@@ -715,6 +846,7 @@ export class ControlPlaneService {
       researchRunId: proposal.researchRunId,
       budgetEnvelopeId: proposal.budgetEnvelopeId,
       paperAccountId: paperAccount?.id,
+      orderPlanApprovalId: orderPlanApproval?.id,
       riskEvaluationId: latestEvaluation?.id,
       proposalHash,
       riskRequestHash,
@@ -761,6 +893,12 @@ export class ControlPlaneService {
 
     if (blockedReasons.length === 0 && paperAccount) {
       await this.applyPaperPlanToAccount(saved, paperAccount);
+      if (orderPlanApproval) {
+        orderPlanApproval.status = 'consumed';
+        orderPlanApproval.consumedAt = submittedAt;
+        orderPlanApproval.consumedByPaperOrderPlanId = saved.id;
+        await this.orderPlanApprovalRepository.save(orderPlanApproval);
+      }
       proposal.status = 'paper_ready';
       await this.proposalRepository.save(proposal);
     }
@@ -941,6 +1079,39 @@ export class ControlPlaneService {
           (left, right) =>
             right.evaluatedAt.getTime() - left.evaluatedAt.getTime(),
         )[0] ?? null
+    );
+  }
+
+  private async findOrderPlanApprovalForPaperExecution(
+    proposalId: number,
+    request: PaperExecuteProposalRequest,
+  ): Promise<OrderPlanApproval | null> {
+    if (request.orderPlanApprovalId) {
+      const approval = await this.orderPlanApprovalRepository.findOne({
+        where: { id: request.orderPlanApprovalId },
+      });
+
+      if (!approval) {
+        throw new NotFoundException(
+          `Order-plan approval ${request.orderPlanApprovalId} not found`,
+        );
+      }
+
+      return approval;
+    }
+
+    const approvals = await this.orderPlanApprovalRepository.find({
+      order: { updatedAt: 'DESC' },
+    });
+
+    return (
+      approvals.find(
+        (approval) =>
+          approval.proposalId === proposalId &&
+          approval.status === 'active' &&
+          (!request.idempotencyKey ||
+            approval.idempotencyKey === request.idempotencyKey),
+      ) ?? null
     );
   }
 
@@ -1204,6 +1375,8 @@ export class ControlPlaneService {
   private getPaperExecutionBlockedReasons(input: {
     latestEvaluation: RiskEvaluation | null;
     expectedRiskEvaluationId?: number;
+    orderPlanApproval: OrderPlanApproval | null;
+    idempotencyKey: string;
     readinessSnapshot: PaperReadinessSnapshot;
     executionControlState: ExecutionControlStateValue;
     proposal: InvestmentProposal;
@@ -1212,6 +1385,8 @@ export class ControlPlaneService {
     const {
       latestEvaluation,
       expectedRiskEvaluationId,
+      orderPlanApproval,
+      idempotencyKey,
       readinessSnapshot,
       executionControlState,
       proposal,
@@ -1244,6 +1419,31 @@ export class ControlPlaneService {
 
     if (latestEvaluation && !readinessSnapshot.riskMatchesProposal) {
       reasons.push('Latest risk evaluation does not match proposal snapshot');
+    }
+
+    if (!orderPlanApproval) {
+      reasons.push('Signed order-plan approval is required');
+    } else {
+      if (orderPlanApproval.status !== 'active') {
+        reasons.push(
+          `Signed order-plan approval is ${orderPlanApproval.status}`,
+        );
+      }
+
+      if (
+        orderPlanApproval.expiresAt &&
+        orderPlanApproval.expiresAt.getTime() <= Date.now()
+      ) {
+        reasons.push('Signed order-plan approval is expired');
+      }
+
+      if (orderPlanApproval.idempotencyKey !== idempotencyKey) {
+        reasons.push('Signed order-plan approval idempotency key mismatch');
+      }
+
+      if (latestEvaluation?.id !== orderPlanApproval.riskEvaluationId) {
+        reasons.push('Signed order-plan approval risk evaluation mismatch');
+      }
     }
 
     if (!readinessSnapshot.cashSufficient) {
@@ -1553,6 +1753,21 @@ export class ControlPlaneService {
     return `sha256:${createHash('sha256')
       .update(this.stableStringify(value))
       .digest('hex')}`;
+  }
+
+  private hashProposal(proposal: InvestmentProposal): string {
+    return this.hashObject({
+      proposalId: proposal.id,
+      budgetEnvelopeId: proposal.budgetEnvelopeId,
+      researchRunId: proposal.researchRunId,
+      strategyId: proposal.strategyId,
+      ruleId: proposal.ruleId,
+      generatedAt: proposal.generatedAt,
+      marketDataTimestamp: proposal.marketDataTimestamp,
+      portfolioSnapshot: proposal.portfolioSnapshot,
+      orders: proposal.orders,
+      evidenceRefs: proposal.evidenceRefs,
+    });
   }
 
   private stableStringify(value: unknown): string {

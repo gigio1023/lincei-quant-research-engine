@@ -5,6 +5,7 @@ import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
+import { OrderPlanApproval } from '../../entities/order-plan-approval.entity';
 import { RiskEvaluation } from '../../entities/risk-evaluation.entity';
 import { ResearchRun } from '../../entities/research-run.entity';
 import { PaperAccount } from '../../entities/paper-account.entity';
@@ -21,6 +22,7 @@ import { ControlPlaneService } from './control-plane.service';
       BudgetEnvelope,
       ExecutionControlState,
       InvestmentProposal,
+      OrderPlanApproval,
       RiskEvaluation,
       ResearchRun,
       PaperAccount,

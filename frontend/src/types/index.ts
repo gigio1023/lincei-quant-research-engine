@@ -95,6 +95,7 @@ export interface PaperExecuteProposalRequest {
   idempotencyKey?: string;
   expectedRiskEvaluationId?: number;
   humanApprovalId?: string;
+  orderPlanApprovalId?: number;
 }
 
 export interface PaperReadinessSnapshot {
@@ -194,6 +195,7 @@ export interface PaperOrderPlan {
   proposalId: PaperOrderPlanId;
   researchRunId?: PaperOrderPlanId;
   budgetEnvelopeId?: PaperOrderPlanId;
+  orderPlanApprovalId?: PaperOrderPlanId;
   riskEvaluationId?: PaperOrderPlanId;
   proposalHash: string;
   riskRequestHash?: string;
@@ -258,6 +260,50 @@ export interface PaperAccount {
   appliedPlanIds: Array<number | string>;
   lastAppliedPlanId?: number | string;
   lastReconciledAt?: string;
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type OrderPlanApprovalStatus =
+  | "active"
+  | "consumed"
+  | "revoked"
+  | "expired";
+
+export interface OrderPlanApprovalSnapshot {
+  proposalId: number;
+  riskEvaluationId: number;
+  mode: "paper";
+  approver: string;
+  reason: string;
+  idempotencyKey: string;
+  approvedOrderCount: number;
+  approvedAt: string;
+  expiresAt?: string;
+  proposalHash: string;
+  riskRequestHash: string;
+}
+
+export interface OrderPlanApproval {
+  id: number | string;
+  proposalId: number | string;
+  budgetEnvelopeId?: number | string;
+  riskEvaluationId: number | string;
+  idempotencyKey: string;
+  mode: "paper";
+  approver: string;
+  reason: string;
+  status: OrderPlanApprovalStatus;
+  proposalHash: string;
+  riskRequestHash: string;
+  approvalHash: string;
+  approvalSnapshot: OrderPlanApprovalSnapshot;
+  approvedAt: string;
+  expiresAt?: string;
+  consumedAt?: string;
+  consumedByPaperOrderPlanId?: number | string;
   brokerExecutionEnabled: false;
   liveTradingEnabled: false;
   createdAt: string;

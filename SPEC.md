@@ -208,13 +208,15 @@ Current paper slice:
 - each plan stores proposal/risk/plan hashes, an idempotency key, readiness snapshot, immutable paper order ids, fill events, cash ledger rows, position ledger rows, portfolio before/after snapshots, reconciliation state, and kill-switch snapshot;
 - `paper_accounts` stores durable paper cash, equity, gross exposure, positions, applied plan ids, and account-level cash/position ledgers across cycles;
 - paper-mode risk evaluation uses the current durable paper account snapshot, or the deterministic seed portfolio before the account exists;
+- `order_plan_approvals` stores durable signed paper approvals with approver, reason, proposal hash, risk request hash, approval hash, idempotency key, status, expiry, and consumed plan id;
 - `POST /control-plane/proposals/:id/paper-execute` returns the same plan for the same idempotency key and has a database uniqueness guard for the proposal/idempotency pair;
+- paper execution requires an active order-plan approval that matches the proposal, paper-mode risk evaluation, and idempotency key;
 - `GET /control-plane/paper-account` exposes the active paper account only after a filled paper execution has seeded it;
 - `POST /control-plane/paper-order-plans/:id/reconcile` reconciles expected paper cash and positions against account ledger entries for that plan;
 - `GET/POST /control-plane/execution-control` stores a minimal execution-control state (`active`, `paused`, `reducing`, `halted`) and paper execution blocks when the state forbids new exposure;
 - broker and live execution flags remain `false`.
 
-This is a paper simulator ledger, not broker-grade execution readiness. Broker-grade paper readiness still requires signed order-plan approval, explicit account seeding/promotion controls, append-only account ledgers, transaction isolation, broker read-only snapshots, and reconciliation against external account truth.
+This is a paper simulator ledger, not broker-grade execution readiness. Broker-grade paper readiness still requires production-grade signing custody, explicit account seeding/promotion controls, append-only account ledgers, transaction isolation, scheduled broker read-only polling, and reconciliation against external account truth.
 
 ### 6. Broker Adapter
 
@@ -408,12 +410,13 @@ Exit criteria:
 Current status:
 
 - deterministic paper order-plan ledger exists;
+- durable signed paper order-plan approval ledger exists;
 - idempotent paper-execute endpoint exists;
 - paper fill, cash ledger, position ledger, and local reconciliation snapshots exist;
 - durable paper account state now carries simulated cash, equity, exposure, positions, and applied plan ids across paper cycles;
 - minimal execution-control state and halted/paused/reducing gate exists;
 - frontend dashboard shows paper account state, execution-control state, latest paper plans, fills, reconciliation notes, hashes, and broker/live disabled guardrails;
-- still missing signed approval, explicit account seed/promote workflow, transaction-isolated accounting service, quantity/cost-basis position accounting, and broker read-only reconciliation.
+- still missing production signing custody, explicit account seed/promote workflow, transaction-isolated accounting service, quantity/cost-basis position accounting, and scheduled broker-backed reconciliation.
 
 ### Phase 4: Broker Read-Only
 
@@ -468,7 +471,7 @@ Blocking items:
 - Toss API access and API key approval;
 - exact OpenAPI schema review;
 - verified Toss broker adapter implementation;
-- signed human approval;
+- production signing custody for human approvals;
 - scheduled broker read-only polling and broker-backed reconciliation;
 - explicit paper account seed/promote workflow;
 - transaction isolation plus quantity, cost basis, realized PnL, and reservation accounting;

@@ -73,6 +73,15 @@ export interface PaperExecuteProposalRequest {
   idempotencyKey?: string;
   expectedRiskEvaluationId?: number;
   humanApprovalId?: string;
+  orderPlanApprovalId?: number;
+}
+
+export interface CreateOrderPlanApprovalRequest {
+  approver: string;
+  reason: string;
+  idempotencyKey?: string;
+  expectedRiskEvaluationId?: number;
+  expiresAt?: string;
 }
 
 export interface ReconcilePaperOrderPlanRequest {

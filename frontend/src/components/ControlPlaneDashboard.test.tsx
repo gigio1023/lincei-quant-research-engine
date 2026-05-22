@@ -14,6 +14,7 @@ vi.mock("../services/api", () => ({
     getExecutionControl: vi.fn(),
     getPaperOrderPlans: vi.fn(),
     getBrokerSnapshots: vi.fn(),
+    getOrderPlanApprovals: vi.fn(),
     runBaselineResearch: vi.fn(),
   },
 }));
@@ -69,7 +70,7 @@ const mockControlPlaneStatus = {
         "Deterministic paper order-plan, fill, and reconciliation ledger is registered",
     },
   ],
-  blockers: ["No signed order-plan workflow"],
+  blockers: ["No production signed order-plan workflow"],
 };
 
 const mockResearchRuns = [
@@ -388,6 +389,41 @@ const mockBrokerSnapshots = [
   },
 ];
 
+const mockOrderPlanApprovals = [
+  {
+    id: "approval-api-1",
+    proposalId: "proposal-api-1",
+    riskEvaluationId: "risk-api-1",
+    idempotencyKey: "paper-api-1",
+    mode: "paper",
+    approver: "api-operator",
+    reason: "Approve API paper plan.",
+    status: "consumed",
+    proposalHash: "sha256:proposal-api",
+    riskRequestHash: "sha256:risk-api",
+    approvalHash: "sha256:approval-api",
+    approvalSnapshot: {
+      proposalId: 1,
+      riskEvaluationId: 1,
+      mode: "paper",
+      approver: "api-operator",
+      reason: "Approve API paper plan.",
+      idempotencyKey: "paper-api-1",
+      approvedOrderCount: 1,
+      approvedAt: "2026-05-22T09:03:00.000Z",
+      proposalHash: "sha256:proposal-api",
+      riskRequestHash: "sha256:risk-api",
+    },
+    approvedAt: "2026-05-22T09:03:00.000Z",
+    consumedAt: "2026-05-22T09:05:00.000Z",
+    consumedByPaperOrderPlanId: "paper-plan-api-1",
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+    createdAt: "2026-05-22T09:03:00.000Z",
+    updatedAt: "2026-05-22T09:05:00.000Z",
+  },
+];
+
 describe("ControlPlaneDashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -409,6 +445,9 @@ describe("ControlPlaneDashboard", () => {
     );
     vi.mocked(controlPlaneApi.getBrokerSnapshots).mockResolvedValue(
       mockBrokerSnapshots,
+    );
+    vi.mocked(controlPlaneApi.getOrderPlanApprovals).mockResolvedValue(
+      mockOrderPlanApprovals,
     );
     vi.mocked(controlPlaneApi.runBaselineResearch).mockResolvedValue(
       mockBaselineResearchRun,
@@ -480,6 +519,10 @@ describe("ControlPlaneDashboard", () => {
         "Broker snapshot compared against active paper account state.",
       ),
     ).toBeInTheDocument();
+    expect(screen.getByText("Signed Order Approval")).toBeInTheDocument();
+    expect(screen.getByText("Live signed approvals")).toBeInTheDocument();
+    expect(screen.getByText("approval approval-api-1")).toBeInTheDocument();
+    expect(screen.getByText("Approve API paper plan.")).toBeInTheDocument();
     expect(
       screen.getAllByText("brokerExecutionEnabled: false").length,
     ).toBeGreaterThanOrEqual(1);
@@ -505,6 +548,9 @@ describe("ControlPlaneDashboard", () => {
       new Error("offline"),
     );
     vi.mocked(controlPlaneApi.getBrokerSnapshots).mockRejectedValue(
+      new Error("offline"),
+    );
+    vi.mocked(controlPlaneApi.getOrderPlanApprovals).mockRejectedValue(
       new Error("offline"),
     );
 

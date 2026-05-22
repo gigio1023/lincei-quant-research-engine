@@ -5,6 +5,7 @@ import {
   ControlPlaneReadinessItem,
   ControlPlaneStatus,
   ExecutionControlState,
+  OrderPlanApproval,
   PaperAccount,
   PaperLedgerChange,
   PaperOrderPlan,
@@ -16,6 +17,7 @@ import {
   DOCUMENTED_BROKER_SNAPSHOTS,
   DOCUMENTED_CONTROL_PLANE_STATUS,
   DOCUMENTED_EXECUTION_CONTROL,
+  DOCUMENTED_ORDER_PLAN_APPROVALS,
   DOCUMENTED_PAPER_ORDER_PLANS,
   DOCUMENTED_RESEARCH_RUNS,
   DOCUMENTED_STATUS,
@@ -28,9 +30,11 @@ export interface DashboardModel {
   visiblePaperOrderPlans: PaperOrderPlan[];
   visiblePaperAccount: PaperAccount | null;
   visibleBrokerSnapshots: BrokerSnapshot[];
+  visibleOrderPlanApprovals: OrderPlanApproval[];
   visibleExecutionControl: ExecutionControlState;
   latestPaperOrderPlans: PaperOrderPlan[];
   latestBrokerSnapshot?: BrokerSnapshot;
+  latestOrderPlanApproval?: OrderPlanApproval;
   latestReconciledPlan?: PaperOrderPlan;
   recentPaperLedgerChanges: PaperLedgerChange[];
   paperExecutionReadiness: ControlPlaneReadinessItem;
@@ -40,6 +44,7 @@ export interface DashboardModel {
     paperOrderPlans: string;
     paperAccount: string;
     brokerSnapshots: string;
+    orderPlanApprovals: string;
   };
   errors: {
     status: string | null;
@@ -47,6 +52,7 @@ export interface DashboardModel {
     paperOrderPlans: string | null;
     paperAccount: string | null;
     brokerSnapshots: string | null;
+    orderPlanApprovals: string | null;
     baselineResearch: string | null;
   };
   loading: {
@@ -54,6 +60,7 @@ export interface DashboardModel {
     paperAccount: boolean;
     paperOrderPlans: boolean;
     brokerSnapshots: boolean;
+    orderPlanApprovals: boolean;
   };
   baselineResearchSuccess: string | null;
   runningBaselineResearch: boolean;
@@ -109,11 +116,16 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const [brokerSnapshots, setBrokerSnapshots] = useState<
     BrokerSnapshot[] | null
   >(null);
+  const [orderPlanApprovals, setOrderPlanApprovals] = useState<
+    OrderPlanApproval[] | null
+  >(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
   const [loadingResearchRuns, setLoadingResearchRuns] = useState(true);
   const [loadingPaperAccount, setLoadingPaperAccount] = useState(true);
   const [loadingPaperOrderPlans, setLoadingPaperOrderPlans] = useState(true);
   const [loadingBrokerSnapshots, setLoadingBrokerSnapshots] = useState(true);
+  const [loadingOrderPlanApprovals, setLoadingOrderPlanApprovals] =
+    useState(true);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [researchRunsError, setResearchRunsError] = useState<string | null>(
     null,
@@ -125,6 +137,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     null,
   );
   const [brokerSnapshotsError, setBrokerSnapshotsError] = useState<
+    string | null
+  >(null);
+  const [orderPlanApprovalsError, setOrderPlanApprovalsError] = useState<
     string | null
   >(null);
   const [runningBaselineResearch, setRunningBaselineResearch] = useState(false);
@@ -148,6 +163,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           executionControlStatus,
           paperOrderPlansStatus,
           brokerSnapshotsStatus,
+          orderPlanApprovalsStatus,
         ] = await Promise.allSettled([
           riskGateApi.getStatus(),
           controlPlaneApi.getStatus(),
@@ -156,6 +172,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           controlPlaneApi.getExecutionControl(),
           controlPlaneApi.getPaperOrderPlans(),
           controlPlaneApi.getBrokerSnapshots(),
+          controlPlaneApi.getOrderPlanApprovals(),
         ]);
 
         if (ignore) {
@@ -204,6 +221,14 @@ export const useControlPlaneDashboard = (): DashboardModel => {
             "Broker snapshot API is unavailable. Showing documented read-only sample.",
           );
         }
+        if (orderPlanApprovalsStatus.status === "fulfilled") {
+          setOrderPlanApprovals(orderPlanApprovalsStatus.value);
+          setOrderPlanApprovalsError(null);
+        } else {
+          setOrderPlanApprovalsError(
+            "Order-plan approval API is unavailable. Showing documented approval sample.",
+          );
+        }
 
         setStatusError(
           riskStatus.status === "rejected" ||
@@ -223,6 +248,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           setBrokerSnapshotsError(
             "Broker snapshot API is unavailable. Showing documented read-only sample.",
           );
+          setOrderPlanApprovalsError(
+            "Order-plan approval API is unavailable. Showing documented approval sample.",
+          );
           setPaperAccountError(
             "No live paper account state was returned. A filled paper execution must create one before account values are shown.",
           );
@@ -234,6 +262,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           setLoadingPaperAccount(false);
           setLoadingPaperOrderPlans(false);
           setLoadingBrokerSnapshots(false);
+          setLoadingOrderPlanApprovals(false);
         }
       }
     };
@@ -251,6 +280,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const visibleBrokerSnapshots =
     brokerSnapshots ??
     (loadingBrokerSnapshots ? [] : DOCUMENTED_BROKER_SNAPSHOTS);
+  const visibleOrderPlanApprovals =
+    orderPlanApprovals ??
+    (loadingOrderPlanApprovals ? [] : DOCUMENTED_ORDER_PLAN_APPROVALS);
   const controlStatus = controlPlaneStatus ?? DOCUMENTED_CONTROL_PLANE_STATUS;
 
   const runBaselineResearch = async () => {
@@ -287,6 +319,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     visiblePaperOrderPlans,
     visiblePaperAccount: paperAccount,
     visibleBrokerSnapshots,
+    visibleOrderPlanApprovals,
     visibleExecutionControl: executionControl ?? DOCUMENTED_EXECUTION_CONTROL,
     latestPaperOrderPlans: sortByUpdatedAtDesc(visiblePaperOrderPlans).slice(
       0,
@@ -296,6 +329,11 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       (leftSnapshot, rightSnapshot) =>
         new Date(rightSnapshot.asOf).getTime() -
         new Date(leftSnapshot.asOf).getTime(),
+    )[0],
+    latestOrderPlanApproval: [...visibleOrderPlanApprovals].sort(
+      (leftApproval, rightApproval) =>
+        new Date(rightApproval.updatedAt).getTime() -
+        new Date(leftApproval.updatedAt).getTime(),
     )[0],
     latestReconciledPlan: sortByUpdatedAtDesc(visiblePaperOrderPlans).find(
       (plan) => plan.reconciliation.reconciledAt,
@@ -335,6 +373,11 @@ export const useControlPlaneDashboard = (): DashboardModel => {
         : loadingBrokerSnapshots
           ? "Loading broker snapshots"
           : "Documented broker sample",
+      orderPlanApprovals: orderPlanApprovals
+        ? "Live signed approvals"
+        : loadingOrderPlanApprovals
+          ? "Loading signed approvals"
+          : "Documented approval sample",
     },
     errors: {
       status: statusError,
@@ -342,6 +385,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       paperOrderPlans: paperOrderPlansError,
       paperAccount: paperAccountError,
       brokerSnapshots: brokerSnapshotsError,
+      orderPlanApprovals: orderPlanApprovalsError,
       baselineResearch: baselineResearchError,
     },
     loading: {
@@ -349,6 +393,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       paperAccount: loadingPaperAccount,
       paperOrderPlans: loadingPaperOrderPlans,
       brokerSnapshots: loadingBrokerSnapshots,
+      orderPlanApprovals: loadingOrderPlanApprovals,
     },
     baselineResearchSuccess,
     runningBaselineResearch,

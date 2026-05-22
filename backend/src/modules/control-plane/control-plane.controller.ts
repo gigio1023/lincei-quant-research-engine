@@ -11,6 +11,7 @@ import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
+import { OrderPlanApproval } from '../../entities/order-plan-approval.entity';
 import { PaperAccount } from '../../entities/paper-account.entity';
 import { PaperOrderPlan } from '../../entities/paper-order-plan.entity';
 import { ResearchRun } from '../../entities/research-run.entity';
@@ -20,6 +21,7 @@ import {
   ControlPlaneStatus,
   CreateBudgetEnvelopeRequest,
   CreateInvestmentProposalRequest,
+  CreateOrderPlanApprovalRequest,
   CreateResearchRunRequest,
   ImportBrokerSnapshotRequest,
   PaperExecuteProposalRequest,
@@ -72,6 +74,19 @@ export class ControlPlaneController {
   @Get('risk-evaluations')
   listRiskEvaluations(): Promise<RiskEvaluation[]> {
     return this.controlPlaneService.listRiskEvaluations();
+  }
+
+  @Post('proposals/:id/order-plan-approvals')
+  createOrderPlanApproval(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() request: CreateOrderPlanApprovalRequest,
+  ): Promise<OrderPlanApproval> {
+    return this.controlPlaneService.createOrderPlanApproval(id, request);
+  }
+
+  @Get('order-plan-approvals')
+  listOrderPlanApprovals(): Promise<OrderPlanApproval[]> {
+    return this.controlPlaneService.listOrderPlanApprovals();
   }
 
   @Get('execution-control')

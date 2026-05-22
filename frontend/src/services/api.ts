@@ -3,6 +3,7 @@ import {
   BrokerSnapshot,
   ControlPlaneStatus,
   ExecutionControlState,
+  OrderPlanApproval,
   PaperAccount,
   PaperOrderPlan,
   PaperExecuteProposalRequest,
@@ -79,6 +80,11 @@ export const controlPlaneApi = {
 
   getBrokerSnapshots: async (): Promise<BrokerSnapshot[]> => {
     const response = await api.get("/control-plane/broker-snapshots");
+    return response.data;
+  },
+
+  getOrderPlanApprovals: async (): Promise<OrderPlanApproval[]> => {
+    const response = await api.get("/control-plane/order-plan-approvals");
     return response.data;
   },
 

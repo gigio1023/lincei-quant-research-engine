@@ -11,6 +11,7 @@ import {
 } from "../../types";
 export {
   DOCUMENTED_BROKER_SNAPSHOTS,
+  DOCUMENTED_ORDER_PLAN_APPROVALS,
   DOCUMENTED_PAPER_ORDER_PLANS,
   DOCUMENTED_RESEARCH_RUNS,
 } from "./dashboardSamples";
@@ -67,7 +68,7 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
       key: "paperExecutionReady",
       ready: false,
       detail:
-        "Paper simulator ledger exists; broker-grade paper readiness is blocked by missing signed order plans and broker reconciliation",
+        "Paper simulator ledger exists; broker-grade paper readiness is blocked by production signing custody and broker reconciliation",
     },
     {
       key: "paperSimulationLedgerReady",
@@ -84,6 +85,11 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
       key: "executionControlReady",
       ready: true,
       detail: "Execution control state defaults to active",
+    },
+    {
+      key: "signedOrderPlanApprovalReady",
+      ready: true,
+      detail: "Documented signed order-plan approval sample is available",
     },
     {
       key: "brokerReadOnlyReady",
@@ -104,7 +110,7 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
   ],
   blockers: [
     "No verified Toss read-only adapter schema or credentials",
-    "No signed order-plan workflow",
+    "No production signed order-plan workflow",
     "No broker reconciliation loop",
     "No production kill switch runtime",
   ],
@@ -179,6 +185,12 @@ export const SAFETY_GATES: SafetyGate[] = [
     status: "partial",
     notes:
       "Paper simulator ledger, durable paper account, fills, and plan-scoped reconciliation exist; signed plans and broker reconciliation are still missing.",
+  },
+  {
+    name: "Signed approvals",
+    status: "partial",
+    notes:
+      "Durable paper order-plan approvals exist; production signing and live custody review are still missing.",
   },
   {
     name: "Broker read-only",
