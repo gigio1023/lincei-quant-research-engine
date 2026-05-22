@@ -98,6 +98,8 @@ vi.mock("./services/api", () => ({
           baseUrl: "https://openapi.tossinvest.com",
           accountRef: "missing",
           allowedEndpoints: [],
+          cron: "*/5 * * * *",
+          running: false,
           brokerExecutionEnabled: false,
           liveTradingEnabled: false,
         },

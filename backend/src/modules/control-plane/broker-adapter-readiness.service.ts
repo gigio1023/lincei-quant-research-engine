@@ -142,6 +142,8 @@ export class BrokerAdapterReadinessService {
           'GET /api/v1/accounts',
           'GET /v1/holdings',
         ],
+        cron: '*/5 * * * *',
+        running: false,
         brokerExecutionEnabled: false,
         liveTradingEnabled: false,
       },

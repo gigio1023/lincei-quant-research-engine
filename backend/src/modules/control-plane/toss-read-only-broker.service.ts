@@ -2,8 +2,10 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  Logger,
   Optional,
 } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import axios, { AxiosRequestConfig } from 'axios';
 import {
   BrokerAdapterReadOnlyPollStatus,
@@ -41,9 +43,13 @@ const ALLOWED_ENDPOINTS = [
   'GET /api/v1/accounts',
   'GET /v1/holdings',
 ];
+const TOSS_READ_ONLY_POLL_CRON = '*/5 * * * *';
 
 @Injectable()
 export class TossReadOnlyBrokerService {
+  private readonly logger = new Logger(TossReadOnlyBrokerService.name);
+  private running = false;
+  private lastAttemptAt?: string;
   private lastPollAt?: string;
   private lastSnapshotId?: number;
   private lastError?: string;
@@ -80,6 +86,9 @@ export class TossReadOnlyBrokerService {
       baseUrl: config.baseUrl,
       accountRef: config.accountRef ? this.mask(config.accountRef) : 'missing',
       allowedEndpoints: ALLOWED_ENDPOINTS,
+      cron: TOSS_READ_ONLY_POLL_CRON,
+      running: this.running,
+      lastAttemptAt: this.lastAttemptAt,
       lastPollAt: this.lastPollAt,
       lastSnapshotId: this.lastSnapshotId,
       lastError: this.lastError,
@@ -88,7 +97,28 @@ export class TossReadOnlyBrokerService {
     };
   }
 
-  async pollReadOnlySnapshot(): Promise<BrokerReadOnlyPollResponse> {
+  @Cron(TOSS_READ_ONLY_POLL_CRON, {
+    name: 'toss-read-only-broker-poll',
+  })
+  async pollReadOnlySnapshotCron(): Promise<void> {
+    if (!this.getReadOnlyPollStatus().canPoll) {
+      return;
+    }
+
+    try {
+      await this.pollReadOnlySnapshot('cron');
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Toss read-only broker poll failed';
+      this.logger.error(`Toss read-only poll failed: ${message}`);
+    }
+  }
+
+  async pollReadOnlySnapshot(
+    trigger = 'manual',
+  ): Promise<BrokerReadOnlyPollResponse> {
     const config = this.getConfig();
     const status = this.getReadOnlyPollStatus();
 
@@ -97,6 +127,15 @@ export class TossReadOnlyBrokerService {
         'Toss read-only polling requires BROKER_READ_ONLY_ENABLED=true, credentials, account ref, and verified schema.';
       throw new BadRequestException(this.lastError);
     }
+
+    if (this.running) {
+      this.lastError = 'Previous Toss read-only poll is still running.';
+      throw new BadRequestException(this.lastError);
+    }
+
+    this.running = true;
+    this.lastAttemptAt = new Date().toISOString();
+    const triggerRef = trigger.trim() || 'manual';
 
     try {
       const token = await this.fetchAccessToken(config);
@@ -115,11 +154,13 @@ export class TossReadOnlyBrokerService {
         asOf: new Date().toISOString(),
         holdings: this.assertRecord(holdings, 'Toss holdings response'),
       });
+      imported.sourceRef = `toss-read-only-poll:${triggerRef}`;
       const snapshot =
         await this.controlPlaneService.importBrokerSnapshot(imported);
       this.lastPollAt = new Date().toISOString();
       this.lastSnapshotId = snapshot.id;
       this.lastError = undefined;
+      this.running = false;
 
       return {
         status: this.getReadOnlyPollStatus(),
@@ -131,6 +172,8 @@ export class TossReadOnlyBrokerService {
           ? error.message
           : 'Toss read-only polling failed';
       throw error;
+    } finally {
+      this.running = false;
     }
   }
 

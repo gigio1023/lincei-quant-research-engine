@@ -420,6 +420,8 @@ all broker/live execution flags remain `false`.
         "GET /api/v1/accounts",
         "GET /v1/holdings"
       ],
+      "cron": "*/5 * * * *",
+      "running": false,
       "brokerExecutionEnabled": false,
       "liveTradingEnabled": false
     },
@@ -442,7 +444,7 @@ all broker/live execution flags remain `false`.
 
 #### `POST /control-plane/broker-adapter/poll-read-only`
 
-- **Description**: Attempts a Toss read-only snapshot poll, disabled by default. It requires `BROKER_READ_ONLY_ENABLED=true`, `TOSS_READ_ONLY_POLLER_ENABLED=true`, Toss credentials/account ref, and `TOSS_OPEN_API_SCHEMA_VERIFIED=true`. The adapter allowlist only permits `POST /oauth2/token`, `GET /api/v1/accounts`, and `GET /v1/holdings`, then imports the mapped snapshot through the same broker snapshot ledger. It has no order, preview, cancel, modify, or fill endpoint.
+- **Description**: Attempts a Toss read-only snapshot poll, disabled by default. The same poller also runs every five minutes but immediately returns unless it can poll. It requires `BROKER_READ_ONLY_ENABLED=true`, `TOSS_READ_ONLY_POLLER_ENABLED=true`, Toss credentials/account ref, and `TOSS_OPEN_API_SCHEMA_VERIFIED=true`. The adapter allowlist only permits `POST /oauth2/token`, `GET /api/v1/accounts`, and `GET /v1/holdings`, then imports the mapped snapshot through the same broker snapshot ledger. It has no order, preview, cancel, modify, or fill endpoint.
 - **Response Notes**:
   - returns `{ "status": BrokerAdapterReadOnlyPollStatus, "snapshot": BrokerSnapshot }` on success;
   - returns `400` when disabled or unverified;

@@ -52,6 +52,8 @@ describe('TossReadOnlyBrokerService', () => {
     );
     expect(requester).not.toHaveBeenCalled();
     expect(importBrokerSnapshot).not.toHaveBeenCalled();
+    await service.pollReadOnlySnapshotCron();
+    expect(requester).not.toHaveBeenCalled();
   });
 
   it('imports a Toss read-only holdings snapshot when explicitly enabled', async () => {
@@ -98,8 +100,8 @@ describe('TossReadOnlyBrokerService', () => {
     expect(importBrokerSnapshot).toHaveBeenCalledWith(
       expect.objectContaining({
         provider: 'toss',
-        sourceRef: 'toss-read-only-poll',
         accountRef: 'account-123456',
+        sourceRef: 'toss-read-only-poll:manual',
         cash: 6_500_000,
         equity: 10_000_000,
         positions: [
@@ -113,7 +115,10 @@ describe('TossReadOnlyBrokerService', () => {
     expect(result.status).toEqual(
       expect.objectContaining({
         canPoll: true,
+        running: false,
         lastSnapshotId: 77,
+        lastAttemptAt: expect.any(String),
+        lastPollAt: expect.any(String),
         accountRef: 'acc***456',
         brokerExecutionEnabled: false,
         liveTradingEnabled: false,

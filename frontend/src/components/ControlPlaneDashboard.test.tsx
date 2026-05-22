@@ -721,6 +721,8 @@ const mockBrokerAdapterStatus = {
       "GET /api/v1/accounts",
       "GET /v1/holdings",
     ],
+    cron: "*/5 * * * *",
+    running: false,
     brokerExecutionEnabled: false,
     liveTradingEnabled: false,
   },
@@ -945,7 +947,7 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("Read-only polling")).toBeInTheDocument();
     expect(screen.getAllByText("blocked").length).toBeGreaterThan(0);
     expect(screen.getByText("last poll")).toBeInTheDocument();
-    expect(screen.getByText("never")).toBeInTheDocument();
+    expect(screen.getAllByText("never").length).toBeGreaterThan(0);
     expect(screen.getByText("orderPlacement")).toBeInTheDocument();
     expect(screen.getByText("manual / operator-import")).toBeInTheDocument();
     expect(

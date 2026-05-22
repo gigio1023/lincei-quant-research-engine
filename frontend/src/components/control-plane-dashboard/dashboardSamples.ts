@@ -284,6 +284,8 @@ export const DOCUMENTED_BROKER_ADAPTER_STATUS: BrokerAdapterStatus = {
       "GET /api/v1/accounts",
       "GET /v1/holdings",
     ],
+    cron: "*/5 * * * *",
+    running: false,
     brokerExecutionEnabled: false,
     liveTradingEnabled: false,
   },

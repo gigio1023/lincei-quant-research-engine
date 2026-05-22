@@ -465,6 +465,9 @@ export interface BrokerAdapterReadOnlyPollStatus {
   baseUrl: string;
   accountRef: string;
   allowedEndpoints: string[];
+  cron: string;
+  running: boolean;
+  lastAttemptAt?: string;
   lastPollAt?: string;
   lastSnapshotId?: number | string;
   lastError?: string;

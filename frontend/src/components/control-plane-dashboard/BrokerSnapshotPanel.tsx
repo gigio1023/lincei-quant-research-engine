@@ -113,6 +113,20 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
               </div>
               <div className="mt-2 grid gap-1 text-[#929aa5]">
                 <div>
+                  cron{" "}
+                  <span className="font-mono text-[#eaecef]">
+                    {adapter.readOnlyPoll.cron}
+                  </span>
+                </div>
+                <div>
+                  last attempt{" "}
+                  <span className="font-mono text-[#eaecef]">
+                    {adapter.readOnlyPoll.lastAttemptAt
+                      ? formatDateTime(adapter.readOnlyPoll.lastAttemptAt)
+                      : "never"}
+                  </span>
+                </div>
+                <div>
                   last poll{" "}
                   <span className="font-mono text-[#eaecef]">
                     {adapter.readOnlyPoll.lastPollAt
