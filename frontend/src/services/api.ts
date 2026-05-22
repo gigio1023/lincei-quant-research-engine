@@ -18,6 +18,7 @@ import {
   ResearchRun,
   RiskEvaluation,
   RunBaselineResearchRequest,
+  RunScheduleWorkerStatus,
   RiskGateStatus,
   TickAutonomousRunScheduleRequest,
 } from "../types";
@@ -123,6 +124,13 @@ export const controlPlaneApi = {
 
   getRunSchedules: async (): Promise<AutonomousRunSchedule[]> => {
     const response = await api.get("/control-plane/run-schedules");
+    return response.data;
+  },
+
+  getRunScheduleWorkerStatus: async (): Promise<RunScheduleWorkerStatus> => {
+    const response = await api.get(
+      "/control-plane/run-schedules/worker-status",
+    );
     return response.data;
   },
 

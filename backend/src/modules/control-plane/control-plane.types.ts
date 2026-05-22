@@ -153,6 +153,40 @@ export interface TickAutonomousRunScheduleRequest {
   attemptPaperExecution?: boolean;
 }
 
+export type RunScheduleWorkerItemStatus = 'ticked' | 'skipped' | 'failed';
+
+export interface RunScheduleWorkerTickItem {
+  scheduleId: number;
+  status: RunScheduleWorkerItemStatus;
+  runId?: number;
+  message?: string;
+}
+
+export interface RunScheduleWorkerTickResult {
+  trigger: string;
+  workerId: string;
+  enabled: boolean;
+  startedAt: string;
+  completedAt: string;
+  scanned: number;
+  ticked: number;
+  failed: number;
+  skipped: number;
+  message?: string;
+  items: RunScheduleWorkerTickItem[];
+}
+
+export interface RunScheduleWorkerStatus {
+  enabled: boolean;
+  cron: string;
+  workerId: string;
+  maxSchedulesPerTick: number;
+  leaseTtlSeconds: number;
+  lastTickAt?: string;
+  lastResult?: RunScheduleWorkerTickResult;
+  currentTime: string;
+}
+
 export interface CreateAutonomousRunRequest {
   objective: string;
   budgetEnvelopeId?: number;

@@ -499,6 +499,41 @@ all broker/live execution flags remain `false`.
 
 - **Description**: Lists autonomous run schedules ordered by latest update.
 
+#### `GET /control-plane/run-schedules/worker-status`
+
+- **Description**: Returns the in-process autonomous schedule worker state. The worker is disabled unless `AUTONOMOUS_RUN_SCHEDULER_ENABLED=true`. When enabled, it scans due, enabled, unlocked schedules every minute, acquires each schedule through the same lease path as manual ticks, and records only in-memory worker status. It never enables broker execution or live trading.
+- **Example Response**:
+  ```json
+  {
+    "enabled": true,
+    "cron": "*/1 * * * *",
+    "workerId": "control-plane-worker-12345",
+    "maxSchedulesPerTick": 5,
+    "leaseTtlSeconds": 120,
+    "lastTickAt": "2026-05-23T00:05:00.000Z",
+    "currentTime": "2026-05-23T00:05:30.000Z",
+    "lastResult": {
+      "trigger": "cron",
+      "workerId": "control-plane-worker-12345",
+      "enabled": true,
+      "startedAt": "2026-05-23T00:05:00.000Z",
+      "completedAt": "2026-05-23T00:05:03.000Z",
+      "scanned": 2,
+      "ticked": 1,
+      "failed": 0,
+      "skipped": 1,
+      "items": [
+        {
+          "scheduleId": 1,
+          "status": "ticked",
+          "runId": 42,
+          "message": "risk_evaluated"
+        }
+      ]
+    }
+  }
+  ```
+
 #### `POST /control-plane/run-schedules/:id/tick`
 
 - **Description**: Atomically acquires a short-lived schedule lease, creates or resumes the due autonomous run cycle, and advances that run through the same safe path as `POST /control-plane/runs/:id/advance`. Repeated ticks are guarded by the schedule lease and cycle key. `force` can bypass disabled/not-due checks but not an active lease. `leaseTtlSeconds` must be between 1 and 3600. Tick failures are stored in `lastError`.

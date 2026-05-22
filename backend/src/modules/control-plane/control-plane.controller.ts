@@ -18,6 +18,7 @@ import { PaperAccount } from '../../entities/paper-account.entity';
 import { PaperOrderPlan } from '../../entities/paper-order-plan.entity';
 import { ResearchRun } from '../../entities/research-run.entity';
 import { RiskEvaluation } from '../../entities/risk-evaluation.entity';
+import { ControlPlaneSchedulerService } from './control-plane-scheduler.service';
 import { ControlPlaneService } from './control-plane.service';
 import {
   AdvanceAutonomousRunRequest,
@@ -33,6 +34,7 @@ import {
   PromotePaperAccountRequest,
   ReconcileBrokerSnapshotRequest,
   ReconcilePaperOrderPlanRequest,
+  RunScheduleWorkerStatus,
   RunBaselineResearchRequest,
   SeedPaperAccountRequest,
   TickAutonomousRunScheduleRequest,
@@ -41,7 +43,10 @@ import {
 
 @Controller('control-plane')
 export class ControlPlaneController {
-  constructor(private readonly controlPlaneService: ControlPlaneService) {}
+  constructor(
+    private readonly controlPlaneService: ControlPlaneService,
+    private readonly controlPlaneSchedulerService: ControlPlaneSchedulerService,
+  ) {}
 
   @Get('status')
   getStatus(): Promise<ControlPlaneStatus> {
@@ -223,6 +228,11 @@ export class ControlPlaneController {
   @Get('run-schedules')
   listRunSchedules(): Promise<AutonomousRunSchedule[]> {
     return this.controlPlaneService.listRunSchedules();
+  }
+
+  @Get('run-schedules/worker-status')
+  getRunScheduleWorkerStatus(): RunScheduleWorkerStatus {
+    return this.controlPlaneSchedulerService.getWorkerStatus();
   }
 
   @Post('run-schedules/:id/tick')

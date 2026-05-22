@@ -19,6 +19,7 @@ After the initial control-plane work, the repo can run deterministic research, r
 - Minimal execution-control state that can block paper execution when paused, reducing, or halted.
 - Manual broker read-only snapshot ledger and paper-account reconciliation.
 - Durable signed paper order-plan approval ledger.
+- Env-gated autonomous run schedule worker and dashboard worker status.
 - Control-plane dashboard view.
 - Local reference inspection under `references/projects/`.
 
@@ -30,6 +31,7 @@ After the initial control-plane work, the repo can run deterministic research, r
 - live order placement;
 - scheduled broker order/account reconciliation;
 - automated liquidation or exposure reduction;
+- production-authenticated autonomous scheduler deployment;
 - production kill switch;
 - approved budget capsule storage;
 - production signing custody for order-plan approvals;

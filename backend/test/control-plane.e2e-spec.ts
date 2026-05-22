@@ -349,6 +349,18 @@ describe('ControlPlane research provenance (e2e)', () => {
         liveTradingEnabled: false,
       }),
     );
+
+    const workerStatusResponse = await request(app.getHttpServer())
+      .get('/control-plane/run-schedules/worker-status')
+      .expect(200);
+    expect(workerStatusResponse.body).toEqual(
+      expect.objectContaining({
+        enabled: false,
+        workerId: expect.any(String),
+        maxSchedulesPerTick: expect.any(Number),
+        leaseTtlSeconds: expect.any(Number),
+      }),
+    );
   });
 
   it('paper executes an allowed proposal without broker access', async () => {

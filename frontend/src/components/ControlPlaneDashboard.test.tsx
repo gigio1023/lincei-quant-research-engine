@@ -21,6 +21,7 @@ vi.mock("../services/api", () => ({
     getOrderPlanApprovals: vi.fn(),
     getRuns: vi.fn(),
     getRunSchedules: vi.fn(),
+    getRunScheduleWorkerStatus: vi.fn(),
     advanceRun: vi.fn(),
     tickRunSchedule: vi.fn(),
     runBaselineResearch: vi.fn(),
@@ -323,6 +324,35 @@ const mockAutonomousRunSchedules = [
     updatedAt: "2026-05-22T09:02:00.000Z",
   },
 ];
+
+const mockRunScheduleWorkerStatus = {
+  enabled: true,
+  cron: "*/1 * * * *",
+  workerId: "test-worker",
+  maxSchedulesPerTick: 5,
+  leaseTtlSeconds: 120,
+  lastTickAt: "2026-05-22T09:00:00.000Z",
+  currentTime: "2026-05-22T09:02:00.000Z",
+  lastResult: {
+    trigger: "cron",
+    workerId: "test-worker",
+    enabled: true,
+    startedAt: "2026-05-22T09:00:00.000Z",
+    completedAt: "2026-05-22T09:00:03.000Z",
+    scanned: 1,
+    ticked: 1,
+    failed: 0,
+    skipped: 0,
+    items: [
+      {
+        scheduleId: "schedule-api-1",
+        status: "ticked",
+        runId: "run-api-1",
+        message: "risk_evaluated",
+      },
+    ],
+  },
+};
 
 const mockPaperOrderPlans = [
   {
@@ -644,6 +674,9 @@ describe("ControlPlaneDashboard", () => {
     vi.mocked(controlPlaneApi.getRunSchedules).mockResolvedValue(
       mockAutonomousRunSchedules,
     );
+    vi.mocked(controlPlaneApi.getRunScheduleWorkerStatus).mockResolvedValue(
+      mockRunScheduleWorkerStatus,
+    );
     vi.mocked(controlPlaneApi.getPaperAccount).mockResolvedValue(
       mockPaperAccount,
     );
@@ -690,6 +723,9 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("Automation Action Ledger")).toBeInTheDocument();
     expect(screen.getByText("Live autonomous runs")).toBeInTheDocument();
     expect(screen.getByText("Live run schedules")).toBeInTheDocument();
+    expect(screen.getByText("Live schedule worker")).toBeInTheDocument();
+    expect(screen.getByText("Worker Idle")).toBeInTheDocument();
+    expect(screen.getByText("test-worker")).toBeInTheDocument();
     expect(screen.getAllByText("schedule-api-1").length).toBeGreaterThan(0);
     expect(screen.getByText("run-api-1")).toBeInTheDocument();
     expect(
@@ -804,6 +840,9 @@ describe("ControlPlaneDashboard", () => {
     vi.mocked(controlPlaneApi.getRunSchedules).mockRejectedValue(
       new Error("offline"),
     );
+    vi.mocked(controlPlaneApi.getRunScheduleWorkerStatus).mockRejectedValue(
+      new Error("offline"),
+    );
     vi.mocked(controlPlaneApi.getPaperAccount).mockRejectedValue(
       new Error("offline"),
     );
@@ -833,6 +872,7 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("Documented sample runs")).toBeInTheDocument();
     expect(screen.getByText("Documented run sample")).toBeInTheDocument();
     expect(screen.getByText("Documented schedule sample")).toBeInTheDocument();
+    expect(screen.getByText("Documented worker sample")).toBeInTheDocument();
     expect(
       screen.getByText(
         "Validate a dry-run momentum baseline before any proposal",

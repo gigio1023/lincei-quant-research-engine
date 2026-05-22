@@ -17,6 +17,7 @@ import {
   ResearchRun,
   RiskEvaluation,
   RiskGateStatus,
+  RunScheduleWorkerStatus,
 } from "../../types";
 import {
   BASELINE_RESEARCH_REQUEST,
@@ -32,6 +33,7 @@ import {
   DOCUMENTED_PAPER_ORDER_PLANS,
   DOCUMENTED_RISK_EVALUATIONS,
   DOCUMENTED_RESEARCH_RUNS,
+  DOCUMENTED_RUN_SCHEDULE_WORKER_STATUS,
   DOCUMENTED_STATUS,
 } from "./dashboardConstants";
 
@@ -54,6 +56,7 @@ export interface DashboardModel {
   visibleRiskEvaluations: RiskEvaluation[];
   visibleRuns: AutonomousRun[];
   visibleRunSchedules: AutonomousRunSchedule[];
+  visibleRunScheduleWorkerStatus: RunScheduleWorkerStatus;
   visiblePaperOrderPlans: PaperOrderPlan[];
   visiblePaperAccount: PaperAccount | null;
   visiblePaperAccountEvents: PaperAccountEvent[];
@@ -77,6 +80,7 @@ export interface DashboardModel {
     riskEvaluations: string;
     runs: string;
     runSchedules: string;
+    runScheduleWorker: string;
     paperOrderPlans: string;
     paperAccount: string;
     paperAccountEvents: string;
@@ -91,6 +95,7 @@ export interface DashboardModel {
     riskEvaluations: string | null;
     runs: string | null;
     runSchedules: string | null;
+    runScheduleWorker: string | null;
     paperOrderPlans: string | null;
     paperAccount: string | null;
     paperAccountEvents: string | null;
@@ -105,6 +110,7 @@ export interface DashboardModel {
     riskEvaluations: boolean;
     runs: boolean;
     runSchedules: boolean;
+    runScheduleWorker: boolean;
     paperAccount: boolean;
     paperAccountEvents: boolean;
     paperOrderPlans: boolean;
@@ -327,6 +333,8 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const [runSchedules, setRunSchedules] = useState<
     AutonomousRunSchedule[] | null
   >(null);
+  const [runScheduleWorkerStatus, setRunScheduleWorkerStatus] =
+    useState<RunScheduleWorkerStatus | null>(null);
   const [paperAccount, setPaperAccount] = useState<PaperAccount | null>(null);
   const [paperAccountEvents, setPaperAccountEvents] = useState<
     PaperAccountEvent[] | null
@@ -349,6 +357,8 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const [loadingRiskEvaluations, setLoadingRiskEvaluations] = useState(true);
   const [loadingRuns, setLoadingRuns] = useState(true);
   const [loadingRunSchedules, setLoadingRunSchedules] = useState(true);
+  const [loadingRunScheduleWorker, setLoadingRunScheduleWorker] =
+    useState(true);
   const [loadingPaperAccount, setLoadingPaperAccount] = useState(true);
   const [loadingPaperAccountEvents, setLoadingPaperAccountEvents] =
     useState(true);
@@ -369,6 +379,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const [runSchedulesError, setRunSchedulesError] = useState<string | null>(
     null,
   );
+  const [runScheduleWorkerError, setRunScheduleWorkerError] = useState<
+    string | null
+  >(null);
   const [paperOrderPlansError, setPaperOrderPlansError] = useState<
     string | null
   >(null);
@@ -408,6 +421,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           riskEvaluationsStatus,
           runsStatus,
           runSchedulesStatus,
+          runScheduleWorkerStatus,
           paperAccountStatus,
           paperAccountEventsStatus,
           executionControlStatus,
@@ -423,6 +437,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           controlPlaneApi.getRiskEvaluations(),
           controlPlaneApi.getRuns(),
           controlPlaneApi.getRunSchedules(),
+          controlPlaneApi.getRunScheduleWorkerStatus(),
           controlPlaneApi.getPaperAccount(),
           controlPlaneApi.getPaperAccountEvents(),
           controlPlaneApi.getExecutionControl(),
@@ -487,6 +502,14 @@ export const useControlPlaneDashboard = (): DashboardModel => {
         } else {
           setRunSchedulesError(
             "Autonomous schedule API is unavailable. Showing documented sample schedule.",
+          );
+        }
+        if (runScheduleWorkerStatus.status === "fulfilled") {
+          setRunScheduleWorkerStatus(runScheduleWorkerStatus.value);
+          setRunScheduleWorkerError(null);
+        } else {
+          setRunScheduleWorkerError(
+            "Autonomous schedule worker API is unavailable. Showing documented worker status.",
           );
         }
         if (paperAccountStatus.status === "fulfilled") {
@@ -561,6 +584,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           setRunSchedulesError(
             "Autonomous schedule API is unavailable. Showing documented sample schedule.",
           );
+          setRunScheduleWorkerError(
+            "Autonomous schedule worker API is unavailable. Showing documented worker status.",
+          );
           setPaperOrderPlansError(
             "Paper order-plan API is unavailable. Showing documented sample paper plans.",
           );
@@ -586,6 +612,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           setLoadingRiskEvaluations(false);
           setLoadingRuns(false);
           setLoadingRunSchedules(false);
+          setLoadingRunScheduleWorker(false);
           setLoadingPaperAccount(false);
           setLoadingPaperAccountEvents(false);
           setLoadingPaperOrderPlans(false);
@@ -613,6 +640,8 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const visibleRunSchedules =
     runSchedules ??
     (loadingRunSchedules ? [] : DOCUMENTED_AUTONOMOUS_RUN_SCHEDULES);
+  const visibleRunScheduleWorkerStatus =
+    runScheduleWorkerStatus ?? DOCUMENTED_RUN_SCHEDULE_WORKER_STATUS;
   const visiblePaperOrderPlans =
     paperOrderPlans ??
     (loadingPaperOrderPlans ? [] : DOCUMENTED_PAPER_ORDER_PLANS);
@@ -662,6 +691,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       refreshedPaperPlans,
       refreshedPaperEvents,
       refreshedRunSchedules,
+      refreshedRunScheduleWorkerStatus,
       refreshedPaperAccount,
       refreshedOrderPlanApprovals,
     ] = await Promise.allSettled([
@@ -671,6 +701,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       controlPlaneApi.getPaperOrderPlans(),
       controlPlaneApi.getPaperAccountEvents(),
       controlPlaneApi.getRunSchedules(),
+      controlPlaneApi.getRunScheduleWorkerStatus(),
       controlPlaneApi.getPaperAccount(),
       controlPlaneApi.getOrderPlanApprovals(),
     ]);
@@ -721,6 +752,15 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       setRunSchedulesError(null);
     } else {
       setRunSchedulesError("Schedule refresh failed after automation action.");
+    }
+
+    if (refreshedRunScheduleWorkerStatus.status === "fulfilled") {
+      setRunScheduleWorkerStatus(refreshedRunScheduleWorkerStatus.value);
+      setRunScheduleWorkerError(null);
+    } else {
+      setRunScheduleWorkerError(
+        "Schedule worker refresh failed after automation action.",
+      );
     }
 
     if (refreshedPaperAccount.status === "fulfilled") {
@@ -818,6 +858,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     visibleRiskEvaluations,
     visibleRuns,
     visibleRunSchedules,
+    visibleRunScheduleWorkerStatus,
     visiblePaperOrderPlans,
     visiblePaperAccount: paperAccount,
     visiblePaperAccountEvents,
@@ -899,6 +940,11 @@ export const useControlPlaneDashboard = (): DashboardModel => {
         : loadingRunSchedules
           ? "Loading run schedules"
           : "Documented schedule sample",
+      runScheduleWorker: runScheduleWorkerStatus
+        ? "Live schedule worker"
+        : loadingRunScheduleWorker
+          ? "Loading schedule worker"
+          : "Documented worker sample",
       paperOrderPlans: paperOrderPlans
         ? "Live paper plans"
         : loadingPaperOrderPlans
@@ -933,6 +979,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       riskEvaluations: riskEvaluationsError,
       runs: runsError,
       runSchedules: runSchedulesError,
+      runScheduleWorker: runScheduleWorkerError,
       paperOrderPlans: paperOrderPlansError,
       paperAccount: paperAccountError,
       paperAccountEvents: paperAccountEventsError,
@@ -947,6 +994,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       riskEvaluations: loadingRiskEvaluations,
       runs: loadingRuns,
       runSchedules: loadingRunSchedules,
+      runScheduleWorker: loadingRunScheduleWorker,
       paperAccount: loadingPaperAccount,
       paperAccountEvents: loadingPaperAccountEvents,
       paperOrderPlans: loadingPaperOrderPlans,

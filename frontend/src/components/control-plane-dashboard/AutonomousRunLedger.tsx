@@ -21,9 +21,46 @@ const statusClass = (status: AutonomousRunStatus) => {
   return "border-[#2b3139] bg-[#0b0e11] text-[#929aa5]";
 };
 
+const workerStateClass = (state: string) => {
+  if (state === "Attention") {
+    return "border-[#f6465d]/40 bg-[#f6465d]/10 text-[#f6465d]";
+  }
+
+  if (state === "Processing") {
+    return "border-[#f0b90b]/40 bg-[#f0b90b]/10 text-[#fcd535]";
+  }
+
+  if (state === "Idle") {
+    return "border-[#0ecb81]/40 bg-[#0ecb81]/10 text-[#0ecb81]";
+  }
+
+  return "border-[#2b3139] bg-[#0b0e11] text-[#929aa5]";
+};
+
 export const AutonomousRunLedger = ({ model }: AutonomousRunLedgerProps) => {
   const run = model.latestRun;
   const schedule = model.latestRunSchedule;
+  const worker = model.visibleRunScheduleWorkerStatus;
+  const workerNow = new Date(worker.currentTime).getTime();
+  const dueScheduleCount = model.visibleRunSchedules.filter(
+    (item) => item.enabled && new Date(item.nextRunAt).getTime() <= workerNow,
+  ).length;
+  const activeLeaseCount = model.visibleRunSchedules.filter(
+    (item) =>
+      item.leaseExpiresAt &&
+      new Date(item.leaseExpiresAt).getTime() > workerNow,
+  ).length;
+  const workerState = !worker.enabled
+    ? dueScheduleCount > 0
+      ? "Attention"
+      : "Disabled"
+    : (worker.lastResult?.failed ?? 0) > 0
+      ? "Attention"
+      : dueScheduleCount > 0 || activeLeaseCount > 0
+        ? "Processing"
+        : worker.lastTickAt
+          ? "Idle"
+          : "Waiting";
 
   return (
     <section className="rounded-xl border border-[#2b3139] bg-[#181a20]">
@@ -38,6 +75,9 @@ export const AutonomousRunLedger = ({ model }: AutonomousRunLedgerProps) => {
             </span>
             <span className="font-semibold text-[#929aa5]">
               {model.sources.runSchedules}
+            </span>
+            <span className="font-semibold text-[#929aa5]">
+              {model.sources.runScheduleWorker}
             </span>
             <span className="font-bold text-[#f6465d]">Live broker off</span>
           </div>
@@ -83,6 +123,56 @@ export const AutonomousRunLedger = ({ model }: AutonomousRunLedgerProps) => {
             {model.errors.runSchedules}
           </div>
         )}
+        {model.errors.runScheduleWorker && (
+          <div className="mb-3 rounded-lg border border-[#f0b90b]/30 bg-[#f0b90b]/10 p-3 text-xs font-semibold text-[#fcd535]">
+            {model.errors.runScheduleWorker}
+          </div>
+        )}
+
+        <div className="mb-4 rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3 text-xs">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span
+              className={`rounded-md border px-2 py-1 font-bold ${workerStateClass(workerState)}`}
+            >
+              Worker {workerState}
+            </span>
+            <span className="font-semibold text-[#929aa5]">
+              due {dueScheduleCount}
+            </span>
+            <span className="font-semibold text-[#929aa5]">
+              leases {activeLeaseCount}
+            </span>
+          </div>
+          <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-6">
+            {[
+              ["worker", worker.workerId],
+              ["cron", worker.cron],
+              ["ttl", `${worker.leaseTtlSeconds}s`],
+              ["max", worker.maxSchedulesPerTick],
+              [
+                "last tick",
+                worker.lastTickAt
+                  ? new Date(worker.lastTickAt).toLocaleString()
+                  : "none",
+              ],
+              [
+                "last result",
+                worker.lastResult
+                  ? `${worker.lastResult.trigger} · ${worker.lastResult.ticked}/${worker.lastResult.failed}/${worker.lastResult.skipped}`
+                  : "none",
+              ],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <div className="font-bold uppercase text-[#707a8a]">
+                  {label}
+                </div>
+                <div className="mt-1 truncate font-mono font-bold text-[#eaecef]">
+                  {value}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
 
         {schedule && (
           <div className="mb-4 grid gap-2 rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3 text-xs md:grid-cols-3 xl:grid-cols-6">

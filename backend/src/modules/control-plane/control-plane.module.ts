@@ -13,6 +13,7 @@ import { ResearchRun } from '../../entities/research-run.entity';
 import { PaperAccount } from '../../entities/paper-account.entity';
 import { PaperOrderPlan } from '../../entities/paper-order-plan.entity';
 import { RiskGateModule } from '../risk-gate/risk-gate.module';
+import { ControlPlaneSchedulerService } from './control-plane-scheduler.service';
 import { ControlPlaneController } from './control-plane.controller';
 import { ControlPlaneService } from './control-plane.service';
 
@@ -35,7 +36,7 @@ import { ControlPlaneService } from './control-plane.service';
     RiskGateModule,
   ],
   controllers: [ControlPlaneController],
-  providers: [ControlPlaneService],
-  exports: [ControlPlaneService],
+  providers: [ControlPlaneService, ControlPlaneSchedulerService],
+  exports: [ControlPlaneService, ControlPlaneSchedulerService],
 })
 export class ControlPlaneModule {}

@@ -2428,6 +2428,32 @@ export class ControlPlaneService {
     return this.runScheduleRepository.find({ order: { updatedAt: 'DESC' } });
   }
 
+  async listDueRunSchedules(
+    limit = 5,
+    now = new Date(),
+  ): Promise<AutonomousRunSchedule[]> {
+    if (!Number.isInteger(limit) || limit < 1) {
+      throw new BadRequestException('Due schedule limit must be positive');
+    }
+
+    return this.runScheduleRepository.find({
+      where: [
+        {
+          enabled: true,
+          nextRunAt: LessThanOrEqual(now),
+          leaseExpiresAt: IsNull(),
+        },
+        {
+          enabled: true,
+          nextRunAt: LessThanOrEqual(now),
+          leaseExpiresAt: LessThanOrEqual(now),
+        },
+      ],
+      order: { nextRunAt: 'ASC' },
+      take: limit,
+    });
+  }
+
   async tickRunSchedule(
     scheduleId: number,
     request: TickAutonomousRunScheduleRequest = {},
@@ -2463,18 +2489,31 @@ export class ControlPlaneService {
     ).trim();
     const leaseExpiresAt = new Date(now.getTime() + leaseTtlSeconds * 1000);
     const cycleKey = `schedule:${schedule.id}:${schedule.nextRunAt.toISOString()}`;
-    const leaseResult = await this.runScheduleRepository.update(
-      [
-        { id: schedule.id, leaseExpiresAt: IsNull() },
-        { id: schedule.id, leaseExpiresAt: LessThanOrEqual(now) },
-      ],
-      {
-        leaseOwner,
-        leaseExpiresAt,
-        lastTickAt: now,
-        lastError: null,
-      },
-    );
+    const leaseCriteria = force
+      ? [
+          { id: schedule.id, leaseExpiresAt: IsNull() },
+          { id: schedule.id, leaseExpiresAt: LessThanOrEqual(now) },
+        ]
+      : [
+          {
+            id: schedule.id,
+            enabled: true,
+            nextRunAt: schedule.nextRunAt,
+            leaseExpiresAt: IsNull(),
+          },
+          {
+            id: schedule.id,
+            enabled: true,
+            nextRunAt: schedule.nextRunAt,
+            leaseExpiresAt: LessThanOrEqual(now),
+          },
+        ];
+    const leaseResult = await this.runScheduleRepository.update(leaseCriteria, {
+      leaseOwner,
+      leaseExpiresAt,
+      lastTickAt: now,
+      lastError: null,
+    });
 
     if (!leaseResult.affected) {
       throw new BadRequestException(

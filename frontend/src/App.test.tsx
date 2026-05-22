@@ -81,6 +81,16 @@ vi.mock("./services/api", () => ({
     getOrderPlanApprovals: vi.fn(() => Promise.resolve([])),
     getRuns: vi.fn(() => Promise.resolve([])),
     getRunSchedules: vi.fn(() => Promise.resolve([])),
+    getRunScheduleWorkerStatus: vi.fn(() =>
+      Promise.resolve({
+        enabled: false,
+        cron: "*/1 * * * *",
+        workerId: "test-worker",
+        maxSchedulesPerTick: 5,
+        leaseTtlSeconds: 120,
+        currentTime: "2026-05-22T09:00:00.000Z",
+      }),
+    ),
     advanceRun: vi.fn(),
     tickRunSchedule: vi.fn(),
   },

@@ -9,6 +9,7 @@ import {
   PaperOrderPlan,
   ResearchRun,
   RiskEvaluation,
+  RunScheduleWorkerStatus,
 } from "../../types";
 
 export const DOCUMENTED_BUDGET_ENVELOPES: BudgetEnvelope[] = [
@@ -236,6 +237,28 @@ export const DOCUMENTED_AUTONOMOUS_RUN_SCHEDULES: AutonomousRunSchedule[] = [
     updatedAt: "2026-05-22T08:55:00.000Z",
   },
 ];
+
+export const DOCUMENTED_RUN_SCHEDULE_WORKER_STATUS: RunScheduleWorkerStatus = {
+  enabled: false,
+  cron: "*/1 * * * *",
+  workerId: "documented-worker",
+  maxSchedulesPerTick: 5,
+  leaseTtlSeconds: 120,
+  currentTime: "2026-05-22T08:55:00.000Z",
+  lastTickAt: "2026-05-22T08:50:00.000Z",
+  lastResult: {
+    trigger: "documented",
+    workerId: "documented-worker",
+    enabled: false,
+    startedAt: "2026-05-22T08:50:00.000Z",
+    completedAt: "2026-05-22T08:50:00.000Z",
+    scanned: 0,
+    ticked: 0,
+    failed: 0,
+    skipped: 0,
+    items: [],
+  },
+};
 
 export const DOCUMENTED_PAPER_ORDER_PLANS: PaperOrderPlan[] = [
   {

@@ -466,7 +466,7 @@ Exit criteria:
 
 Current verdict: not ready.
 
-The system is not ready for "deposit money and let it invest." After this PR it can create reproducible baseline research runs, advance an autonomous run through budget-bound research, proposal generation, and risk evaluation, tick an atomically leased run schedule, and simulate approved paper order plans against a durable local paper account with ledger/reconciliation evidence. It still cannot allocate, execute, or recover real capital end to end.
+The system is not ready for "deposit money and let it invest." After this PR it can create reproducible baseline research runs, advance an autonomous run through budget-bound research, proposal generation, and risk evaluation, run an env-gated in-process worker that ticks atomically leased run schedules, and simulate approved paper order plans against a durable local paper account with ledger/reconciliation evidence. It still cannot allocate, execute, or recover real capital end to end.
 
 Blocking items:
 
@@ -476,7 +476,7 @@ Blocking items:
 - production signing custody for human approvals;
 - scheduled broker read-only polling and broker-backed reconciliation;
 - explicit paper account seed/promote workflow exists, but production custody and operator policy still need hardening;
-- schedule leases for autonomous runs exist with due/not-due checks, TTL validation, owner-checked release, and cycle keys; a production cron worker, distributed DB lock audit, and auth boundary still need hardening;
+- schedule leases and an env-gated in-process worker for autonomous runs exist with due/not-due checks, TTL validation, owner-checked release, overlap guard, and cycle keys; distributed DB lock audit, scheduler deployment policy, and auth boundary still need hardening;
 - transaction isolation plus quantity, cost basis, realized PnL, and reservation accounting;
 - operational monitoring;
 - legal and terms review;

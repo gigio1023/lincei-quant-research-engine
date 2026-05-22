@@ -637,6 +637,27 @@ describe("API Service", () => {
       expect(result).toEqual(mockSchedules);
     });
 
+    it("should_get_autonomous_run_schedule_worker_status", async () => {
+      const mockStatus = {
+        enabled: true,
+        cron: "*/1 * * * *",
+        workerId: "unit-worker",
+        maxSchedulesPerTick: 5,
+        leaseTtlSeconds: 120,
+        currentTime: "2026-05-22T09:00:00.000Z",
+      };
+
+      mockGet.mockResolvedValue({ data: mockStatus });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.getRunScheduleWorkerStatus();
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/control-plane/run-schedules/worker-status",
+      );
+      expect(result).toEqual(mockStatus);
+    });
+
     it("should_tick_autonomous_run_schedule", async () => {
       const mockRun = {
         id: "run-1",

@@ -627,6 +627,39 @@ export interface TickAutonomousRunScheduleRequest {
   attemptPaperExecution?: boolean;
 }
 
+export type RunScheduleWorkerItemStatus = "ticked" | "skipped" | "failed";
+
+export interface RunScheduleWorkerTickItem {
+  scheduleId: number | string;
+  status: RunScheduleWorkerItemStatus;
+  runId?: number | string;
+  message?: string;
+}
+
+export interface RunScheduleWorkerTickResult {
+  trigger: string;
+  workerId: string;
+  enabled: boolean;
+  startedAt: string;
+  completedAt: string;
+  scanned: number;
+  ticked: number;
+  failed: number;
+  skipped: number;
+  items: RunScheduleWorkerTickItem[];
+}
+
+export interface RunScheduleWorkerStatus {
+  enabled: boolean;
+  cron: string;
+  workerId: string;
+  maxSchedulesPerTick: number;
+  leaseTtlSeconds: number;
+  lastTickAt?: string;
+  lastResult?: RunScheduleWorkerTickResult;
+  currentTime: string;
+}
+
 export interface ResearchRunWindow {
   start: string;
   end: string;
