@@ -129,8 +129,31 @@ export const ResearchLedgerPanel = ({ model }: ResearchLedgerPanelProps) => (
                       </summary>
                       <div className="mt-2 space-y-1">
                         {run.datasetRefs.map((datasetRef) => (
-                          <div key={`${run.id}-${datasetRef.id}`}>
-                            {datasetRef.id} / {datasetRef.source}
+                          <div
+                            key={`${run.id}-${datasetRef.id}`}
+                            className="rounded-md border border-[#2b3139] bg-[#181a20] p-2"
+                          >
+                            <div className="font-semibold text-[#eaecef]">
+                              {datasetRef.id}
+                            </div>
+                            <div>
+                              {datasetRef.provider ?? "unknown provider"} /{" "}
+                              {datasetRef.source ?? "unlabeled source"}
+                            </div>
+                            <div>
+                              {datasetRef.windowStart} to {datasetRef.windowEnd}
+                            </div>
+                            <div>
+                              available {datasetRef.availabilityTimestamp}
+                            </div>
+                            {datasetRef.marketDataTimestamp && (
+                              <div>
+                                market data {datasetRef.marketDataTimestamp}
+                              </div>
+                            )}
+                            {datasetRef.universe?.length ? (
+                              <div>{datasetRef.universe.join(" / ")}</div>
+                            ) : null}
                           </div>
                         ))}
                         {run.knownFailureModes.map((failureMode) => (

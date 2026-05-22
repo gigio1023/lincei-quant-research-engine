@@ -10,7 +10,10 @@ import {
   BudgetEnvelope,
   ControlPlaneStatus,
   ExecutionControlState,
+  ImportMarketDataBarsRequest,
   InvestmentProposal,
+  MarketDataBar,
+  MarketDataBarsImportResponse,
   OrderPlanApproval,
   PaperAccount,
   PaperAccountEvent,
@@ -80,6 +83,26 @@ export const controlPlaneApi = {
 
   getResearchRuns: async (): Promise<ResearchRun[]> => {
     const response = await api.get("/control-plane/research-runs");
+    return response.data;
+  },
+
+  importMarketDataBars: async (
+    request: ImportMarketDataBarsRequest,
+  ): Promise<MarketDataBarsImportResponse> => {
+    const response = await api.post(
+      "/control-plane/market-data/bars/import",
+      request,
+    );
+    return response.data;
+  },
+
+  getMarketDataBars: async (params?: {
+    datasetId?: string;
+    symbol?: string;
+  }): Promise<MarketDataBar[]> => {
+    const response = await api.get("/control-plane/market-data/bars", {
+      params,
+    });
     return response.data;
   },
 

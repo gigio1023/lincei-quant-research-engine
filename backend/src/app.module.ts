@@ -18,6 +18,7 @@ import { BudgetEnvelope } from './entities/budget-envelope.entity';
 import { BrokerSnapshot } from './entities/broker-snapshot.entity';
 import { ExecutionControlState } from './entities/execution-control-state.entity';
 import { InvestmentProposal } from './entities/investment-proposal.entity';
+import { MarketDataBar } from './entities/market-data-bar.entity';
 import { RiskEvaluation } from './entities/risk-evaluation.entity';
 import { AutonomousRun } from './entities/autonomous-run.entity';
 import { AutonomousRunSchedule } from './entities/autonomous-run-schedule.entity';
@@ -46,6 +47,7 @@ import { PaperReservationHoldRecord } from './entities/paper-reservation-hold.en
           BrokerSnapshot,
           ExecutionControlState,
           InvestmentProposal,
+          MarketDataBar,
           RiskEvaluation,
           AutonomousRun,
           AutonomousRunSchedule,

@@ -9,6 +9,7 @@ import { BrokerSnapshot } from '../src/entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../src/entities/budget-envelope.entity';
 import { ExecutionControlState } from '../src/entities/execution-control-state.entity';
 import { InvestmentProposal } from '../src/entities/investment-proposal.entity';
+import { MarketDataBar } from '../src/entities/market-data-bar.entity';
 import { OrderPlanApproval } from '../src/entities/order-plan-approval.entity';
 import { PaperAccountEvent } from '../src/entities/paper-account-event.entity';
 import { PaperAccount } from '../src/entities/paper-account.entity';
@@ -35,6 +36,7 @@ describe('ControlPlane research provenance (e2e)', () => {
             BudgetEnvelope,
             ExecutionControlState,
             InvestmentProposal,
+            MarketDataBar,
             OrderPlanApproval,
             PaperAccountEvent,
             PaperAccount,
@@ -234,6 +236,96 @@ describe('ControlPlane research provenance (e2e)', () => {
         researchRunResponse.body.artifactRefs[0]
       ],
     ).toMatch(/^sha256:/);
+    expect(researchRunResponse.body.brokerExecutionEnabled).toBe(false);
+    expect(researchRunResponse.body.liveTradingEnabled).toBe(false);
+  });
+
+  it('imports market bars and runs the baseline against that dataset', async () => {
+    const datasetId = 'e2e-manual-bars';
+    const dates = [
+      '2026-05-11',
+      '2026-05-12',
+      '2026-05-13',
+      '2026-05-14',
+      '2026-05-15',
+      '2026-05-18',
+      '2026-05-19',
+      '2026-05-20',
+    ];
+
+    await request(app.getHttpServer())
+      .post('/control-plane/market-data/bars/import')
+      .send({
+        datasetId,
+        provider: 'manual',
+        sourceRef: 'e2e-upload:asset',
+        symbol: '005930',
+        timeframe: '1d',
+        bars: dates.map((date, index) => ({
+          timestamp: `${date}T00:00:00.000Z`,
+          availabilityTimestamp: `${date}T15:30:00.000Z`,
+          open: 100 + index,
+          high: 103 + index,
+          low: 99 + index,
+          close: 100 + index * 3,
+          adjustedClose: 100 + index * 3,
+          volume: 10_000 + index,
+        })),
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/control-plane/market-data/bars/import')
+      .send({
+        datasetId,
+        provider: 'manual',
+        sourceRef: 'e2e-upload:benchmark',
+        symbol: 'KOSPI200',
+        timeframe: '1d',
+        bars: dates.map((date, index) => ({
+          timestamp: `${date}T00:00:00.000Z`,
+          availabilityTimestamp: `${date}T15:30:00.000Z`,
+          open: 100 + index,
+          high: 102 + index,
+          low: 99 + index,
+          close: 100 + index,
+          adjustedClose: 100 + index,
+          volume: 20_000 + index,
+        })),
+      })
+      .expect(201);
+
+    const barsResponse = await request(app.getHttpServer())
+      .get('/control-plane/market-data/bars')
+      .query({ datasetId, symbol: '005930' })
+      .expect(200);
+
+    expect(barsResponse.body).toHaveLength(dates.length);
+    expect(barsResponse.body[0].brokerExecutionEnabled).toBe(false);
+    expect(barsResponse.body[0].liveTradingEnabled).toBe(false);
+
+    const researchRunResponse = await request(app.getHttpServer())
+      .post('/control-plane/research-runs/run-baseline')
+      .send({
+        datasetId,
+        symbol: '005930',
+        benchmark: 'KOSPI200',
+        initialCapital: 10_000_000,
+      })
+      .expect(201);
+
+    expect(researchRunResponse.body.status).toBe('proposal_ready');
+    expect(researchRunResponse.body.datasetRefs[0]).toEqual(
+      expect.objectContaining({
+        id: datasetId,
+        provider: 'manual',
+        frequency: '1d',
+        universe: ['005930', 'KOSPI200'],
+      }),
+    );
+    expect(researchRunResponse.body.backtestMetrics.tradeCount).toBeGreaterThan(
+      0,
+    );
     expect(researchRunResponse.body.brokerExecutionEnabled).toBe(false);
     expect(researchRunResponse.body.liveTradingEnabled).toBe(false);
   });

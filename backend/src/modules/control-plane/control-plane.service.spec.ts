@@ -5,6 +5,7 @@ import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
+import { MarketDataBar } from '../../entities/market-data-bar.entity';
 import { OrderPlanApproval } from '../../entities/order-plan-approval.entity';
 import { PaperAccountEvent } from '../../entities/paper-account-event.entity';
 import { PaperAccount } from '../../entities/paper-account.entity';
@@ -22,6 +23,7 @@ describe('ControlPlaneService', () => {
   let brokerSnapshots: BrokerSnapshot[];
   let orderPlanApprovals: OrderPlanApproval[];
   let researchRuns: ResearchRun[];
+  let marketDataBars: MarketDataBar[];
   let proposals: InvestmentProposal[];
   let paperAccounts: PaperAccount[];
   let paperAccountEvents: PaperAccountEvent[];
@@ -41,7 +43,17 @@ describe('ControlPlaneService', () => {
       }
       return value;
     }),
-    find: jest.fn(async () => [...items]),
+    find: jest.fn(async (options?: { where?: Partial<T> }) => {
+      if (!options?.where) {
+        return [...items];
+      }
+
+      return items.filter((item) =>
+        Object.entries(options.where ?? {}).every(
+          ([key, value]) => item[key] === value,
+        ),
+      );
+    }),
     findOne: jest.fn(async ({ where }: { where: Partial<T> }) => {
       return (
         items.find((item) =>
@@ -104,6 +116,7 @@ describe('ControlPlaneService', () => {
     brokerSnapshots = [];
     orderPlanApprovals = [];
     researchRuns = [];
+    marketDataBars = [];
     proposals = [];
     paperAccounts = [];
     paperAccountEvents = [];
@@ -118,6 +131,7 @@ describe('ControlPlaneService', () => {
       makeRepository(brokerFills) as any,
       makeRepository(brokerSnapshots) as any,
       makeRepository(proposals) as any,
+      makeRepository(marketDataBars) as any,
       makeRepository(orderPlanApprovals) as any,
       makeRepository(researchRuns) as any,
       makeRepository(paperAccounts) as any,
@@ -1520,6 +1534,160 @@ describe('ControlPlaneService', () => {
     );
     expect(researchRun.brokerExecutionEnabled).toBe(false);
     expect(researchRun.liveTradingEnabled).toBe(false);
+  });
+
+  it('imports external market bars without enabling broker execution', async () => {
+    const response = await service.importMarketDataBars({
+      datasetId: 'krx-daily-bars-2026-05',
+      provider: 'krx',
+      sourceRef: 'manual-upload:krx:2026-05',
+      symbol: '005930',
+      timeframe: '1d',
+      currency: 'KRW',
+      bars: [
+        {
+          timestamp: '2026-05-18T00:00:00.000Z',
+          availabilityTimestamp: '2026-05-18T15:30:00.000Z',
+          open: 75_000,
+          high: 76_000,
+          low: 74_500,
+          close: 75_500,
+          adjustedClose: 75_500,
+          volume: 1_000_000,
+        },
+      ],
+    });
+
+    expect(response).toEqual(
+      expect.objectContaining({
+        datasetId: 'krx-daily-bars-2026-05',
+        symbol: '005930',
+        provider: 'krx',
+        imported: 1,
+        replaced: 0,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+    expect(response.bars[0]).toEqual(
+      expect.objectContaining({
+        datasetId: 'krx-daily-bars-2026-05',
+        symbol: '005930',
+        close: 75_500,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+  });
+
+  it('runs the deterministic baseline against imported market bars', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Imported market data budget',
+      totalBudget: 10_000_000,
+    });
+    const datasetId = 'manual-daily-bars-aligned';
+    const dates = [
+      '2026-05-11',
+      '2026-05-12',
+      '2026-05-13',
+      '2026-05-14',
+      '2026-05-15',
+      '2026-05-18',
+      '2026-05-19',
+      '2026-05-20',
+    ];
+
+    await service.importMarketDataBars({
+      datasetId,
+      provider: 'manual',
+      sourceRef: 'operator-upload:asset',
+      symbol: '005930',
+      timeframe: '1d',
+      bars: dates.map((date, index) => ({
+        timestamp: `${date}T00:00:00.000Z`,
+        availabilityTimestamp: `${date}T15:30:00.000Z`,
+        open: 100 + index,
+        high: 102 + index,
+        low: 99 + index,
+        close: 100 + index * 3,
+        adjustedClose: 100 + index * 3,
+        volume: 1_000 + index,
+      })),
+    });
+    await service.importMarketDataBars({
+      datasetId,
+      provider: 'manual',
+      sourceRef: 'operator-upload:benchmark',
+      symbol: 'KOSPI200',
+      timeframe: '1d',
+      bars: dates.map((date, index) => ({
+        timestamp: `${date}T00:00:00.000Z`,
+        availabilityTimestamp: `${date}T15:30:00.000Z`,
+        open: 100 + index,
+        high: 101 + index,
+        low: 99 + index,
+        close: 100 + index,
+        adjustedClose: 100 + index,
+        volume: 2_000 + index,
+      })),
+    });
+
+    const researchRun = await service.runBaselineResearch({
+      budgetEnvelopeId: budget.id,
+      objective: 'Run imported-data baseline before proposal',
+      datasetId,
+      symbol: '005930',
+      benchmark: 'KOSPI200',
+    });
+
+    expect(researchRun.status).toBe('proposal_ready');
+    expect(researchRun.datasetRefs[0]).toEqual(
+      expect.objectContaining({
+        id: datasetId,
+        provider: 'manual',
+        source: 'operator-upload:asset',
+        frequency: '1d',
+        universe: ['005930', 'KOSPI200'],
+      }),
+    );
+    expect(researchRun.validationWindow).toEqual(
+      expect.objectContaining({
+        start: '2026-05-14',
+        end: '2026-05-20',
+      }),
+    );
+    expect(researchRun.knownFailureModes).toContain(
+      'Imported market bars still require provider quality, corporate action, and survivorship-bias review.',
+    );
+    expect(researchRun.backtestMetrics.tradeCount).toBeGreaterThan(0);
+    expect(researchRun.brokerExecutionEnabled).toBe(false);
+    expect(researchRun.liveTradingEnabled).toBe(false);
+  });
+
+  it('rejects dataset-backed baseline when benchmark bars are missing', async () => {
+    await service.importMarketDataBars({
+      datasetId: 'asset-only-bars',
+      provider: 'manual',
+      symbol: '005930',
+      bars: Array.from({ length: 6 }, (_, index) => ({
+        timestamp: `2026-05-${String(11 + index).padStart(2, '0')}T00:00:00.000Z`,
+        open: 100 + index,
+        high: 101 + index,
+        low: 99 + index,
+        close: 100 + index,
+      })),
+    });
+
+    await expect(
+      service.runBaselineResearch({
+        initialCapital: 10_000_000,
+        datasetId: 'asset-only-bars',
+        symbol: '005930',
+        benchmark: 'KOSPI200',
+      }),
+    ).rejects.toThrow(
+      'Dataset-backed baseline requires at least 6 bars for both symbol and benchmark',
+    );
   });
 
   it('rejects proposal creation without research-run provenance', async () => {

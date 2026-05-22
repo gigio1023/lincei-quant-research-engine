@@ -12,7 +12,7 @@ const ControlPlaneDashboard = () => {
   const model = useControlPlaneDashboard();
 
   return (
-    <div className="relative left-1/2 min-h-screen w-screen -translate-x-1/2 bg-[#0b0e11] px-4 py-4 text-[#eaecef] sm:px-5 lg:px-6">
+    <div className="min-h-screen w-full bg-[#0b0e11] px-4 py-4 text-[#eaecef] sm:px-5 lg:px-6">
       <div className="mx-auto max-w-[1440px] space-y-4">
         <DashboardHeader model={model} />
         <WorkflowActionRail model={model} />

@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash } from 'crypto';
-import { IsNull, LessThanOrEqual, Repository } from 'typeorm';
+import { FindOptionsWhere, IsNull, LessThanOrEqual, Repository } from 'typeorm';
 import { AutonomousRun } from '../../entities/autonomous-run.entity';
 import { AutonomousRunSchedule } from '../../entities/autonomous-run-schedule.entity';
 import {
@@ -22,6 +22,7 @@ import {
   ExecutionControlStateValue,
 } from '../../entities/execution-control-state.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
+import { MarketDataBar } from '../../entities/market-data-bar.entity';
 import { OrderPlanApproval } from '../../entities/order-plan-approval.entity';
 import {
   PaperAccountEvent,
@@ -48,7 +49,10 @@ import {
   ProposedOrder,
   RiskGateRequest,
 } from '../risk-gate/risk-gate.types';
-import { buildBaselineResearchRunRequest } from './baseline-research-runner';
+import {
+  BaselineMarketDataset,
+  buildBaselineResearchRunRequest,
+} from './baseline-research-runner';
 import {
   AdvanceAutonomousRunRequest,
   ControlPlaneStatus,
@@ -60,6 +64,8 @@ import {
   CreateResearchRunRequest,
   ImportBrokerFillRequest,
   ImportBrokerSnapshotRequest,
+  ImportMarketDataBarsRequest,
+  MarketDataBarsImportResponse,
   PaperExecuteProposalRequest,
   PromotePaperAccountRequest,
   ReconcileBrokerFillRequest,
@@ -113,6 +119,8 @@ export class ControlPlaneService {
     private readonly brokerSnapshotRepository: Repository<BrokerSnapshot>,
     @InjectRepository(InvestmentProposal)
     private readonly proposalRepository: Repository<InvestmentProposal>,
+    @InjectRepository(MarketDataBar)
+    private readonly marketDataBarRepository: Repository<MarketDataBar>,
     @InjectRepository(OrderPlanApproval)
     private readonly orderPlanApprovalRepository: Repository<OrderPlanApproval>,
     @InjectRepository(ResearchRun)
@@ -3156,6 +3164,95 @@ export class ControlPlaneService {
     return this.researchRunRepository.find({ order: { updatedAt: 'DESC' } });
   }
 
+  async importMarketDataBars(
+    request: ImportMarketDataBarsRequest,
+  ): Promise<MarketDataBarsImportResponse> {
+    this.validateMarketDataImportRequest(request);
+
+    const datasetId = request.datasetId.trim();
+    const symbol = request.symbol.trim().toUpperCase();
+    const provider = request.provider ?? 'manual';
+    const timeframe = request.timeframe ?? '1d';
+    const currency = request.currency ?? 'KRW';
+    const sortedBars = [...request.bars].sort(
+      (left, right) =>
+        new Date(left.timestamp).getTime() -
+        new Date(right.timestamp).getTime(),
+    );
+    const existing = await this.marketDataBarRepository.find({
+      where: { datasetId, symbol },
+    });
+    const existingByTimestamp = new Map(
+      existing.map((bar) => [bar.timestamp, bar]),
+    );
+    let replaced = 0;
+    const savedBars: MarketDataBar[] = [];
+
+    for (const bar of sortedBars) {
+      const timestamp = new Date(bar.timestamp).toISOString();
+      const existingBar = existingByTimestamp.get(timestamp);
+      const entity = this.marketDataBarRepository.create({
+        ...(existingBar ?? {}),
+        datasetId,
+        provider,
+        sourceRef: request.sourceRef,
+        symbol,
+        timeframe,
+        timestamp,
+        availabilityTimestamp: bar.availabilityTimestamp
+          ? new Date(bar.availabilityTimestamp).toISOString()
+          : timestamp,
+        currency,
+        open: bar.open,
+        high: bar.high,
+        low: bar.low,
+        close: bar.close,
+        adjustedClose: bar.adjustedClose,
+        volume: bar.volume,
+        notes: bar.notes ?? [],
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      });
+
+      if (existingBar) {
+        replaced += 1;
+      }
+
+      savedBars.push(await this.marketDataBarRepository.save(entity));
+    }
+
+    return {
+      datasetId,
+      symbol,
+      provider,
+      imported: savedBars.length,
+      replaced,
+      bars: savedBars,
+      brokerExecutionEnabled: false,
+      liveTradingEnabled: false,
+    };
+  }
+
+  async listMarketDataBars(
+    datasetId?: string,
+    symbol?: string,
+  ): Promise<MarketDataBar[]> {
+    const where: FindOptionsWhere<MarketDataBar> = {};
+
+    if (datasetId) {
+      where.datasetId = datasetId.trim();
+    }
+
+    if (symbol) {
+      where.symbol = symbol.trim().toUpperCase();
+    }
+
+    return this.marketDataBarRepository.find({
+      where,
+      order: { timestamp: 'ASC' },
+    });
+  }
+
   async runBaselineResearch(
     request: RunBaselineResearchRequest,
   ): Promise<ResearchRun> {
@@ -3180,15 +3277,197 @@ export class ControlPlaneService {
       );
     }
 
+    const marketDataset = request.datasetId
+      ? await this.buildBaselineMarketDataset(request)
+      : null;
     const researchRunRequest = buildBaselineResearchRunRequest(
       {
         ...request,
         budgetEnvelopeId: request.budgetEnvelopeId ?? budget?.id,
       },
       budget,
+      marketDataset,
     );
 
     return this.createResearchRun(researchRunRequest);
+  }
+
+  private validateMarketDataImportRequest(
+    request: ImportMarketDataBarsRequest,
+  ): void {
+    const reasons: string[] = [];
+
+    if (!request.datasetId?.trim()) {
+      reasons.push('Market data import requires datasetId');
+    }
+
+    if (!request.symbol?.trim()) {
+      reasons.push('Market data import requires symbol');
+    }
+
+    if (!request.bars?.length) {
+      reasons.push('Market data import requires at least one bar');
+    }
+
+    const seenTimestamps = new Set<string>();
+    const now = new Date();
+
+    for (const [index, bar] of (request.bars ?? []).entries()) {
+      const prefix = `Market data bar ${index}`;
+      const timestamp = this.parseRequiredDate(bar.timestamp);
+      const availabilityTimestamp = bar.availabilityTimestamp
+        ? this.parseRequiredDate(bar.availabilityTimestamp)
+        : timestamp;
+
+      if (!timestamp) {
+        reasons.push(`${prefix} has an invalid timestamp`);
+      }
+
+      if (!availabilityTimestamp) {
+        reasons.push(`${prefix} has an invalid availability timestamp`);
+      }
+
+      if (
+        availabilityTimestamp &&
+        availabilityTimestamp.getTime() > now.getTime()
+      ) {
+        reasons.push(
+          `${prefix} availability timestamp cannot be in the future`,
+        );
+      }
+
+      if (timestamp && seenTimestamps.has(timestamp.toISOString())) {
+        reasons.push(`${prefix} duplicates timestamp ${bar.timestamp}`);
+      }
+
+      if (timestamp) {
+        seenTimestamps.add(timestamp.toISOString());
+      }
+
+      for (const [field, value] of Object.entries({
+        open: bar.open,
+        high: bar.high,
+        low: bar.low,
+        close: bar.close,
+      })) {
+        if (!Number.isFinite(value) || value <= 0) {
+          reasons.push(`${prefix} ${field} must be positive`);
+        }
+      }
+
+      if (
+        Number.isFinite(bar.high) &&
+        Number.isFinite(bar.low) &&
+        bar.high < bar.low
+      ) {
+        reasons.push(`${prefix} high cannot be below low`);
+      }
+
+      if (
+        bar.adjustedClose !== undefined &&
+        (!Number.isFinite(bar.adjustedClose) || bar.adjustedClose <= 0)
+      ) {
+        reasons.push(`${prefix} adjustedClose must be positive`);
+      }
+
+      if (
+        bar.volume !== undefined &&
+        (!Number.isFinite(bar.volume) || bar.volume < 0)
+      ) {
+        reasons.push(`${prefix} volume cannot be negative`);
+      }
+    }
+
+    if (reasons.length > 0) {
+      throw new BadRequestException(reasons.join('; '));
+    }
+  }
+
+  private async buildBaselineMarketDataset(
+    request: RunBaselineResearchRequest,
+  ): Promise<BaselineMarketDataset> {
+    const datasetId = request.datasetId?.trim();
+    const symbol = request.symbol?.trim().toUpperCase();
+    const benchmark = request.benchmark?.trim().toUpperCase();
+
+    if (!datasetId || !symbol || !benchmark) {
+      throw new BadRequestException(
+        'Dataset-backed baseline requires datasetId, symbol, and benchmark',
+      );
+    }
+
+    const bars = await this.marketDataBarRepository.find({
+      where: { datasetId },
+      order: { timestamp: 'ASC' },
+    });
+    const assetBars = bars.filter((bar) => bar.symbol === symbol);
+    const benchmarkBars = bars.filter((bar) => bar.symbol === benchmark);
+
+    if (assetBars.length < 6 || benchmarkBars.length < 6) {
+      throw new BadRequestException(
+        'Dataset-backed baseline requires at least 6 bars for both symbol and benchmark',
+      );
+    }
+
+    const benchmarkByTimestamp = new Map(
+      benchmarkBars.map((bar) => [bar.timestamp, bar]),
+    );
+    const alignedBars = assetBars
+      .map((assetBar) => {
+        const benchmarkBar = benchmarkByTimestamp.get(assetBar.timestamp);
+
+        if (!benchmarkBar) {
+          return null;
+        }
+
+        const alignedBar: BaselineMarketDataset['bars'][number] = {
+          date: assetBar.timestamp.slice(0, 10),
+          assetClose: assetBar.adjustedClose ?? assetBar.close,
+          benchmarkClose: benchmarkBar.adjustedClose ?? benchmarkBar.close,
+          assetAvailabilityTimestamp: assetBar.availabilityTimestamp,
+          benchmarkAvailabilityTimestamp: benchmarkBar.availabilityTimestamp,
+        };
+
+        return alignedBar;
+      })
+      .filter((bar): bar is BaselineMarketDataset['bars'][number] =>
+        Boolean(bar),
+      );
+
+    if (alignedBars.length < 6) {
+      throw new BadRequestException(
+        'Dataset-backed baseline requires at least 6 timestamp-aligned bars',
+      );
+    }
+
+    const provider = assetBars[0].provider;
+    const timeframe = assetBars[0].timeframe;
+    const currency = assetBars[0].currency;
+
+    return {
+      datasetId,
+      provider,
+      source: assetBars[0].sourceRef,
+      symbol,
+      benchmark,
+      timeframe,
+      currency,
+      bars: alignedBars,
+    };
+  }
+
+  private parseRequiredDate(value: string | undefined): Date | null {
+    if (!value) {
+      return null;
+    }
+
+    const parsed = new Date(value);
+
+    if (Number.isNaN(parsed.getTime())) {
+      return null;
+    }
+
+    return parsed;
   }
 
   async runRecoveryProposal(

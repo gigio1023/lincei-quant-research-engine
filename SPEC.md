@@ -117,7 +117,7 @@ A research run stores:
 
 Only a research run with `status: proposal_ready` and `advanceEligible: true` can create a proposal. Blocked research runs must remain visible with their reasons.
 
-The first automated research slice is `POST /control-plane/research-runs/run-baseline`. It runs a deterministic built-in momentum baseline on local sample bars, computes benchmark-aware backtest metrics, hashes the artifact snapshot, and stores a proposal-ready research run when all provenance gates pass. It is a bootstrap runner, not validated alpha and not live market data.
+The first automated research slice is `POST /control-plane/research-runs/run-baseline`. It runs a deterministic momentum baseline, computes benchmark-aware backtest metrics, hashes the artifact snapshot, and stores a proposal-ready research run when all provenance gates pass. By default it uses local sample bars; when `datasetId`, `symbol`, and `benchmark` are provided it uses imported, timestamp-aligned market bars from the durable market-data ledger. It is a bootstrap runner, not validated alpha.
 
 Model training is optional, not the default. The first implementation should use deterministic baselines and simple factor/ranking strategies. A trained model can be introduced only when it produces a signal that is evaluated like any other proposal.
 
@@ -382,8 +382,10 @@ Add automated research runs:
 Current status:
 
 - built-in deterministic baseline backtest runner exists;
+- durable `market_data_bars` ledger and import/list API exist for timestamped OHLCV research evidence;
+- baseline runner can use imported asset and benchmark bars by pinned `datasetId`, `symbol`, and `benchmark`;
 - runner computes benchmark comparison, costs, slippage, turnover, drawdown, Sharpe, Sortino, Calmar, information ratio, fees, win rate, and artifact hash;
-- runner uses local sample bars only, so external market ingestion is still missing.
+- external provider clients and scheduled market/news ingestion are still missing.
 
 Backtesting minimums:
 
@@ -490,7 +492,7 @@ Exit criteria:
 
 Current verdict: not ready.
 
-The system is not ready for "deposit money and let it invest." After this PR it can create reproducible baseline research runs, advance an autonomous run through budget-bound research, proposal generation, and risk evaluation, run an env-gated in-process worker that ticks atomically leased run schedules, and simulate approved paper order plans against a durable local paper account with ledger/reconciliation evidence. It still cannot allocate, execute, or recover real capital end to end.
+The system is not ready for "deposit money and let it invest." After this PR it can import timestamped market bars, create reproducible baseline research runs from sample or pinned imported datasets, advance an autonomous run through budget-bound research, proposal generation, and risk evaluation, run an env-gated in-process worker that ticks atomically leased run schedules, and simulate approved paper order plans against a durable local paper account with ledger/reconciliation evidence. It still cannot allocate, execute, or recover real capital end to end.
 
 Blocking items:
 

@@ -253,16 +253,48 @@ all broker/live execution flags remain `false`.
 
 - **Description**: Lists research-run ledger records ordered by latest update.
 
+#### `POST /control-plane/market-data/bars/import`
+
+- **Description**: Imports durable OHLCV market bars into the control-plane market-data ledger. This is research evidence only: it does not read broker accounts, does not place orders, and hard-sets broker/live execution flags to `false`.
+- **Example Request**:
+  ```json
+  {
+    "datasetId": "manual-daily-bars-2026-05",
+    "provider": "manual",
+    "sourceRef": "operator-upload:krx-sample",
+    "symbol": "005930",
+    "timeframe": "1d",
+    "currency": "KRW",
+    "bars": [
+      {
+        "timestamp": "2026-05-20T00:00:00.000Z",
+        "availabilityTimestamp": "2026-05-20T15:30:00.000Z",
+        "open": 75000,
+        "high": 76000,
+        "low": 74500,
+        "close": 75500,
+        "adjustedClose": 75500,
+        "volume": 1000000
+      }
+    ]
+  }
+  ```
+
+#### `GET /control-plane/market-data/bars`
+
+- **Description**: Lists imported market bars. Optional query params: `datasetId`, `symbol`.
+
 #### `POST /control-plane/research-runs/run-baseline`
 
-- **Description**: Runs the built-in deterministic baseline backtest and stores the resulting research run. This is a dry-run research action using local sample bars; it does not read broker data and does not place orders.
+- **Description**: Runs the deterministic baseline backtest and stores the resulting research run. By default it uses built-in local sample bars. If `datasetId`, `symbol`, and `benchmark` are provided, it uses imported timestamp-aligned bars from `/control-plane/market-data/bars/import`. This is a dry-run research action; it does not read broker data and does not place orders.
 - **Example Request**:
   ```json
   {
     "budgetEnvelopeId": 1,
     "objective": "Run deterministic momentum baseline before proposal",
-    "symbol": "SAMPLE_MOMENTUM_BASKET",
-    "benchmark": "SAMPLE_BENCHMARK"
+    "datasetId": "manual-daily-bars-2026-05",
+    "symbol": "005930",
+    "benchmark": "KOSPI200"
   }
   ```
 - **Response Notes**:

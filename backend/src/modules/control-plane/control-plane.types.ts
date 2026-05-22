@@ -10,6 +10,10 @@ import {
   ResearchWindow,
 } from '../../entities/research-run.entity';
 import type { InvestmentProposal } from '../../entities/investment-proposal.entity';
+import type {
+  MarketDataBar,
+  MarketDataProvider,
+} from '../../entities/market-data-bar.entity';
 import type { ResearchRun } from '../../entities/research-run.entity';
 import type { RiskEvaluation } from '../../entities/risk-evaluation.entity';
 import {
@@ -71,9 +75,43 @@ export interface RunBaselineResearchRequest {
   budgetEnvelopeId?: number;
   objective?: string;
   strategyFamily?: string;
+  datasetId?: string;
   symbol?: string;
   benchmark?: string;
   initialCapital?: number;
+}
+
+export interface ImportMarketDataBarInput {
+  timestamp: string;
+  availabilityTimestamp?: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  adjustedClose?: number;
+  volume?: number;
+  notes?: string[];
+}
+
+export interface ImportMarketDataBarsRequest {
+  datasetId: string;
+  provider?: MarketDataProvider;
+  sourceRef?: string;
+  symbol: string;
+  timeframe?: string;
+  currency?: string;
+  bars: ImportMarketDataBarInput[];
+}
+
+export interface MarketDataBarsImportResponse {
+  datasetId: string;
+  symbol: string;
+  provider: MarketDataProvider;
+  imported: number;
+  replaced: number;
+  bars: MarketDataBar[];
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
 }
 
 export interface RunRecoveryProposalRequest {

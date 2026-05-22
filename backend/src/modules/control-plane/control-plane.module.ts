@@ -7,6 +7,7 @@ import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
+import { MarketDataBar } from '../../entities/market-data-bar.entity';
 import { OrderPlanApproval } from '../../entities/order-plan-approval.entity';
 import { PaperAccountEvent } from '../../entities/paper-account-event.entity';
 import { RiskEvaluation } from '../../entities/risk-evaluation.entity';
@@ -31,6 +32,7 @@ import { TossReadOnlyBrokerService } from './toss-read-only-broker.service';
       BudgetEnvelope,
       ExecutionControlState,
       InvestmentProposal,
+      MarketDataBar,
       OrderPlanApproval,
       PaperAccountEvent,
       RiskEvaluation,

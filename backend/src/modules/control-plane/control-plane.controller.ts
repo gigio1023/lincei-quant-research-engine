@@ -5,6 +5,7 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  Query,
 } from '@nestjs/common';
 import { AutonomousRun } from '../../entities/autonomous-run.entity';
 import { AutonomousRunSchedule } from '../../entities/autonomous-run-schedule.entity';
@@ -13,6 +14,7 @@ import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
+import { MarketDataBar } from '../../entities/market-data-bar.entity';
 import { OrderPlanApproval } from '../../entities/order-plan-approval.entity';
 import { PaperAccountEvent } from '../../entities/paper-account-event.entity';
 import { PaperAccount } from '../../entities/paper-account.entity';
@@ -36,6 +38,8 @@ import {
   CreateResearchRunRequest,
   ImportBrokerFillRequest,
   ImportBrokerSnapshotRequest,
+  ImportMarketDataBarsRequest,
+  MarketDataBarsImportResponse,
   PaperExecuteProposalRequest,
   PromotePaperAccountRequest,
   ReconcileBrokerFillRequest,
@@ -43,8 +47,8 @@ import {
   ReconcilePaperOrderPlanRequest,
   RunRecoveryProposalRequest,
   RunRecoveryProposalResponse,
-  RunScheduleWorkerStatus,
   RunBaselineResearchRequest,
+  RunScheduleWorkerStatus,
   SeedPaperAccountRequest,
   TickAutonomousRunScheduleRequest,
   UpdateExecutionControlRequest,
@@ -250,6 +254,21 @@ export class ControlPlaneController {
   @Get('research-runs')
   listResearchRuns(): Promise<ResearchRun[]> {
     return this.controlPlaneService.listResearchRuns();
+  }
+
+  @Post('market-data/bars/import')
+  importMarketDataBars(
+    @Body() request: ImportMarketDataBarsRequest,
+  ): Promise<MarketDataBarsImportResponse> {
+    return this.controlPlaneService.importMarketDataBars(request);
+  }
+
+  @Get('market-data/bars')
+  listMarketDataBars(
+    @Query('datasetId') datasetId?: string,
+    @Query('symbol') symbol?: string,
+  ): Promise<MarketDataBar[]> {
+    return this.controlPlaneService.listMarketDataBars(datasetId, symbol);
   }
 
   @Post('research-runs/run-baseline')

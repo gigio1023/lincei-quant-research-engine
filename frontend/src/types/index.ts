@@ -942,9 +942,66 @@ export interface RunBaselineResearchRequest {
   budgetEnvelopeId?: number;
   objective?: string;
   strategyFamily?: string;
+  datasetId?: string;
   symbol?: string;
   benchmark?: string;
   initialCapital?: number;
+}
+
+export interface MarketDataBar {
+  id: number | string;
+  datasetId: string;
+  provider: string;
+  sourceRef?: string;
+  symbol: string;
+  timeframe: string;
+  timestamp: string;
+  availabilityTimestamp: string;
+  currency: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  adjustedClose?: number;
+  volume?: number;
+  notes: string[];
+  brokerExecutionEnabled?: false;
+  liveTradingEnabled?: false;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ImportMarketDataBarInput {
+  timestamp: string;
+  availabilityTimestamp?: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  adjustedClose?: number;
+  volume?: number;
+  notes?: string[];
+}
+
+export interface ImportMarketDataBarsRequest {
+  datasetId: string;
+  provider?: string;
+  sourceRef?: string;
+  symbol: string;
+  timeframe?: string;
+  currency?: string;
+  bars: ImportMarketDataBarInput[];
+}
+
+export interface MarketDataBarsImportResponse {
+  datasetId: string;
+  symbol: string;
+  provider: string;
+  imported: number;
+  replaced: number;
+  bars: MarketDataBar[];
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
 }
 
 export interface RunRecoveryProposalRequest {

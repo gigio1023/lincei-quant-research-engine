@@ -249,6 +249,77 @@ describe("API Service", () => {
       expect(result).toEqual(mockResearchRuns);
     });
 
+    it("should_import_and_get_market_data_bars", async () => {
+      const mockRequest = {
+        datasetId: "manual-daily-bars",
+        provider: "manual",
+        symbol: "005930",
+        timeframe: "1d",
+        bars: [
+          {
+            timestamp: "2026-05-20T00:00:00.000Z",
+            availabilityTimestamp: "2026-05-20T15:30:00.000Z",
+            open: 100,
+            high: 103,
+            low: 99,
+            close: 102,
+            volume: 10000,
+          },
+        ],
+      };
+      const mockResponse = {
+        datasetId: "manual-daily-bars",
+        symbol: "005930",
+        provider: "manual",
+        imported: 1,
+        replaced: 0,
+        bars: [
+          {
+            id: 1,
+            datasetId: "manual-daily-bars",
+            provider: "manual",
+            symbol: "005930",
+            timeframe: "1d",
+            timestamp: "2026-05-20T00:00:00.000Z",
+            availabilityTimestamp: "2026-05-20T15:30:00.000Z",
+            currency: "KRW",
+            open: 100,
+            high: 103,
+            low: 99,
+            close: 102,
+            notes: [],
+            brokerExecutionEnabled: false,
+            liveTradingEnabled: false,
+            createdAt: "2026-05-23T00:00:00.000Z",
+            updatedAt: "2026-05-23T00:00:00.000Z",
+          },
+        ],
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      };
+
+      mockPost.mockResolvedValueOnce({ data: mockResponse });
+      mockGet.mockResolvedValueOnce({ data: mockResponse.bars });
+
+      const { controlPlaneApi } = await import("./api");
+      const importResult =
+        await controlPlaneApi.importMarketDataBars(mockRequest);
+      const barsResult = await controlPlaneApi.getMarketDataBars({
+        datasetId: "manual-daily-bars",
+        symbol: "005930",
+      });
+
+      expect(mockPost).toHaveBeenCalledWith(
+        "/control-plane/market-data/bars/import",
+        mockRequest,
+      );
+      expect(mockGet).toHaveBeenCalledWith("/control-plane/market-data/bars", {
+        params: { datasetId: "manual-daily-bars", symbol: "005930" },
+      });
+      expect(importResult).toEqual(mockResponse);
+      expect(barsResult).toEqual(mockResponse.bars);
+    });
+
     it("should_get_proposals", async () => {
       const mockProposals = [
         {

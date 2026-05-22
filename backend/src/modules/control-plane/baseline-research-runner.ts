@@ -5,10 +5,23 @@ import {
   RunBaselineResearchRequest,
 } from './control-plane.types';
 
-interface SampleBar {
+export interface BaselineMarketBar {
   date: string;
   assetClose: number;
   benchmarkClose: number;
+  assetAvailabilityTimestamp?: string;
+  benchmarkAvailabilityTimestamp?: string;
+}
+
+export interface BaselineMarketDataset {
+  datasetId: string;
+  provider: string;
+  source?: string;
+  symbol: string;
+  benchmark: string;
+  timeframe: string;
+  currency: string;
+  bars: BaselineMarketBar[];
 }
 
 interface BacktestStep {
@@ -22,7 +35,7 @@ interface BacktestStep {
   benchmarkEquity: number;
 }
 
-const SAMPLE_BARS: SampleBar[] = [
+const SAMPLE_BARS: BaselineMarketBar[] = [
   { date: '2025-01-31', assetClose: 100, benchmarkClose: 100 },
   { date: '2025-02-28', assetClose: 103, benchmarkClose: 101 },
   { date: '2025-03-31', assetClose: 106, benchmarkClose: 103 },
@@ -45,13 +58,28 @@ const SAMPLE_BARS: SampleBar[] = [
 export function buildBaselineResearchRunRequest(
   request: RunBaselineResearchRequest,
   budget?: BudgetEnvelope | null,
+  marketDataset?: BaselineMarketDataset | null,
 ): CreateResearchRunRequest {
   const initialCapital =
     request.initialCapital ?? budget?.totalBudget ?? 10_000_000;
-  const symbol = request.symbol ?? 'SAMPLE_MOMENTUM_BASKET';
-  const benchmark = request.benchmark ?? 'SAMPLE_BENCHMARK';
+  const symbol =
+    marketDataset?.symbol ?? request.symbol ?? 'SAMPLE_MOMENTUM_BASKET';
+  const benchmark =
+    marketDataset?.benchmark ?? request.benchmark ?? 'SAMPLE_BENCHMARK';
   const strategyFamily = request.strategyFamily ?? 'momentum_baseline';
-  const backtest = runMomentumBaseline(initialCapital);
+  const bars = marketDataset?.bars ?? SAMPLE_BARS;
+  const backtest = runMomentumBaseline(initialCapital, bars);
+  const firstBar = bars[0];
+  const lastBar = bars[bars.length - 1];
+  const availabilityTimestamp =
+    marketDataset && firstBar.assetAvailabilityTimestamp
+      ? maxIsoTimestamp(
+          bars.flatMap((bar) => [
+            bar.assetAvailabilityTimestamp,
+            bar.benchmarkAvailabilityTimestamp,
+          ]),
+        )
+      : '2026-05-22T23:50:00.000Z';
   const runInput = {
     runnerVersion: 'deterministic-baseline-runner-v1',
     request,
@@ -71,14 +99,19 @@ export function buildBaselineResearchRunRequest(
     },
   };
   const dataManifest = {
-    datasetId: 'built-in-sample-monthly-bars',
-    provider: 'local-fixture',
-    rowCount: SAMPLE_BARS.length,
-    firstDate: SAMPLE_BARS[0].date,
-    lastDate: SAMPLE_BARS[SAMPLE_BARS.length - 1].date,
+    datasetId: marketDataset?.datasetId ?? 'built-in-sample-monthly-bars',
+    provider: marketDataset?.provider ?? 'local-fixture',
+    source: marketDataset?.source ?? 'deterministic baseline sample',
+    rowCount: bars.length,
+    firstDate: firstBar.date,
+    lastDate: lastBar.date,
     fields: ['date', 'assetClose', 'benchmarkClose'],
-    availabilityTimestamp: '2026-05-22T23:50:00.000Z',
-    marketDataTimestamp: '2026-05-22T23:50:00.000Z',
+    availabilityTimestamp,
+    marketDataTimestamp: availabilityTimestamp,
+    symbol,
+    benchmark,
+    timeframe: marketDataset?.timeframe ?? 'monthly',
+    currency: marketDataset?.currency ?? budget?.currency ?? 'KRW',
   };
   const artifactSeed = sha256(
     JSON.stringify({
@@ -104,19 +137,23 @@ export function buildBaselineResearchRunRequest(
       'A previous-period relative momentum signal can outperform the benchmark after fixed cost and slippage assumptions.',
     datasetRefs: [
       {
-        id: 'built-in-sample-monthly-bars',
-        provider: 'local-fixture',
-        source: 'deterministic baseline sample',
-        windowStart: SAMPLE_BARS[0].date,
-        windowEnd: SAMPLE_BARS[SAMPLE_BARS.length - 1].date,
-        availabilityTimestamp: '2026-05-22T23:50:00.000Z',
-        marketDataTimestamp: '2026-05-22T23:50:00.000Z',
-        calendar: 'sample-monthly',
+        id: dataManifest.datasetId,
+        provider: dataManifest.provider,
+        source: dataManifest.source,
+        windowStart: firstBar.date,
+        windowEnd: lastBar.date,
+        availabilityTimestamp,
+        marketDataTimestamp: availabilityTimestamp,
+        calendar: marketDataset
+          ? `${marketDataset.timeframe}-bars`
+          : 'sample-monthly',
         timezone: 'UTC',
-        frequency: 'monthly',
-        universe: [symbol],
+        frequency: marketDataset?.timeframe ?? 'monthly',
+        universe: [symbol, benchmark],
         fields: ['assetClose', 'benchmarkClose'],
-        adjustmentMode: 'sample-adjusted',
+        adjustmentMode: marketDataset
+          ? 'provider-adjusted-close'
+          : 'sample-adjusted',
       },
     ],
     featureRefs: ['asset_3_period_return', 'benchmark_3_period_return'],
@@ -131,21 +168,26 @@ export function buildBaselineResearchRunRequest(
     modelName: 'deterministic-relative-momentum-baseline',
     modelCategory: 'baseline',
     validationWindow: {
-      start: SAMPLE_BARS[3].date,
-      end: SAMPLE_BARS[SAMPLE_BARS.length - 1].date,
+      start: bars[3].date,
+      end: lastBar.date,
     },
     backtestMetrics: backtest.metrics,
     artifactRefs,
     artifactHashes,
     knownFailureModes: [
-      'Built-in sample bars are not live market data.',
+      marketDataset
+        ? 'Imported market bars still require provider quality, corporate action, and survivorship-bias review.'
+        : 'Built-in sample bars are not live market data.',
       'Momentum can reverse in high-volatility regimes.',
-      'Monthly sample cadence does not model intraday execution or partial fills.',
+      `${marketDataset?.timeframe ?? 'Monthly sample'} cadence does not model intraday execution or partial fills.`,
     ],
   };
 }
 
-function runMomentumBaseline(initialCapital: number): {
+function runMomentumBaseline(
+  initialCapital: number,
+  bars: BaselineMarketBar[],
+): {
   steps: BacktestStep[];
   metrics: CreateResearchRunRequest['backtestMetrics'];
 } {
@@ -161,10 +203,10 @@ function runMomentumBaseline(initialCapital: number): {
   const benchmarkReturns: number[] = [];
   const equityCurve = [initialCapital];
 
-  for (let index = 3; index < SAMPLE_BARS.length; index += 1) {
-    const previous = SAMPLE_BARS[index - 1];
-    const current = SAMPLE_BARS[index];
-    const lookbackStart = SAMPLE_BARS[index - 3];
+  for (let index = 3; index < bars.length; index += 1) {
+    const previous = bars[index - 1];
+    const current = bars[index];
+    const lookbackStart = bars[index - 3];
     const assetMomentum = previous.assetClose / lookbackStart.assetClose - 1;
     const benchmarkMomentum =
       previous.benchmarkClose / lookbackStart.benchmarkClose - 1;
@@ -369,4 +411,14 @@ function round(value: number): number {
 
 function sha256(content: string): string {
   return createHash('sha256').update(content).digest('hex');
+}
+
+function maxIsoTimestamp(values: Array<string | undefined>): string {
+  const timestamps = values.filter((value): value is string => Boolean(value));
+
+  const sorted = timestamps
+    .map((timestamp) => new Date(timestamp).toISOString())
+    .sort();
+
+  return sorted[sorted.length - 1];
 }
