@@ -1,6 +1,8 @@
 import axios from "axios";
 import {
   ControlPlaneStatus,
+  ExecutionControlState,
+  PaperAccount,
   PaperOrderPlan,
   PaperExecuteProposalRequest,
   Report,
@@ -56,6 +58,16 @@ export const controlPlaneApi = {
 
   getResearchRuns: async (): Promise<ResearchRun[]> => {
     const response = await api.get("/control-plane/research-runs");
+    return response.data;
+  },
+
+  getPaperAccount: async (): Promise<PaperAccount> => {
+    const response = await api.get("/control-plane/paper-account");
+    return response.data;
+  },
+
+  getExecutionControl: async (): Promise<ExecutionControlState> => {
+    const response = await api.get("/control-plane/execution-control");
     return response.data;
   },
 

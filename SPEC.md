@@ -206,12 +206,15 @@ Current paper slice:
 - `paper_order_plans` records deterministic paper-only order plans;
 - paper execution is derived from a stored proposal, never an arbitrary request body;
 - each plan stores proposal/risk/plan hashes, an idempotency key, readiness snapshot, immutable paper order ids, fill events, cash ledger rows, position ledger rows, portfolio before/after snapshots, reconciliation state, and kill-switch snapshot;
-- `POST /control-plane/proposals/:id/paper-execute` returns the same plan for the same idempotency key;
-- `POST /control-plane/paper-order-plans/:id/reconcile` reconciles expected paper cash and positions against the local paper ledger;
+- `paper_accounts` stores durable paper cash, equity, gross exposure, positions, applied plan ids, and account-level cash/position ledgers across cycles;
+- paper-mode risk evaluation uses the current durable paper account snapshot, or the deterministic seed portfolio before the account exists;
+- `POST /control-plane/proposals/:id/paper-execute` returns the same plan for the same idempotency key and has a database uniqueness guard for the proposal/idempotency pair;
+- `GET /control-plane/paper-account` exposes the active paper account only after a filled paper execution has seeded it;
+- `POST /control-plane/paper-order-plans/:id/reconcile` reconciles expected paper cash and positions against account ledger entries for that plan;
 - `GET/POST /control-plane/execution-control` stores a minimal execution-control state (`active`, `paused`, `reducing`, `halted`) and paper execution blocks when the state forbids new exposure;
 - broker and live execution flags remain `false`.
 
-This is a paper simulator ledger, not broker-grade execution readiness. Broker-grade paper readiness still requires signed order-plan approval, durable paper account state across cycles, broker read-only snapshots, and reconciliation against external account truth.
+This is a paper simulator ledger, not broker-grade execution readiness. Broker-grade paper readiness still requires signed order-plan approval, explicit account seeding/promotion controls, append-only account ledgers, transaction isolation, broker read-only snapshots, and reconciliation against external account truth.
 
 ### 6. Broker Adapter
 
@@ -398,9 +401,10 @@ Current status:
 - deterministic paper order-plan ledger exists;
 - idempotent paper-execute endpoint exists;
 - paper fill, cash ledger, position ledger, and local reconciliation snapshots exist;
+- durable paper account state now carries simulated cash, equity, exposure, positions, and applied plan ids across paper cycles;
 - minimal execution-control state and halted/paused/reducing gate exists;
-- frontend dashboard shows latest paper plans, fills, reconciliation notes, hashes, and broker/live disabled guardrails;
-- still missing signed approval, durable paper account state across proposals, and broker read-only reconciliation.
+- frontend dashboard shows paper account state, execution-control state, latest paper plans, fills, reconciliation notes, hashes, and broker/live disabled guardrails;
+- still missing signed approval, explicit account seed/promote workflow, transaction-isolated accounting service, quantity/cost-basis position accounting, and broker read-only reconciliation.
 
 ### Phase 4: Broker Read-Only
 
@@ -440,7 +444,7 @@ Exit criteria:
 
 Current verdict: not ready.
 
-The system is not ready for "deposit money and let it invest." After this PR it can create reproducible baseline research runs, evaluate proposals against deterministic policy, and simulate a paper order plan with local ledger/reconciliation evidence. It still cannot allocate, execute, or recover real capital end to end.
+The system is not ready for "deposit money and let it invest." After this PR it can create reproducible baseline research runs, evaluate proposals against deterministic policy, and simulate paper order plans against a durable local paper account with ledger/reconciliation evidence. It still cannot allocate, execute, or recover real capital end to end.
 
 Blocking items:
 
@@ -449,7 +453,8 @@ Blocking items:
 - broker adapter implementation;
 - signed human approval;
 - broker read-only reconciliation;
-- durable paper account state across autonomous cycles;
+- explicit paper account seed/promote workflow;
+- transaction isolation plus quantity, cost basis, realized PnL, and reservation accounting;
 - operational monitoring;
 - legal and terms review;
 - explicit live-trading gate.

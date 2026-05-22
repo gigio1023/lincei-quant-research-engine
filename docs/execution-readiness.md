@@ -13,6 +13,7 @@ After the initial control-plane work, the repo can run deterministic research, r
 - New risk gate tests and backend build.
 - Control-plane budget/research-run/proposal/risk-evaluation/run ledgers.
 - Deterministic paper order-plan/fill/cash/position ledger.
+- Durable local paper account state across paper execution cycles.
 - Local paper reconciliation endpoint.
 - Minimal execution-control state that can block paper execution when paused, reducing, or halted.
 - Control-plane dashboard view.
@@ -28,7 +29,8 @@ After the initial control-plane work, the repo can run deterministic research, r
 - automated liquidation or exposure reduction;
 - production kill switch;
 - approved budget capsule storage;
-- signed order plan workflow.
+- signed order plan workflow;
+- broker-grade quantity, cost-basis, reservation, and realized-PnL accounting.
 
 ## Required Gates
 
@@ -38,7 +40,7 @@ After the initial control-plane work, the repo can run deterministic research, r
 | Research-run provenance | Started | Research-run entity/API, proposal-ready gate, and deterministic baseline runner exist. External market ingestion is still missing. |
 | Proposal contract | Started | Budget/research-run/proposal/risk-evaluation/run entities and endpoints exist. |
 | Deterministic risk gate | Started | Evaluation-only backend module plus persisted risk-evaluation audit through control-plane. |
-| Paper execution | Started | Deterministic paper simulator ledger, idempotent paper-execute endpoint, local reconciliation, and execution-control state exist. Signed order plans, durable paper account state, and broker-backed reconciliation are still missing. |
+| Paper execution | Started | Deterministic paper simulator ledger, idempotent paper-execute endpoint, durable local paper account state, local reconciliation, and execution-control state exist. Signed order plans, append-only account ledgers, quantity/cost-basis accounting, transaction isolation, and broker-backed reconciliation are still missing. |
 | Broker read-only | Missing | Toss or another broker snapshot adapter required. |
 | Broker write access | Blocked | Requires separate gated design and credentials. |
 | Live trading | Blocked | No real-money order path is implemented. |
@@ -49,7 +51,7 @@ Build toward this order:
 
 1. proposal schema and audit storage;
 2. external market/news ingestion for reproducible research runs;
-3. signed order-plan approval and durable paper account state;
+3. signed order-plan approval, explicit paper account seeding, and append-only paper accounting;
 4. Toss read-only adapter;
 5. Toss paper/sandbox adapter if available;
 6. tiny live pilot behind explicit approval.

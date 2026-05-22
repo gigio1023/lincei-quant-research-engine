@@ -4,6 +4,7 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
 } from 'typeorm';
 import {
   OrderSide,
@@ -123,6 +124,11 @@ export interface PaperKillSwitchEvent {
   timestamp: string;
 }
 
+@Index(
+  'IDX_paper_order_plan_proposal_id_idempotency_key',
+  ['proposalId', 'idempotencyKey'],
+  { unique: true },
+)
 @Entity('paper_order_plans')
 export class PaperOrderPlan {
   @PrimaryGeneratedColumn()
@@ -136,6 +142,9 @@ export class PaperOrderPlan {
 
   @Column({ nullable: true })
   budgetEnvelopeId?: number;
+
+  @Column({ nullable: true })
+  paperAccountId?: number;
 
   @Column({ nullable: true })
   riskEvaluationId?: number;

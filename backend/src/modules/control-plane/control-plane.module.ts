@@ -6,6 +6,7 @@ import { ExecutionControlState } from '../../entities/execution-control-state.en
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
 import { RiskEvaluation } from '../../entities/risk-evaluation.entity';
 import { ResearchRun } from '../../entities/research-run.entity';
+import { PaperAccount } from '../../entities/paper-account.entity';
 import { PaperOrderPlan } from '../../entities/paper-order-plan.entity';
 import { RiskGateModule } from '../risk-gate/risk-gate.module';
 import { ControlPlaneController } from './control-plane.controller';
@@ -20,6 +21,7 @@ import { ControlPlaneService } from './control-plane.service';
       InvestmentProposal,
       RiskEvaluation,
       ResearchRun,
+      PaperAccount,
       PaperOrderPlan,
     ]),
     RiskGateModule,

@@ -17,6 +17,7 @@ import { InvestmentProposal } from './entities/investment-proposal.entity';
 import { RiskEvaluation } from './entities/risk-evaluation.entity';
 import { AutonomousRun } from './entities/autonomous-run.entity';
 import { ResearchRun } from './entities/research-run.entity';
+import { PaperAccount } from './entities/paper-account.entity';
 import { PaperOrderPlan } from './entities/paper-order-plan.entity';
 
 @Module({
@@ -38,6 +39,7 @@ import { PaperOrderPlan } from './entities/paper-order-plan.entity';
           RiskEvaluation,
           AutonomousRun,
           ResearchRun,
+          PaperAccount,
           PaperOrderPlan,
         ],
         synchronize: true,

@@ -10,6 +10,8 @@ vi.mock("../services/api", () => ({
   controlPlaneApi: {
     getStatus: vi.fn(),
     getResearchRuns: vi.fn(),
+    getPaperAccount: vi.fn(),
+    getExecutionControl: vi.fn(),
     getPaperOrderPlans: vi.fn(),
     runBaselineResearch: vi.fn(),
   },
@@ -309,6 +311,42 @@ const mockPaperOrderPlans = [
   },
 ];
 
+const mockPaperAccount = {
+  id: "paper-account-api-1",
+  name: "API paper account",
+  budgetEnvelopeId: "budget-api-1",
+  status: "active",
+  currency: "KRW",
+  cash: 9500000,
+  equity: 9999850,
+  grossExposurePct: 5,
+  positions: [
+    {
+      symbol: "005930",
+      assetClass: "domestic_stock",
+      marketValue: 499850,
+      weightPct: 5,
+    },
+  ],
+  cashLedger: mockPaperOrderPlans[0].cashLedger,
+  positionLedger: mockPaperOrderPlans[0].positionLedger,
+  appliedPlanIds: ["paper-plan-api-1"],
+  lastAppliedPlanId: "paper-plan-api-1",
+  lastReconciledAt: "2026-05-22T09:06:00.000Z",
+  brokerExecutionEnabled: false,
+  liveTradingEnabled: false,
+  createdAt: "2026-05-22T09:00:00.000Z",
+  updatedAt: "2026-05-22T09:06:30.000Z",
+};
+
+const mockExecutionControl = {
+  id: "execution-control-api-1",
+  state: "active",
+  actor: "system",
+  reason: "Paper execution control is active.",
+  createdAt: "2026-05-22T09:00:00.000Z",
+};
+
 describe("ControlPlaneDashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -318,6 +356,12 @@ describe("ControlPlaneDashboard", () => {
     );
     vi.mocked(controlPlaneApi.getResearchRuns).mockResolvedValue(
       mockResearchRuns,
+    );
+    vi.mocked(controlPlaneApi.getPaperAccount).mockResolvedValue(
+      mockPaperAccount,
+    );
+    vi.mocked(controlPlaneApi.getExecutionControl).mockResolvedValue(
+      mockExecutionControl,
     );
     vi.mocked(controlPlaneApi.getPaperOrderPlans).mockResolvedValue(
       mockPaperOrderPlans,
@@ -361,6 +405,19 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("Broker disabled")).toBeInTheDocument();
 
     expect(screen.getByText("Paper Execution Enclave")).toBeInTheDocument();
+    expect(screen.getByText("Paper Account State")).toBeInTheDocument();
+    expect(screen.getByText("Live paper account")).toBeInTheDocument();
+    expect(screen.getByText("Execution control")).toBeInTheDocument();
+    expect(
+      screen.getByText("Paper execution control is active."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Positions")).toBeInTheDocument();
+    expect(screen.getAllByText("005930").length).toBeGreaterThan(0);
+    expect(screen.getByText("Last reconciliation")).toBeInTheDocument();
+    expect(screen.getByText("Recent ledger changes")).toBeInTheDocument();
+    expect(
+      screen.getByText("BUY paper fill net cash delta"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Live paper plans")).toBeInTheDocument();
     expect(screen.getByText("paper-plan-api-1")).toBeInTheDocument();
     expect(screen.getByText("Proposal proposal-api-1")).toBeInTheDocument();
@@ -372,8 +429,13 @@ describe("ControlPlaneDashboard", () => {
       screen.getByText("Paper cash ledger matched simulated fills."),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("brokerExecutionEnabled: false"),
-    ).toBeInTheDocument();
+      screen.getAllByText("brokerExecutionEnabled: false").length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.queryByRole("button", {
+        name: /paper execute|reconcile|pause|halt/i,
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it("should_show_documented_fallback_when_status_api_fails", async () => {
@@ -382,6 +444,9 @@ describe("ControlPlaneDashboard", () => {
       new Error("offline"),
     );
     vi.mocked(controlPlaneApi.getResearchRuns).mockRejectedValue(
+      new Error("offline"),
+    );
+    vi.mocked(controlPlaneApi.getPaperAccount).mockRejectedValue(
       new Error("offline"),
     );
     vi.mocked(controlPlaneApi.getPaperOrderPlans).mockRejectedValue(
@@ -413,9 +478,20 @@ describe("ControlPlaneDashboard", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByText("Documented sample plans")).toBeInTheDocument();
+    expect(screen.getByText("No paper account")).toBeInTheDocument();
     expect(
       screen.getByText((content) =>
         content.includes("Paper order-plan API is unavailable"),
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText((content) =>
+        content.includes("No live paper account state was returned"),
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "No durable paper account has been recorded yet. A filled paper execution must create it first.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByText("paper-docs-plan-001")).toBeInTheDocument();

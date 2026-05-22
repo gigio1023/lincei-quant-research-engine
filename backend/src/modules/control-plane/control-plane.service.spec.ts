@@ -2,6 +2,7 @@ import { AutonomousRun } from '../../entities/autonomous-run.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
+import { PaperAccount } from '../../entities/paper-account.entity';
 import { PaperOrderPlan } from '../../entities/paper-order-plan.entity';
 import { ResearchRun } from '../../entities/research-run.entity';
 import { RiskEvaluation } from '../../entities/risk-evaluation.entity';
@@ -13,6 +14,7 @@ describe('ControlPlaneService', () => {
   let budgets: BudgetEnvelope[];
   let researchRuns: ResearchRun[];
   let proposals: InvestmentProposal[];
+  let paperAccounts: PaperAccount[];
   let paperOrderPlans: PaperOrderPlan[];
   let executionControlStates: ExecutionControlState[];
   let evaluations: RiskEvaluation[];
@@ -43,6 +45,7 @@ describe('ControlPlaneService', () => {
     budgets = [];
     researchRuns = [];
     proposals = [];
+    paperAccounts = [];
     paperOrderPlans = [];
     executionControlStates = [];
     evaluations = [];
@@ -51,6 +54,7 @@ describe('ControlPlaneService', () => {
       makeRepository(budgets) as any,
       makeRepository(proposals) as any,
       makeRepository(researchRuns) as any,
+      makeRepository(paperAccounts) as any,
       makeRepository(paperOrderPlans) as any,
       makeRepository(executionControlStates) as any,
       makeRepository(evaluations) as any,
@@ -249,6 +253,7 @@ describe('ControlPlaneService', () => {
     );
     expect(plan.brokerExecutionEnabled).toBe(false);
     expect(plan.liveTradingEnabled).toBe(false);
+    expect(plan.paperAccountId).toBeDefined();
     expect(plan.orders).toHaveLength(1);
     expect(plan.orders[0]).toEqual(
       expect.objectContaining({
@@ -305,11 +310,33 @@ describe('ControlPlaneService', () => {
     expect(evaluations).toHaveLength(2);
     expect(evaluations[1].responseSnapshot.mode).toBe('paper');
     expect(evaluations[1].decision).toBe('ALLOW');
+    expect(paperAccounts).toHaveLength(1);
+    expect(plan.paperAccountId).toBe(paperAccounts[0].id);
+    expect(paperAccounts[0]).toEqual(
+      expect.objectContaining({
+        budgetEnvelopeId: budget.id,
+        cash: 9_499_250,
+        equity: 9_999_250,
+        grossExposurePct: 5,
+        lastAppliedPlanId: plan.id,
+      }),
+    );
+    expect(paperAccounts[0].positions).toEqual([
+      expect.objectContaining({
+        symbol: '005930',
+        marketValue: 500_000,
+        weightPct: 5,
+      }),
+    ]);
+    expect(paperAccounts[0].cashLedger).toHaveLength(1);
+    expect(paperAccounts[0].positionLedger).toHaveLength(1);
+    expect(paperAccounts[0].appliedPlanIds).toEqual([plan.id]);
 
     const idempotentReplay = await service.paperExecuteProposal(proposal.id, {
       idempotencyKey: 'paper-test-1',
     });
     expect(idempotentReplay.id).toBe(plan.id);
+    expect(paperAccounts[0].appliedPlanIds).toEqual([plan.id]);
 
     const reconciled = await service.reconcilePaperOrderPlan(plan.id, {
       notes: ['Unit test reconciliation.'],
@@ -318,6 +345,69 @@ describe('ControlPlaneService', () => {
     expect(reconciled.reconciliation.status).toBe('matched');
     expect(reconciled.reconciliation.cashMatched).toBe(true);
     expect(reconciled.reconciliation.positionsMatched).toBe(true);
+    expect(paperAccounts[0].lastReconciledAt).toBeDefined();
+
+    const secondProposal = await service.createProposal({
+      budgetEnvelopeId: budget.id,
+      researchRunId: researchRun.id,
+      strategyId: 'momentum-v1',
+      ruleId: 'long-only-breakout',
+      generatedAt: '2026-05-22T23:59:30.000Z',
+      marketDataTimestamp: '2026-05-22T23:55:00.000Z',
+      portfolioSnapshot: {
+        currency: 'KRW',
+        equity: 10_000_000,
+        cash: 10_000_000,
+        grossExposurePct: 0,
+      },
+      orders: [
+        {
+          symbol: '000660',
+          assetClass: 'domestic_stock',
+          side: 'BUY',
+          orderType: 'MARKET',
+          notional: 250_000,
+          targetPositionPct: 2.5,
+        },
+      ],
+      thesis: 'Second paper cycle should start from durable paper account.',
+    });
+    expect(paperAccounts[0].cash).toBe(9_499_250);
+
+    const secondPlan = await service.paperExecuteProposal(secondProposal.id, {
+      idempotencyKey: 'paper-test-2',
+      humanApprovalId: 'approval-paper-test-2',
+    });
+    expect(secondProposal.budgetEnvelopeId).toBe(budget.id);
+    expect(paperAccounts).toHaveLength(1);
+    expect(secondProposal.id).toBe(2);
+    expect(secondPlan.proposalId).toBe(secondProposal.id);
+    expect(secondPlan.paperAccountId).toBe(paperAccounts[0].id);
+    expect(secondPlan.startingCash).toBe(9_499_250);
+    expect(secondPlan.endingCash).toBe(9_248_875);
+    expect(evaluations[2].requestSnapshot.portfolio.cash).toBe(9_499_250);
+    expect(evaluations[2].requestSnapshot.portfolio.positions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          symbol: '005930',
+          marketValue: 500_000,
+        }),
+      ]),
+    );
+    expect(paperAccounts[0].cash).toBe(9_248_875);
+    expect(paperAccounts[0].appliedPlanIds).toEqual([plan.id, secondPlan.id]);
+    expect(paperAccounts[0].positions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          symbol: '005930',
+          marketValue: 500_000,
+        }),
+        expect.objectContaining({
+          symbol: '000660',
+          marketValue: 250_000,
+        }),
+      ]),
+    );
   });
 
   it('persists a blocked paper plan when risk approval is missing', async () => {
@@ -382,6 +472,69 @@ describe('ControlPlaneService', () => {
     expect(plan.endingEquity).toBe(10_000_000);
     expect(plan.reconciliation.status).toBe('not_required');
     expect(plan.reconciliation.cashMatched).toBe(true);
+    expect(paperAccounts).toHaveLength(0);
+  });
+
+  it('blocks aggregate same-symbol paper sells that exceed the account position', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Sell reservation budget',
+      totalBudget: 10_000_000,
+    });
+    const researchRun = await service.runBaselineResearch({
+      budgetEnvelopeId: budget.id,
+    });
+    const proposal = await service.createProposal({
+      budgetEnvelopeId: budget.id,
+      researchRunId: researchRun.id,
+      strategyId: 'momentum-v1',
+      ruleId: 'long-only-breakout',
+      generatedAt: '2026-05-22T23:59:00.000Z',
+      marketDataTimestamp: '2026-05-22T23:55:00.000Z',
+      portfolioSnapshot: {
+        currency: 'KRW',
+        equity: 10_000_000,
+        cash: 9_500_000,
+        grossExposurePct: 5,
+        positions: [
+          {
+            symbol: '005930',
+            assetClass: 'domestic_stock',
+            marketValue: 500_000,
+            weightPct: 5,
+          },
+        ],
+      },
+      orders: [
+        {
+          symbol: '005930',
+          assetClass: 'domestic_stock',
+          side: 'SELL',
+          orderType: 'MARKET',
+          notional: 300_000,
+          targetPositionPct: 2,
+        },
+        {
+          symbol: '005930',
+          assetClass: 'domestic_stock',
+          side: 'SELL',
+          orderType: 'MARKET',
+          notional: 300_000,
+          targetPositionPct: 0,
+        },
+      ],
+    });
+
+    const plan = await service.paperExecuteProposal(proposal.id, {
+      idempotencyKey: 'paper-sell-overdraft',
+      humanApprovalId: 'approval-paper-sell-overdraft',
+    });
+
+    expect(plan.status).toBe('blocked');
+    expect(plan.fills).toEqual([]);
+    expect(plan.blockedReasons).toContain(
+      'Paper execution position check failed',
+    );
+    expect(paperAccounts).toHaveLength(0);
   });
 
   it('blocks paper execution when execution control is halted', async () => {
@@ -435,6 +588,7 @@ describe('ControlPlaneService', () => {
         tripped: true,
       }),
     );
+    expect(paperAccounts).toHaveLength(0);
   });
 
   it('blocks proposal creation when research evidence is incomplete', async () => {

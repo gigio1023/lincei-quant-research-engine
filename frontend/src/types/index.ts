@@ -223,6 +223,47 @@ export interface PaperOrderPlan {
   updatedAt: string;
 }
 
+export type ExecutionControlStateValue =
+  | "active"
+  | "paused"
+  | "reducing"
+  | "halted";
+
+export interface ExecutionControlState {
+  id: number | string;
+  state: ExecutionControlStateValue;
+  actor: string;
+  reason: string;
+  createdAt: string;
+}
+
+export type PaperAccountStatus = "active" | "paused" | "archived";
+
+export type PaperLedgerChange =
+  | ({ kind: "cash"; id: string } & PaperCashLedgerEntry)
+  | ({ kind: "position"; id: string } & PaperPositionLedgerEntry);
+
+export interface PaperAccount {
+  id: number | string;
+  name: string;
+  budgetEnvelopeId?: number | string;
+  status: PaperAccountStatus;
+  currency: string;
+  cash: number;
+  equity: number;
+  grossExposurePct: number;
+  positions: PositionSnapshot[];
+  cashLedger: PaperCashLedgerEntry[];
+  positionLedger: PaperPositionLedgerEntry[];
+  appliedPlanIds: Array<number | string>;
+  lastAppliedPlanId?: number | string;
+  lastReconciledAt?: string;
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface RiskGateRequest {
   mode: RiskGateMode;
   actor: RiskGateActor;

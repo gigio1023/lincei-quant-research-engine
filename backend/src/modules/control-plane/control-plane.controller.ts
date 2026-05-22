@@ -10,6 +10,7 @@ import { AutonomousRun } from '../../entities/autonomous-run.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
+import { PaperAccount } from '../../entities/paper-account.entity';
 import { PaperOrderPlan } from '../../entities/paper-order-plan.entity';
 import { ResearchRun } from '../../entities/research-run.entity';
 import { RiskEvaluation } from '../../entities/risk-evaluation.entity';
@@ -73,6 +74,11 @@ export class ControlPlaneController {
   @Get('execution-control')
   getExecutionControlState(): Promise<ExecutionControlState> {
     return this.controlPlaneService.getExecutionControlState();
+  }
+
+  @Get('paper-account')
+  getPaperAccountState(): Promise<PaperAccount> {
+    return this.controlPlaneService.getPaperAccountState();
   }
 
   @Post('execution-control')

@@ -4,6 +4,9 @@ import {
   ControlPlaneStatus,
   ControlPlaneGateStatus,
   ControlPlaneStage,
+  ExecutionControlState,
+  PaperAccount,
+  PaperLedgerChange,
   PaperOrderPlan,
   ResearchRun,
   RunBaselineResearchRequest,
@@ -65,7 +68,24 @@ const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
     {
       key: "paperExecutionReady",
       ready: false,
-      detail: "Paper execution enclave is not implemented",
+      detail:
+        "Paper simulator ledger exists; broker-grade paper readiness is blocked by missing signed order plans and broker reconciliation",
+    },
+    {
+      key: "paperSimulationLedgerReady",
+      ready: true,
+      detail:
+        "Deterministic paper order-plan, fill, and reconciliation ledger is registered",
+    },
+    {
+      key: "paperAccountReady",
+      ready: false,
+      detail: "No durable paper account records yet",
+    },
+    {
+      key: "executionControlReady",
+      ready: true,
+      detail: "Execution control state defaults to ARMED",
     },
     {
       key: "liveTradingReady",
@@ -74,9 +94,10 @@ const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
     },
   ],
   blockers: [
-    "No paper execution enclave",
     "No broker read-only adapter",
     "No signed order-plan workflow",
+    "No broker reconciliation loop",
+    "No production kill switch runtime",
   ],
 };
 
@@ -383,6 +404,14 @@ const DOCUMENTED_PAPER_ORDER_PLANS: PaperOrderPlan[] = [
   },
 ];
 
+const DOCUMENTED_EXECUTION_CONTROL: ExecutionControlState = {
+  id: "execution-control-docs-active",
+  state: "active",
+  actor: "system",
+  reason: "Documented paper simulation state. No broker order path is enabled.",
+  createdAt: "2026-05-22T09:00:00.000Z",
+};
+
 const BASELINE_RESEARCH_REQUEST: RunBaselineResearchRequest = {
   objective: "Run deterministic dry-run momentum baseline backtest",
   strategyFamily: "cross-sectional momentum",
@@ -439,7 +468,7 @@ const SAFETY_GATES: SafetyGate[] = [
     name: "Proposal contract",
     status: "started",
     notes:
-      "Budget envelopes, proposal records, risk evaluations, and autonomous run ledgers are implemented; research-run provenance is next.",
+      "Budget envelopes, proposal records, risk evaluations, research-run provenance, and autonomous run ledgers are implemented.",
   },
   {
     name: "Deterministic risk gate",
@@ -449,9 +478,9 @@ const SAFETY_GATES: SafetyGate[] = [
   },
   {
     name: "Paper execution",
-    status: "missing",
+    status: "partial",
     notes:
-      "No paper order enclave, signed plan, reconciliation loop, or kill switch exists.",
+      "Paper simulator ledger, durable paper account, fills, and plan-scoped reconciliation exist; signed plans and broker reconciliation are still missing.",
   },
   {
     name: "Broker read-only",
@@ -489,16 +518,16 @@ const CONTROL_PLANE_STAGES: ControlPlaneStage[] = [
   {
     phase: "Phase 2",
     title: "Research automation",
-    status: "missing",
+    status: "started",
     description:
       "Reproducible research runs with backtests, costs, turnover, drawdown, and benchmarks.",
   },
   {
     phase: "Phase 3",
     title: "Paper execution",
-    status: "missing",
+    status: "started",
     description:
-      "Signed paper order plans, paper adapter, reconciliation, and tested kill switch.",
+      "Paper order plans, simulator fills, durable paper account state, plan-scoped reconciliation, and execution control gates.",
   },
   {
     phase: "Phase 4",
@@ -524,22 +553,16 @@ const STATUS_LABELS: Record<ControlPlaneGateStatus, string> = {
 };
 
 const STATUS_CLASSES: Record<ControlPlaneGateStatus, string> = {
-  partial:
-    "bg-sky-100 text-sky-800 border-sky-200 dark:bg-sky-500/15 dark:text-sky-200 dark:border-sky-400/30",
-  started:
-    "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:border-emerald-400/30",
-  missing:
-    "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-500/15 dark:text-amber-200 dark:border-amber-400/30",
-  blocked:
-    "bg-red-100 text-red-800 border-red-200 dark:bg-red-500/15 dark:text-red-200 dark:border-red-400/30",
+  partial: "border-[#2b3139] bg-[#1e2329] text-[#eaecef]",
+  started: "border-[#0ecb81]/30 bg-[#0ecb81]/10 text-[#0ecb81]",
+  missing: "border-[#f0b90b]/30 bg-[#f0b90b]/10 text-[#fcd535]",
+  blocked: "border-[#f6465d]/30 bg-[#f6465d]/10 text-[#f6465d]",
 };
 
 const decisionClasses: Record<RiskGateResponse["decision"], string> = {
-  ALLOW:
-    "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:border-emerald-400/30",
-  REVIEW:
-    "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-500/15 dark:text-amber-200 dark:border-amber-400/30",
-  DENY: "bg-red-100 text-red-800 border-red-200 dark:bg-red-500/15 dark:text-red-200 dark:border-red-400/30",
+  ALLOW: "border-[#0ecb81]/30 bg-[#0ecb81]/10 text-[#0ecb81]",
+  REVIEW: "border-[#f0b90b]/30 bg-[#f0b90b]/10 text-[#fcd535]",
+  DENY: "border-[#f6465d]/30 bg-[#f6465d]/10 text-[#f6465d]",
 };
 
 const formatCurrency = (value: number, currency = "KRW") =>
@@ -584,7 +607,7 @@ const formatDatasetRef = (datasetRef: ResearchRun["datasetRefs"][number]) =>
 const formatBoolean = (value: boolean) => (value ? "true" : "false");
 
 const statusBadge = (status: ControlPlaneGateStatus) =>
-  `${STATUS_CLASSES[status]} inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold uppercase`;
+  `${STATUS_CLASSES[status]} inline-flex items-center rounded-md border px-2 py-1 text-[11px] font-bold uppercase`;
 
 const researchRunStatusClass = (status: string) => {
   const normalizedStatus = status.toLowerCase();
@@ -639,11 +662,15 @@ const ControlPlaneDashboard: React.FC = () => {
   const [controlPlaneStatus, setControlPlaneStatus] =
     useState<ControlPlaneStatus | null>(null);
   const [researchRuns, setResearchRuns] = useState<ResearchRun[] | null>(null);
+  const [paperAccount, setPaperAccount] = useState<PaperAccount | null>(null);
+  const [executionControl, setExecutionControl] =
+    useState<ExecutionControlState | null>(null);
   const [paperOrderPlans, setPaperOrderPlans] = useState<
     PaperOrderPlan[] | null
   >(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
   const [loadingResearchRuns, setLoadingResearchRuns] = useState(true);
+  const [loadingPaperAccount, setLoadingPaperAccount] = useState(true);
   const [loadingPaperOrderPlans, setLoadingPaperOrderPlans] = useState(true);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [researchRunsError, setResearchRunsError] = useState<string | null>(
@@ -652,6 +679,9 @@ const ControlPlaneDashboard: React.FC = () => {
   const [paperOrderPlansError, setPaperOrderPlansError] = useState<
     string | null
   >(null);
+  const [paperAccountError, setPaperAccountError] = useState<string | null>(
+    null,
+  );
   const [runningBaselineResearch, setRunningBaselineResearch] = useState(false);
   const [baselineResearchError, setBaselineResearchError] = useState<
     string | null
@@ -669,11 +699,15 @@ const ControlPlaneDashboard: React.FC = () => {
           riskStatus,
           controlPlaneStatusResult,
           researchRunsStatus,
+          paperAccountStatus,
+          executionControlStatus,
           paperOrderPlansStatus,
         ] = await Promise.allSettled([
           riskGateApi.getStatus(),
           controlPlaneApi.getStatus(),
           controlPlaneApi.getResearchRuns(),
+          controlPlaneApi.getPaperAccount(),
+          controlPlaneApi.getExecutionControl(),
           controlPlaneApi.getPaperOrderPlans(),
         ]);
         if (!ignore) {
@@ -692,6 +726,20 @@ const ControlPlaneDashboard: React.FC = () => {
             setResearchRunsError(
               "Research-run ledger API is unavailable. Showing documented sample runs.",
             );
+          }
+
+          if (paperAccountStatus.status === "fulfilled") {
+            setPaperAccount(paperAccountStatus.value);
+            setPaperAccountError(null);
+          } else {
+            setPaperAccount(null);
+            setPaperAccountError(
+              "No live paper account state was returned. A filled paper execution must create one before account values are shown.",
+            );
+          }
+
+          if (executionControlStatus.status === "fulfilled") {
+            setExecutionControl(executionControlStatus.value);
           }
 
           if (paperOrderPlansStatus.status === "fulfilled") {
@@ -719,11 +767,15 @@ const ControlPlaneDashboard: React.FC = () => {
           setPaperOrderPlansError(
             "Paper order-plan API is unavailable. Showing documented sample paper plans.",
           );
+          setPaperAccountError(
+            "No live paper account state was returned. A filled paper execution must create one before account values are shown.",
+          );
         }
       } finally {
         if (!ignore) {
           setLoadingStatus(false);
           setLoadingResearchRuns(false);
+          setLoadingPaperAccount(false);
           setLoadingPaperOrderPlans(false);
         }
       }
@@ -742,6 +794,9 @@ const ControlPlaneDashboard: React.FC = () => {
   const visiblePaperOrderPlans =
     paperOrderPlans ??
     (loadingPaperOrderPlans ? [] : DOCUMENTED_PAPER_ORDER_PLANS);
+  const visiblePaperAccount = paperAccount;
+  const visibleExecutionControl =
+    executionControl ?? DOCUMENTED_EXECUTION_CONTROL;
   const latestPaperOrderPlans = [...visiblePaperOrderPlans]
     .sort(
       (leftPlan, rightPlan) =>
@@ -749,6 +804,33 @@ const ControlPlaneDashboard: React.FC = () => {
         new Date(leftPlan.updatedAt).getTime(),
     )
     .slice(0, 3);
+  const latestReconciledPlan = [...visiblePaperOrderPlans]
+    .filter((plan) => plan.reconciliation.reconciledAt)
+    .sort(
+      (leftPlan, rightPlan) =>
+        new Date(rightPlan.reconciliation.reconciledAt ?? 0).getTime() -
+        new Date(leftPlan.reconciliation.reconciledAt ?? 0).getTime(),
+    )[0];
+  const recentPaperLedgerChanges: PaperLedgerChange[] = visiblePaperAccount
+    ? [
+        ...visiblePaperAccount.cashLedger.map((entry) => ({
+          ...entry,
+          kind: "cash" as const,
+          id: entry.paperCashEventId,
+        })),
+        ...visiblePaperAccount.positionLedger.map((entry) => ({
+          ...entry,
+          kind: "position" as const,
+          id: entry.paperPositionEventId,
+        })),
+      ]
+        .sort(
+          (leftEntry, rightEntry) =>
+            new Date(rightEntry.timestamp).getTime() -
+            new Date(leftEntry.timestamp).getTime(),
+        )
+        .slice(0, 10)
+    : [];
   const policy = status.defaultPolicy;
   const exampleOrder = EXAMPLE_REQUEST.orders[0];
   const paperExecutionReadiness = controlStatus.readiness.find(
@@ -774,7 +856,14 @@ const ControlPlaneDashboard: React.FC = () => {
     : loadingPaperOrderPlans
       ? "Loading paper plans"
       : "Documented sample plans";
-
+  const paperAccountSource = paperAccount
+    ? "Live paper account"
+    : loadingPaperAccount
+      ? "Loading paper account"
+      : "No paper account";
+  const readinessReadyCount = controlStatus.readiness.filter(
+    (item) => item.ready,
+  ).length;
   const handleRunBaselineResearch = async () => {
     setRunningBaselineResearch(true);
     setBaselineResearchError(null);
@@ -803,940 +892,824 @@ const ControlPlaneDashboard: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto px-6 py-12 space-y-8">
-      <section className="glass-card p-8 md:p-10 border-glass-white-border-strong dark:border-glass-black-border-strong">
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="max-w-3xl">
-            <div className="mb-4 flex flex-wrap items-center gap-3">
-              <span className="inline-flex rounded-full border border-primary-500/30 bg-primary-500/10 px-3 py-1 text-xs font-bold uppercase text-primary-700 dark:text-primary-200">
-                Read-only
-              </span>
-              <span className="inline-flex rounded-full border border-red-300 bg-red-100 px-3 py-1 text-xs font-bold uppercase text-red-800 dark:border-red-400/30 dark:bg-red-500/15 dark:text-red-200">
-                No live trading
-              </span>
-            </div>
-            <h2 className="text-4xl font-bold text-gray-900 dark:text-white md:text-5xl">
-              Control Plane Dashboard
-            </h2>
-            <p className="mt-4 text-lg font-medium leading-relaxed text-gray-700 dark:text-gray-300">
-              Deterministic risk visibility for the current autonomous investing
-              plan. This view exposes live readiness, proposal gates, and risk
-              audit readiness; it has no order controls.
-            </p>
-          </div>
+    <div className="relative left-1/2 min-h-screen w-screen -translate-x-1/2 bg-[#0b0e11] px-4 py-4 text-[#eaecef] sm:px-5 lg:px-6">
+      <div className="mx-auto max-w-[1440px] space-y-4">
+        <section className="rounded-xl border border-[#2b3139] bg-[#181a20]">
+          <div className="grid gap-0 lg:grid-cols-[1.35fr_0.65fr]">
+            <div className="p-5 sm:p-6">
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <span className="rounded-md border border-[#fcd535]/40 bg-[#fcd535] px-2 py-1 text-[11px] font-bold uppercase text-[#181a20]">
+                  Control
+                </span>
+                <span className="rounded-md border border-[#f6465d]/40 bg-[#f6465d]/10 px-2 py-1 text-[11px] font-bold uppercase text-[#f6465d]">
+                  No live trading
+                </span>
+                <span className="rounded-md border border-[#2b3139] bg-[#0b0e11] px-2 py-1 text-[11px] font-bold uppercase text-[#929aa5]">
+                  {statusSource}
+                </span>
+              </div>
 
-          <div className="rounded-2xl border-2 border-red-300 bg-red-50/80 p-5 shadow-glass dark:border-red-400/30 dark:bg-red-950/30">
-            <div className="text-sm font-bold uppercase text-red-700 dark:text-red-200">
-              Broker execution enabled
-            </div>
-            <div className="mt-2 font-mono text-4xl font-bold text-red-800 dark:text-red-100">
-              {formatBoolean(status.brokerExecutionEnabled)}
-            </div>
-            <div className="mt-2 text-sm font-semibold text-red-700 dark:text-red-200">
-              No broker adapter or live order path is callable from this UI.
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="glass-card p-6 md:p-8">
-        <div className="relative z-10">
-          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-                System Readiness Matrix
-              </h3>
-              <p className="mt-1 text-sm font-medium text-gray-600 dark:text-gray-300">
-                Live status from the control-plane API when available.
+              <h2 className="text-3xl font-bold leading-tight text-white sm:text-4xl">
+                Control Plane Dashboard
+              </h2>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-[#929aa5]">
+                One-page operating surface for autonomous research,
+                deterministic risk, paper account state, and promotion blockers.
+                The only callable action here is a dry-run research backtest.
               </p>
             </div>
-            <span
-              className={statusBadge(
-                controlPlaneStatus ? "started" : "partial",
-              )}
-            >
-              {controlPlaneStatus ? "API Connected" : "Fallback"}
-            </span>
-          </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            {controlStatus.readiness.map((item) => (
-              <div
-                key={item.key}
-                className="rounded-xl border border-white/50 bg-white/40 p-5 dark:border-white/10 dark:bg-black/20"
+            <div className="border-t border-[#2b3139] p-5 sm:p-6 lg:border-l lg:border-t-0">
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  [
+                    "brokerExecutionEnabled",
+                    formatBoolean(status.brokerExecutionEnabled),
+                    "text-[#f6465d]",
+                  ],
+                  [
+                    "liveTradingEnabled",
+                    formatBoolean(status.liveTradingEnabled),
+                    "text-[#f6465d]",
+                  ],
+                  [
+                    "Intent",
+                    EXAMPLE_REQUEST.executionIntent ?? "evaluate_only",
+                    "text-white",
+                  ],
+                  [
+                    "Blockers",
+                    String(controlStatus.blockers.length),
+                    "text-[#fcd535]",
+                  ],
+                ].map(([label, value, className]) => (
+                  <div
+                    key={label}
+                    className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3"
+                  >
+                    <div className="text-[11px] font-semibold uppercase text-[#707a8a]">
+                      {label}
+                    </div>
+                    <div
+                      className={`mt-2 font-mono text-xl font-bold ${className}`}
+                    >
+                      {value}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-4 xl:grid-cols-[0.82fr_1.18fr_0.72fr]">
+          <div className="rounded-xl border border-[#2b3139] bg-[#181a20] p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-white">
+                  System Readiness Matrix
+                </h3>
+                <p className="mt-1 text-xs font-medium text-[#707a8a]">
+                  {readinessReadyCount}/{controlStatus.readiness.length} gates
+                  ready
+                </p>
+              </div>
+              <span
+                className={statusBadge(
+                  controlPlaneStatus ? "started" : "partial",
+                )}
               >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <h4 className="break-words font-mono text-sm font-bold text-gray-900 dark:text-white">
-                    {item.key}
-                  </h4>
+                {controlPlaneStatus ? "API Connected" : "Fallback"}
+              </span>
+            </div>
+
+            {statusError && (
+              <div className="mt-3 rounded-lg border border-[#f0b90b]/30 bg-[#f0b90b]/10 p-3 text-xs font-semibold text-[#fcd535]">
+                {statusError} Showing documented defaults.
+              </div>
+            )}
+
+            <div className="mt-4 divide-y divide-[#2b3139]">
+              {controlStatus.readiness.map((item) => (
+                <div
+                  key={item.key}
+                  className="grid grid-cols-[1fr_auto] gap-3 py-3"
+                >
+                  <div>
+                    <div className="font-mono text-xs font-bold text-[#eaecef]">
+                      {item.key}
+                    </div>
+                    <div className="mt-1 text-xs leading-5 text-[#707a8a]">
+                      {item.detail}
+                    </div>
+                  </div>
                   <span
                     className={statusBadge(item.ready ? "started" : "blocked")}
                   >
                     {item.ready ? "Ready" : "Blocked"}
                   </span>
                 </div>
-                <p className="mt-3 text-sm font-medium leading-relaxed text-gray-700 dark:text-gray-300">
-                  {item.detail}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-5 rounded-xl border border-red-200 bg-red-50/70 p-5 dark:border-red-400/30 dark:bg-red-500/10">
-            <div className="text-sm font-bold uppercase text-red-800 dark:text-red-200">
-              Remaining blockers
-            </div>
-            <ul className="mt-3 space-y-2 text-sm font-semibold text-red-700 dark:text-red-200">
-              {controlStatus.blockers.map((blocker) => (
-                <li key={blocker}>{blocker}</li>
               ))}
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      <section className="grid gap-6 lg:grid-cols-3">
-        <div className="glass-card p-6">
-          <div className="relative z-10">
-            <div className="text-sm font-bold uppercase text-gray-500 dark:text-gray-400">
-              Risk gate status
             </div>
-            <div className="mt-4 flex items-center justify-between gap-4">
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {statusSource}
+
+            <div className="mt-4 rounded-lg border border-[#f6465d]/30 bg-[#f6465d]/10 p-3">
+              <div className="text-[11px] font-bold uppercase text-[#f6465d]">
+                Remaining blockers
               </div>
-              <span
-                className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold uppercase ${
-                  riskGateStatus
-                    ? "border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-500/15 dark:text-emerald-200"
-                    : "border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-400/30 dark:bg-amber-500/15 dark:text-amber-200"
-                }`}
-              >
-                {riskGateStatus ? "Connected" : "Fallback"}
-              </span>
-            </div>
-            {statusError && (
-              <p className="mt-3 text-sm font-medium text-amber-700 dark:text-amber-200">
-                {statusError} Showing documented defaults.
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="glass-card p-6">
-          <div className="relative z-10">
-            <div className="text-sm font-bold uppercase text-gray-500 dark:text-gray-400">
-              Live trading enabled
-            </div>
-            <div className="mt-4 font-mono text-4xl font-bold text-red-700 dark:text-red-200">
-              {formatBoolean(status.liveTradingEnabled)}
-            </div>
-            <p className="mt-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
-              Live mode remains blocked until a separate live gate exists.
-            </p>
-          </div>
-        </div>
-
-        <div className="glass-card p-6">
-          <div className="relative z-10">
-            <div className="text-sm font-bold uppercase text-gray-500 dark:text-gray-400">
-              Evaluation intent
-            </div>
-            <div className="mt-4 font-mono text-2xl font-bold text-gray-900 dark:text-white">
-              evaluate_only
-            </div>
-            <p className="mt-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
-              Risk requests must not include broker credentials or account ids.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="glass-card p-6 md:p-8">
-        <div className="relative z-10">
-          <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Research Run Ledger
-              </h3>
-              <p className="mt-1 max-w-3xl text-sm font-medium text-gray-600 dark:text-gray-300">
-                Latest reproducible research runs and backtest results. This
-                section is read-only and does not expose broker or live-trading
-                controls.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold uppercase ${
-                  researchRuns
-                    ? "border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-500/15 dark:text-emerald-200"
-                    : "border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-400/30 dark:bg-amber-500/15 dark:text-amber-200"
-                }`}
-              >
-                {researchRunsSource}
-              </span>
-              <span className="inline-flex rounded-full border border-red-300 bg-red-100 px-3 py-1 text-xs font-bold uppercase text-red-800 dark:border-red-400/30 dark:bg-red-500/15 dark:text-red-200">
-                Broker disabled
-              </span>
-              <button
-                type="button"
-                onClick={handleRunBaselineResearch}
-                disabled={loadingResearchRuns || runningBaselineResearch}
-                className="rounded-lg border border-primary-500/40 bg-primary-600 px-4 py-2 text-sm font-bold text-white shadow-glass transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:border-gray-300 disabled:bg-gray-400 disabled:text-gray-100 dark:border-primary-300/40 dark:bg-primary-500 dark:hover:bg-primary-400"
-              >
-                {runningBaselineResearch
-                  ? "Running dry-run backtest"
-                  : "Run dry-run backtest"}
-              </button>
-            </div>
-          </div>
-
-          <div className="mb-5 rounded-xl border border-sky-200 bg-sky-50/80 p-4 dark:border-sky-400/30 dark:bg-sky-500/10">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <div className="text-sm font-bold uppercase text-sky-800 dark:text-sky-200">
-                  Baseline research dry-run
-                </div>
-                <p className="mt-2 max-w-3xl text-sm font-semibold leading-relaxed text-sky-800 dark:text-sky-100">
-                  Starts the deterministic research/backtest runner only. It
-                  sends no broker credentials, opens no live order path, and
-                  records the returned ResearchRun for review.
-                </p>
-              </div>
-              <div className="grid gap-2 text-xs font-bold text-sky-900 dark:text-sky-100 sm:grid-cols-3 lg:min-w-96">
-                <div className="rounded-lg bg-white/60 p-3 dark:bg-black/20">
-                  Symbol: {BASELINE_RESEARCH_REQUEST.symbol}
-                </div>
-                <div className="rounded-lg bg-white/60 p-3 dark:bg-black/20">
-                  Benchmark: {BASELINE_RESEARCH_REQUEST.benchmark}
-                </div>
-                <div className="rounded-lg bg-white/60 p-3 dark:bg-black/20">
-                  Capital:{" "}
-                  {formatCurrency(
-                    BASELINE_RESEARCH_REQUEST.initialCapital ?? 0,
-                  )}
-                </div>
+              <div className="mt-2 space-y-1 text-xs font-semibold text-[#eaecef]">
+                {controlStatus.blockers.map((blocker) => (
+                  <div key={blocker}>{blocker}</div>
+                ))}
               </div>
             </div>
           </div>
 
-          {baselineResearchSuccess && (
-            <p className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 text-sm font-semibold text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-500/10 dark:text-emerald-200">
-              {baselineResearchSuccess}
-            </p>
-          )}
-
-          {baselineResearchError && (
-            <p className="mb-5 rounded-xl border border-red-200 bg-red-50/80 p-4 text-sm font-semibold text-red-800 dark:border-red-400/30 dark:bg-red-500/10 dark:text-red-200">
-              {baselineResearchError}
-            </p>
-          )}
-
-          {researchRunsError && (
-            <p className="mb-5 rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-sm font-semibold text-amber-800 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-amber-200">
-              {researchRunsError}
-            </p>
-          )}
-
-          {visibleResearchRuns.length === 0 ? (
-            <div className="rounded-xl border border-white/50 bg-white/40 p-5 text-sm font-semibold text-gray-700 dark:border-white/10 dark:bg-black/20 dark:text-gray-300">
-              No research runs recorded yet.
-            </div>
-          ) : (
-            <div className="space-y-5">
-              {visibleResearchRuns.slice(0, 3).map((run) => (
-                <article
-                  key={run.id}
-                  className="rounded-xl border border-white/50 bg-white/40 p-5 dark:border-white/10 dark:bg-black/20"
+          <div className="space-y-4">
+            <section className="rounded-xl border border-[#2b3139] bg-[#181a20]">
+              <div className="flex flex-col gap-3 border-b border-[#2b3139] p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-white">
+                    Research Run Ledger
+                  </h3>
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                    <span className="font-semibold text-[#929aa5]">
+                      {researchRunsSource}
+                    </span>
+                    <span className="font-bold text-[#f6465d]">
+                      Broker disabled
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRunBaselineResearch}
+                  disabled={loadingResearchRuns || runningBaselineResearch}
+                  className="h-10 rounded-md bg-[#fcd535] px-4 text-sm font-bold text-[#181a20] transition hover:bg-[#f0b90b] disabled:cursor-not-allowed disabled:bg-[#3a3a1f] disabled:text-[#707a8a]"
                 >
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-xs font-bold uppercase text-gray-500 dark:text-gray-400">
-                          {run.id}
-                        </span>
-                        <span
-                          className={`${researchRunStatusClass(
-                            run.status,
-                          )} inline-flex rounded-full border px-3 py-1 text-xs font-bold uppercase`}
-                        >
-                          {run.status}
-                        </span>
-                      </div>
-                      <h4 className="mt-3 text-xl font-bold text-gray-900 dark:text-white">
-                        {run.objective}
-                      </h4>
-                      <p className="mt-2 text-sm font-medium leading-relaxed text-gray-700 dark:text-gray-300">
-                        {run.hypothesis}
-                      </p>
-                    </div>
-                    <div className="min-w-0 rounded-xl border border-red-200 bg-red-50/70 p-4 dark:border-red-400/30 dark:bg-red-500/10 lg:min-w-64">
-                      <div className="text-xs font-bold uppercase text-red-700 dark:text-red-200">
-                        Execution path
-                      </div>
-                      <div className="mt-2 font-mono text-lg font-bold text-red-800 dark:text-red-100">
-                        disabled
-                      </div>
-                      <p className="mt-1 text-xs font-semibold text-red-700 dark:text-red-200">
-                        Backtest evidence only; no broker order path.
-                      </p>
-                    </div>
+                  {runningBaselineResearch
+                    ? "Running dry-run backtest"
+                    : "Run dry-run backtest"}
+                </button>
+              </div>
+
+              <div className="p-4">
+                <div className="mb-3 rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
+                  <div className="text-xs font-bold uppercase text-[#fcd535]">
+                    Baseline research dry-run
+                  </div>
+                  <div className="mt-2 grid gap-2 text-xs text-[#929aa5] sm:grid-cols-3">
+                    <span>{BASELINE_RESEARCH_REQUEST.symbol}</span>
+                    <span>{BASELINE_RESEARCH_REQUEST.benchmark}</span>
+                    <span>
+                      {formatCurrency(
+                        BASELINE_RESEARCH_REQUEST.initialCapital ?? 0,
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                {baselineResearchSuccess && (
+                  <div className="mb-3 rounded-lg border border-[#0ecb81]/30 bg-[#0ecb81]/10 p-3 text-xs font-semibold text-[#0ecb81]">
+                    {baselineResearchSuccess}
+                  </div>
+                )}
+
+                {baselineResearchError && (
+                  <div className="mb-3 rounded-lg border border-[#f6465d]/30 bg-[#f6465d]/10 p-3 text-xs font-semibold text-[#f6465d]">
+                    {baselineResearchError}
+                  </div>
+                )}
+
+                {researchRunsError && (
+                  <div className="mb-3 rounded-lg border border-[#f0b90b]/30 bg-[#f0b90b]/10 p-3 text-xs font-semibold text-[#fcd535]">
+                    {researchRunsError}
+                  </div>
+                )}
+
+                {visibleResearchRuns.length === 0 ? (
+                  <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-4 text-sm font-semibold text-[#929aa5]">
+                    No research runs recorded yet.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+                      <thead className="text-[11px] uppercase text-[#707a8a]">
+                        <tr className="border-b border-[#2b3139]">
+                          <th className="py-2 pr-4">Run</th>
+                          <th className="py-2 pr-4">Backtest Metrics</th>
+                          <th className="py-2 pr-4">Benchmark</th>
+                          <th className="py-2 pr-4">Drawdown</th>
+                          <th className="py-2 pr-4">Evidence</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#2b3139]">
+                        {visibleResearchRuns.slice(0, 5).map((run) => (
+                          <tr key={run.id}>
+                            <td className="py-3 pr-4 align-top">
+                              <div className="font-semibold text-white">
+                                {run.objective}
+                              </div>
+                              <div className="mt-1 font-mono text-xs text-[#707a8a]">
+                                {run.id}
+                              </div>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                <span
+                                  className={`${researchRunStatusClass(
+                                    run.status,
+                                  )} rounded-md border px-2 py-1 text-[11px] font-bold uppercase`}
+                                >
+                                  {run.status}
+                                </span>
+                                {run.phase && (
+                                  <span className="rounded-md border border-[#2b3139] px-2 py-1 text-[11px] font-bold uppercase text-[#929aa5]">
+                                    {run.phase}
+                                  </span>
+                                )}
+                              </div>
+                              <details className="mt-2 text-xs text-[#929aa5]">
+                                <summary className="cursor-pointer text-[#fcd535]">
+                                  thesis
+                                </summary>
+                                <p className="mt-2 leading-5">
+                                  {run.hypothesis}
+                                </p>
+                              </details>
+                            </td>
+                            <td className="py-3 pr-4 align-top">
+                              <div className="font-mono text-lg font-bold text-[#0ecb81]">
+                                {formatSignedPercent(
+                                  run.backtestMetrics.totalReturnPct,
+                                )}
+                              </div>
+                              <div className="text-xs text-[#707a8a]">
+                                Sharpe{" "}
+                                {formatNumber(run.backtestMetrics.sharpeRatio)}
+                                {" / "}Trades {run.backtestMetrics.tradeCount}
+                              </div>
+                            </td>
+                            <td className="py-3 pr-4 align-top font-mono text-sm text-[#eaecef]">
+                              {formatSignedPercent(
+                                run.backtestMetrics.benchmarkReturnPct,
+                              )}
+                            </td>
+                            <td className="py-3 pr-4 align-top font-mono text-sm text-[#f6465d]">
+                              {formatPercent(
+                                run.backtestMetrics.maxDrawdownPct,
+                              )}
+                            </td>
+                            <td className="py-3 pr-4 align-top text-xs text-[#929aa5]">
+                              <div>{run.strategyFamily}</div>
+                              <div>{formatWindow(run.validationWindow)}</div>
+                              <details className="mt-2">
+                                <summary className="cursor-pointer text-[#fcd535]">
+                                  lineage
+                                </summary>
+                                <div className="mt-2 space-y-1">
+                                  {run.datasetRefs.map((datasetRef) => (
+                                    <div key={`${run.id}-${datasetRef.id}`}>
+                                      {formatDatasetRef(datasetRef)}
+                                    </div>
+                                  ))}
+                                  {run.knownFailureModes.map((failureMode) => (
+                                    <div key={`${run.id}-${failureMode}`}>
+                                      {failureMode}
+                                    </div>
+                                  ))}
+                                </div>
+                              </details>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-xl border border-[#2b3139] bg-[#181a20]">
+              <div className="flex flex-col gap-3 border-b border-[#2b3139] p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-white">
+                    Paper Execution Enclave
+                  </h3>
+                  <p className="mt-1 text-xs text-[#707a8a]">
+                    {paperExecutionReadiness.detail}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <span
+                    className={statusBadge(
+                      paperExecutionReadiness.ready ? "started" : "blocked",
+                    )}
+                  >
+                    {paperExecutionReadiness.ready ? "Started" : "Blocked"}
+                  </span>
+                  <span className="rounded-md border border-[#f6465d]/30 bg-[#f6465d]/10 px-2 py-1 text-[11px] font-bold uppercase text-[#f6465d]">
+                    brokerExecutionEnabled: false
+                  </span>
+                  <span className="rounded-md border border-[#f6465d]/30 bg-[#f6465d]/10 px-2 py-1 text-[11px] font-bold uppercase text-[#f6465d]">
+                    liveTradingEnabled: false
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid gap-0 xl:grid-cols-[0.95fr_1.05fr]">
+                <div className="border-b border-[#2b3139] p-4 xl:border-b-0 xl:border-r">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h4 className="text-sm font-bold text-white">
+                      Paper Account State
+                    </h4>
+                    <span className="rounded-md border border-[#2b3139] px-2 py-1 text-[11px] font-bold uppercase text-[#929aa5]">
+                      {paperAccountSource}
+                    </span>
                   </div>
 
-                  <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1.2fr]">
-                    <div className="space-y-3">
-                      {[
-                        ["Strategy family", run.strategyFamily],
-                        ["Benchmark", run.benchmark],
-                        ["Cost model", run.costModel],
-                        ["Slippage model", run.slippageModel],
-                        [
-                          "Validation window",
-                          formatWindow(run.validationWindow),
-                        ],
-                        [
-                          "Training window",
-                          run.trainingWindow
-                            ? formatWindow(run.trainingWindow)
-                            : "Not trained",
-                        ],
-                        ["Updated", formatDateTime(run.updatedAt)],
-                      ].map(([label, value]) => (
-                        <div
-                          key={`${run.id}-${label}`}
-                          className="flex flex-col gap-1 rounded-lg border border-white/50 bg-white/40 p-3 dark:border-white/10 dark:bg-black/20 sm:flex-row sm:items-center sm:justify-between"
-                        >
-                          <span className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
-                            {label}
-                          </span>
-                          <span className="break-words text-sm font-bold text-gray-900 dark:text-white sm:text-right">
-                            {value}
-                          </span>
-                        </div>
-                      ))}
+                  {paperAccountError && (
+                    <div className="mb-3 rounded-lg border border-[#f0b90b]/30 bg-[#f0b90b]/10 p-3 text-xs font-semibold text-[#fcd535]">
+                      {paperAccountError}
                     </div>
+                  )}
 
-                    <div>
-                      <div className="mb-3 text-sm font-bold uppercase text-gray-500 dark:text-gray-400">
-                        Backtest Metrics
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {!visiblePaperAccount ? (
+                    <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-4 text-sm font-semibold text-[#929aa5]">
+                      {loadingPaperAccount
+                        ? "Paper account state is loading."
+                        : "No durable paper account has been recorded yet. A filled paper execution must create it first."}
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-3">
                         {[
+                          ["Cash", formatCurrency(visiblePaperAccount.cash)],
                           [
-                            "Total return",
-                            formatSignedPercent(
-                              run.backtestMetrics.totalReturnPct,
-                            ),
+                            "Equity",
+                            formatCurrency(visiblePaperAccount.equity),
                           ],
                           [
-                            "Benchmark return",
-                            formatSignedPercent(
-                              run.backtestMetrics.benchmarkReturnPct,
-                            ),
+                            "Gross exposure",
+                            formatPercent(visiblePaperAccount.grossExposurePct),
                           ],
-                          [
-                            "Max drawdown",
-                            formatPercent(run.backtestMetrics.maxDrawdownPct),
-                          ],
-                          [
-                            "Sharpe ratio",
-                            formatNumber(run.backtestMetrics.sharpeRatio),
-                          ],
-                          [
-                            "Turnover",
-                            formatPercent(run.backtestMetrics.turnoverPct),
-                          ],
-                          [
-                            "Trade count",
-                            String(run.backtestMetrics.tradeCount),
-                          ],
+                          ["Currency", visiblePaperAccount.currency],
                         ].map(([label, value]) => (
                           <div
-                            key={`${run.id}-${label}`}
-                            className="rounded-lg border border-white/50 bg-white/40 p-3 dark:border-white/10 dark:bg-black/20"
+                            key={`paper-account-${label}`}
+                            className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3"
                           >
-                            <div className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
+                            <div className="text-[11px] font-semibold uppercase text-[#707a8a]">
                               {label}
                             </div>
-                            <div className="mt-1 text-lg font-bold text-gray-900 dark:text-white">
+                            <div className="mt-2 font-mono text-base font-bold text-white">
                               {value}
                             </div>
                           </div>
                         ))}
                       </div>
 
-                      <div className="mt-4 grid gap-3 md:grid-cols-2">
-                        <div className="rounded-lg border border-white/50 bg-white/40 p-3 dark:border-white/10 dark:bg-black/20">
-                          <div className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
-                            Data and features
+                      <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-xs font-bold uppercase text-[#707a8a]">
+                            Execution control
                           </div>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {[
-                              ...run.datasetRefs.map(formatDatasetRef),
-                              ...run.featureRefs,
-                            ].map((ref) => (
-                              <span
-                                key={`${run.id}-${ref}`}
-                                className="rounded-full bg-gray-900/10 px-2.5 py-1 font-mono text-xs font-bold text-gray-800 dark:bg-white/10 dark:text-gray-100"
+                          <span
+                            className={`${paperOrderPlanStatusClass(
+                              visibleExecutionControl.state,
+                            )} rounded-md border px-2 py-1 text-[11px] font-bold uppercase`}
+                          >
+                            {visibleExecutionControl.state}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-xs font-semibold leading-5 text-[#eaecef]">
+                          {visibleExecutionControl.reason}
+                        </p>
+                        <div className="mt-2 text-xs text-[#707a8a]">
+                          {visibleExecutionControl.actor} /{" "}
+                          {formatDateTime(visibleExecutionControl.createdAt)}
+                        </div>
+                      </div>
+
+                      <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
+                        <div className="mb-2 text-xs font-bold uppercase text-[#707a8a]">
+                          Positions
+                        </div>
+                        {visiblePaperAccount.positions.length === 0 ? (
+                          <div className="text-sm font-semibold text-[#929aa5]">
+                            No paper positions recorded.
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-[#2b3139]">
+                            {visiblePaperAccount.positions.map((position) => (
+                              <div
+                                key={`paper-account-position-${position.symbol}`}
+                                className="grid grid-cols-[1fr_1fr_0.7fr] gap-3 py-2 text-sm"
                               >
-                                {ref}
-                              </span>
+                                <span className="font-mono font-bold text-white">
+                                  {position.symbol}
+                                </span>
+                                <span className="font-mono text-[#eaecef]">
+                                  {formatCurrency(position.marketValue)}
+                                </span>
+                                <span className="font-mono text-[#0ecb81]">
+                                  {formatPercent(position.weightPct)}
+                                </span>
+                                <span className="col-span-3 text-xs uppercase text-[#707a8a]">
+                                  {position.assetClass}
+                                </span>
+                              </div>
                             ))}
                           </div>
-                        </div>
-
-                        <div className="rounded-lg border border-white/50 bg-white/40 p-3 dark:border-white/10 dark:bg-black/20">
-                          <div className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
-                            Failure modes
-                          </div>
-                          <ul className="mt-2 space-y-1 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                            {run.knownFailureModes.map((failureMode) => (
-                              <li key={`${run.id}-${failureMode}`}>
-                                {failureMode}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
+                        )}
                       </div>
 
-                      <div className="mt-3 rounded-lg border border-white/50 bg-white/40 p-3 dark:border-white/10 dark:bg-black/20">
-                        <div className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
-                          Artifacts
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
+                          <div className="text-xs font-bold uppercase text-[#707a8a]">
+                            Last reconciliation
+                          </div>
+                          <div className="mt-2 text-sm font-semibold text-[#eaecef]">
+                            {visiblePaperAccount.lastReconciledAt
+                              ? formatDateTime(
+                                  visiblePaperAccount.lastReconciledAt,
+                                )
+                              : "Not reconciled"}
+                          </div>
+                          <div className="mt-1 text-xs text-[#707a8a]">
+                            Latest plan:{" "}
+                            {latestReconciledPlan
+                              ? `${latestReconciledPlan.id} / ${latestReconciledPlan.reconciliation.status}`
+                              : "No reconciled plan"}
+                          </div>
                         </div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {run.artifactRefs.map((artifactRef) => (
-                            <span
-                              key={`${run.id}-${artifactRef}`}
-                              className="break-all rounded-full bg-gray-900/10 px-2.5 py-1 font-mono text-xs font-bold text-gray-800 dark:bg-white/10 dark:text-gray-100"
-                            >
-                              {artifactRef}
-                            </span>
-                          ))}
+
+                        <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
+                          <div className="text-xs font-bold uppercase text-[#707a8a]">
+                            Recent ledger changes
+                          </div>
+                          {recentPaperLedgerChanges.length === 0 ? (
+                            <div className="mt-2 text-sm font-semibold text-[#929aa5]">
+                              No paper ledger changes recorded.
+                            </div>
+                          ) : (
+                            <div className="mt-2 space-y-2">
+                              {recentPaperLedgerChanges
+                                .slice(0, 4)
+                                .map((entry) => (
+                                  <div
+                                    key={`paper-ledger-${entry.id}`}
+                                    className="grid grid-cols-[0.5fr_0.8fr_1fr] gap-2 text-xs"
+                                  >
+                                    <span className="uppercase text-[#707a8a]">
+                                      {entry.kind}
+                                    </span>
+                                    <span
+                                      className={
+                                        entry.kind === "cash"
+                                          ? entry.amount < 0
+                                            ? "font-mono text-[#f6465d]"
+                                            : "font-mono text-[#0ecb81]"
+                                          : entry.notionalDelta < 0
+                                            ? "font-mono text-[#f6465d]"
+                                            : "font-mono text-[#0ecb81]"
+                                      }
+                                    >
+                                      {entry.kind === "cash"
+                                        ? formatSignedCurrency(entry.amount)
+                                        : formatSignedCurrency(
+                                            entry.notionalDelta,
+                                          )}
+                                    </span>
+                                    <span className="truncate text-[#929aa5]">
+                                      {entry.kind === "cash"
+                                        ? entry.reason
+                                        : `${entry.symbol} position`}
+                                    </span>
+                                  </div>
+                                ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="glass-card p-6 md:p-8">
-        <div className="relative z-10">
-          <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Paper Execution Enclave
-              </h3>
-              <p className="mt-1 max-w-3xl text-sm font-medium text-gray-600 dark:text-gray-300">
-                Latest paper order plans, simulated fills, and reconciliation
-                checks. This dashboard is read-only and does not render proposal
-                paper-execute buttons because proposal records are not fetched
-                here.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold uppercase ${
-                  paperOrderPlans
-                    ? "border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-500/15 dark:text-emerald-200"
-                    : "border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-400/30 dark:bg-amber-500/15 dark:text-amber-200"
-                }`}
-              >
-                {paperOrderPlansSource}
-              </span>
-              <span className="inline-flex rounded-full border border-red-300 bg-red-100 px-3 py-1 text-xs font-bold uppercase text-red-800 dark:border-red-400/30 dark:bg-red-500/15 dark:text-red-200">
-                Live disabled
-              </span>
-            </div>
-          </div>
-
-          <div className="mb-5 grid gap-4 lg:grid-cols-3">
-            <div className="rounded-xl border border-white/50 bg-white/40 p-5 dark:border-white/10 dark:bg-black/20">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">
-                    {paperExecutionReadiness.key}
-                  </div>
-                  <p className="mt-2 text-sm font-semibold leading-relaxed text-gray-700 dark:text-gray-300">
-                    {paperExecutionReadiness.detail}
-                  </p>
-                </div>
-                <span
-                  className={statusBadge(
-                    paperExecutionReadiness.ready ? "started" : "blocked",
                   )}
-                >
-                  {paperExecutionReadiness.ready ? "Ready" : "Blocked"}
-                </span>
-              </div>
-            </div>
+                </div>
 
-            <div className="rounded-xl border border-white/50 bg-white/40 p-5 dark:border-white/10 dark:bg-black/20">
-              <div className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">
-                Latest plans visible
-              </div>
-              <div className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                {latestPaperOrderPlans.length}
-              </div>
-              <p className="mt-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Displaying the most recently updated paper plans only.
-              </p>
-            </div>
+                <div className="p-4">
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <span className="rounded-md border border-[#2b3139] px-2 py-1 text-[11px] font-bold uppercase text-[#929aa5]">
+                      {paperOrderPlansSource}
+                    </span>
+                    {paperOrderPlansError && (
+                      <span className="rounded-md border border-[#f0b90b]/30 bg-[#f0b90b]/10 px-2 py-1 text-[11px] font-bold uppercase text-[#fcd535]">
+                        API fallback
+                      </span>
+                    )}
+                  </div>
 
-            <div className="rounded-xl border border-red-200 bg-red-50/70 p-5 dark:border-red-400/30 dark:bg-red-500/10">
-              <div className="text-xs font-bold uppercase text-red-700 dark:text-red-200">
-                Execution guardrails
-              </div>
-              <div className="mt-3 grid gap-2 text-sm font-bold text-red-800 dark:text-red-100">
-                <div>brokerExecutionEnabled: false</div>
-                <div>liveTradingEnabled: false</div>
-                <div>mode: paper</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mb-5 rounded-xl border border-sky-200 bg-sky-50/80 p-4 dark:border-sky-400/30 dark:bg-sky-500/10">
-            <div className="text-sm font-bold uppercase text-sky-800 dark:text-sky-200">
-              Non-destructive proposal status
-            </div>
-            <p className="mt-2 max-w-4xl text-sm font-semibold leading-relaxed text-sky-800 dark:text-sky-100">
-              Proposal data is not loaded on this dashboard. A proposal surface
-              should label any paper action as paper execution only and call the
-              typed paper-execute API for that proposal; this panel only reads
-              plan readiness and returned plans.
-            </p>
-          </div>
-
-          {paperOrderPlansError && (
-            <p className="mb-5 rounded-xl border border-amber-200 bg-amber-50/80 p-4 text-sm font-semibold text-amber-800 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-amber-200">
-              {paperOrderPlansError}
-            </p>
-          )}
-
-          {latestPaperOrderPlans.length === 0 ? (
-            <div className="rounded-xl border border-white/50 bg-white/40 p-5 text-sm font-semibold text-gray-700 dark:border-white/10 dark:bg-black/20 dark:text-gray-300">
-              No paper order plans recorded yet.
-            </div>
-          ) : (
-            <div className="space-y-5">
-              {latestPaperOrderPlans.map((plan) => (
-                <article
-                  key={plan.id}
-                  className="rounded-xl border border-white/50 bg-white/40 p-5 dark:border-white/10 dark:bg-black/20"
-                >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-xs font-bold uppercase text-gray-500 dark:text-gray-400">
-                          {plan.id}
-                        </span>
-                        <span
-                          className={`${paperOrderPlanStatusClass(
-                            plan.status,
-                          )} inline-flex rounded-full border px-3 py-1 text-xs font-bold uppercase`}
-                        >
-                          {plan.status}
-                        </span>
-                        <span className="inline-flex rounded-full border border-primary-500/30 bg-primary-500/10 px-3 py-1 text-xs font-bold uppercase text-primary-700 dark:text-primary-200">
-                          {plan.mode}
-                        </span>
-                      </div>
-                      <h4 className="mt-3 text-xl font-bold text-gray-900 dark:text-white">
-                        Proposal {plan.proposalId}
-                      </h4>
-                      <p className="mt-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                        Submitted {formatDateTime(plan.submittedAt)}
-                        {plan.completedAt
-                          ? `; completed ${formatDateTime(plan.completedAt)}`
-                          : "; completion pending"}
-                      </p>
-                      <div className="mt-3 grid gap-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
-                        <div>Plan hash: {plan.planHash}</div>
-                        <div>Proposal hash: {plan.proposalHash}</div>
-                        <div>Idempotency: {plan.idempotencyKey}</div>
-                      </div>
+                  {paperOrderPlansError && (
+                    <div className="mb-3 rounded-lg border border-[#f0b90b]/30 bg-[#f0b90b]/10 p-3 text-xs font-semibold text-[#fcd535]">
+                      {paperOrderPlansError}
                     </div>
+                  )}
 
-                    <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:min-w-96">
-                      {[
-                        [
-                          "Starting equity",
-                          formatCurrency(plan.startingEquity),
-                        ],
-                        ["Ending equity", formatCurrency(plan.endingEquity)],
-                        [
-                          "Equity change",
-                          formatSignedCurrency(
-                            plan.endingEquity - plan.startingEquity,
-                          ),
-                        ],
-                        ["Ending cash", formatCurrency(plan.endingCash)],
-                      ].map(([label, value]) => (
-                        <div
-                          key={`${plan.id}-${label}`}
-                          className="rounded-lg border border-white/50 bg-white/40 p-3 dark:border-white/10 dark:bg-black/20"
+                  {visiblePaperOrderPlans.length === 0 ? (
+                    <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-4 text-sm font-semibold text-[#929aa5]">
+                      No paper order plans recorded yet.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {latestPaperOrderPlans.map((plan) => (
+                        <article
+                          key={plan.id}
+                          className="rounded-lg border border-[#2b3139] bg-[#0b0e11]"
                         >
-                          <div className="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">
-                            {label}
+                          <div className="border-b border-[#2b3139] p-3">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="font-mono text-xs font-bold text-[#929aa5]">
+                                    {plan.id}
+                                  </span>
+                                  <span
+                                    className={`${paperOrderPlanStatusClass(
+                                      plan.status,
+                                    )} rounded-md border px-2 py-1 text-[11px] font-bold uppercase`}
+                                  >
+                                    {plan.status}
+                                  </span>
+                                </div>
+                                <div className="mt-2 font-semibold text-white">
+                                  Proposal {plan.proposalId}
+                                </div>
+                              </div>
+                              <div className="text-right font-mono text-sm">
+                                <div className="text-[#eaecef]">
+                                  {formatCurrency(plan.endingEquity)}
+                                </div>
+                                <div
+                                  className={
+                                    plan.endingEquity - plan.startingEquity >= 0
+                                      ? "text-[#0ecb81]"
+                                      : "text-[#f6465d]"
+                                  }
+                                >
+                                  {formatSignedCurrency(
+                                    plan.endingEquity - plan.startingEquity,
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="mt-2 grid gap-1 text-xs text-[#707a8a]">
+                              <div>Plan hash: {plan.planHash}</div>
+                              <div>Proposal hash: {plan.proposalHash}</div>
+                              <div>Idempotency: {plan.idempotencyKey}</div>
+                            </div>
                           </div>
-                          <div className="mt-1 text-base font-bold text-gray-900 dark:text-white">
-                            {value}
+
+                          <div className="grid gap-0 md:grid-cols-3">
+                            <div className="border-b border-[#2b3139] p-3 md:border-b-0 md:border-r">
+                              <div className="text-xs font-bold uppercase text-[#707a8a]">
+                                Planned orders
+                              </div>
+                              <div className="mt-2 space-y-2">
+                                {plan.orders.map((order) => (
+                                  <div
+                                    key={`${plan.id}-${order.symbol}-${order.side}`}
+                                    className="grid grid-cols-[1fr_auto] gap-3 text-xs"
+                                  >
+                                    <span className="font-mono font-bold text-white">
+                                      {order.symbol}
+                                    </span>
+                                    <span className="font-mono text-[#eaecef]">
+                                      {order.side}{" "}
+                                      {formatCurrency(order.requestedNotional)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="border-b border-[#2b3139] p-3 md:border-b-0 md:border-r">
+                              <div className="text-xs font-bold uppercase text-[#707a8a]">
+                                Paper fills
+                              </div>
+                              {plan.fills.length === 0 ? (
+                                <div className="mt-2 text-xs font-semibold text-[#929aa5]">
+                                  No fills recorded for this paper plan.
+                                </div>
+                              ) : (
+                                <div className="mt-2 space-y-2">
+                                  {plan.fills.map((fill) => (
+                                    <div
+                                      key={`${plan.id}-${fill.symbol}-${fill.side}-${fill.status}`}
+                                      className="grid grid-cols-[1fr_auto] gap-3 text-xs"
+                                    >
+                                      <span className="font-mono font-bold text-white">
+                                        {fill.symbol}
+                                      </span>
+                                      <span
+                                        className={
+                                          fill.netCashDelta < 0
+                                            ? "font-mono text-[#f6465d]"
+                                            : "font-mono text-[#0ecb81]"
+                                        }
+                                      >
+                                        {formatSignedCurrency(
+                                          fill.netCashDelta,
+                                          fill.feeCurrency,
+                                        )}
+                                      </span>
+                                      <span className="col-span-2 text-[#707a8a]">
+                                        {fill.status} / fee{" "}
+                                        {formatCurrency(fill.fee)}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="p-3">
+                              <div className="text-xs font-bold uppercase text-[#707a8a]">
+                                Reconciliation
+                              </div>
+                              <div className="mt-2 space-y-2 text-xs">
+                                <div className="flex justify-between gap-3">
+                                  <span className="text-[#929aa5]">Status</span>
+                                  <span className="font-mono text-white">
+                                    {plan.reconciliation.status}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between gap-3">
+                                  <span className="text-[#929aa5]">
+                                    Expected cash
+                                  </span>
+                                  <span className="font-mono text-white">
+                                    {formatCurrency(
+                                      plan.reconciliation.expectedCash,
+                                    )}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between gap-3">
+                                  <span className="text-[#929aa5]">
+                                    Cash diff
+                                  </span>
+                                  <span className="font-mono text-[#0ecb81]">
+                                    {formatSignedCurrency(
+                                      plan.reconciliation.cashDiff ?? 0,
+                                    )}
+                                  </span>
+                                </div>
+                              </div>
+                              <details className="mt-2 text-xs text-[#929aa5]">
+                                <summary className="cursor-pointer text-[#fcd535]">
+                                  notes
+                                </summary>
+                                <ul className="mt-2 space-y-1">
+                                  {plan.reconciliation.notes.map((note) => (
+                                    <li key={`${plan.id}-${note}`}>{note}</li>
+                                  ))}
+                                </ul>
+                              </details>
+                            </div>
                           </div>
-                        </div>
+                        </article>
                       ))}
                     </div>
-                  </div>
-
-                  <div className="mt-5 grid gap-4 xl:grid-cols-[1fr_1fr_0.8fr]">
-                    <div className="rounded-lg border border-white/50 bg-white/40 p-4 dark:border-white/10 dark:bg-black/20">
-                      <div className="text-sm font-bold uppercase text-gray-500 dark:text-gray-400">
-                        Planned orders
-                      </div>
-                      <div className="mt-3 space-y-3">
-                        {plan.orders.map((order) => (
-                          <div
-                            key={`${plan.id}-${order.symbol}-${order.side}`}
-                            className="rounded-lg bg-white/60 p-3 text-sm font-semibold text-gray-800 dark:bg-black/20 dark:text-gray-200"
-                          >
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <span className="font-mono font-bold">
-                                {order.symbol}
-                              </span>
-                              <span>
-                                {order.side}{" "}
-                                {formatCurrency(order.requestedNotional)}
-                              </span>
-                            </div>
-                            <div className="mt-2 text-xs uppercase text-gray-500 dark:text-gray-400">
-                              {order.orderType} / {order.sourceOrder.assetClass}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="rounded-lg border border-white/50 bg-white/40 p-4 dark:border-white/10 dark:bg-black/20">
-                      <div className="text-sm font-bold uppercase text-gray-500 dark:text-gray-400">
-                        Paper fills
-                      </div>
-                      {plan.fills.length === 0 ? (
-                        <p className="mt-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                          No fills recorded for this paper plan.
-                        </p>
-                      ) : (
-                        <div className="mt-3 space-y-3">
-                          {plan.fills.map((fill) => (
-                            <div
-                              key={`${plan.id}-${fill.symbol}-${fill.side}-${fill.status}`}
-                              className="rounded-lg bg-white/60 p-3 text-sm font-semibold text-gray-800 dark:bg-black/20 dark:text-gray-200"
-                            >
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <span className="font-mono font-bold">
-                                  {fill.symbol}
-                                </span>
-                                <span>{fill.status}</span>
-                              </div>
-                              <div className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
-                                <div>
-                                  Requested:{" "}
-                                  {formatCurrency(fill.requestedNotional)}
-                                </div>
-                                <div>
-                                  Filled: {formatCurrency(fill.filledNotional)}
-                                </div>
-                                <div>
-                                  Price: {formatCurrency(fill.fillPrice)}
-                                </div>
-                                <div>Fee: {formatCurrency(fill.fee)}</div>
-                                <div>
-                                  Slippage: {formatCurrency(fill.slippage)}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="rounded-lg border border-white/50 bg-white/40 p-4 dark:border-white/10 dark:bg-black/20">
-                      <div className="text-sm font-bold uppercase text-gray-500 dark:text-gray-400">
-                        Reconciliation
-                      </div>
-                      <div className="mt-3 space-y-3">
-                        {[
-                          [
-                            "Cash matched",
-                            formatBoolean(plan.reconciliation.cashMatched),
-                          ],
-                          [
-                            "Positions matched",
-                            formatBoolean(plan.reconciliation.positionsMatched),
-                          ],
-                          ["Status", plan.reconciliation.status],
-                          [
-                            "Expected cash",
-                            formatCurrency(plan.reconciliation.expectedCash),
-                          ],
-                          [
-                            "Cash diff",
-                            formatSignedCurrency(
-                              plan.reconciliation.cashDiff ?? 0,
-                            ),
-                          ],
-                        ].map(([label, value]) => (
-                          <div
-                            key={`${plan.id}-${label}`}
-                            className="flex items-center justify-between gap-3 rounded-lg bg-white/60 p-3 text-sm font-semibold text-gray-800 dark:bg-black/20 dark:text-gray-200"
-                          >
-                            <span>{label}</span>
-                            <span className="font-mono font-bold">{value}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="mt-4">
-                        <div className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">
-                          Notes
-                        </div>
-                        <ul className="mt-2 space-y-1 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                          {plan.reconciliation.notes.map((note) => (
-                            <li key={`${plan.id}-${note}`}>{note}</li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      <div className="mt-4">
-                        <div className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">
-                          Blocked reasons
-                        </div>
-                        <p className="mt-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                          {plan.blockedReasons.length === 0
-                            ? "None reported for this paper plan."
-                            : plan.blockedReasons.join(", ")}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <div className="glass-card p-6 md:p-8">
-          <div className="relative z-10">
-            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Default Risk Policy
-                </h3>
-                <p className="mt-1 text-sm font-medium text-gray-600 dark:text-gray-300">
-                  Current policy limits from the risk gate status contract.
-                </p>
-              </div>
-              <span className={statusBadge("started")}>Deterministic</span>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              {[
-                ["Max gross exposure", `${policy.maxGrossExposurePct}%`],
-                ["Max single position", `${policy.maxSinglePositionPct}%`],
-                ["Max order notional", formatCurrency(policy.maxOrderNotional)],
-                ["Daily loss limit", `${policy.maxDailyLossPct}%`],
-                ["Drawdown limit", `${policy.maxDrawdownPct}%`],
-                ["Max data age", `${policy.maxDataAgeMinutes} minutes`],
-              ].map(([label, value]) => (
-                <div
-                  key={label}
-                  className="rounded-xl border border-white/50 bg-white/40 p-4 dark:border-white/10 dark:bg-black/20"
-                >
-                  <div className="text-sm font-semibold text-gray-600 dark:text-gray-400">
-                    {label}
-                  </div>
-                  <div className="mt-2 text-xl font-bold text-gray-900 dark:text-white">
-                    {value}
-                  </div>
+                  )}
                 </div>
-              ))}
-            </div>
-
-            <div className="mt-4 rounded-xl border border-white/50 bg-white/40 p-4 dark:border-white/10 dark:bg-black/20">
-              <div className="text-sm font-semibold text-gray-600 dark:text-gray-400">
-                Allowed asset classes
               </div>
-              <div className="mt-2 flex flex-wrap gap-2">
+            </section>
+          </div>
+
+          <aside className="space-y-4">
+            <section className="rounded-xl border border-[#2b3139] bg-[#181a20] p-4">
+              <h3 className="text-base font-bold text-white">Risk Policy</h3>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                {[
+                  ["Gross", `${policy.maxGrossExposurePct}%`],
+                  ["Single", `${policy.maxSinglePositionPct}%`],
+                  ["Order", formatCurrency(policy.maxOrderNotional)],
+                  ["Data age", `${policy.maxDataAgeMinutes}m`],
+                  ["Daily loss", `${policy.maxDailyLossPct}%`],
+                  ["Drawdown", `${policy.maxDrawdownPct}%`],
+                ].map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3"
+                  >
+                    <div className="text-[11px] font-semibold uppercase text-[#707a8a]">
+                      {label}
+                    </div>
+                    <div className="mt-1 font-mono text-sm font-bold text-white">
+                      {value}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
                 {policy.allowedAssetClasses.map((assetClass) => (
                   <span
                     key={assetClass}
-                    className="rounded-full bg-gray-900/10 px-3 py-1 font-mono text-xs font-bold text-gray-800 dark:bg-white/10 dark:text-gray-100"
+                    className="rounded-md border border-[#2b3139] px-2 py-1 font-mono text-[11px] font-bold text-[#929aa5]"
                   >
                     {assetClass}
                   </span>
                 ))}
               </div>
-            </div>
-          </div>
-        </div>
+            </section>
 
-        <div className="glass-card p-6 md:p-8">
-          <div className="relative z-10">
-            <div className="mb-6 flex items-center justify-between gap-4">
-              <div>
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+            <section className="rounded-xl border border-[#2b3139] bg-[#181a20] p-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-base font-bold text-white">
                   Example Evaluation
                 </h3>
-                <p className="mt-1 text-sm font-medium text-gray-600 dark:text-gray-300">
-                  Static docs example; no request is submitted from this view.
-                </p>
-              </div>
-              <span
-                className={`${decisionClasses[EXAMPLE_EVALUATION.decision]} inline-flex rounded-full border px-3 py-1 text-xs font-bold`}
-              >
-                {EXAMPLE_EVALUATION.decision}
-              </span>
-            </div>
-
-            <div className="space-y-4">
-              {[
-                ["mode", EXAMPLE_EVALUATION.mode],
-                [
-                  "brokerExecutionEnabled",
-                  formatBoolean(EXAMPLE_EVALUATION.brokerExecutionEnabled),
-                ],
-                [
-                  "requiresHumanApproval",
-                  formatBoolean(EXAMPLE_EVALUATION.requiresHumanApproval),
-                ],
-                [
-                  "approvedOrderCount",
-                  String(EXAMPLE_EVALUATION.approvedOrderCount),
-                ],
-              ].map(([label, value]) => (
-                <div
-                  key={label}
-                  className="flex items-center justify-between gap-4 rounded-xl border border-white/50 bg-white/40 p-4 dark:border-white/10 dark:bg-black/20"
+                <span
+                  className={`${decisionClasses[EXAMPLE_EVALUATION.decision]} rounded-md border px-2 py-1 text-[11px] font-bold`}
                 >
-                  <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
-                    {label}
-                  </span>
-                  <span className="break-words text-right font-mono text-sm font-bold text-gray-900 dark:text-white">
-                    {value}
-                  </span>
-                </div>
-              ))}
-
-              <div className="rounded-xl border border-white/50 bg-white/40 p-4 dark:border-white/10 dark:bg-black/20">
-                <div className="text-sm font-semibold text-gray-600 dark:text-gray-400">
-                  Sample order
-                </div>
-                <div className="mt-3 grid gap-3 text-sm font-semibold text-gray-800 dark:text-gray-200 sm:grid-cols-2">
-                  <div>Symbol: {exampleOrder.symbol}</div>
-                  <div>Side: {exampleOrder.side}</div>
-                  <div>Asset: {exampleOrder.assetClass}</div>
-                  <div>Notional: {formatCurrency(exampleOrder.notional)}</div>
-                  <div>Target: {exampleOrder.targetPositionPct}%</div>
-                  <div>Intent: {EXAMPLE_REQUEST.executionIntent}</div>
-                </div>
+                  {EXAMPLE_EVALUATION.decision}
+                </span>
               </div>
-
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-400/30 dark:bg-emerald-500/10">
-                <div className="text-sm font-bold text-emerald-800 dark:text-emerald-200">
-                  Reasons
-                </div>
-                <p className="mt-2 text-sm font-semibold text-emerald-700 dark:text-emerald-200">
-                  {EXAMPLE_EVALUATION.reasons.length === 0
-                    ? "No denial or review reasons for this dry-run example."
-                    : EXAMPLE_EVALUATION.reasons.join(", ")}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="glass-card p-6 md:p-8">
-        <div className="relative z-10">
-          <div className="mb-6">
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Safety Gates
-            </h3>
-            <p className="mt-1 text-sm font-medium text-gray-600 dark:text-gray-300">
-              Current readiness gates from the autonomous control-plane docs.
-            </p>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            {SAFETY_GATES.map((gate) => (
-              <div
-                key={gate.name}
-                className="rounded-xl border border-white/50 bg-white/40 p-5 dark:border-white/10 dark:bg-black/20"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <h4 className="text-lg font-bold text-gray-900 dark:text-white">
-                    {gate.name}
-                  </h4>
-                  <span className={statusBadge(gate.status)}>
-                    {STATUS_LABELS[gate.status]}
-                  </span>
-                </div>
-                <p className="mt-3 text-sm font-medium leading-relaxed text-gray-700 dark:text-gray-300">
-                  {gate.notes}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="glass-card p-6 md:p-8">
-        <div className="relative z-10">
-          <div className="mb-8">
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Autonomous Investing Lifecycle
-            </h3>
-            <p className="mt-1 text-sm font-medium text-gray-600 dark:text-gray-300">
-              Staged path from safe specification work to a separately reviewed
-              tiny live pilot.
-            </p>
-          </div>
-
-          <div className="space-y-5">
-            {CONTROL_PLANE_STAGES.map((stage, index) => (
-              <div key={stage.phase} className="relative pl-10">
-                {index < CONTROL_PLANE_STAGES.length - 1 && (
-                  <div className="absolute left-[13px] top-8 h-full w-0.5 bg-gray-300 dark:bg-white/20" />
-                )}
-                <div className="absolute left-0 top-1 flex h-7 w-7 items-center justify-center rounded-full border-2 border-primary-400 bg-white text-xs font-bold text-primary-700 dark:bg-slate-900 dark:text-primary-200">
-                  {index + 1}
-                </div>
-                <div className="rounded-xl border border-white/50 bg-white/40 p-5 dark:border-white/10 dark:bg-black/20">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <div className="text-sm font-bold uppercase text-gray-500 dark:text-gray-400">
-                        {stage.phase}
-                      </div>
-                      <h4 className="mt-1 text-lg font-bold text-gray-900 dark:text-white">
-                        {stage.title}
-                      </h4>
-                    </div>
-                    <span className={statusBadge(stage.status)}>
-                      {STATUS_LABELS[stage.status]}
+              <div className="mt-3 divide-y divide-[#2b3139] text-xs">
+                {[
+                  ["mode", EXAMPLE_EVALUATION.mode],
+                  [
+                    "broker flag",
+                    formatBoolean(EXAMPLE_EVALUATION.brokerExecutionEnabled),
+                  ],
+                  [
+                    "requiresHumanApproval",
+                    formatBoolean(EXAMPLE_EVALUATION.requiresHumanApproval),
+                  ],
+                  ["symbol", exampleOrder.symbol],
+                  ["notional", formatCurrency(exampleOrder.notional)],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex justify-between gap-3 py-2">
+                    <span className="text-[#707a8a]">{label}</span>
+                    <span className="text-right font-mono font-bold text-[#eaecef]">
+                      {value}
                     </span>
                   </div>
-                  <p className="mt-3 text-sm font-medium leading-relaxed text-gray-700 dark:text-gray-300">
-                    {stage.description}
-                  </p>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
+            </section>
+
+            <section className="rounded-xl border border-[#2b3139] bg-[#181a20] p-4">
+              <h3 className="text-base font-bold text-white">Safety Gates</h3>
+              <div className="mt-3 space-y-2">
+                {SAFETY_GATES.map((gate) => (
+                  <details
+                    key={gate.name}
+                    className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3"
+                  >
+                    <summary className="flex cursor-pointer items-center justify-between gap-3">
+                      <span className="text-sm font-semibold text-[#eaecef]">
+                        {gate.name}
+                      </span>
+                      <span className={statusBadge(gate.status)}>
+                        {STATUS_LABELS[gate.status]}
+                      </span>
+                    </summary>
+                    <p className="mt-2 text-xs leading-5 text-[#929aa5]">
+                      {gate.notes}
+                    </p>
+                  </details>
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-xl border border-[#2b3139] bg-[#181a20] p-4">
+              <h3 className="text-base font-bold text-white">
+                Autonomous Investing Lifecycle
+              </h3>
+              <div className="mt-3 space-y-2">
+                {CONTROL_PLANE_STAGES.map((stage) => (
+                  <div
+                    key={stage.phase}
+                    className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-[11px] font-bold uppercase text-[#707a8a]">
+                          {stage.phase}
+                        </div>
+                        <div className="mt-1 text-sm font-semibold text-white">
+                          {stage.title}
+                        </div>
+                      </div>
+                      <span className={statusBadge(stage.status)}>
+                        {STATUS_LABELS[stage.status]}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-[#929aa5]">
+                      {stage.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </aside>
+        </section>
+      </div>
     </div>
   );
 };

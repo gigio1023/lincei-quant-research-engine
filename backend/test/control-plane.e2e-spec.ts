@@ -6,6 +6,7 @@ import { AutonomousRun } from '../src/entities/autonomous-run.entity';
 import { BudgetEnvelope } from '../src/entities/budget-envelope.entity';
 import { ExecutionControlState } from '../src/entities/execution-control-state.entity';
 import { InvestmentProposal } from '../src/entities/investment-proposal.entity';
+import { PaperAccount } from '../src/entities/paper-account.entity';
 import { PaperOrderPlan } from '../src/entities/paper-order-plan.entity';
 import { ResearchRun } from '../src/entities/research-run.entity';
 import { RiskEvaluation } from '../src/entities/risk-evaluation.entity';
@@ -25,6 +26,7 @@ describe('ControlPlane research provenance (e2e)', () => {
             BudgetEnvelope,
             ExecutionControlState,
             InvestmentProposal,
+            PaperAccount,
             PaperOrderPlan,
             ResearchRun,
             RiskEvaluation,
@@ -306,6 +308,24 @@ describe('ControlPlane research provenance (e2e)', () => {
     expect(paperResponse.body.endingCash).toBe(9_499_250);
     expect(paperResponse.body.reconciliation.status).toBe('pending');
     expect(paperResponse.body.reconciliation.cashMatched).toBe(false);
+
+    const paperAccountResponse = await request(app.getHttpServer())
+      .get('/control-plane/paper-account')
+      .expect(200);
+    expect(paperAccountResponse.body.cash).toBe(9_499_250);
+    expect(paperAccountResponse.body.equity).toBe(9_999_250);
+    expect(paperAccountResponse.body.lastAppliedPlanId).toBe(
+      paperResponse.body.id,
+    );
+    expect(paperAccountResponse.body.appliedPlanIds).toEqual([
+      paperResponse.body.id,
+    ]);
+    expect(paperAccountResponse.body.positions).toEqual([
+      expect.objectContaining({
+        symbol: '005930',
+        marketValue: 500_000,
+      }),
+    ]);
 
     const fetchedPlanResponse = await request(app.getHttpServer())
       .get(`/control-plane/paper-order-plans/${paperResponse.body.id}`)

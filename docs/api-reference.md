@@ -297,9 +297,17 @@ all broker/live execution flags remain `false`.
     }
     ```
 
+#### `GET /control-plane/paper-account`
+
+-   **Description**: Returns the latest active local paper account state after paper execution has seeded one. This is read-only and does not create an account. It returns `404` until a paper execution or future explicit seed workflow creates the account.
+-   **Response Notes**:
+    -   returns cash, equity, gross exposure, positions, applied plan ids, account-level cash ledger, and account-level position ledger;
+    -   `brokerExecutionEnabled` and `liveTradingEnabled` are always `false`;
+    -   current ledger arrays are local simulator evidence, not broker truth or broker-grade accounting.
+
 #### `POST /control-plane/proposals/:id/paper-execute`
 
--   **Description**: Creates or replays an idempotent paper-only order plan from a stored proposal. Orders are derived from the proposal; arbitrary order payloads, broker credentials, and account ids are not accepted. The endpoint requires an `ALLOW` risk evaluation matching the proposal snapshot, sufficient paper cash/positions, no active duplicate plan, and an execution-control state that permits the action.
+-   **Description**: Creates or replays an idempotent paper-only order plan from a stored proposal. Orders are derived from the proposal; arbitrary order payloads, broker credentials, and account ids are not accepted. The endpoint requires an `ALLOW` risk evaluation matching the current paper account snapshot or deterministic seed portfolio, sufficient paper cash/positions, no active duplicate plan, and an execution-control state that permits the action.
 -   **Example Request**:
     ```json
     {
@@ -311,8 +319,9 @@ all broker/live execution flags remain `false`.
 -   **Response Notes**:
     -   returns a `PaperOrderPlan`;
     -   if the latest matching risk evaluation is not a paper-mode `ALLOW`, the service creates a paper-mode risk evaluation using `humanApprovalId`; without approval it remains blocked for review;
-    -   `status` is `filled`, `blocked`, or `reconciled` for the current implementation;
+    -   `status` is `filled`, `blocked`, `reconciled`, or `reconciliation_failed` for the current implementation;
     -   each plan stores `proposalHash`, `riskRequestHash`, `planHash`, `readinessSnapshot`, immutable paper order ids, fill events, cash ledger rows, position ledger rows, portfolio before/after snapshots, reconciliation state, and kill-switch snapshot;
+    -   filled plans update the durable local paper account so later paper cycles start from accumulated simulated state;
     -   `brokerExecutionEnabled` and `liveTradingEnabled` are always `false`.
 
 #### `GET /control-plane/paper-order-plans`

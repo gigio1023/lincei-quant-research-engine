@@ -13,6 +13,7 @@ import {
   ExecutionControlStateValue,
 } from '../../entities/execution-control-state.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
+import { PaperAccount } from '../../entities/paper-account.entity';
 import {
   PaperCashLedgerEntry,
   PaperFill,
@@ -56,6 +57,8 @@ export class ControlPlaneService {
     private readonly proposalRepository: Repository<InvestmentProposal>,
     @InjectRepository(ResearchRun)
     private readonly researchRunRepository: Repository<ResearchRun>,
+    @InjectRepository(PaperAccount)
+    private readonly paperAccountRepository: Repository<PaperAccount>,
     @InjectRepository(PaperOrderPlan)
     private readonly paperOrderPlanRepository: Repository<PaperOrderPlan>,
     @InjectRepository(ExecutionControlState)
@@ -75,6 +78,7 @@ export class ControlPlaneService {
     const researchRunCount = await this.researchRunRepository.count();
     const proposalCount = await this.proposalRepository.count();
     const evaluationCount = await this.riskEvaluationRepository.count();
+    const paperAccountCount = await this.paperAccountRepository.count();
     const paperOrderPlanCount = await this.paperOrderPlanRepository.count();
     const executionControlState = await this.getExecutionControlState();
     const runCount = await this.runRepository.count();
@@ -125,6 +129,11 @@ export class ControlPlaneService {
           ready: true,
           detail:
             'Deterministic paper order-plan, fill, and reconciliation ledger is registered',
+        },
+        {
+          key: 'paperAccountReady',
+          ready: paperAccountCount > 0,
+          detail: `${paperAccountCount} durable paper account records`,
         },
         {
           key: 'executionControlReady',
@@ -317,6 +326,21 @@ export class ControlPlaneService {
     });
   }
 
+  async getPaperAccountState(): Promise<PaperAccount> {
+    const latest = await this.paperAccountRepository.findOne({
+      where: { status: 'active' },
+      order: { updatedAt: 'DESC' },
+    });
+
+    if (latest) {
+      return latest;
+    }
+
+    throw new NotFoundException(
+      'No active paper account exists. A paper execution or explicit seed step must create it first.',
+    );
+  }
+
   async getExecutionControlState(): Promise<ExecutionControlState> {
     const latest = await this.executionControlRepository.findOne({
       where: {},
@@ -369,16 +393,26 @@ export class ControlPlaneService {
           where: { status: 'active' },
           order: { updatedAt: 'DESC' },
         });
+    let paperAccount = await this.findPaperAccountForProposal(proposal);
+    const paperPortfolioBefore = paperAccount
+      ? this.buildPaperAccountPortfolio(paperAccount)
+      : this.buildSeedPaperPortfolioForProposal(proposal, budget);
     let latestEvaluation = await this.findLatestRiskEvaluation(proposal.id);
     const hasPaperAllow =
       latestEvaluation?.decision === 'ALLOW' &&
-      latestEvaluation.responseSnapshot.mode === 'paper';
+      latestEvaluation.responseSnapshot.mode === 'paper' &&
+      this.riskEvaluationMatchesProposal(
+        latestEvaluation,
+        proposal,
+        paperPortfolioBefore,
+      );
 
     if (!hasPaperAllow) {
       latestEvaluation = await this.evaluateProposalForPaperExecution(
         proposal,
         budget,
         request.humanApprovalId,
+        paperPortfolioBefore,
       );
     }
     const submittedAt = new Date();
@@ -423,10 +457,20 @@ export class ControlPlaneService {
       ? this.hashObject(latestEvaluation.requestSnapshot)
       : undefined;
     const riskMatchesProposal = latestEvaluation
-      ? this.riskEvaluationMatchesProposal(latestEvaluation, proposal)
+      ? this.riskEvaluationMatchesProposal(
+          latestEvaluation,
+          proposal,
+          paperPortfolioBefore,
+        )
       : false;
-    const cashSufficient = this.hasSufficientCashForPaper(proposal);
-    const positionsSufficient = this.hasSufficientPositionsForPaper(proposal);
+    const cashSufficient = this.hasSufficientCashForPaper(
+      proposal,
+      paperPortfolioBefore,
+    );
+    const positionsSufficient = this.hasSufficientPositionsForPaper(
+      proposal,
+      paperPortfolioBefore,
+    );
     const readinessSnapshot: PaperReadinessSnapshot = {
       budgetActive: budget?.status === 'active',
       latestRiskAllow: latestEvaluation?.decision === 'ALLOW',
@@ -449,9 +493,19 @@ export class ControlPlaneService {
     });
     const simulated = this.simulatePaperFills(
       proposal,
+      paperPortfolioBefore,
       blockedReasons,
       submittedAt,
     );
+
+    if (blockedReasons.length === 0 && !paperAccount) {
+      paperAccount = await this.createPaperAccountForProposal(
+        proposal,
+        budget,
+        paperPortfolioBefore,
+      );
+    }
+
     const planHash = this.hashObject({
       idempotencyKey,
       proposalHash,
@@ -464,6 +518,7 @@ export class ControlPlaneService {
       proposalId: proposal.id,
       researchRunId: proposal.researchRunId,
       budgetEnvelopeId: proposal.budgetEnvelopeId,
+      paperAccountId: paperAccount?.id,
       riskEvaluationId: latestEvaluation?.id,
       proposalHash,
       riskRequestHash,
@@ -476,13 +531,13 @@ export class ControlPlaneService {
       readinessSnapshot,
       orders: simulated.orders,
       fills: simulated.fills,
-      portfolioBefore: proposal.portfolioSnapshot,
+      portfolioBefore: paperPortfolioBefore,
       portfolioAfter: simulated.portfolioAfter,
       cashLedger: simulated.cashLedger,
       positionLedger: simulated.positionLedger,
-      startingCash: proposal.portfolioSnapshot.cash,
+      startingCash: paperPortfolioBefore.cash,
       endingCash: simulated.endingCash,
-      startingEquity: proposal.portfolioSnapshot.equity,
+      startingEquity: paperPortfolioBefore.equity,
       endingEquity: simulated.endingEquity,
       brokerExecutionEnabled: false,
       liveTradingEnabled: false,
@@ -508,7 +563,8 @@ export class ControlPlaneService {
 
     const saved = await this.paperOrderPlanRepository.save(paperOrderPlan);
 
-    if (blockedReasons.length === 0) {
+    if (blockedReasons.length === 0 && paperAccount) {
+      await this.applyPaperPlanToAccount(saved, paperAccount);
       proposal.status = 'paper_ready';
       await this.proposalRepository.save(proposal);
     }
@@ -543,34 +599,100 @@ export class ControlPlaneService {
     }
 
     const tolerance = request.tolerance ?? plan.reconciliation.tolerance;
-    const actualCash = plan.reconciliation.expectedCash;
-    const actualPositions = plan.reconciliation.expectedPositions;
+    const paperAccount = plan.paperAccountId
+      ? await this.paperAccountRepository.findOne({
+          where: { id: plan.paperAccountId },
+        })
+      : await this.findPaperAccountForPlan(plan);
+
+    if (!paperAccount) {
+      throw new NotFoundException(
+        `Paper account for order plan ${planId} not found`,
+      );
+    }
+
+    const { actualCash, actualPositions } =
+      this.buildPlanScopedActualsFromAccount(plan, paperAccount);
+    const expectedPositions = plan.reconciliation.expectedPositions;
+    const allSymbols = Array.from(
+      new Set([
+        ...Object.keys(expectedPositions),
+        ...Object.keys(actualPositions),
+      ]),
+    );
     const positionDiffs = Object.fromEntries(
-      Object.entries(actualPositions).map(([symbol]) => [symbol, 0]),
+      allSymbols.map((symbol) => [
+        symbol,
+        this.roundMoney(
+          (actualPositions[symbol] ?? 0) - (expectedPositions[symbol] ?? 0),
+        ),
+      ]),
+    );
+    const cashDiff = this.roundMoney(
+      actualCash - plan.reconciliation.expectedCash,
+    );
+    const cashMatched = Math.abs(cashDiff) <= tolerance;
+    const positionsMatched = Object.values(positionDiffs).every(
+      (diff) => Math.abs(diff) <= tolerance,
     );
     const reconciledAt = new Date();
 
     plan.reconciliation = {
       ...plan.reconciliation,
-      status: 'matched',
+      status: cashMatched && positionsMatched ? 'matched' : 'mismatch',
       reconciledAt: reconciledAt.toISOString(),
-      cashMatched: true,
-      positionsMatched: true,
+      cashMatched,
+      positionsMatched,
       actualCash,
-      cashDiff: 0,
+      cashDiff,
       actualPositions,
       positionDiffs,
       tolerance,
       notes: [
         ...plan.reconciliation.notes,
         ...(request.notes ?? []),
-        'Paper reconciliation compared simulated expected state to the paper ledger.',
+        'Paper reconciliation compared expected state to account ledger entries for this plan.',
       ],
     };
-    plan.status = 'reconciled';
+    plan.status =
+      cashMatched && positionsMatched ? 'reconciled' : 'reconciliation_failed';
     plan.completedAt = reconciledAt;
+    paperAccount.lastReconciledAt = reconciledAt;
+    await this.paperAccountRepository.save(paperAccount);
 
     return this.paperOrderPlanRepository.save(plan);
+  }
+
+  private buildPlanScopedActualsFromAccount(
+    plan: PaperOrderPlan,
+    paperAccount: PaperAccount,
+  ): {
+    actualCash: number;
+    actualPositions: Record<string, number>;
+  } {
+    const planFillIds = new Set(plan.fills.map((fill) => fill.paperFillId));
+    const accountCashEvents = paperAccount.cashLedger.filter((entry) =>
+      planFillIds.has(entry.paperFillId),
+    );
+    const accountPositionEvents = paperAccount.positionLedger.filter((entry) =>
+      planFillIds.has(entry.paperFillId),
+    );
+    const actualCash =
+      accountCashEvents.length > 0
+        ? accountCashEvents[accountCashEvents.length - 1].balanceAfter
+        : plan.portfolioBefore.cash;
+    const actualPositions = {
+      ...this.positionsToMarketValueMap(plan.portfolioBefore.positions),
+    };
+
+    for (const entry of accountPositionEvents) {
+      actualPositions[entry.symbol] = entry.positionNotionalAfter;
+    }
+
+    return {
+      actualCash: this.roundMoney(actualCash),
+      actualPositions,
+    };
   }
 
   async createResearchRun(
@@ -630,6 +752,7 @@ export class ControlPlaneService {
     proposal: InvestmentProposal,
     budget: BudgetEnvelope | null,
     humanApprovalId?: string,
+    portfolio?: PortfolioSnapshot,
   ): Promise<RiskEvaluation> {
     const request: RiskGateRequest = {
       mode: 'paper',
@@ -639,7 +762,7 @@ export class ControlPlaneService {
       ruleId: proposal.ruleId,
       generatedAt: proposal.generatedAt.toISOString(),
       marketDataTimestamp: proposal.marketDataTimestamp.toISOString(),
-      portfolio: proposal.portfolioSnapshot,
+      portfolio: portfolio ?? proposal.portfolioSnapshot,
       orders: proposal.orders,
       policy: budget?.policy,
       evidenceRefs: proposal.evidenceRefs,
@@ -659,6 +782,148 @@ export class ControlPlaneService {
     });
 
     return this.riskEvaluationRepository.save(evaluation);
+  }
+
+  private async findPaperAccountForProposal(
+    proposal: InvestmentProposal,
+  ): Promise<PaperAccount | null> {
+    const existingForBudget = proposal.budgetEnvelopeId
+      ? await this.paperAccountRepository.findOne({
+          where: {
+            budgetEnvelopeId: proposal.budgetEnvelopeId,
+            status: 'active',
+          },
+          order: { updatedAt: 'DESC' },
+        })
+      : null;
+
+    if (existingForBudget) {
+      return existingForBudget;
+    }
+
+    const existingActive = await this.paperAccountRepository.findOne({
+      where: { status: 'active' },
+      order: { updatedAt: 'DESC' },
+    });
+
+    if (
+      existingActive &&
+      (!proposal.budgetEnvelopeId ||
+        existingActive.budgetEnvelopeId === proposal.budgetEnvelopeId)
+    ) {
+      return existingActive;
+    }
+
+    return null;
+  }
+
+  private async findPaperAccountForPlan(
+    plan: PaperOrderPlan,
+  ): Promise<PaperAccount | null> {
+    if (plan.budgetEnvelopeId) {
+      return this.paperAccountRepository.findOne({
+        where: {
+          budgetEnvelopeId: plan.budgetEnvelopeId,
+          status: 'active',
+        },
+        order: { updatedAt: 'DESC' },
+      });
+    }
+
+    return this.paperAccountRepository.findOne({
+      where: { status: 'active' },
+      order: { updatedAt: 'DESC' },
+    });
+  }
+
+  private buildSeedPaperPortfolioForProposal(
+    proposal: InvestmentProposal,
+    budget: BudgetEnvelope | null,
+  ): PortfolioSnapshot {
+    const seedCash = budget?.totalBudget ?? proposal.portfolioSnapshot.cash;
+    const seedEquity = budget?.totalBudget ?? proposal.portfolioSnapshot.equity;
+    const seedPositions = proposal.portfolioSnapshot.positions ?? [];
+
+    return {
+      currency: budget?.currency ?? proposal.portfolioSnapshot.currency,
+      cash: seedCash,
+      equity: seedEquity,
+      grossExposurePct: this.calculateGrossExposurePct(
+        seedPositions,
+        seedEquity,
+      ),
+      positions: seedPositions,
+    };
+  }
+
+  private async createPaperAccountForProposal(
+    proposal: InvestmentProposal,
+    budget: BudgetEnvelope | null,
+    portfolio: PortfolioSnapshot,
+  ): Promise<PaperAccount> {
+    const existing = await this.findPaperAccountForProposal(proposal);
+
+    if (existing) {
+      return existing;
+    }
+
+    return this.paperAccountRepository.save(
+      this.paperAccountRepository.create({
+        name: budget
+          ? `${budget.name} paper account`
+          : `Proposal ${proposal.id} paper account`,
+        budgetEnvelopeId: proposal.budgetEnvelopeId,
+        status: 'active',
+        currency: portfolio.currency,
+        cash: portfolio.cash,
+        equity: portfolio.equity,
+        grossExposurePct: portfolio.grossExposurePct,
+        positions: portfolio.positions ?? [],
+        cashLedger: [],
+        positionLedger: [],
+        appliedPlanIds: [],
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+  }
+
+  private async applyPaperPlanToAccount(
+    plan: PaperOrderPlan,
+    paperAccount: PaperAccount,
+  ): Promise<PaperAccount> {
+    if (paperAccount.appliedPlanIds.includes(plan.id)) {
+      return paperAccount;
+    }
+
+    paperAccount.cash = plan.portfolioAfter.cash;
+    paperAccount.equity = plan.portfolioAfter.equity;
+    paperAccount.positions = plan.portfolioAfter.positions ?? [];
+    paperAccount.grossExposurePct = this.calculateGrossExposurePct(
+      paperAccount.positions,
+      paperAccount.equity,
+    );
+    paperAccount.cashLedger = [...paperAccount.cashLedger, ...plan.cashLedger];
+    paperAccount.positionLedger = [
+      ...paperAccount.positionLedger,
+      ...plan.positionLedger,
+    ];
+    paperAccount.appliedPlanIds = [...paperAccount.appliedPlanIds, plan.id];
+    paperAccount.lastAppliedPlanId = plan.id;
+
+    return this.paperAccountRepository.save(paperAccount);
+  }
+
+  private buildPaperAccountPortfolio(
+    paperAccount: PaperAccount,
+  ): PortfolioSnapshot {
+    return {
+      currency: paperAccount.currency,
+      cash: paperAccount.cash,
+      equity: paperAccount.equity,
+      grossExposurePct: paperAccount.grossExposurePct,
+      positions: paperAccount.positions,
+    };
   }
 
   private async findPaperOrderPlansForProposal(
@@ -683,6 +948,7 @@ export class ControlPlaneService {
   private riskEvaluationMatchesProposal(
     evaluation: RiskEvaluation,
     proposal: InvestmentProposal,
+    portfolio: PortfolioSnapshot = proposal.portfolioSnapshot,
   ): boolean {
     const request = evaluation.requestSnapshot;
 
@@ -693,13 +959,15 @@ export class ControlPlaneService {
       request.generatedAt === proposal.generatedAt.toISOString() &&
       request.marketDataTimestamp ===
         proposal.marketDataTimestamp.toISOString() &&
-      this.hashObject(request.portfolio) ===
-        this.hashObject(proposal.portfolioSnapshot) &&
+      this.hashObject(request.portfolio) === this.hashObject(portfolio) &&
       this.hashObject(request.orders) === this.hashObject(proposal.orders)
     );
   }
 
-  private hasSufficientCashForPaper(proposal: InvestmentProposal): boolean {
+  private hasSufficientCashForPaper(
+    proposal: InvestmentProposal,
+    portfolio: PortfolioSnapshot,
+  ): boolean {
     const requiredCash = proposal.orders
       .filter((order) => order.side === 'BUY')
       .reduce(
@@ -711,21 +979,30 @@ export class ControlPlaneService {
         0,
       );
 
-    return proposal.portfolioSnapshot.cash >= this.roundMoney(requiredCash);
+    return portfolio.cash >= this.roundMoney(requiredCash);
   }
 
   private hasSufficientPositionsForPaper(
     proposal: InvestmentProposal,
+    portfolio: PortfolioSnapshot,
   ): boolean {
-    const positions = proposal.portfolioSnapshot.positions ?? [];
-
-    return proposal.orders
+    const availableBySymbol = this.positionsToMarketValueMap(
+      portfolio.positions,
+    );
+    const requiredSellBySymbol = proposal.orders
       .filter((order) => order.side === 'SELL')
-      .every((order) => {
-        const position = positions.find((item) => item.symbol === order.symbol);
+      .reduce<Record<string, number>>((required, order) => {
+        required[order.symbol] = this.roundMoney(
+          (required[order.symbol] ?? 0) + order.notional,
+        );
 
-        return (position?.marketValue ?? 0) >= order.notional;
-      });
+        return required;
+      }, {});
+
+    return Object.entries(requiredSellBySymbol).every(
+      ([symbol, requiredNotional]) =>
+        (availableBySymbol[symbol] ?? 0) >= requiredNotional,
+    );
   }
 
   private getPaperExecutionBlockedReasons(input: {
@@ -804,6 +1081,7 @@ export class ControlPlaneService {
 
   private simulatePaperFills(
     proposal: InvestmentProposal,
+    portfolioBefore: PortfolioSnapshot,
     blockedReasons: string[],
     submittedAt: Date,
   ): {
@@ -816,12 +1094,12 @@ export class ControlPlaneService {
     endingEquity: number;
     reconciliation: PaperReconciliation;
   } {
-    const startingCash = proposal.portfolioSnapshot.cash;
-    const startingEquity = proposal.portfolioSnapshot.equity;
+    const startingCash = portfolioBefore.cash;
+    const startingEquity = portfolioBefore.equity;
     const timestamp = submittedAt.toISOString();
     const orders = this.buildPaperOrderSnapshots(proposal);
     const startingPositions = Object.fromEntries(
-      (proposal.portfolioSnapshot.positions ?? []).map((position) => [
+      (portfolioBefore.positions ?? []).map((position) => [
         position.symbol,
         position.marketValue,
       ]),
@@ -831,7 +1109,7 @@ export class ControlPlaneService {
       return {
         orders,
         fills: [],
-        portfolioAfter: proposal.portfolioSnapshot,
+        portfolioAfter: portfolioBefore,
         cashLedger: [],
         positionLedger: [],
         endingCash: startingCash,
@@ -886,7 +1164,7 @@ export class ControlPlaneService {
         paperCashEventId: `${paperFillId}:cash`,
         paperFillId,
         timestamp,
-        currency: proposal.portfolioSnapshot.currency,
+        currency: portfolioBefore.currency,
         amount: this.roundMoney(signedCashImpact),
         balanceAfter: this.roundMoney(endingCash),
         reason: `${order.side} paper fill net cash delta`,
@@ -913,7 +1191,7 @@ export class ControlPlaneService {
         requestedNotional: order.requestedNotional,
         filledNotional: order.requestedNotional,
         fee,
-        feeCurrency: proposal.portfolioSnapshot.currency,
+        feeCurrency: portfolioBefore.currency,
         slippage,
         netCashDelta: this.roundMoney(signedCashImpact),
         positionDelta,
@@ -922,11 +1200,21 @@ export class ControlPlaneService {
     });
 
     const endingEquity = this.roundMoney(startingEquity - totalExecutionCost);
+    const positionsAfter = this.buildPortfolioPositionsAfter(
+      proposal,
+      portfolioBefore,
+      endingPositions,
+    );
     const portfolioAfter = {
       ...proposal.portfolioSnapshot,
+      ...portfolioBefore,
       cash: this.roundMoney(endingCash),
       equity: endingEquity,
-      positions: this.buildPortfolioPositionsAfter(proposal, endingPositions),
+      positions: positionsAfter,
+      grossExposurePct: this.calculateGrossExposurePct(
+        positionsAfter,
+        endingEquity,
+      ),
     };
 
     return {
@@ -975,9 +1263,10 @@ export class ControlPlaneService {
 
   private buildPortfolioPositionsAfter(
     proposal: InvestmentProposal,
+    portfolioBefore: PortfolioSnapshot,
     endingPositions: Record<string, number>,
   ) {
-    const originalPositions = proposal.portfolioSnapshot.positions ?? [];
+    const originalPositions = portfolioBefore.positions ?? [];
     const originalBySymbol = new Map(
       originalPositions.map((position) => [position.symbol, position]),
     );
@@ -996,13 +1285,35 @@ export class ControlPlaneService {
             'unknown',
           marketValue,
           weightPct:
-            proposal.portfolioSnapshot.equity === 0
+            portfolioBefore.equity === 0
               ? 0
-              : this.roundMoney(
-                  (marketValue / proposal.portfolioSnapshot.equity) * 100,
-                ),
+              : this.roundMoney((marketValue / portfolioBefore.equity) * 100),
         };
       });
+  }
+
+  private positionsToMarketValueMap(
+    positions: PortfolioSnapshot['positions'] = [],
+  ): Record<string, number> {
+    return Object.fromEntries(
+      positions.map((position) => [position.symbol, position.marketValue]),
+    );
+  }
+
+  private calculateGrossExposurePct(
+    positions: PortfolioSnapshot['positions'] = [],
+    equity: number,
+  ): number {
+    if (equity === 0) {
+      return 0;
+    }
+
+    const grossExposure = positions.reduce(
+      (total, position) => total + Math.abs(position.marketValue),
+      0,
+    );
+
+    return this.roundMoney((grossExposure / equity) * 100);
   }
 
   private roundMoney(value: number): number {

@@ -258,6 +258,52 @@ describe("API Service", () => {
       expect(result).toEqual(mockPaperOrderPlans);
     });
 
+    it("should_get_paper_account", async () => {
+      const mockPaperAccount = {
+        id: "paper-account-1",
+        name: "Paper account",
+        status: "active",
+        currency: "KRW",
+        cash: 9499250,
+        equity: 9999250,
+        grossExposurePct: 5,
+        positions: [],
+        cashLedger: [],
+        positionLedger: [],
+        appliedPlanIds: ["paper-plan-1"],
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+        createdAt: "2026-05-22T09:00:00.000Z",
+        updatedAt: "2026-05-22T09:05:00.000Z",
+      };
+
+      mockGet.mockResolvedValue({ data: mockPaperAccount });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.getPaperAccount();
+
+      expect(mockGet).toHaveBeenCalledWith("/control-plane/paper-account");
+      expect(result).toEqual(mockPaperAccount);
+    });
+
+    it("should_get_execution_control", async () => {
+      const mockExecutionControl = {
+        id: "execution-control-1",
+        state: "active",
+        actor: "system",
+        reason: "Default execution-control state.",
+        createdAt: "2026-05-22T09:00:00.000Z",
+      };
+
+      mockGet.mockResolvedValue({ data: mockExecutionControl });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.getExecutionControl();
+
+      expect(mockGet).toHaveBeenCalledWith("/control-plane/execution-control");
+      expect(result).toEqual(mockExecutionControl);
+    });
+
     it("should_execute_proposal_paper", async () => {
       const mockPaperOrderPlan = {
         id: "paper-plan-1",
