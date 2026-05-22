@@ -431,11 +431,12 @@ Current status:
 - paper execution readiness now records reservation evidence for required cash, reserved cash, available cash, required sells, reserved sells, and available sell notional by symbol before fill simulation;
 - filled paper order plans now persist a durable reservation-hold snapshot with hold id, status, cash amount, sell notional by symbol, hold hash, and consumption timestamp;
 - readiness checks subtract any still-reserved paper hold snapshot even if a previous plan has already moved out of an open execution status;
+- paper reservation holds now persist to a dedicated `paper_reservation_holds` database ledger before fill simulation, and readiness checks subtract `reserved` rows before falling back to legacy plan snapshots;
 - durable paper account state now carries simulated cash, equity, exposure, positions, and applied plan ids across paper cycles;
 - minimal execution-control state and halted/paused/reducing gate exists;
 - control-plane status now exposes an explicit disabled live-trading gate with blockers for order endpoints, broker write access, credential custody, kill switch, fill polling, and reconciliation;
 - frontend dashboard shows paper account state, execution-control state, latest paper plans, fills, reconciliation notes, hashes, and broker/live disabled guardrails;
-- still missing production signing custody, transaction-isolated accounting service, database-enforced reservation lock isolation, and scheduled broker-backed reconciliation.
+- still missing production signing custody, fully transaction-isolated accounting service, database-level account balance locks, and scheduled broker-backed reconciliation.
 
 ### Phase 4: Broker Read-Only
 

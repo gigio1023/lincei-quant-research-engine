@@ -35,6 +35,7 @@ import {
   PaperReconciliation,
   PaperReservationHold,
 } from '../../entities/paper-order-plan.entity';
+import { PaperReservationHoldRecord } from '../../entities/paper-reservation-hold.entity';
 import { ResearchRun } from '../../entities/research-run.entity';
 import { RiskEvaluation } from '../../entities/risk-evaluation.entity';
 import { RiskGateService } from '../risk-gate/risk-gate.service';
@@ -84,6 +85,7 @@ interface PaperReservationSnapshot {
 }
 
 interface PaperOpenReservation {
+  holdId?: string;
   cashAmount: number;
   sellNotionalBySymbol: Record<string, number>;
 }
@@ -113,6 +115,8 @@ export class ControlPlaneService {
     private readonly paperAccountEventRepository: Repository<PaperAccountEvent>,
     @InjectRepository(PaperOrderPlan)
     private readonly paperOrderPlanRepository: Repository<PaperOrderPlan>,
+    @InjectRepository(PaperReservationHoldRecord)
+    private readonly paperReservationHoldRepository: Repository<PaperReservationHoldRecord>,
     @InjectRepository(ExecutionControlState)
     private readonly executionControlRepository: Repository<ExecutionControlState>,
     @InjectRepository(RiskEvaluation)
@@ -138,6 +142,8 @@ export class ControlPlaneService {
     const paperAccountEventCount =
       await this.paperAccountEventRepository.count();
     const paperOrderPlanCount = await this.paperOrderPlanRepository.count();
+    const paperReservationHoldCount =
+      await this.paperReservationHoldRepository.count();
     const brokerSnapshotCount = await this.brokerSnapshotRepository.count();
     const executionControlState = await this.getExecutionControlState();
     const runCount = await this.runRepository.count();
@@ -195,6 +201,11 @@ export class ControlPlaneService {
           ready: true,
           detail:
             'Deterministic paper order-plan, fill, and reconciliation ledger is registered',
+        },
+        {
+          key: 'paperReservationHoldLedgerReady',
+          ready: true,
+          detail: `${paperReservationHoldCount} database paper reservation hold records`,
         },
         {
           key: 'paperAccountReady',
@@ -1157,6 +1168,14 @@ export class ControlPlaneService {
             submittedAt,
           )
         : undefined;
+    if (reservationHold && paperAccount) {
+      await this.persistPaperReservationHoldRecord(
+        reservationHold,
+        paperAccount,
+        proposal,
+        submittedAt,
+      );
+    }
     const simulated = this.simulatePaperFills(
       proposal,
       paperPortfolioBefore,
@@ -1226,6 +1245,13 @@ export class ControlPlaneService {
 
     if (blockedReasons.length === 0 && paperAccount) {
       this.consumePaperReservationHold(saved, submittedAt);
+      if (saved.reservationHold) {
+        await this.consumePaperReservationHoldRecord(
+          saved.reservationHold.holdId,
+          saved,
+          submittedAt,
+        );
+      }
       await this.paperOrderPlanRepository.save(saved);
       await this.applyPaperPlanToAccount(saved, paperAccount);
       if (orderPlanApproval) {
@@ -1297,6 +1323,68 @@ export class ControlPlaneService {
         `Consumed by paper order plan ${plan.id}.`,
       ],
     };
+  }
+
+  private async persistPaperReservationHoldRecord(
+    hold: PaperReservationHold,
+    paperAccount: PaperAccount,
+    proposal: InvestmentProposal,
+    reservedAt: Date,
+  ): Promise<PaperReservationHoldRecord> {
+    const existing = await this.paperReservationHoldRepository.findOne({
+      where: { holdId: hold.holdId },
+    });
+
+    if (existing) {
+      return existing;
+    }
+
+    const record = this.paperReservationHoldRepository.create({
+      holdId: hold.holdId,
+      paperAccountId: paperAccount.id,
+      proposalId: proposal.id,
+      status: 'reserved',
+      idempotencyKey: hold.idempotencyKey,
+      reservedAt,
+      cashAmount: hold.cashAmount,
+      sellNotionalBySymbol: hold.sellNotionalBySymbol,
+      availableCashAtHold: hold.availableCashAtHold,
+      availableSellNotionalBySymbolAtHold:
+        hold.availableSellNotionalBySymbolAtHold,
+      holdHash: hold.holdHash,
+      holdSnapshot: hold,
+      notes: [
+        ...hold.notes,
+        'Persisted in paper_reservation_holds before paper fill simulation.',
+      ],
+    });
+
+    return this.paperReservationHoldRepository.save(record);
+  }
+
+  private async consumePaperReservationHoldRecord(
+    holdId: string,
+    plan: PaperOrderPlan,
+    consumedAt: Date,
+  ): Promise<void> {
+    const record = await this.paperReservationHoldRepository.findOne({
+      where: { holdId },
+    });
+
+    if (!record || record.status !== 'reserved') {
+      return;
+    }
+
+    record.status = 'consumed';
+    record.paperOrderPlanId = plan.id;
+    record.consumedAt = consumedAt;
+    record.holdSnapshot = plan.reservationHold ?? record.holdSnapshot;
+    record.notes = [
+      ...record.notes,
+      `Consumed by paper order plan ${plan.id}.`,
+    ];
+
+    await this.paperReservationHoldRepository.save(record);
   }
 
   async getPaperOrderPlan(planId: number): Promise<PaperOrderPlan> {
@@ -1956,6 +2044,27 @@ export class ControlPlaneService {
       return [];
     }
 
+    const records = await this.paperReservationHoldRepository.find({
+      order: { updatedAt: 'DESC' },
+    });
+    const openHoldRecords = records
+      .filter(
+        (record) =>
+          record.paperAccountId === paperAccountId &&
+          record.status === 'reserved',
+      )
+      .map((record) => ({
+        holdId: record.holdId,
+        cashAmount: this.roundMoney(record.cashAmount),
+        sellNotionalBySymbol: this.roundMoneyBySymbol(
+          record.sellNotionalBySymbol,
+        ),
+      }));
+    const openHoldIds = new Set(
+      openHoldRecords
+        .map((reservation) => reservation.holdId)
+        .filter((holdId): holdId is string => Boolean(holdId)),
+    );
     const plans = await this.paperOrderPlanRepository.find({
       order: { updatedAt: 'DESC' },
     });
@@ -1965,14 +2074,14 @@ export class ControlPlaneService {
       'partially_filled',
     ];
 
-    return plans
+    const legacyPlanReservations = plans
       .filter((plan) => {
         if (plan.paperAccountId !== paperAccountId) {
           return false;
         }
 
         if (plan.reservationHold?.status === 'reserved') {
-          return true;
+          return !openHoldIds.has(plan.reservationHold.holdId);
         }
 
         return !plan.reservationHold && reservingStatuses.includes(plan.status);
@@ -1988,6 +2097,7 @@ export class ControlPlaneService {
         }
 
         return {
+          holdId: plan.reservationHold?.holdId,
           cashAmount: this.calculatePaperBuyRequirement(
             plan.orders.map((order) => ({
               side: order.side,
@@ -2003,6 +2113,8 @@ export class ControlPlaneService {
           ),
         };
       });
+
+    return [...openHoldRecords, ...legacyPlanReservations];
   }
 
   private riskEvaluationMatchesProposal(

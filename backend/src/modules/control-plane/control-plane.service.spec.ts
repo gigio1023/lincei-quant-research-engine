@@ -8,6 +8,7 @@ import { OrderPlanApproval } from '../../entities/order-plan-approval.entity';
 import { PaperAccountEvent } from '../../entities/paper-account-event.entity';
 import { PaperAccount } from '../../entities/paper-account.entity';
 import { PaperOrderPlan } from '../../entities/paper-order-plan.entity';
+import { PaperReservationHoldRecord } from '../../entities/paper-reservation-hold.entity';
 import { ResearchRun } from '../../entities/research-run.entity';
 import { RiskEvaluation } from '../../entities/risk-evaluation.entity';
 import { RiskGateService } from '../risk-gate/risk-gate.service';
@@ -23,6 +24,7 @@ describe('ControlPlaneService', () => {
   let paperAccounts: PaperAccount[];
   let paperAccountEvents: PaperAccountEvent[];
   let paperOrderPlans: PaperOrderPlan[];
+  let paperReservationHolds: PaperReservationHoldRecord[];
   let executionControlStates: ExecutionControlState[];
   let evaluations: RiskEvaluation[];
   let runs: AutonomousRun[];
@@ -103,6 +105,7 @@ describe('ControlPlaneService', () => {
     paperAccounts = [];
     paperAccountEvents = [];
     paperOrderPlans = [];
+    paperReservationHolds = [];
     executionControlStates = [];
     evaluations = [];
     runs = [];
@@ -116,6 +119,7 @@ describe('ControlPlaneService', () => {
       makeRepository(paperAccounts) as any,
       makeRepository(paperAccountEvents) as any,
       makeRepository(paperOrderPlans) as any,
+      makeRepository(paperReservationHolds) as any,
       makeRepository(executionControlStates) as any,
       makeRepository(evaluations) as any,
       makeRepository(runs) as any,
@@ -436,6 +440,19 @@ describe('ControlPlaneService', () => {
         availableCashAtHold: 10_000_000,
         holdHash: expect.stringMatching(/^sha256:/),
         consumedAt: '2026-05-23T00:00:00.000Z',
+      }),
+    );
+    expect(paperReservationHolds).toHaveLength(1);
+    expect(paperReservationHolds[0]).toEqual(
+      expect.objectContaining({
+        holdId: plan.reservationHold?.holdId,
+        paperAccountId: plan.paperAccountId,
+        proposalId: proposal.id,
+        paperOrderPlanId: plan.id,
+        status: 'consumed',
+        cashAmount: 500_750,
+        holdHash: plan.reservationHold?.holdHash,
+        consumedAt: new Date('2026-05-23T00:00:00.000Z'),
       }),
     );
     expect(plan.orders).toHaveLength(1);
@@ -1155,23 +1172,41 @@ describe('ControlPlaneService', () => {
       approver: 'unit-test-operator',
       reason: 'Approve reserved hold check plan.',
     });
-    paperOrderPlans.push({
+    const orphanedHold = {
+      holdId: 'paper-reservation:orphaned-reserved-hold',
+      status: 'reserved' as const,
+      idempotencyKey: 'orphaned-reserved-hold',
+      createdAt: '2026-05-22T23:58:00.000Z',
+      cashAmount: 300_450,
+      sellNotionalBySymbol: {},
+      availableCashAtHold: 1_000_000,
+      availableSellNotionalBySymbolAtHold: {},
+      holdHash: 'sha256-reserved-hold',
+      notes: ['Reserved hold left open by an interrupted paper plan.'],
+    };
+    paperReservationHolds.push({
       id: 99,
+      holdId: orphanedHold.holdId,
+      paperAccountId: seededAccount.id,
+      proposalId: 999,
+      status: 'reserved',
+      idempotencyKey: orphanedHold.idempotencyKey,
+      reservedAt: new Date('2026-05-22T23:58:00.000Z'),
+      cashAmount: orphanedHold.cashAmount,
+      sellNotionalBySymbol: {},
+      availableCashAtHold: 1_000_000,
+      availableSellNotionalBySymbolAtHold: {},
+      holdHash: orphanedHold.holdHash,
+      holdSnapshot: orphanedHold,
+      notes: orphanedHold.notes,
+      updatedAt: new Date('2026-05-22T23:58:00.000Z'),
+    } as PaperReservationHoldRecord);
+    paperOrderPlans.push({
+      id: 100,
       proposalId: 999,
       paperAccountId: seededAccount.id,
       status: 'filled',
-      reservationHold: {
-        holdId: 'paper-reservation:orphaned-reserved-hold',
-        status: 'reserved',
-        idempotencyKey: 'orphaned-reserved-hold',
-        createdAt: '2026-05-22T23:58:00.000Z',
-        cashAmount: 300_450,
-        sellNotionalBySymbol: {},
-        availableCashAtHold: 1_000_000,
-        availableSellNotionalBySymbolAtHold: {},
-        holdHash: 'sha256-reserved-hold',
-        notes: ['Reserved hold left open by an interrupted paper plan.'],
-      },
+      reservationHold: orphanedHold,
       orders: [],
       updatedAt: new Date('2026-05-22T23:58:00.000Z'),
     } as PaperOrderPlan);
@@ -1398,6 +1433,10 @@ describe('ControlPlaneService', () => {
         }),
         expect.objectContaining({
           key: 'paperSimulationLedgerReady',
+          ready: true,
+        }),
+        expect.objectContaining({
+          key: 'paperReservationHoldLedgerReady',
           ready: true,
         }),
         expect.objectContaining({

@@ -103,6 +103,11 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
         "Deterministic paper order-plan, fill, and reconciliation ledger is registered",
     },
     {
+      key: "paperReservationHoldLedgerReady",
+      ready: true,
+      detail: "Documented database paper reservation hold ledger is available",
+    },
+    {
       key: "paperAccountReady",
       ready: false,
       detail: "No durable paper account records yet",

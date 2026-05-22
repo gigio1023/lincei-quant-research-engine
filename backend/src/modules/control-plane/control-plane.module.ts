@@ -12,6 +12,7 @@ import { RiskEvaluation } from '../../entities/risk-evaluation.entity';
 import { ResearchRun } from '../../entities/research-run.entity';
 import { PaperAccount } from '../../entities/paper-account.entity';
 import { PaperOrderPlan } from '../../entities/paper-order-plan.entity';
+import { PaperReservationHoldRecord } from '../../entities/paper-reservation-hold.entity';
 import { RiskGateModule } from '../risk-gate/risk-gate.module';
 import { BrokerAdapterReadinessService } from './broker-adapter-readiness.service';
 import { ControlPlaneSchedulerService } from './control-plane-scheduler.service';
@@ -34,6 +35,7 @@ import { TossReadOnlyBrokerService } from './toss-read-only-broker.service';
       ResearchRun,
       PaperAccount,
       PaperOrderPlan,
+      PaperReservationHoldRecord,
     ]),
     RiskGateModule,
   ],

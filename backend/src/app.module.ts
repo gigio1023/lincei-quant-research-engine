@@ -23,6 +23,7 @@ import { AutonomousRunSchedule } from './entities/autonomous-run-schedule.entity
 import { ResearchRun } from './entities/research-run.entity';
 import { PaperAccount } from './entities/paper-account.entity';
 import { PaperOrderPlan } from './entities/paper-order-plan.entity';
+import { PaperReservationHoldRecord } from './entities/paper-reservation-hold.entity';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { PaperOrderPlan } from './entities/paper-order-plan.entity';
           ResearchRun,
           PaperAccount,
           PaperOrderPlan,
+          PaperReservationHoldRecord,
         ],
         synchronize: true,
         autoLoadEntities: true,

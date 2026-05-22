@@ -12,6 +12,7 @@ import { OrderPlanApproval } from '../src/entities/order-plan-approval.entity';
 import { PaperAccountEvent } from '../src/entities/paper-account-event.entity';
 import { PaperAccount } from '../src/entities/paper-account.entity';
 import { PaperOrderPlan } from '../src/entities/paper-order-plan.entity';
+import { PaperReservationHoldRecord } from '../src/entities/paper-reservation-hold.entity';
 import { ResearchRun } from '../src/entities/research-run.entity';
 import { RiskEvaluation } from '../src/entities/risk-evaluation.entity';
 import { ControlPlaneModule } from '../src/modules/control-plane/control-plane.module';
@@ -36,6 +37,7 @@ describe('ControlPlane research provenance (e2e)', () => {
             PaperAccountEvent,
             PaperAccount,
             PaperOrderPlan,
+            PaperReservationHoldRecord,
             ResearchRun,
             RiskEvaluation,
           ],

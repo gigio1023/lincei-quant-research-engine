@@ -522,8 +522,9 @@ all broker/live execution flags remain `false`.
   - `status` is `filled`, `blocked`, `reconciled`, or `reconciliation_failed` for the current implementation;
   - each plan stores `orderPlanApprovalId`, `proposalHash`, `riskRequestHash`, `planHash`, `readinessSnapshot`, immutable paper order ids, fill events, cash ledger rows, position ledger rows, portfolio before/after snapshots, reconciliation state, and kill-switch snapshot;
   - `readinessSnapshot` includes reservation evidence: required cash, reserved cash, available cash, required sells, reserved sells, and available sell notional by symbol;
-  - readiness checks subtract legacy open paper plans and any `reservationHold.status === "reserved"` snapshot before deciding cash/position sufficiency;
+  - readiness checks subtract `paper_reservation_holds` rows with `status === "reserved"` before falling back to legacy open paper plans or `reservationHold.status === "reserved"` snapshots;
   - filled paper plans include a durable `reservationHold` snapshot with hold id, status, cash amount, sell notional by symbol, hold hash, and consumption timestamp;
+  - non-blocked paper plans create a database reservation-hold record before fill simulation and mark it consumed after the local paper plan is filled;
   - fill and position-ledger rows include simulator quantity, average-price, cost-basis, and realized-PnL evidence;
   - filled plans update the durable local paper account so later paper cycles start from accumulated simulated state;
   - `brokerExecutionEnabled` and `liveTradingEnabled` are always `false`.
