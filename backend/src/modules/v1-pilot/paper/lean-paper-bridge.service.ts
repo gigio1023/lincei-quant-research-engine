@@ -64,7 +64,7 @@ export class LeanPaperBridgeService {
       take: 1,
     });
     if (existingPlans[0]) {
-      return existingPlans[0];
+      return this.reconcileFilledPlan(existingPlans[0]);
     }
 
     const budget = await this.ensureBudget();
@@ -150,9 +150,24 @@ export class LeanPaperBridgeService {
       },
     );
 
-    return this.controlPlaneService.paperExecuteProposal(proposal.id, {
-      idempotencyKey: scopedIdempotencyKey,
-      orderPlanApprovalId: approval.id,
+    const plan = await this.controlPlaneService.paperExecuteProposal(
+      proposal.id,
+      {
+        idempotencyKey: scopedIdempotencyKey,
+        orderPlanApprovalId: approval.id,
+      },
+    );
+    return this.reconcileFilledPlan(plan);
+  }
+
+  private async reconcileFilledPlan(
+    plan: PaperOrderPlan,
+  ): Promise<PaperOrderPlan> {
+    if (plan.reconciliation?.status === 'matched' || plan.status !== 'filled') {
+      return plan;
+    }
+    return this.controlPlaneService.reconcilePaperOrderPlan(plan.id, {
+      notes: ['Auto-reconciled by V1 LEAN paper bridge.'],
     });
   }
 

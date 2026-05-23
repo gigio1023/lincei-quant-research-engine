@@ -133,6 +133,7 @@ class LinceiArtifactExporter:
         self,
         order_event,
     ) -> None:
+        order_fee = self._money_amount(getattr(order_event, "OrderFee", None))
         self._order_events.append(
             {
                 "id": str(order_event.OrderId),
@@ -141,7 +142,7 @@ class LinceiArtifactExporter:
                 "direction": str(order_event.Direction),
                 "fillQuantity": float(order_event.FillQuantity),
                 "fillPrice": float(order_event.FillPrice) if order_event.FillPrice else 0.0,
-                "orderFee": float(getattr(order_event.OrderFee, "Value", 0.0) or 0.0),
+                "orderFee": order_fee,
                 "utcTime": order_event.UtcTime.isoformat(),
             },
         )
@@ -154,7 +155,7 @@ class LinceiArtifactExporter:
                     "symbol": str(order_event.Symbol.Value),
                     "quantity": float(order_event.FillQuantity),
                     "price": float(order_event.FillPrice) if order_event.FillPrice else 0.0,
-                    "fee": float(getattr(order_event.OrderFee, "Value", 0.0) or 0.0),
+                    "fee": order_fee,
                     "filledAt": order_event.UtcTime.isoformat(),
                 },
             )
@@ -199,3 +200,11 @@ class LinceiArtifactExporter:
     def _write_json(path: str, payload: dict[str, Any]) -> None:
         with open(path, "w", encoding="utf-8") as handle:
             json.dump(payload, handle, indent=2, sort_keys=True)
+
+    @staticmethod
+    def _money_amount(value: Any) -> float:
+        if value is None:
+            return 0.0
+        raw_value = getattr(value, "Value", value)
+        amount = getattr(raw_value, "Amount", raw_value)
+        return float(amount or 0.0)

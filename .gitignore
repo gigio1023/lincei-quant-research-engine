@@ -26,6 +26,7 @@ engines/lean/aggressive_llm_momentum/input/ml_predictions.json
 artifacts/model-registry/
 .venv-ml/
 .venv-lean-cli/
+.tmp/
 engines/lean/data/
 engines/lean/lean.json
 engines/lean/backtests/

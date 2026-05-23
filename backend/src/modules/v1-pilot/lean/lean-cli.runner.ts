@@ -66,7 +66,11 @@ export class LeanCliRunner {
     return 'lean';
   }
 
-  assertPrerequisites(): { leanBin: string; leanConfigPath: string } {
+  assertPrerequisites(): {
+    leanBin: string;
+    leanConfigPath: string;
+    processEnv: NodeJS.ProcessEnv;
+  } {
     const leanBin = this.resolveLeanBin();
     const leanConfigPath = join(this.leanWorkspace, 'lean.json');
     if (!existsSync(leanConfigPath)) {
@@ -74,17 +78,39 @@ export class LeanCliRunner {
         `Missing ${leanConfigPath}. Run ./scripts/setup-lean-workspace.sh (requires QuantConnect login).`,
       );
     }
-    const dockerCheck = spawnSync('docker', ['info'], { encoding: 'utf8' });
+    const processEnv = this.buildLeanProcessEnv();
+    const dockerCheck = spawnSync('docker', ['info'], {
+      encoding: 'utf8',
+      env: processEnv,
+    });
     if (dockerCheck.status !== 0) {
       throw new Error(
         'Docker is not running. Lean CLI backtests require Docker (see docs/full-lean-backtest-setup.md).',
       );
     }
-    return { leanBin, leanConfigPath };
+    return { leanBin, leanConfigPath, processEnv };
+  }
+
+  buildLeanProcessEnv(): NodeJS.ProcessEnv {
+    const env: NodeJS.ProcessEnv = { ...process.env };
+    const home = env.HOME;
+    const colimaSocket = home ? join(home, '.colima/default/docker.sock') : '';
+
+    if (!env.DOCKER_HOST && colimaSocket && existsSync(colimaSocket)) {
+      env.DOCKER_HOST = `unix://${colimaSocket}`;
+    }
+
+    if (!env.TMPDIR || env.TMPDIR.startsWith('/var/folders/')) {
+      const leanTmpDir = join(this.repoRoot, '.tmp/lean-cli');
+      mkdirSync(leanTmpDir, { recursive: true });
+      env.TMPDIR = `${leanTmpDir}/`;
+    }
+
+    return env;
   }
 
   runBacktest(request: LeanCliBacktestRequest = {}): LeanCliBacktestResult {
-    const { leanBin } = this.assertPrerequisites();
+    const { leanBin, processEnv } = this.assertPrerequisites();
     const projectName = request.projectName ?? 'aggressive_llm_momentum';
     const runId =
       request.runId ??
@@ -94,10 +120,12 @@ export class LeanCliRunner {
         .slice(0, 14)}-${randomBytes(4).toString('hex')}`;
     const outputDirectory = join(this.repoRoot, 'artifacts/lean-runs', runId);
     mkdirSync(outputDirectory, { recursive: true });
-    const artifactRelativeDir = `backtests/lincei-artifacts/${runId}`;
+    const artifactRelativeDir = `lincei-artifacts/${runId}`;
+    const artifactOutputDir = `/Results/${artifactRelativeDir}`;
     const projectArtifactDir = join(
       this.leanWorkspace,
       projectName,
+      'backtests',
       artifactRelativeDir,
     );
 
@@ -111,7 +139,7 @@ export class LeanCliRunner {
       runId,
       '--parameter',
       'artifact-output-dir',
-      artifactRelativeDir,
+      artifactOutputDir,
     ];
     if (!request.noStaticMeta) {
       args.push(
@@ -152,7 +180,7 @@ export class LeanCliRunner {
         cwd: this.leanWorkspace,
         encoding: 'utf8',
         maxBuffer: 32 * 1024 * 1024,
-        env: { ...process.env },
+        env: processEnv,
       });
     } catch (error) {
       const execError = error as {
@@ -173,6 +201,7 @@ export class LeanCliRunner {
     if (existsSync(projectArtifactDir)) {
       cpSync(projectArtifactDir, outputDirectory, { recursive: true });
     }
+    this.copyArtifactsFromLatestBacktest(projectName, outputDirectory, runId);
     if (!existsSync(join(outputDirectory, 'statistics.json'))) {
       if (!request.allowSummaryHydration) {
         throw new Error(
@@ -216,17 +245,7 @@ export class LeanCliRunner {
     outputDirectory: string,
     runId: string,
   ): void {
-    const backtestsRoot = join(this.leanWorkspace, projectName, 'backtests');
-    if (!existsSync(backtestsRoot)) {
-      return;
-    }
-    const latest = readdirSync(backtestsRoot, { withFileTypes: true })
-      .filter(
-        (entry) => entry.isDirectory() && entry.name !== 'lincei-artifacts',
-      )
-      .map((entry) => join(backtestsRoot, entry.name))
-      .sort()
-      .pop();
+    const latest = this.latestBacktestDirectory(projectName);
     if (!latest) {
       return;
     }
@@ -331,5 +350,34 @@ export class LeanCliRunner {
       return;
     }
     args.push('--parameter', name, String(value));
+  }
+
+  private copyArtifactsFromLatestBacktest(
+    projectName: string,
+    outputDirectory: string,
+    runId: string,
+  ): void {
+    const latest = this.latestBacktestDirectory(projectName);
+    if (!latest) {
+      return;
+    }
+    const resultArtifactDir = join(latest, 'lincei-artifacts', runId);
+    if (existsSync(resultArtifactDir)) {
+      cpSync(resultArtifactDir, outputDirectory, { recursive: true });
+    }
+  }
+
+  private latestBacktestDirectory(projectName: string): string | undefined {
+    const backtestsRoot = join(this.leanWorkspace, projectName, 'backtests');
+    if (!existsSync(backtestsRoot)) {
+      return undefined;
+    }
+    return readdirSync(backtestsRoot, { withFileTypes: true })
+      .filter(
+        (entry) => entry.isDirectory() && entry.name !== 'lincei-artifacts',
+      )
+      .map((entry) => join(backtestsRoot, entry.name))
+      .sort()
+      .pop();
   }
 }
