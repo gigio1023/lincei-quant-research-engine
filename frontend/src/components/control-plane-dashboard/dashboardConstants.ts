@@ -70,6 +70,43 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
     detail:
       "Live trading gate is disabled until broker write access, credential custody, kill switch, fill polling, and reconciliation are verified.",
   },
+  actionStatus: {
+    checkedAt: "2026-05-22T09:00:00.000Z",
+    verdict: "attention",
+    latestAction: {
+      stage: "broker_fill",
+      status: "matched",
+      id: "broker-fill-docs-1",
+      detail: "Broker fill matched documented paper fill evidence.",
+      updatedAt: "2026-05-22T09:00:00.000Z",
+    },
+    paper: {
+      planId: "paper-plan-docs-1",
+      status: "reconciled",
+      reconciliationStatus: "matched",
+      fillCount: 1,
+      detail: "1 paper orders / 1 fills",
+    },
+    brokerSnapshot: {
+      snapshotId: "broker-snapshot-docs-1",
+      status: "matched",
+      reconciliationStatus: "matched",
+      asOf: "2026-05-22T09:00:00.000Z",
+      detail: "manual snapshot / matched",
+    },
+    brokerFill: {
+      fillId: "broker-fill-docs-1",
+      status: "matched",
+      reconciliationStatus: "matched",
+      paperOrderPlanId: "paper-plan-docs-1",
+      paperFillId: "paper-order:proposal-docs-1:0:fill:0",
+      checkedAt: "2026-05-22T09:00:00.000Z",
+      detail: "005930 BUY / matched",
+    },
+    nextSafeAction: "Continue monitoring; live trading remains disabled.",
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+  },
   readiness: [
     {
       key: "budgetEnvelopeActive",
@@ -144,7 +181,7 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
   blockers: [
     "No verified Toss read-only adapter schema or credentials",
     "No production signed order-plan workflow",
-    "No automatic broker polling loop",
+    "No production-verified broker polling loop",
     "No production kill switch runtime",
   ],
 };

@@ -53,6 +53,7 @@ import {
   BaselineMarketDataset,
   buildBaselineResearchRunRequest,
 } from './baseline-research-runner';
+import { buildControlPlaneActionStatus } from './control-plane-status.presenter';
 import {
   AdvanceAutonomousRunRequest,
   ControlPlaneStatus,
@@ -164,12 +165,27 @@ export class ControlPlaneService {
     const brokerSnapshotCount = await this.brokerSnapshotRepository.count();
     const executionControlState = await this.getExecutionControlState();
     const runCount = await this.runRepository.count();
+    const [runs, paperPlans, brokerSnapshots, brokerFills] = await Promise.all([
+      this.runRepository.find(),
+      this.paperOrderPlanRepository.find(),
+      this.brokerSnapshotRepository.find(),
+      this.brokerFillRepository.find(),
+    ]);
     const liveTradingGate = this.buildLiveTradingGateStatus();
+    const actionStatus = buildControlPlaneActionStatus({
+      checkedAt: new Date().toISOString(),
+      executionControlState,
+      runs,
+      paperPlans,
+      brokerSnapshots,
+      brokerFills,
+    });
 
     return {
       brokerExecutionEnabled: false,
       liveTradingReady: false,
       liveTradingGate,
+      actionStatus,
       readiness: [
         {
           key: 'budgetEnvelopeActive',
@@ -211,7 +227,7 @@ export class ControlPlaneService {
         {
           key: 'paperExecutionReady',
           ready: false,
-          detail: `Paper simulator ledger registered with ${paperOrderPlanCount} paper order plans; broker-grade readiness is blocked by production signing custody, automatic broker polling, and kill switch runtime`,
+          detail: `Paper simulator ledger registered with ${paperOrderPlanCount} paper order plans; broker-grade readiness is blocked by production signing custody, production-verified broker polling, and kill switch runtime`,
         },
         {
           key: 'paperSimulationLedgerReady',
@@ -270,7 +286,7 @@ export class ControlPlaneService {
       blockers: [
         'No verified Toss read-only adapter schema or credentials',
         'No production signed order-plan workflow',
-        'No automatic broker polling loop',
+        'No production-verified broker polling loop',
         'No production kill switch runtime',
         ...liveTradingGate.blockers,
       ],

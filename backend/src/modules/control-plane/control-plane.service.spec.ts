@@ -1713,6 +1713,15 @@ describe('ControlPlaneService', () => {
 
     expect(status.brokerExecutionEnabled).toBe(false);
     expect(status.liveTradingReady).toBe(false);
+    expect(status.actionStatus).toEqual(
+      expect.objectContaining({
+        verdict: 'attention',
+        nextSafeAction:
+          'Create or tick an autonomous run against an active budget envelope.',
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
     expect(status.liveTradingGate).toEqual(
       expect.objectContaining({
         enabled: false,
@@ -1729,6 +1738,9 @@ describe('ControlPlaneService', () => {
     );
     expect(status.blockers).toContain(
       'No verified Toss read-only adapter schema or credentials',
+    );
+    expect(status.blockers).toContain(
+      'No production-verified broker polling loop',
     );
     expect(status.readiness).toEqual(
       expect.arrayContaining([
@@ -1769,6 +1781,67 @@ describe('ControlPlaneService', () => {
           ready: false,
         }),
       ]),
+    );
+  });
+
+  it('promotes broker fill mismatches to the action status blocker', async () => {
+    brokerFills.push({
+      id: 1,
+      provider: 'manual',
+      brokerFillRefHash: 'sha256:mismatch-fill',
+      status: 'mismatch',
+      symbol: '005930',
+      side: 'BUY',
+      quantity: 1,
+      fillPrice: 100_000,
+      grossNotional: 100_000,
+      fee: 10,
+      feeCurrency: 'KRW',
+      currency: 'KRW',
+      filledAt: new Date('2026-05-22T09:00:00.000Z'),
+      asOf: new Date('2026-05-22T09:00:00.000Z'),
+      reconciliation: {
+        status: 'mismatch',
+        checkedAt: '2026-05-22T09:01:00.000Z',
+        symbolMatched: true,
+        sideMatched: true,
+        quantityMatched: false,
+        notionalMatched: false,
+        feeMatched: true,
+        brokerQuantity: 1,
+        brokerGrossNotional: 100_000,
+        brokerFee: 10,
+        expectedQuantity: 2,
+        expectedGrossNotional: 200_000,
+        expectedFee: 10,
+        quantityDiff: -1,
+        notionalDiff: -100_000,
+        feeDiff: 0,
+        tolerance: 1,
+        notes: ['Broker fill mismatched paper fill evidence.'],
+      },
+      brokerExecutionEnabled: false,
+      liveTradingEnabled: false,
+      createdAt: new Date('2026-05-22T09:01:00.000Z'),
+      updatedAt: new Date('2026-05-22T09:01:00.000Z'),
+    } as BrokerFill);
+
+    const status = await service.getStatus();
+
+    expect(status.actionStatus).toEqual(
+      expect.objectContaining({
+        verdict: 'blocked',
+        blocker: 'Latest broker fill mismatches the paper fill evidence',
+        nextSafeAction:
+          'Pause advancement and resolve the blocker before any further execution.',
+      }),
+    );
+    expect(status.actionStatus.brokerFill).toEqual(
+      expect.objectContaining({
+        fillId: 1,
+        status: 'mismatch',
+        reconciliationStatus: 'mismatch',
+      }),
     );
   });
 

@@ -1,4 +1,5 @@
 import { AutonomousRunLedger } from "./control-plane-dashboard/AutonomousRunLedger";
+import { AutonomousActionStatusPanel } from "./control-plane-dashboard/AutonomousActionStatusPanel";
 import { BrokerSnapshotPanel } from "./control-plane-dashboard/BrokerSnapshotPanel";
 import { DashboardHeader } from "./control-plane-dashboard/DashboardHeader";
 import { PaperExecutionPanel } from "./control-plane-dashboard/PaperExecutionPanel";
@@ -15,6 +16,7 @@ const ControlPlaneDashboard = () => {
     <div className="min-h-screen w-full bg-[#0b0e11] px-4 py-4 text-[#eaecef] sm:px-5 lg:px-6">
       <div className="mx-auto max-w-[1440px] space-y-4">
         <DashboardHeader model={model} />
+        <AutonomousActionStatusPanel model={model} />
         <WorkflowActionRail model={model} />
         <AutonomousRunLedger model={model} />
         <section className="grid gap-4 xl:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)_minmax(0,0.72fr)]">

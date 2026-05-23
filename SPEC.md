@@ -439,7 +439,8 @@ Current status:
 - durable paper account state now carries simulated cash, equity, exposure, positions, and applied plan ids across paper cycles;
 - minimal execution-control state and halted/paused/reducing gate exists;
 - control-plane status now exposes an explicit disabled live-trading gate with blockers for order endpoints, broker write access, credential custody, kill switch, fill polling, and reconciliation;
-- frontend dashboard shows paper account state, execution-control state, latest paper plans, fills, reconciliation notes, hashes, and broker/live disabled guardrails;
+- control-plane status now exposes a top-level action summary that ties latest autonomous run, paper evidence, broker snapshot/fill evidence, current blocker, and next safe action together;
+- frontend dashboard shows paper account state, execution-control state, latest paper plans, fills, reconciliation notes, hashes, the top-level action summary, and broker/live disabled guardrails;
 - still missing production signing custody, fully transaction-isolated accounting service, database-level account balance locks, and scheduled broker-backed reconciliation.
 
 ### Phase 4: Broker Read-Only
@@ -460,7 +461,7 @@ Current status:
 - disabled-by-default Toss read-only poll workers exist and only allowlist token, account, holdings, and an operator-configured GET fill path before importing mapped snapshots/fills through the same broker ledgers;
 - imported Toss read-only snapshots attempt automatic reconciliation against the active paper account and report the latest reconciliation status on the adapter poll status;
 - read-only broker fill evidence can now be manually imported or polled through the configured read-only fill path into `broker_fills` and matched against paper fills;
-- frontend dashboard shows latest broker snapshot status, broker fill evidence, fill-poll readiness, paper-fill match details, Toss readiness gates, and reconciliation notes;
+- frontend dashboard shows latest broker snapshot status, broker fill evidence, fill-poll readiness, paper-fill match details, Toss readiness gates, reconciliation notes, and top-level broker truth in the action summary;
 - still missing verified Toss schema responses, production credential custody, provider-specific rate-limit/error handling, order custody, and broker write controls.
 
 Exit criteria:

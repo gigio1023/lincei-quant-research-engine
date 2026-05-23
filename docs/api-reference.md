@@ -185,6 +185,7 @@ all broker/live execution flags remain `false`.
   - `brokerExecutionEnabled` is always `false`;
   - `liveTradingReady` is always `false`;
   - `liveTradingGate.mode` is `disabled`;
+  - `actionStatus` summarizes the latest autonomous run, paper evidence, broker snapshot evidence, broker fill evidence, current blocker, and next safe action for the one-page dashboard;
   - `liveTradingGate.blockers` lists the missing production controls that must be cleared before any real-money order path can be considered.
 
 #### `POST /control-plane/budgets`

@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import ControlPlaneDashboard from "./ControlPlaneDashboard";
 import { riskGateApi } from "../services/api";
@@ -70,6 +76,43 @@ const mockControlPlaneStatus = {
     credentialCustodyRequired: true,
     blockers: ["Live order endpoint is not implemented"],
     detail: "Live trading gate is disabled.",
+  },
+  actionStatus: {
+    checkedAt: "2026-05-22T09:08:00.000Z",
+    verdict: "ready",
+    latestAction: {
+      stage: "broker_fill",
+      status: "matched",
+      id: "broker-fill-api-1",
+      detail: "Broker fill matched paper fill evidence.",
+      updatedAt: "2026-05-22T09:08:00.000Z",
+    },
+    paper: {
+      planId: "paper-plan-api-1",
+      status: "reconciled",
+      reconciliationStatus: "matched",
+      fillCount: 1,
+      detail: "1 paper orders / 1 fills",
+    },
+    brokerSnapshot: {
+      snapshotId: "broker-snapshot-api-1",
+      status: "matched",
+      reconciliationStatus: "matched",
+      asOf: "2026-05-22T09:07:00.000Z",
+      detail: "manual snapshot / matched",
+    },
+    brokerFill: {
+      fillId: "broker-fill-api-1",
+      status: "matched",
+      reconciliationStatus: "matched",
+      paperOrderPlanId: "paper-plan-api-1",
+      paperFillId: "paper-order:proposal-api-1:0:fill:0",
+      checkedAt: "2026-05-22T09:08:00.000Z",
+      detail: "005930 BUY / matched",
+    },
+    nextSafeAction: "Continue monitoring; live trading remains disabled.",
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
   },
   readiness: [
     {
@@ -955,6 +998,37 @@ describe("ControlPlaneDashboard", () => {
     await waitFor(() => {
       expect(screen.getByText("Live API status")).toBeInTheDocument();
     });
+    const actionStatus = within(
+      screen.getByRole("region", { name: "Action Status" }),
+    );
+    expect(actionStatus.getByText("Latest system action")).toBeInTheDocument();
+    expect(actionStatus.getByText("broker_fill / matched")).toBeInTheDocument();
+    expect(
+      actionStatus.getByText("Broker fill matched paper fill evidence."),
+    ).toBeInTheDocument();
+    expect(actionStatus.getByText("Paper evidence")).toBeInTheDocument();
+    expect(
+      actionStatus.getByText("plan paper-plan-api-1 / matched"),
+    ).toBeInTheDocument();
+    expect(actionStatus.getByText("Broker truth")).toBeInTheDocument();
+    expect(
+      actionStatus.getByText("snapshot broker-snapshot-api-1 / matched"),
+    ).toBeInTheDocument();
+    expect(actionStatus.getByText("Broker fill")).toBeInTheDocument();
+    expect(
+      actionStatus.getByText("fill broker-fill-api-1 / matched"),
+    ).toBeInTheDocument();
+    expect(actionStatus.getByText("Current blocker")).toBeInTheDocument();
+    expect(
+      actionStatus.getByText("No immediate action blocker detected"),
+    ).toBeInTheDocument();
+    expect(actionStatus.getByText("Next safe action")).toBeInTheDocument();
+    expect(
+      actionStatus.getByText(
+        "Continue monitoring; live trading remains disabled.",
+      ),
+    ).toBeInTheDocument();
+    expect(actionStatus.queryByRole("button")).not.toBeInTheDocument();
     expect(screen.getByText("Autonomous Action Chain")).toBeInTheDocument();
     expect(screen.getByText("Live budgets")).toBeInTheDocument();
     expect(screen.getByText("Live proposals")).toBeInTheDocument();

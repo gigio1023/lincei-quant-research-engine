@@ -378,6 +378,7 @@ export interface ControlPlaneStatus {
   brokerExecutionEnabled: false;
   liveTradingReady: false;
   liveTradingGate: LiveTradingGateStatus;
+  actionStatus: ControlPlaneActionStatus;
   readiness: Array<{
     key: string;
     ready: boolean;
@@ -396,4 +397,45 @@ export interface LiveTradingGateStatus {
   credentialCustodyRequired: true;
   blockers: string[];
   detail: string;
+}
+
+export type ControlPlaneActionVerdict = 'ready' | 'attention' | 'blocked';
+
+export interface ControlPlaneActionStatus {
+  checkedAt: string;
+  verdict: ControlPlaneActionVerdict;
+  latestAction: {
+    stage: string;
+    status: string;
+    id?: number;
+    detail: string;
+    updatedAt?: string;
+  };
+  paper: {
+    planId?: number;
+    status: string;
+    reconciliationStatus?: string;
+    fillCount: number;
+    detail: string;
+  };
+  brokerSnapshot: {
+    snapshotId?: number;
+    status: string;
+    reconciliationStatus?: string;
+    asOf?: string;
+    detail: string;
+  };
+  brokerFill: {
+    fillId?: number;
+    status: string;
+    reconciliationStatus?: string;
+    paperOrderPlanId?: number;
+    paperFillId?: string;
+    checkedAt?: string;
+    detail: string;
+  };
+  blocker?: string;
+  nextSafeAction: string;
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
 }
