@@ -1175,6 +1175,41 @@ describe("ControlPlaneDashboard", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("should_default_to_english_and_toggle_dashboard_copy_to_korean", async () => {
+    render(<ControlPlaneDashboard />);
+
+    expect(
+      screen.getByRole("heading", { name: "Control Plane Dashboard" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "EN" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await waitFor(() => {
+      expect(screen.getByText("Live API status")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "KR" }));
+
+    expect(
+      screen.getByRole("heading", { name: "컨트롤 플레인 대시보드" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("실거래 차단")).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "행동 상태" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "KR" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "EN" }));
+
+    expect(
+      screen.getByRole("heading", { name: "Control Plane Dashboard" }),
+    ).toBeInTheDocument();
+  });
+
   it("should_show_documented_fallback_when_status_api_fails", async () => {
     vi.mocked(riskGateApi.getStatus).mockRejectedValue(new Error("offline"));
     vi.mocked(controlPlaneApi.getStatus).mockRejectedValue(

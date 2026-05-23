@@ -5,6 +5,7 @@ import {
   formatSignedCurrency,
   paperOrderPlanStatusClass,
 } from "./dashboardFormat";
+import { useDashboardLanguage } from "./dashboardLanguage";
 import { DashboardModel } from "./useControlPlaneDashboard";
 
 interface PaperAccountStateProps {
@@ -12,14 +13,17 @@ interface PaperAccountStateProps {
 }
 
 export const PaperAccountState = ({ model }: PaperAccountStateProps) => {
+  const { t } = useDashboardLanguage();
   const account = model.visiblePaperAccount;
 
   return (
     <div className="border-b border-[#2b3139] p-4 xl:border-b-0 xl:border-r">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h4 className="text-sm font-bold text-white">Paper Account State</h4>
+        <h4 className="text-sm font-bold text-white">
+          {t("Paper Account State")}
+        </h4>
         <span className="rounded-md border border-[#2b3139] px-2 py-1 text-[11px] font-bold uppercase text-[#929aa5]">
-          {model.sources.paperAccount}
+          {t(model.sources.paperAccount)}
         </span>
       </div>
 
@@ -40,8 +44,10 @@ export const PaperAccountState = ({ model }: PaperAccountStateProps) => {
         <div className="space-y-3">
           <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-4 text-sm font-semibold text-[#929aa5]">
             {model.loading.paperAccount
-              ? "Paper account state is loading."
-              : "No promoted paper account is active yet. Seed and promote a paper account before paper execution."}
+              ? t("Paper account state is loading.")
+              : t(
+                  "No promoted paper account is active yet. Seed and promote a paper account before paper execution.",
+                )}
           </div>
           <AccountEventChain model={model} />
         </div>
@@ -58,6 +64,7 @@ export const PaperAccountState = ({ model }: PaperAccountStateProps) => {
 };
 
 const RecoveryProposalAction = ({ model }: PaperAccountStateProps) => {
+  const { t } = useDashboardLanguage();
   const account = model.visiblePaperAccount;
   const hasLongPosition = Boolean(
     account?.positions.some((position) => position.marketValue > 0),
@@ -73,10 +80,12 @@ const RecoveryProposalAction = ({ model }: PaperAccountStateProps) => {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-xs font-bold uppercase text-[#707a8a]">
-            Recovery proposal
+            {t("Recovery proposal")}
           </div>
           <div className="mt-1 text-sm font-semibold text-[#eaecef]">
-            Generate a SELL-only recovery proposal from active paper positions.
+            {t(
+              "Generate a SELL-only recovery proposal from active paper positions.",
+            )}
           </div>
         </div>
         <button
@@ -86,8 +95,8 @@ const RecoveryProposalAction = ({ model }: PaperAccountStateProps) => {
           disabled={disabled}
         >
           {model.runningRecoveryProposal
-            ? "Creating..."
-            : "Create sell-only recovery"}
+            ? t("Creating...")
+            : t("Create sell-only recovery")}
         </button>
       </div>
       {model.recoveryProposalSuccess && (
@@ -102,7 +111,7 @@ const RecoveryProposalAction = ({ model }: PaperAccountStateProps) => {
       )}
       {!hasLongPosition && account && (
         <div className="mt-2 text-xs font-semibold text-[#707a8a]">
-          No long paper positions are available for a recovery proposal.
+          {t("No long paper positions are available for a recovery proposal.")}
         </div>
       )}
     </div>
@@ -110,6 +119,7 @@ const RecoveryProposalAction = ({ model }: PaperAccountStateProps) => {
 };
 
 const AccountStats = ({ model }: PaperAccountStateProps) => {
+  const { t } = useDashboardLanguage();
   const account = model.visiblePaperAccount;
   if (!account) {
     return null;
@@ -128,7 +138,7 @@ const AccountStats = ({ model }: PaperAccountStateProps) => {
           className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3"
         >
           <div className="text-[11px] font-semibold uppercase text-[#707a8a]">
-            {label}
+            {t(label)}
           </div>
           <div className="mt-2 font-mono text-base font-bold text-white">
             {value}
@@ -139,41 +149,46 @@ const AccountStats = ({ model }: PaperAccountStateProps) => {
   );
 };
 
-const ExecutionControl = ({ model }: PaperAccountStateProps) => (
-  <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
-    <div className="flex items-center justify-between gap-3">
-      <div className="text-xs font-bold uppercase text-[#707a8a]">
-        Execution control
+const ExecutionControl = ({ model }: PaperAccountStateProps) => {
+  const { t } = useDashboardLanguage();
+
+  return (
+    <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-xs font-bold uppercase text-[#707a8a]">
+          {t("Execution control")}
+        </div>
+        <span
+          className={`${paperOrderPlanStatusClass(
+            model.visibleExecutionControl.state,
+          )} rounded-md border px-2 py-1 text-[11px] font-bold uppercase`}
+        >
+          {t(model.visibleExecutionControl.state)}
+        </span>
       </div>
-      <span
-        className={`${paperOrderPlanStatusClass(
-          model.visibleExecutionControl.state,
-        )} rounded-md border px-2 py-1 text-[11px] font-bold uppercase`}
-      >
-        {model.visibleExecutionControl.state}
-      </span>
+      <p className="mt-2 text-xs font-semibold leading-5 text-[#eaecef]">
+        {t(model.visibleExecutionControl.reason)}
+      </p>
+      <div className="mt-2 text-xs text-[#707a8a]">
+        {model.visibleExecutionControl.actor} /{" "}
+        {formatDateTime(model.visibleExecutionControl.createdAt)}
+      </div>
     </div>
-    <p className="mt-2 text-xs font-semibold leading-5 text-[#eaecef]">
-      {model.visibleExecutionControl.reason}
-    </p>
-    <div className="mt-2 text-xs text-[#707a8a]">
-      {model.visibleExecutionControl.actor} /{" "}
-      {formatDateTime(model.visibleExecutionControl.createdAt)}
-    </div>
-  </div>
-);
+  );
+};
 
 const Positions = ({ model }: PaperAccountStateProps) => {
+  const { t } = useDashboardLanguage();
   const positions = model.visiblePaperAccount?.positions ?? [];
 
   return (
     <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
       <div className="mb-2 text-xs font-bold uppercase text-[#707a8a]">
-        Positions
+        {t("Positions")}
       </div>
       {positions.length === 0 ? (
         <div className="text-sm font-semibold text-[#929aa5]">
-          No paper positions recorded.
+          {t("No paper positions recorded.")}
         </div>
       ) : (
         <div className="divide-y divide-[#2b3139]">
@@ -195,15 +210,16 @@ const Positions = ({ model }: PaperAccountStateProps) => {
                 {position.assetClass}
               </span>
               <span className="col-span-3 font-mono text-xs text-[#929aa5]">
-                qty {position.quantity?.toLocaleString() ?? "n/a"} / avg{" "}
+                {t("qty")} {position.quantity?.toLocaleString() ?? "n/a"} /{" "}
+                {t("avg")}{" "}
                 {position.averagePrice === undefined
                   ? "n/a"
                   : formatCurrency(position.averagePrice)}{" "}
-                / cost{" "}
+                / {t("cost")}{" "}
                 {position.costBasis === undefined
                   ? "n/a"
                   : formatCurrency(position.costBasis)}{" "}
-                / realized{" "}
+                / {t("realized")}{" "}
                 {position.realizedPnl === undefined
                   ? "n/a"
                   : formatSignedCurrency(position.realizedPnl)}
@@ -216,108 +232,120 @@ const Positions = ({ model }: PaperAccountStateProps) => {
   );
 };
 
-const LedgerSummary = ({ model }: PaperAccountStateProps) => (
-  <div className="grid gap-3 sm:grid-cols-2">
-    <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
-      <div className="text-xs font-bold uppercase text-[#707a8a]">
-        Last reconciliation
-      </div>
-      <div className="mt-2 text-sm font-semibold text-[#eaecef]">
-        {model.visiblePaperAccount?.lastReconciledAt
-          ? formatDateTime(model.visiblePaperAccount.lastReconciledAt)
-          : "Not reconciled"}
-      </div>
-      <div className="mt-1 text-xs text-[#707a8a]">
-        Latest plan:{" "}
-        {model.latestReconciledPlan
-          ? `${model.latestReconciledPlan.id} / ${model.latestReconciledPlan.reconciliation.status}`
-          : "No reconciled plan"}
-      </div>
-    </div>
+const LedgerSummary = ({ model }: PaperAccountStateProps) => {
+  const { t } = useDashboardLanguage();
 
-    <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
-      <AccountEventChain model={model} compact />
-      <div className="mt-3 text-xs font-bold uppercase text-[#707a8a]">
-        Recent ledger changes
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
+        <div className="text-xs font-bold uppercase text-[#707a8a]">
+          {t("Last reconciliation")}
+        </div>
+        <div className="mt-2 text-sm font-semibold text-[#eaecef]">
+          {model.visiblePaperAccount?.lastReconciledAt
+            ? formatDateTime(model.visiblePaperAccount.lastReconciledAt)
+            : t("Not reconciled")}
+        </div>
+        <div className="mt-1 text-xs text-[#707a8a]">
+          {t("Latest plan")}:{" "}
+          {model.latestReconciledPlan
+            ? `${model.latestReconciledPlan.id} / ${t(
+                model.latestReconciledPlan.reconciliation.status,
+              )}`
+            : t("No reconciled plan")}
+        </div>
       </div>
-      {model.recentPaperLedgerChanges.length === 0 ? (
-        <div className="mt-2 text-sm font-semibold text-[#929aa5]">
-          No paper ledger changes recorded.
+
+      <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
+        <AccountEventChain model={model} compact />
+        <div className="mt-3 text-xs font-bold uppercase text-[#707a8a]">
+          {t("Recent ledger changes")}
         </div>
-      ) : (
-        <div className="mt-2 space-y-2">
-          {model.recentPaperLedgerChanges.slice(0, 4).map((entry) => (
-            <div
-              key={`paper-ledger-${entry.id}`}
-              className="grid grid-cols-[0.5fr_0.8fr_1fr] gap-2 text-xs"
-            >
-              <span className="uppercase text-[#707a8a]">{entry.kind}</span>
-              <span
-                className={
-                  entry.kind === "cash"
-                    ? entry.amount < 0
-                      ? "font-mono text-[#f6465d]"
-                      : "font-mono text-[#0ecb81]"
-                    : entry.notionalDelta < 0
-                      ? "font-mono text-[#f6465d]"
-                      : "font-mono text-[#0ecb81]"
-                }
+        {model.recentPaperLedgerChanges.length === 0 ? (
+          <div className="mt-2 text-sm font-semibold text-[#929aa5]">
+            {t("No paper ledger changes recorded.")}
+          </div>
+        ) : (
+          <div className="mt-2 space-y-2">
+            {model.recentPaperLedgerChanges.slice(0, 4).map((entry) => (
+              <div
+                key={`paper-ledger-${entry.id}`}
+                className="grid grid-cols-[0.5fr_0.8fr_1fr] gap-2 text-xs"
               >
-                {entry.kind === "cash"
-                  ? formatSignedCurrency(entry.amount)
-                  : formatSignedCurrency(entry.notionalDelta)}
-              </span>
-              <span className="truncate text-[#929aa5]">
-                {entry.kind === "cash"
-                  ? entry.reason
-                  : `${entry.symbol} position`}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+                <span className="uppercase text-[#707a8a]">
+                  {t(entry.kind)}
+                </span>
+                <span
+                  className={
+                    entry.kind === "cash"
+                      ? entry.amount < 0
+                        ? "font-mono text-[#f6465d]"
+                        : "font-mono text-[#0ecb81]"
+                      : entry.notionalDelta < 0
+                        ? "font-mono text-[#f6465d]"
+                        : "font-mono text-[#0ecb81]"
+                  }
+                >
+                  {entry.kind === "cash"
+                    ? formatSignedCurrency(entry.amount)
+                    : formatSignedCurrency(entry.notionalDelta)}
+                </span>
+                <span className="truncate text-[#929aa5]">
+                  {entry.kind === "cash"
+                    ? entry.reason
+                    : `${entry.symbol} ${t("position")}`}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const AccountEventChain = ({
   model,
   compact = false,
-}: PaperAccountStateProps & { compact?: boolean }) => (
-  <div
-    className={
-      compact ? "" : "rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3"
-    }
-  >
-    <div className="flex items-center justify-between gap-3">
-      <div className="text-xs font-bold uppercase text-[#707a8a]">
-        Account event chain
+}: PaperAccountStateProps & { compact?: boolean }) => {
+  const { t } = useDashboardLanguage();
+
+  return (
+    <div
+      className={
+        compact ? "" : "rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3"
+      }
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-xs font-bold uppercase text-[#707a8a]">
+          {t("Account event chain")}
+        </div>
+        <span className="rounded-md border border-[#2b3139] px-2 py-1 text-[10px] font-bold uppercase text-[#929aa5]">
+          {t(model.sources.paperAccountEvents)}
+        </span>
       </div>
-      <span className="rounded-md border border-[#2b3139] px-2 py-1 text-[10px] font-bold uppercase text-[#929aa5]">
-        {model.sources.paperAccountEvents}
-      </span>
+      {model.visiblePaperAccountEvents.length > 0 ? (
+        <div className="mt-2 rounded-md border border-[#2b3139] bg-[#151a21] p-2 text-xs">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-mono font-bold text-white">
+              {model.visiblePaperAccountEvents[0].eventType}
+            </span>
+            <span className="font-mono text-[#fcd535]">
+              #{model.visiblePaperAccountEvents[0].sequence}
+            </span>
+          </div>
+          <div className="mt-1 truncate text-[#929aa5]">
+            {t(model.visiblePaperAccountEvents[0].reason)}
+          </div>
+          <div className="mt-1 truncate font-mono text-[#707a8a]">
+            {model.visiblePaperAccountEvents[0].eventHash}
+          </div>
+        </div>
+      ) : (
+        <div className="mt-2 text-sm font-semibold text-[#929aa5]">
+          {t("No paper account events recorded.")}
+        </div>
+      )}
     </div>
-    {model.visiblePaperAccountEvents.length > 0 ? (
-      <div className="mt-2 rounded-md border border-[#2b3139] bg-[#151a21] p-2 text-xs">
-        <div className="flex items-center justify-between gap-3">
-          <span className="font-mono font-bold text-white">
-            {model.visiblePaperAccountEvents[0].eventType}
-          </span>
-          <span className="font-mono text-[#fcd535]">
-            #{model.visiblePaperAccountEvents[0].sequence}
-          </span>
-        </div>
-        <div className="mt-1 truncate text-[#929aa5]">
-          {model.visiblePaperAccountEvents[0].reason}
-        </div>
-        <div className="mt-1 truncate font-mono text-[#707a8a]">
-          {model.visiblePaperAccountEvents[0].eventHash}
-        </div>
-      </div>
-    ) : (
-      <div className="mt-2 text-sm font-semibold text-[#929aa5]">
-        No paper account events recorded.
-      </div>
-    )}
-  </div>
-);
+  );
+};

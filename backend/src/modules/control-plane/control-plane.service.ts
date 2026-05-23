@@ -2,10 +2,18 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { createHash } from 'crypto';
-import { FindOptionsWhere, IsNull, LessThanOrEqual, Repository } from 'typeorm';
+import {
+  DataSource,
+  EntityManager,
+  FindOptionsWhere,
+  IsNull,
+  LessThanOrEqual,
+  Repository,
+} from 'typeorm';
 import { AutonomousRun } from '../../entities/autonomous-run.entity';
 import { AutonomousRunSchedule } from '../../entities/autonomous-run-schedule.entity';
 import {
@@ -103,6 +111,15 @@ interface PaperOpenReservation {
   sellNotionalBySymbol: Record<string, number>;
 }
 
+interface PaperApplyRepositories {
+  paperAccountRepository: Repository<PaperAccount>;
+  paperAccountEventRepository: Repository<PaperAccountEvent>;
+  paperOrderPlanRepository: Repository<PaperOrderPlan>;
+  paperReservationHoldRepository: Repository<PaperReservationHoldRecord>;
+  orderPlanApprovalRepository: Repository<OrderPlanApproval>;
+  proposalRepository: Repository<InvestmentProposal>;
+}
+
 @Injectable()
 export class ControlPlaneService {
   private readonly disallowedModelCategories = new Set([
@@ -143,6 +160,9 @@ export class ControlPlaneService {
     @InjectRepository(AutonomousRunSchedule)
     private readonly runScheduleRepository: Repository<AutonomousRunSchedule>,
     private readonly riskGateService: RiskGateService,
+    @Optional()
+    @InjectDataSource()
+    private readonly dataSource?: DataSource,
   ) {}
 
   async getStatus(): Promise<ControlPlaneStatus> {
@@ -802,18 +822,20 @@ export class ControlPlaneService {
     );
 
     await this.appendPaperAccountEvent({
-      paperAccount,
-      eventType: 'explicit_seed',
-      idempotencyKey,
-      actor: request.actor,
-      reason: request.reason,
-      requestHash,
-      cashBefore: 0,
-      cashAfter: paperAccount.cash,
-      equityBefore: 0,
-      equityAfter: paperAccount.equity,
-      positionsBefore: [],
-      positionsAfter: paperAccount.positions,
+      input: {
+        paperAccount,
+        eventType: 'explicit_seed',
+        idempotencyKey,
+        actor: request.actor,
+        reason: request.reason,
+        requestHash,
+        cashBefore: 0,
+        cashAfter: paperAccount.cash,
+        equityBefore: 0,
+        equityAfter: paperAccount.equity,
+        positionsBefore: [],
+        positionsAfter: paperAccount.positions,
+      },
     });
 
     return paperAccount;
@@ -896,18 +918,20 @@ export class ControlPlaneService {
     paperAccount.status = 'active';
     const saved = await this.paperAccountRepository.save(paperAccount);
     await this.appendPaperAccountEvent({
-      paperAccount: saved,
-      eventType: 'account_promoted',
-      idempotencyKey,
-      actor: request.actor,
-      reason: request.reason,
-      requestHash,
-      cashBefore: saved.cash,
-      cashAfter: saved.cash,
-      equityBefore: saved.equity,
-      equityAfter: saved.equity,
-      positionsBefore: saved.positions,
-      positionsAfter: saved.positions,
+      input: {
+        paperAccount: saved,
+        eventType: 'account_promoted',
+        idempotencyKey,
+        actor: request.actor,
+        reason: request.reason,
+        requestHash,
+        cashBefore: saved.cash,
+        cashAfter: saved.cash,
+        equityBefore: saved.equity,
+        equityAfter: saved.equity,
+        positionsBefore: saved.positions,
+        positionsAfter: saved.positions,
+      },
     });
 
     return saved;
@@ -1676,44 +1700,13 @@ export class ControlPlaneService {
     const saved = await this.paperOrderPlanRepository.save(paperOrderPlan);
 
     if (blockedReasons.length === 0 && paperAccount) {
-      const preApplyBlockedReason =
-        await this.getPaperAccountPreApplyBlockedReason(saved, paperAccount);
-
-      if (preApplyBlockedReason) {
-        this.blockPaperOrderPlanBeforeApply(
-          saved,
-          submittedAt,
-          preApplyBlockedReason,
-        );
-        if (saved.reservationHold) {
-          await this.releasePaperReservationHoldRecord(
-            saved.reservationHold.holdId,
-            saved,
-            submittedAt,
-            preApplyBlockedReason,
-          );
-        }
-        return this.paperOrderPlanRepository.save(saved);
-      }
-
-      this.consumePaperReservationHold(saved, submittedAt);
-      if (saved.reservationHold) {
-        await this.consumePaperReservationHoldRecord(
-          saved.reservationHold.holdId,
-          saved,
-          submittedAt,
-        );
-      }
-      await this.paperOrderPlanRepository.save(saved);
-      await this.applyPaperPlanToAccount(saved, paperAccount);
-      if (orderPlanApproval) {
-        orderPlanApproval.status = 'consumed';
-        orderPlanApproval.consumedAt = submittedAt;
-        orderPlanApproval.consumedByPaperOrderPlanId = saved.id;
-        await this.orderPlanApprovalRepository.save(orderPlanApproval);
-      }
-      proposal.status = 'paper_ready';
-      await this.proposalRepository.save(proposal);
+      return this.finalizePaperOrderPlan({
+        plan: saved,
+        paperAccount,
+        orderPlanApproval,
+        proposal,
+        submittedAt,
+      });
     }
 
     return saved;
@@ -1723,9 +1716,157 @@ export class ControlPlaneService {
     return this.paperOrderPlanRepository.find({ order: { updatedAt: 'DESC' } });
   }
 
+  private getPaperApplyRepositories(
+    manager?: EntityManager,
+  ): PaperApplyRepositories {
+    return {
+      paperAccountRepository: manager
+        ? manager.getRepository(PaperAccount)
+        : this.paperAccountRepository,
+      paperAccountEventRepository: manager
+        ? manager.getRepository(PaperAccountEvent)
+        : this.paperAccountEventRepository,
+      paperOrderPlanRepository: manager
+        ? manager.getRepository(PaperOrderPlan)
+        : this.paperOrderPlanRepository,
+      paperReservationHoldRepository: manager
+        ? manager.getRepository(PaperReservationHoldRecord)
+        : this.paperReservationHoldRepository,
+      orderPlanApprovalRepository: manager
+        ? manager.getRepository(OrderPlanApproval)
+        : this.orderPlanApprovalRepository,
+      proposalRepository: manager
+        ? manager.getRepository(InvestmentProposal)
+        : this.proposalRepository,
+    };
+  }
+
+  private async finalizePaperOrderPlan(input: {
+    plan: PaperOrderPlan;
+    paperAccount: PaperAccount;
+    orderPlanApproval: OrderPlanApproval | null;
+    proposal: InvestmentProposal;
+    submittedAt: Date;
+  }): Promise<PaperOrderPlan> {
+    const run = (manager?: EntityManager) =>
+      this.finalizePaperOrderPlanWithRepositories({
+        ...input,
+        repositories: this.getPaperApplyRepositories(manager),
+      });
+
+    if (!this.dataSource) {
+      return run();
+    }
+
+    try {
+      return await this.dataSource.transaction((manager) => run(manager));
+    } catch (error) {
+      return this.blockPaperOrderPlanAfterApplyFailure(
+        input.plan,
+        input.submittedAt,
+        error,
+      );
+    }
+  }
+
+  private async finalizePaperOrderPlanWithRepositories(input: {
+    plan: PaperOrderPlan;
+    paperAccount: PaperAccount;
+    orderPlanApproval: OrderPlanApproval | null;
+    proposal: InvestmentProposal;
+    submittedAt: Date;
+    repositories: PaperApplyRepositories;
+  }): Promise<PaperOrderPlan> {
+    const {
+      plan,
+      paperAccount,
+      orderPlanApproval,
+      proposal,
+      submittedAt,
+      repositories,
+    } = input;
+    const accountForApply =
+      (await repositories.paperAccountRepository.findOne({
+        where: { id: paperAccount.id },
+      })) ?? paperAccount;
+    const preApplyBlockedReason =
+      await this.getPaperAccountPreApplyBlockedReason(
+        plan,
+        accountForApply,
+        repositories.paperAccountEventRepository,
+      );
+
+    if (preApplyBlockedReason) {
+      this.blockPaperOrderPlanBeforeApply(
+        plan,
+        submittedAt,
+        preApplyBlockedReason,
+      );
+      if (plan.reservationHold) {
+        await this.releasePaperReservationHoldRecord(
+          plan.reservationHold.holdId,
+          plan,
+          submittedAt,
+          preApplyBlockedReason,
+          repositories.paperReservationHoldRepository,
+        );
+      }
+      return repositories.paperOrderPlanRepository.save(plan);
+    }
+
+    this.consumePaperReservationHold(plan, submittedAt);
+    if (plan.reservationHold) {
+      await this.consumePaperReservationHoldRecord(
+        plan.reservationHold.holdId,
+        plan,
+        submittedAt,
+        repositories.paperReservationHoldRepository,
+      );
+    }
+    const savedPlan = await repositories.paperOrderPlanRepository.save(plan);
+    await this.applyPaperPlanToAccount(
+      savedPlan,
+      accountForApply,
+      repositories,
+    );
+    if (orderPlanApproval) {
+      orderPlanApproval.status = 'consumed';
+      orderPlanApproval.consumedAt = submittedAt;
+      orderPlanApproval.consumedByPaperOrderPlanId = savedPlan.id;
+      await repositories.orderPlanApprovalRepository.save(orderPlanApproval);
+    }
+    proposal.status = 'paper_ready';
+    await repositories.proposalRepository.save(proposal);
+
+    return savedPlan;
+  }
+
+  private async blockPaperOrderPlanAfterApplyFailure(
+    plan: PaperOrderPlan,
+    blockedAt: Date,
+    error: unknown,
+  ): Promise<PaperOrderPlan> {
+    const reason = `Paper account apply transaction failed: ${
+      error instanceof Error ? error.message : 'unknown error'
+    }`;
+    this.blockPaperOrderPlanBeforeApply(plan, blockedAt, reason);
+    if (plan.reservationHold) {
+      await this.releasePaperReservationHoldRecord(
+        plan.reservationHold.holdId,
+        plan,
+        blockedAt,
+        reason,
+      );
+    }
+
+    return this.paperOrderPlanRepository.save(plan);
+  }
+
   private async getPaperAccountPreApplyBlockedReason(
     plan: PaperOrderPlan,
     paperAccount: PaperAccount,
+    paperAccountEventRepository: Repository<PaperAccountEvent> = this
+      .paperAccountEventRepository,
   ): Promise<string | null> {
     const expectedEventHash =
       plan.readinessSnapshot.currentPaperAccountEventHash;
@@ -1734,7 +1875,10 @@ export class ControlPlaneService {
       return 'Paper account apply requires current account event evidence';
     }
 
-    const latestEvent = await this.getLatestPaperAccountEvent(paperAccount.id);
+    const latestEvent = await this.getLatestPaperAccountEvent(
+      paperAccount.id,
+      paperAccountEventRepository,
+    );
 
     if (!latestEvent) {
       return 'Paper account apply requires latest account event evidence';
@@ -1887,8 +2031,10 @@ export class ControlPlaneService {
     holdId: string,
     plan: PaperOrderPlan,
     consumedAt: Date,
+    paperReservationHoldRepository: Repository<PaperReservationHoldRecord> = this
+      .paperReservationHoldRepository,
   ): Promise<void> {
-    const record = await this.paperReservationHoldRepository.findOne({
+    const record = await paperReservationHoldRepository.findOne({
       where: { holdId },
     });
 
@@ -1905,7 +2051,7 @@ export class ControlPlaneService {
       `Consumed by paper order plan ${plan.id}.`,
     ];
 
-    await this.paperReservationHoldRepository.save(record);
+    await paperReservationHoldRepository.save(record);
   }
 
   private async releasePaperReservationHoldRecord(
@@ -1913,8 +2059,10 @@ export class ControlPlaneService {
     plan: PaperOrderPlan,
     releasedAt: Date,
     reason: string,
+    paperReservationHoldRepository: Repository<PaperReservationHoldRecord> = this
+      .paperReservationHoldRepository,
   ): Promise<void> {
-    const record = await this.paperReservationHoldRepository.findOne({
+    const record = await paperReservationHoldRepository.findOne({
       where: { holdId },
     });
 
@@ -1928,7 +2076,7 @@ export class ControlPlaneService {
     record.holdSnapshot = plan.reservationHold ?? record.holdSnapshot;
     record.notes = [...record.notes, reason];
 
-    await this.paperReservationHoldRepository.save(record);
+    await paperReservationHoldRepository.save(record);
   }
 
   async getPaperOrderPlan(planId: number): Promise<PaperOrderPlan> {
@@ -2294,6 +2442,13 @@ export class ControlPlaneService {
   private async applyPaperPlanToAccount(
     plan: PaperOrderPlan,
     paperAccount: PaperAccount,
+    repositories: Pick<
+      PaperApplyRepositories,
+      'paperAccountRepository' | 'paperAccountEventRepository'
+    > = {
+      paperAccountRepository: this.paperAccountRepository,
+      paperAccountEventRepository: this.paperAccountEventRepository,
+    },
   ): Promise<PaperAccount> {
     if (paperAccount.appliedPlanIds.includes(plan.id)) {
       return paperAccount;
@@ -2317,51 +2472,61 @@ export class ControlPlaneService {
     paperAccount.appliedPlanIds = [...paperAccount.appliedPlanIds, plan.id];
     paperAccount.lastAppliedPlanId = plan.id;
 
-    const saved = await this.paperAccountRepository.save(paperAccount);
+    const saved = await repositories.paperAccountRepository.save(paperAccount);
     await this.appendPaperAccountEvent({
-      paperAccount: saved,
-      eventType: 'paper_order_plan',
-      sourceId: plan.id,
-      idempotencyKey: `paper-account-plan:${plan.id}`,
-      actor: 'paper-execution-engine',
-      reason: `Applied paper order plan ${plan.id}.`,
-      requestHash: this.hashObject({
-        paperAccountId: saved.id,
-        paperOrderPlanId: plan.id,
-        planHash: plan.planHash,
+      input: {
+        paperAccount: saved,
+        eventType: 'paper_order_plan',
+        sourceId: plan.id,
+        idempotencyKey: `paper-account-plan:${plan.id}`,
+        actor: 'paper-execution-engine',
+        reason: `Applied paper order plan ${plan.id}.`,
+        requestHash: this.hashObject({
+          paperAccountId: saved.id,
+          paperOrderPlanId: plan.id,
+          planHash: plan.planHash,
+          cashBefore,
+          cashAfter: saved.cash,
+          equityBefore,
+          equityAfter: saved.equity,
+        }),
         cashBefore,
         cashAfter: saved.cash,
         equityBefore,
         equityAfter: saved.equity,
-      }),
-      cashBefore,
-      cashAfter: saved.cash,
-      equityBefore,
-      equityAfter: saved.equity,
-      positionsBefore,
-      positionsAfter: saved.positions,
+        positionsBefore,
+        positionsAfter: saved.positions,
+      },
+      paperAccountEventRepository: repositories.paperAccountEventRepository,
     });
 
     return saved;
   }
 
-  private async appendPaperAccountEvent(input: {
-    paperAccount: PaperAccount;
-    eventType: PaperAccountEventType;
-    sourceId?: number;
-    idempotencyKey: string;
-    actor: string;
-    reason: string;
-    requestHash: string;
-    cashBefore: number;
-    cashAfter: number;
-    equityBefore: number;
-    equityAfter: number;
-    positionsBefore: PortfolioSnapshot['positions'];
-    positionsAfter: PortfolioSnapshot['positions'];
+  private async appendPaperAccountEvent({
+    input,
+    paperAccountEventRepository = this.paperAccountEventRepository,
+  }: {
+    input: {
+      paperAccount: PaperAccount;
+      eventType: PaperAccountEventType;
+      sourceId?: number;
+      idempotencyKey: string;
+      actor: string;
+      reason: string;
+      requestHash: string;
+      cashBefore: number;
+      cashAfter: number;
+      equityBefore: number;
+      equityAfter: number;
+      positionsBefore: PortfolioSnapshot['positions'];
+      positionsAfter: PortfolioSnapshot['positions'];
+    };
+    paperAccountEventRepository?: Repository<PaperAccountEvent>;
   }): Promise<PaperAccountEvent> {
     const existing = await this.findPaperAccountEventByIdempotencyKey(
       input.idempotencyKey,
+      paperAccountEventRepository,
     );
 
     if (existing) {
@@ -2369,7 +2534,7 @@ export class ControlPlaneService {
       return existing;
     }
 
-    const existingEvents = await this.paperAccountEventRepository.find({
+    const existingEvents = await paperAccountEventRepository.find({
       order: { createdAt: 'ASC' },
     });
     const accountEvents = existingEvents
@@ -2400,8 +2565,8 @@ export class ControlPlaneService {
     };
     const eventHash = this.hashObject(eventSnapshot);
 
-    return this.paperAccountEventRepository.save(
-      this.paperAccountEventRepository.create({
+    return paperAccountEventRepository.save(
+      paperAccountEventRepository.create({
         paperAccountId: input.paperAccount.id,
         budgetEnvelopeId: input.paperAccount.budgetEnvelopeId,
         eventType: input.eventType,
@@ -2429,8 +2594,10 @@ export class ControlPlaneService {
 
   private async findPaperAccountEventByIdempotencyKey(
     idempotencyKey: string,
+    paperAccountEventRepository: Repository<PaperAccountEvent> = this
+      .paperAccountEventRepository,
   ): Promise<PaperAccountEvent | null> {
-    const events = await this.paperAccountEventRepository.find({
+    const events = await paperAccountEventRepository.find({
       order: { createdAt: 'DESC' },
     });
 
@@ -2452,8 +2619,10 @@ export class ControlPlaneService {
 
   private async getLatestPaperAccountEvent(
     paperAccountId: number,
+    paperAccountEventRepository: Repository<PaperAccountEvent> = this
+      .paperAccountEventRepository,
   ): Promise<PaperAccountEvent | null> {
-    const events = await this.paperAccountEventRepository.find({
+    const events = await paperAccountEventRepository.find({
       order: { createdAt: 'DESC' },
     });
 

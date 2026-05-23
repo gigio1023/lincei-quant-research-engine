@@ -4,6 +4,7 @@ import {
   formatNumber,
   paperOrderPlanStatusClass,
 } from "./dashboardFormat";
+import { useDashboardLanguage } from "./dashboardLanguage";
 import { DashboardModel } from "./useControlPlaneDashboard";
 
 interface BrokerSnapshotPanelProps {
@@ -11,6 +12,7 @@ interface BrokerSnapshotPanelProps {
 }
 
 export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
+  const { t } = useDashboardLanguage();
   const snapshot = model.latestBrokerSnapshot;
   const fill = model.latestBrokerFill;
   const adapter = model.visibleBrokerAdapterStatus;
@@ -24,15 +26,16 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
       <div className="flex flex-col gap-3 border-b border-[#2b3139] p-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-base font-bold text-white">
-            Broker Snapshot Monitor
+            {t("Broker Snapshot Monitor")}
           </h3>
           <p className="mt-1 text-xs text-[#707a8a]">
-            Read-only broker evidence. No credentials, order payloads, or
-            callable broker actions are exposed here.
+            {t(
+              "Read-only broker evidence. No credentials, order payloads, or callable broker actions are exposed here.",
+            )}
           </p>
         </div>
         <span className="rounded-md border border-[#f6465d]/30 bg-[#f6465d]/10 px-2 py-1 text-[11px] font-bold uppercase text-[#f6465d]">
-          broker write disabled
+          {t("broker write disabled")}
         </span>
       </div>
 
@@ -58,16 +61,16 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-[11px] font-bold uppercase text-[#707a8a]">
-                  {model.sources.brokerAdapter}
+                  {t(model.sources.brokerAdapter)}
                 </div>
                 <div className="mt-1 font-mono text-sm font-bold text-white">
                   {adapter.provider} / {adapter.authMethod}
                 </div>
                 <div className="mt-1 font-mono text-[11px] text-[#707a8a]">
-                  credential {adapter.credentialRef}
+                  {t("credential")} {adapter.credentialRef}
                 </div>
                 <div className="mt-1 font-mono text-[11px] text-[#707a8a]">
-                  custody {adapter.credentialCustody.secretRef}
+                  {t("custody")} {adapter.credentialCustody.secretRef}
                 </div>
               </div>
               <span
@@ -77,7 +80,7 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
                     : "border-[#f0b90b]/40 bg-[#f0b90b]/10 text-[#fcd535]"
                 }`}
               >
-                {adapter.readOnlyEnabled ? "read only ready" : "blocked"}
+                {adapter.readOnlyEnabled ? t("read only ready") : t("blocked")}
               </span>
             </div>
 
@@ -105,10 +108,10 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
               ].map(([label, value]) => (
                 <div key={label}>
                   <div className="font-bold uppercase text-[#707a8a]">
-                    {label}
+                    {t(label)}
                   </div>
                   <div className="mt-1 font-mono font-bold text-[#eaecef]">
-                    {value}
+                    {t(String(value))}
                   </div>
                 </div>
               ))}
@@ -116,7 +119,7 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
             <div className="mt-3 rounded-md border border-[#2b3139] bg-[#151a21] p-2 text-xs">
               <div className="flex items-center justify-between gap-3">
                 <span className="font-bold uppercase text-[#707a8a]">
-                  Read-only polling
+                  {t("Read-only polling")}
                 </span>
                 <span
                   className={
@@ -125,43 +128,45 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
                       : "font-mono font-bold text-[#fcd535]"
                   }
                 >
-                  {adapter.readOnlyPoll.canPoll ? "can poll" : "blocked"}
+                  {adapter.readOnlyPoll.canPoll ? t("can poll") : t("blocked")}
                 </span>
               </div>
               <div className="mt-2 grid gap-1 text-[#929aa5]">
                 <div>
-                  cron{" "}
+                  {t("cron")}{" "}
                   <span className="font-mono text-[#eaecef]">
                     {adapter.readOnlyPoll.cron}
                   </span>
                 </div>
                 <div>
-                  last attempt{" "}
+                  {t("last attempt")}{" "}
                   <span className="font-mono text-[#eaecef]">
                     {adapter.readOnlyPoll.lastAttemptAt
                       ? formatDateTime(adapter.readOnlyPoll.lastAttemptAt)
-                      : "never"}
+                      : t("never")}
                   </span>
                 </div>
                 <div>
-                  last poll{" "}
+                  {t("last poll")}{" "}
                   <span className="font-mono text-[#eaecef]">
                     {adapter.readOnlyPoll.lastPollAt
                       ? formatDateTime(adapter.readOnlyPoll.lastPollAt)
-                      : "never"}
+                      : t("never")}
                   </span>
                 </div>
                 <div>
-                  latest snapshot{" "}
+                  {t("latest snapshot")}{" "}
                   <span className="font-mono text-[#eaecef]">
-                    {adapter.readOnlyPoll.lastSnapshotId ?? "none"}
+                    {adapter.readOnlyPoll.lastSnapshotId ?? t("none")}
                   </span>
                 </div>
                 <div>
-                  auto reconcile{" "}
+                  {t("auto reconcile")}{" "}
                   <span className="font-mono text-[#eaecef]">
-                    {adapter.readOnlyPoll.lastReconciliationStatus ??
-                      "not_checked"}
+                    {t(
+                      adapter.readOnlyPoll.lastReconciliationStatus ??
+                        "not_checked",
+                    )}
                   </span>
                   {adapter.readOnlyPoll.lastReconciledAt
                     ? ` / ${formatDateTime(
@@ -184,7 +189,7 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
             <div className="mt-3 rounded-md border border-[#2b3139] bg-[#151a21] p-2 text-xs">
               <div className="flex items-center justify-between gap-3">
                 <span className="font-bold uppercase text-[#707a8a]">
-                  Fill polling
+                  {t("Fill polling")}
                 </span>
                 <span
                   className={
@@ -193,46 +198,50 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
                       : "font-mono font-bold text-[#fcd535]"
                   }
                 >
-                  {adapter.readOnlyPoll.canPollFills ? "can poll" : "blocked"}
+                  {adapter.readOnlyPoll.canPollFills
+                    ? t("can poll")
+                    : t("blocked")}
                 </span>
               </div>
               <div className="mt-2 grid gap-1 text-[#929aa5]">
                 <div>
-                  schema{" "}
+                  {t("schema")}{" "}
                   <span className="font-mono text-[#eaecef]">
                     {adapter.readOnlyPoll.fillSchemaVerified
-                      ? "verified"
-                      : "missing"}
+                      ? t("verified")
+                      : t("missing")}
                   </span>
                 </div>
                 <div>
-                  path{" "}
+                  {t("path")}{" "}
                   <span className="font-mono text-[#eaecef]">
                     {adapter.readOnlyPoll.fillPathConfigured
-                      ? "configured"
-                      : "missing"}
+                      ? t("configured")
+                      : t("missing")}
                   </span>
                 </div>
                 <div>
-                  last fill poll{" "}
+                  {t("last fill poll")}{" "}
                   <span className="font-mono text-[#eaecef]">
                     {adapter.readOnlyPoll.lastFillPollAt
                       ? formatDateTime(adapter.readOnlyPoll.lastFillPollAt)
-                      : "never"}
+                      : t("never")}
                   </span>
                 </div>
                 <div>
-                  latest fills{" "}
+                  {t("latest fills")}{" "}
                   <span className="font-mono text-[#eaecef]">
                     {adapter.readOnlyPoll.lastBrokerFillIds?.join(", ") ??
-                      "none"}
+                      t("none")}
                   </span>
                 </div>
                 <div>
-                  fill reconcile{" "}
+                  {t("fill reconcile")}{" "}
                   <span className="font-mono text-[#eaecef]">
-                    {adapter.readOnlyPoll.lastFillReconciliationStatus ??
-                      "not_checked"}
+                    {t(
+                      adapter.readOnlyPoll.lastFillReconciliationStatus ??
+                        "not_checked",
+                    )}
                   </span>
                   {adapter.readOnlyPoll.lastFillReconciledAt
                     ? ` / ${formatDateTime(
@@ -247,7 +256,7 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
           <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
             <div className="mb-2 flex items-center justify-between gap-3">
               <div className="text-[11px] font-bold uppercase text-[#707a8a]">
-                Broker adapter gates
+                {t("Broker adapter gates")}
               </div>
               <div className="font-mono text-[11px] font-bold text-[#eaecef]">
                 {readyCapabilityCount}/{adapter.capabilities.length}
@@ -270,7 +279,7 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
                         : "text-[#f6465d]"
                     }`}
                   >
-                    {capability.status}
+                    {t(capability.status)}
                   </span>
                 </div>
               ))}
@@ -278,7 +287,7 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
             {adapter.blockers.length > 0 && (
               <div className="mt-3 rounded-md border border-[#f6465d]/30 bg-[#f6465d]/10 p-2">
                 <div className="mb-1 text-[11px] font-bold uppercase text-[#f6465d]">
-                  Broker blockers
+                  {t("Broker blockers")}
                 </div>
                 <div className="space-y-1 text-xs text-[#eaecef]">
                   {adapter.blockers.map((blocker) => (
@@ -299,7 +308,7 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="text-[11px] font-bold uppercase text-[#707a8a]">
-                  {model.sources.brokerSnapshots}
+                  {t(model.sources.brokerSnapshots)}
                 </div>
                 <div className="mt-1 font-mono text-sm font-bold text-white">
                   {snapshot.provider} / {snapshot.sourceRef ?? "read-only"}
@@ -337,7 +346,7 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
             </div>
 
             <div className="mt-4 text-xs text-[#707a8a]">
-              As of{" "}
+              {t("As of")}{" "}
               <span className="font-mono text-[#eaecef]">
                 {formatDateTime(snapshot.asOf)}
               </span>
@@ -362,14 +371,14 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
                   className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3"
                 >
                   <div className="text-[11px] font-bold uppercase text-[#707a8a]">
-                    {label}
+                    {t(label)}
                   </div>
                   <div
                     className={`mt-1 font-mono text-sm font-bold ${
                       matched ? "text-[#0ecb81]" : "text-[#f6465d]"
                     }`}
                   >
-                    {matched ? "matched" : "open"}
+                    {matched ? t("matched") : t("open")}
                   </div>
                 </div>
               ))}
@@ -383,7 +392,7 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
                 ["maxAgeMinutes", snapshot.reconciliation.maxAgeMinutes],
               ].map(([label, value]) => (
                 <div key={label} className="flex justify-between gap-3 p-3">
-                  <span className="text-[#707a8a]">{label}</span>
+                  <span className="text-[#707a8a]">{t(String(label))}</span>
                   <span className="font-mono font-bold text-[#eaecef]">
                     {typeof value === "number" ? formatNumber(value) : value}
                   </span>
@@ -400,7 +409,7 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
         </div>
       ) : (
         <div className="p-4 text-sm text-[#929aa5]">
-          No broker read-only snapshot has been imported yet.
+          {t("No broker read-only snapshot has been imported yet.")}
         </div>
       )}
 
@@ -408,14 +417,14 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="text-[11px] font-bold uppercase text-[#707a8a]">
-              {model.sources.brokerFills}
+              {t(model.sources.brokerFills)}
             </div>
             <h4 className="mt-1 text-sm font-bold text-white">
-              Broker Fill Evidence
+              {t("Broker Fill Evidence")}
             </h4>
           </div>
           <div className="font-mono text-xs font-bold text-[#eaecef]">
-            {model.visibleBrokerFills.length} fills
+            {model.visibleBrokerFills.length} {t("fills")}
           </div>
         </div>
 
@@ -435,20 +444,20 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
               <div className="flex min-w-0 flex-col gap-2">
                 <div className="min-w-0">
                   <div className="text-[11px] font-bold uppercase text-[#707a8a]">
-                    Paper Match
+                    {t("Paper Match")}
                   </div>
                   <div className="mt-1 truncate font-mono text-sm font-bold text-[#eaecef]">
                     {fill.reconciliation.paperOrderPlanId
-                      ? `plan ${fill.reconciliation.paperOrderPlanId}`
-                      : "no plan"}{" "}
-                    / {fill.reconciliation.paperFillId ?? "no fill"}
+                      ? `${t("plan")} ${fill.reconciliation.paperOrderPlanId}`
+                      : t("no plan")}{" "}
+                    / {fill.reconciliation.paperFillId ?? t("no fill")}
                   </div>
                 </div>
                 <div className="font-mono text-xs font-bold text-[#929aa5]">
-                  checked{" "}
+                  {t("checked")}{" "}
                   {fill.reconciliation.checkedAt
                     ? formatDateTime(fill.reconciliation.checkedAt)
-                    : "not yet"}
+                    : t("not yet")}
                 </div>
               </div>
               <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
@@ -502,7 +511,7 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
           </div>
         ) : (
           <div className="mt-3 rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3 text-xs font-semibold text-[#707a8a]">
-            No broker read-only fill evidence has been imported yet.
+            {t("No broker read-only fill evidence has been imported yet.")}
           </div>
         )}
       </div>
@@ -516,13 +525,17 @@ const BrokerFillMetric = ({
 }: {
   label: string;
   value: string | number | undefined;
-}) => (
-  <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
-    <div className="text-[11px] font-bold uppercase text-[#707a8a]">
-      {label}
+}) => {
+  const { t } = useDashboardLanguage();
+
+  return (
+    <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
+      <div className="text-[11px] font-bold uppercase text-[#707a8a]">
+        {t(label)}
+      </div>
+      <div className="mt-1 truncate font-mono text-sm font-bold text-[#eaecef]">
+        {value ?? "n/a"}
+      </div>
     </div>
-    <div className="mt-1 truncate font-mono text-sm font-bold text-[#eaecef]">
-      {value ?? "n/a"}
-    </div>
-  </div>
-);
+  );
+};

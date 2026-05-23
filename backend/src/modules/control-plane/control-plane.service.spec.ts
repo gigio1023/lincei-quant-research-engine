@@ -989,6 +989,170 @@ describe('ControlPlaneService', () => {
     expect(paperAccountEvents).toHaveLength(3);
   });
 
+  it('blocks and rolls back paper account apply when account event append fails inside transaction', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Transactional apply budget',
+      totalBudget: 10_000_000,
+    });
+    const seededAccount = await service.seedPaperAccount({
+      budgetEnvelopeId: budget.id,
+      cash: 10_000_000,
+      actor: 'unit-test-operator',
+      reason: 'Seed paper account before transactional apply test.',
+      idempotencyKey: 'seed-transactional-apply-account',
+    });
+    await service.promotePaperAccount(seededAccount.id, {
+      actor: 'unit-test-operator',
+      reason: 'Promote paper account before transactional apply test.',
+      idempotencyKey: 'promote-transactional-apply-account',
+      expectedEventHash: paperAccountEvents[0].eventHash,
+    });
+    const researchRun = await service.runBaselineResearch({
+      budgetEnvelopeId: budget.id,
+    });
+    const proposal = await service.createProposal({
+      budgetEnvelopeId: budget.id,
+      researchRunId: researchRun.id,
+      strategyId: 'transactional-apply-v1',
+      ruleId: 'account-event-append-rollback',
+      generatedAt: '2026-05-22T23:59:00.000Z',
+      marketDataTimestamp: '2026-05-22T23:55:00.000Z',
+      portfolioSnapshot: {
+        currency: 'KRW',
+        equity: 10_000_000,
+        cash: 10_000_000,
+        grossExposurePct: 0,
+      },
+      orders: [
+        {
+          symbol: '005930',
+          assetClass: 'domestic_stock',
+          side: 'BUY',
+          orderType: 'MARKET',
+          notional: 500_000,
+          targetPositionPct: 5,
+        },
+      ],
+    });
+    const approval = await service.createOrderPlanApproval(proposal.id, {
+      idempotencyKey: 'transactional-apply-plan',
+      approver: 'unit-test-operator',
+      reason: 'Approve before transactional apply failure.',
+      expectedPaperAccountEventHash: paperAccountEvents[1].eventHash,
+    });
+    const transaction = jest.fn(
+      async (
+        callback: (manager: {
+          getRepository: (entity: any) => any;
+        }) => Promise<unknown>,
+      ) => {
+        const snapshots = {
+          paperAccounts: structuredClone(paperAccounts),
+          paperAccountEvents: structuredClone(paperAccountEvents),
+          paperOrderPlans: structuredClone(paperOrderPlans),
+          paperReservationHolds: structuredClone(paperReservationHolds),
+          orderPlanApprovals: structuredClone(orderPlanApprovals),
+          proposals: structuredClone(proposals),
+        };
+        const restore = <T>(target: T[], values: T[]) => {
+          target.splice(0, target.length, ...structuredClone(values));
+        };
+        const manager = {
+          getRepository: (entity: any) => {
+            if (entity === PaperAccount) {
+              return makeRepository(paperAccounts);
+            }
+
+            if (entity === PaperAccountEvent) {
+              const repository = makeRepository(paperAccountEvents);
+
+              return {
+                ...repository,
+                save: jest.fn(async (value: PaperAccountEvent) => {
+                  if (value.eventType === 'paper_order_plan') {
+                    throw new Error('simulated event append failure');
+                  }
+
+                  return repository.save(value);
+                }),
+              };
+            }
+
+            if (entity === PaperOrderPlan) {
+              return makeRepository(paperOrderPlans);
+            }
+
+            if (entity === PaperReservationHoldRecord) {
+              return makeRepository(paperReservationHolds);
+            }
+
+            if (entity === OrderPlanApproval) {
+              return makeRepository(orderPlanApprovals);
+            }
+
+            if (entity === InvestmentProposal) {
+              return makeRepository(proposals);
+            }
+
+            throw new Error(`Unexpected repository ${entity?.name}`);
+          },
+        };
+
+        try {
+          return await callback(manager);
+        } catch (error) {
+          restore(paperAccounts, snapshots.paperAccounts);
+          restore(paperAccountEvents, snapshots.paperAccountEvents);
+          restore(paperOrderPlans, snapshots.paperOrderPlans);
+          restore(paperReservationHolds, snapshots.paperReservationHolds);
+          restore(orderPlanApprovals, snapshots.orderPlanApprovals);
+          restore(proposals, snapshots.proposals);
+          throw error;
+        }
+      },
+    );
+    (
+      service as unknown as {
+        dataSource: { transaction: typeof transaction };
+      }
+    ).dataSource = { transaction };
+
+    const plan = await service.paperExecuteProposal(proposal.id, {
+      idempotencyKey: 'transactional-apply-plan',
+      orderPlanApprovalId: approval.id,
+    });
+
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(plan.status).toBe('blocked');
+    expect(plan.blockedReasons).toContain(
+      'Paper account apply transaction failed: simulated event append failure',
+    );
+    expect(plan.fills).toHaveLength(0);
+    expect(plan.cashLedger).toHaveLength(0);
+    expect(plan.positionLedger).toHaveLength(0);
+    expect(plan.reservationHold).toEqual(
+      expect.objectContaining({
+        status: 'released',
+        releasedAt: '2026-05-23T00:00:00.000Z',
+      }),
+    );
+    expect(paperReservationHolds[0]).toEqual(
+      expect.objectContaining({
+        status: 'released',
+        paperOrderPlanId: plan.id,
+      }),
+    );
+    expect(orderPlanApprovals[0].status).toBe('active');
+    expect(paperAccounts[0].cash).toBe(10_000_000);
+    expect(paperAccounts[0].appliedPlanIds).toEqual([]);
+    expect(paperAccountEvents).toHaveLength(2);
+    expect(
+      paperAccountEvents.some(
+        (event) => event.eventType === 'paper_order_plan',
+      ),
+    ).toBe(false);
+  });
+
   it('generates a SELL-only recovery proposal from active paper positions', async () => {
     const budget = await service.createBudgetEnvelope({
       name: 'Recovery paper budget',

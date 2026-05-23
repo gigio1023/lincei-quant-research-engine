@@ -1,4 +1,5 @@
 import { AutonomousRunStatus } from "../../types";
+import { useDashboardLanguage } from "./dashboardLanguage";
 import { DashboardModel } from "./useControlPlaneDashboard";
 
 interface AutonomousRunLedgerProps {
@@ -38,6 +39,7 @@ const workerStateClass = (state: string) => {
 };
 
 export const AutonomousRunLedger = ({ model }: AutonomousRunLedgerProps) => {
+  const { t } = useDashboardLanguage();
   const run = model.latestRun;
   const schedule = model.latestRunSchedule;
   const worker = model.visibleRunScheduleWorkerStatus;
@@ -67,19 +69,21 @@ export const AutonomousRunLedger = ({ model }: AutonomousRunLedgerProps) => {
       <div className="flex flex-col gap-3 border-b border-[#2b3139] p-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h3 className="text-base font-bold text-white">
-            Automation Action Ledger
+            {t("Automation Action Ledger")}
           </h3>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
             <span className="font-semibold text-[#929aa5]">
-              {model.sources.runs}
+              {t(model.sources.runs)}
             </span>
             <span className="font-semibold text-[#929aa5]">
-              {model.sources.runSchedules}
+              {t(model.sources.runSchedules)}
             </span>
             <span className="font-semibold text-[#929aa5]">
-              {model.sources.runScheduleWorker}
+              {t(model.sources.runScheduleWorker)}
             </span>
-            <span className="font-bold text-[#f6465d]">Live broker off</span>
+            <span className="font-bold text-[#f6465d]">
+              {t("Live broker off")}
+            </span>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -94,7 +98,7 @@ export const AutonomousRunLedger = ({ model }: AutonomousRunLedgerProps) => {
             }
             className="h-10 rounded-md border border-[#2b3139] bg-[#1e2329] px-4 text-sm font-bold text-white transition hover:bg-[#2b3139] disabled:cursor-not-allowed disabled:text-[#707a8a]"
           >
-            {model.tickingSchedule ? "Ticking schedule" : "Tick schedule"}
+            {model.tickingSchedule ? t("Ticking schedule") : t("Tick schedule")}
           </button>
           <button
             type="button"
@@ -107,7 +111,7 @@ export const AutonomousRunLedger = ({ model }: AutonomousRunLedgerProps) => {
             }
             className="h-10 rounded-md bg-[#fcd535] px-4 text-sm font-bold text-[#181a20] transition hover:bg-[#f0b90b] disabled:cursor-not-allowed disabled:bg-[#3a3a1f] disabled:text-[#707a8a]"
           >
-            {model.advancingRun ? "Advancing run" : "Advance latest run"}
+            {model.advancingRun ? t("Advancing run") : t("Advance latest run")}
           </button>
         </div>
       </div>
@@ -134,13 +138,13 @@ export const AutonomousRunLedger = ({ model }: AutonomousRunLedgerProps) => {
             <span
               className={`rounded-md border px-2 py-1 font-bold ${workerStateClass(workerState)}`}
             >
-              Worker {workerState}
+              {t("Worker")} {t(workerState)}
             </span>
             <span className="font-semibold text-[#929aa5]">
-              due {dueScheduleCount}
+              {t("due")} {dueScheduleCount}
             </span>
             <span className="font-semibold text-[#929aa5]">
-              leases {activeLeaseCount}
+              {t("leases")} {activeLeaseCount}
             </span>
           </div>
           <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-6">
@@ -164,10 +168,10 @@ export const AutonomousRunLedger = ({ model }: AutonomousRunLedgerProps) => {
             ].map(([label, value]) => (
               <div key={label}>
                 <div className="font-bold uppercase text-[#707a8a]">
-                  {label}
+                  {t(String(label))}
                 </div>
                 <div className="mt-1 truncate font-mono font-bold text-[#eaecef]">
-                  {value}
+                  {t(String(value))}
                 </div>
               </div>
             ))}
@@ -200,10 +204,10 @@ export const AutonomousRunLedger = ({ model }: AutonomousRunLedgerProps) => {
             ].map(([label, value]) => (
               <div key={label}>
                 <div className="font-bold uppercase text-[#707a8a]">
-                  {label}
+                  {t(String(label))}
                 </div>
                 <div className="mt-1 truncate font-mono font-bold text-[#eaecef]">
-                  {value}
+                  {t(String(value))}
                 </div>
               </div>
             ))}
@@ -212,7 +216,7 @@ export const AutonomousRunLedger = ({ model }: AutonomousRunLedgerProps) => {
 
         {!run ? (
           <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-4 text-sm font-semibold text-[#929aa5]">
-            No autonomous run has been recorded yet.
+            {t("No autonomous run has been recorded yet.")}
           </div>
         ) : (
           <div className="grid gap-4 xl:grid-cols-[0.76fr_1.24fr]">
@@ -220,7 +224,7 @@ export const AutonomousRunLedger = ({ model }: AutonomousRunLedgerProps) => {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="text-[11px] font-bold uppercase text-[#707a8a]">
-                    Latest run
+                    {t("Latest run")}
                   </div>
                   <div className="mt-2 text-sm font-bold leading-5 text-white">
                     {run.objective}
@@ -231,7 +235,7 @@ export const AutonomousRunLedger = ({ model }: AutonomousRunLedgerProps) => {
                     run.status,
                   )} rounded-md border px-2 py-1 text-[11px] font-bold uppercase`}
                 >
-                  {run.status}
+                  {t(run.status)}
                 </span>
               </div>
 
@@ -252,10 +256,10 @@ export const AutonomousRunLedger = ({ model }: AutonomousRunLedgerProps) => {
                     className="rounded-md border border-[#2b3139] p-2"
                   >
                     <div className="font-semibold uppercase text-[#707a8a]">
-                      {label}
+                      {t(String(label))}
                     </div>
                     <div className="mt-1 truncate font-mono font-bold text-[#eaecef]">
-                      {value}
+                      {t(String(value))}
                     </div>
                   </div>
                 ))}
@@ -263,17 +267,17 @@ export const AutonomousRunLedger = ({ model }: AutonomousRunLedgerProps) => {
 
               <div className="mt-4 rounded-md border border-[#2b3139] p-3">
                 <div className="text-[11px] font-bold uppercase text-[#707a8a]">
-                  Next action
+                  {t("Next action")}
                 </div>
                 <div className="mt-2 text-xs font-semibold leading-5 text-[#eaecef]">
-                  {run.nextAction ?? "No next action recorded"}
+                  {t(run.nextAction ?? "No next action recorded")}
                 </div>
               </div>
             </div>
 
             <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-4">
               <div className="mb-3 text-[11px] font-bold uppercase text-[#707a8a]">
-                Timeline
+                {t("Timeline")}
               </div>
               <div className="space-y-2">
                 {run.timeline.slice(-6).map((event, index) => (

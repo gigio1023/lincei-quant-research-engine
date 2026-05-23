@@ -614,6 +614,8 @@ all broker/live execution flags remain `false`.
   - filled paper plans include a durable `reservationHold` snapshot with hold id, status, cash amount, sell notional by symbol, hold hash, approval-custody-at-hold evidence, account event hash/sequence at hold, and consumption timestamp;
   - non-blocked paper plans create a database reservation-hold record before fill simulation and mark it consumed after the local paper plan is filled;
   - immediately before applying simulated fills to the durable paper account, the service rechecks that the latest account event still matches the readiness snapshot; if it changed, the plan is blocked, fills/ledgers are cleared, and the reservation hold is released instead of consuming the approval;
+  - the final paper apply commit uses a database transaction when available, covering plan persistence, reservation-hold consumption or release, paper account projection update, append-only account event creation, approval consumption, and proposal audit update;
+  - if the transaction fails, including account-event append failure, the service blocks the plan and releases the reservation hold rather than leaving a partially applied paper account;
   - fill and position-ledger rows include simulator quantity, average-price, cost-basis, and realized-PnL evidence;
   - filled plans update the durable local paper account so later paper cycles start from accumulated simulated state;
   - `brokerExecutionEnabled` and `liveTradingEnabled` are always `false`.

@@ -215,13 +215,14 @@ Current paper slice:
 - `POST /control-plane/proposals/:id/paper-execute` returns the same plan for the same idempotency key and has a database uniqueness guard for the proposal/idempotency pair;
 - paper execution requires an active order-plan approval that matches the proposal, paper-mode risk evaluation, and idempotency key;
 - paper execution checks approval payload hash/signature evidence, binds the approval to the current promoted paper account, blocks stale paper account event hashes, and rechecks the event chain immediately before applying simulated fills to the durable paper account;
+- the final paper apply commit runs inside a database transaction when `DataSource` is available, covering plan state, reservation hold consumption/release, paper account projection, paper account event append, approval consumption, and proposal audit update; if the account-event append or any commit step fails, the plan is blocked and the reservation hold is released instead of leaving a partially applied account;
 - `POST /control-plane/paper-account/seed`, `POST /control-plane/paper-account/:id/promote`, and `GET /control-plane/paper-account/events` expose the explicit account lifecycle and append-only paper account event chain;
 - `GET /control-plane/paper-account` exposes only an active promoted paper account;
 - `POST /control-plane/paper-order-plans/:id/reconcile` reconciles expected paper cash and positions against account ledger entries for that plan;
 - `GET/POST /control-plane/execution-control` stores a minimal execution-control state (`active`, `paused`, `reducing`, `halted`) and paper execution blocks when the state forbids new exposure;
 - broker and live execution flags remain `false`.
 
-This is a paper simulator ledger, not broker-grade execution readiness. Broker-grade paper readiness still requires production-grade signing custody, transaction isolation, scheduled broker read-only polling, and reconciliation against external account truth.
+This is a paper simulator ledger, not broker-grade execution readiness. Broker-grade paper readiness still requires production-grade signing custody, database-level account balance locks, scheduled broker read-only polling, and reconciliation against external account truth.
 
 ### 6. Broker Adapter
 
@@ -445,7 +446,7 @@ Current status:
 - control-plane status now exposes an explicit disabled live-trading gate with blockers for order endpoints, broker write access, credential custody, kill switch, fill polling, and reconciliation;
 - control-plane status now exposes a top-level action summary that ties latest autonomous run, paper evidence, broker snapshot/fill evidence, current blocker, and next safe action together;
 - frontend dashboard shows paper account state, execution-control state, latest paper plans, fills, reconciliation notes, hashes, the top-level action summary, and broker/live disabled guardrails;
-- still missing production signing custody, fully transaction-isolated accounting service, database-level account balance locks, and scheduled broker-backed reconciliation.
+- still missing production signing custody, database-level account balance locks around plan creation/readiness reservation, and scheduled broker-backed reconciliation.
 
 ### Phase 4: Broker Read-Only
 

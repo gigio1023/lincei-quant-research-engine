@@ -1,4 +1,5 @@
 import { formatDateTime, paperOrderPlanStatusClass } from "./dashboardFormat";
+import { useDashboardLanguage } from "./dashboardLanguage";
 import { DashboardModel } from "./useControlPlaneDashboard";
 
 interface OrderPlanApprovalPanelProps {
@@ -8,6 +9,7 @@ interface OrderPlanApprovalPanelProps {
 export const OrderPlanApprovalPanel = ({
   model,
 }: OrderPlanApprovalPanelProps) => {
+  const { t } = useDashboardLanguage();
   const approval = model.latestOrderPlanApproval;
 
   return (
@@ -15,14 +17,14 @@ export const OrderPlanApprovalPanel = ({
       <div className="flex items-center justify-between gap-3">
         <div>
           <h3 className="text-base font-bold text-white">
-            Signed Order Approval
+            {t("Signed Order Approval")}
           </h3>
           <p className="mt-1 text-xs text-[#707a8a]">
-            Durable approval record required before paper fills.
+            {t("Durable approval record required before paper fills.")}
           </p>
         </div>
         <span className="rounded-md border border-[#f6465d]/30 bg-[#f6465d]/10 px-2 py-1 text-[11px] font-bold uppercase text-[#f6465d]">
-          live signing disabled
+          {t("live signing disabled")}
         </span>
       </div>
 
@@ -37,10 +39,10 @@ export const OrderPlanApprovalPanel = ({
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[11px] font-bold uppercase text-[#707a8a]">
-                {model.sources.orderPlanApprovals}
+                {t(model.sources.orderPlanApprovals)}
               </div>
               <div className="mt-1 font-mono text-sm font-bold text-white">
-                approval {approval.id}
+                {t("approval")} {approval.id}
               </div>
               <div className="mt-1 text-xs text-[#929aa5]">
                 {approval.approver} / {approval.mode}
@@ -49,7 +51,7 @@ export const OrderPlanApprovalPanel = ({
             <span
               className={`${paperOrderPlanStatusClass(approval.status)} rounded-md border px-2 py-1 text-[11px] font-bold uppercase`}
             >
-              {approval.status}
+              {t(approval.status)}
             </span>
           </div>
 
@@ -72,17 +74,17 @@ export const OrderPlanApprovalPanel = ({
                 "expiresAt",
                 approval.expiresAt
                   ? formatDateTime(approval.expiresAt)
-                  : "none",
+                  : t("none"),
               ],
               [
                 "consumedBy",
                 approval.consumedByPaperOrderPlanId
-                  ? `paper plan ${approval.consumedByPaperOrderPlanId}`
-                  : "not consumed",
+                  ? `${t("paper plan")} ${approval.consumedByPaperOrderPlanId}`
+                  : t("not consumed"),
               ],
             ].map(([label, value]) => (
               <div key={label} className="flex justify-between gap-3">
-                <span className="text-[#707a8a]">{label}</span>
+                <span className="text-[#707a8a]">{t(String(label))}</span>
                 <span className="max-w-[58%] truncate text-right font-mono font-bold text-[#eaecef]">
                   {value}
                 </span>
@@ -91,12 +93,12 @@ export const OrderPlanApprovalPanel = ({
           </div>
 
           <p className="mt-3 text-xs leading-5 text-[#929aa5]">
-            {approval.reason}
+            {t(approval.reason)}
           </p>
         </div>
       ) : (
         <div className="mt-4 rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3 text-sm text-[#929aa5]">
-          No signed order-plan approval has been recorded yet.
+          {t("No signed order-plan approval has been recorded yet.")}
         </div>
       )}
     </section>
