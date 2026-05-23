@@ -3,7 +3,9 @@ import { assertOpenAiEnvAllowed, loadOpenAiEnv } from './openai-env.loader';
 describe('openai-env.loader', () => {
   it('rejects_openrouter_provider', () => {
     expect(() =>
-      assertOpenAiEnvAllowed({ LLM_PROVIDER: 'openrouter' } as NodeJS.ProcessEnv),
+      assertOpenAiEnvAllowed({
+        LLM_PROVIDER: 'openrouter',
+      } as NodeJS.ProcessEnv),
     ).toThrow('openrouter');
   });
 

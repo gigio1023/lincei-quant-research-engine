@@ -11,10 +11,14 @@ import {
 
 const MAX_FEATURE_AGE_MS = 72 * 60 * 60 * 1000;
 
-export function validateFeatureSnapshot(snapshot: FeatureSnapshotContract): void {
+export function validateFeatureSnapshot(
+  snapshot: FeatureSnapshotContract,
+): void {
   REQUIRED_FEATURE_KEYS.forEach((key) => {
     if (!(key in snapshot.features)) {
-      throw new BadRequestException(`Feature snapshot missing required key: ${key}`);
+      throw new BadRequestException(
+        `Feature snapshot missing required key: ${key}`,
+      );
     }
   });
 
@@ -25,22 +29,30 @@ export function validateFeatureSnapshot(snapshot: FeatureSnapshotContract): void
   }
 
   if (asOf < availability) {
-    throw new BadRequestException('Feature snapshot asOf precedes data availability.');
+    throw new BadRequestException(
+      'Feature snapshot asOf precedes data availability.',
+    );
   }
 
   // Live pilot must not act on features older than policy window (fail closed on stale data).
   if (Date.now() - availability > MAX_FEATURE_AGE_MS) {
-    throw new BadRequestException('Feature snapshot is stale for live pilot policy.');
+    throw new BadRequestException(
+      'Feature snapshot is stale for live pilot policy.',
+    );
   }
 }
 
 export function validateAlphaDecision(decision: AlphaDecisionContract): void {
   if (decision.confidence < 0 || decision.confidence > 1) {
-    throw new BadRequestException('Alpha decision confidence must be between 0 and 1.');
+    throw new BadRequestException(
+      'Alpha decision confidence must be between 0 and 1.',
+    );
   }
 
   if (decision.maxPositionPct !== undefined && decision.maxPositionPct > 0.35) {
-    throw new BadRequestException('Alpha decision maxPositionPct exceeds live policy.');
+    throw new BadRequestException(
+      'Alpha decision maxPositionPct exceeds live policy.',
+    );
   }
 
   if (decision.direction !== 'flat') {
@@ -71,7 +83,9 @@ export function validateExecutionIntent(intent: ExecutionIntentContract): void {
       );
     }
     if (intent.orderType === 'market') {
-      throw new BadRequestException('Live pilot market orders are disabled by policy.');
+      throw new BadRequestException(
+        'Live pilot market orders are disabled by policy.',
+      );
     }
   }
 }

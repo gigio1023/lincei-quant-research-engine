@@ -50,7 +50,7 @@ def download_entry(entry: dict) -> dict:
         "modelName": entry.get("modelName", entry_id),
         "modelType": "lightgbm",
         "framework": entry["framework"],
-        "status": "promoted",
+        "status": "not_promoted",
         "featureVersion": "jc-stockprediction-v1",
         "featureColumns": list(
             json.loads((artifact_dir / "config.json").read_text(encoding="utf-8"))["feature_columns"],
@@ -70,7 +70,7 @@ def download_entry(entry: dict) -> dict:
             "walkForwardFolds": 0.0,
         },
         "promotionThreshold": {"directionalAccuracy": 0.0},
-        "notes": entry.get("notes", ""),
+        "notes": f"{entry.get('notes', '')} Downloaded and hash-verified only; promote after local walk-forward validation.",
         "securityManifest": str(manifest_path.relative_to(REPO_ROOT)),
     }
     REGISTRY_PATH.write_text(json.dumps(registry_record, indent=2) + "\n", encoding="utf-8")

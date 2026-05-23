@@ -44,7 +44,7 @@ describe('LeanRunImportService', () => {
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'statistics.json'), '{}', 'utf8');
     await expect(service.importFromDirectory(dir)).rejects.toThrow(
-      'Missing required artifact',
+      'LEAN schema-import rejected',
     );
   });
 });

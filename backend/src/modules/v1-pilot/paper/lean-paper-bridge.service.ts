@@ -10,6 +10,7 @@ import { PortfolioTargetSnapshot } from '../../../entities/portfolio-target-snap
 import { PaperOrderPlan } from '../../../entities/paper-order-plan.entity';
 import { LeanRunImportService } from '../lean/lean-run-import.service';
 import { PortfolioTargetItemContract } from '../contracts/v1-pilot.contracts';
+import { assessLeanRunArtifacts } from '../lean/lean-run-acceptance';
 
 @Injectable()
 export class LeanPaperBridgeService {
@@ -24,10 +25,24 @@ export class LeanPaperBridgeService {
     private readonly paperPlanRepository: Repository<PaperOrderPlan>,
   ) {}
 
-  async runPaperCycle(idempotencyKey = 'v1-lean-paper-cycle'): Promise<PaperOrderPlan> {
+  async runPaperCycle(
+    idempotencyKey = 'v1-lean-paper-cycle',
+  ): Promise<PaperOrderPlan> {
     const latestRun = await this.leanRunImportService.getLatestRun();
     if (!latestRun) {
       throw new Error('No LEAN run imported. Run import-lean-run first.');
+    }
+    if (latestRun.status !== 'passed') {
+      throw new Error('Latest LEAN run did not pass import gates.');
+    }
+    const acceptance = assessLeanRunArtifacts(
+      latestRun.resultDirectory,
+      'strategy-backtest',
+    );
+    if (!acceptance.passed) {
+      throw new Error(
+        `Latest LEAN run is not paper eligible: ${acceptance.blockers.join('; ')}`,
+      );
     }
 
     const target = await this.targetRepository.find({
@@ -81,7 +96,8 @@ export class LeanPaperBridgeService {
         end: latestRun.completedAt.toISOString(),
       },
       backtestMetrics: {
-        totalReturnPct: Number(latestRun.statistics['Compounding Annual Return'] ?? 0) * 100,
+        totalReturnPct:
+          Number(latestRun.statistics['Compounding Annual Return'] ?? 0) * 100,
         benchmarkReturnPct: 0,
         maxDrawdownPct: Math.abs(
           Number(latestRun.statistics['Maximum Drawdown'] ?? 0) * 100,
@@ -165,10 +181,7 @@ export class LeanPaperBridgeService {
     });
   }
 
-  private async ensurePaperAccount(
-    budgetEnvelopeId: number,
-    cycleKey: string,
-  ) {
+  private async ensurePaperAccount(budgetEnvelopeId: number, cycleKey: string) {
     try {
       const existing = await this.controlPlaneService.getPaperAccountState();
       if (existing.budgetEnvelopeId === budgetEnvelopeId) {

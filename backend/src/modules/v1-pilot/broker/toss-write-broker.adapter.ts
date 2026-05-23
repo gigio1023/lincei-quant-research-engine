@@ -36,7 +36,9 @@ export class TossWriteBrokerAdapter implements BrokerAdapter {
     this.blocked('order preview not verified');
   }
 
-  async submitOrder(_intent: ExecutionIntentContract): Promise<BrokerOrderStatusView> {
+  async submitOrder(
+    _intent: ExecutionIntentContract,
+  ): Promise<BrokerOrderStatusView> {
     this.blocked('order create schema not verified');
   }
 

@@ -18,14 +18,17 @@ import {
   MAX_LIVE_PILOT_NOTIONAL_USD,
 } from '../contracts/v1-pilot.contracts';
 import { LeanRunImportService } from '../lean/lean-run-import.service';
-import { MockBrokerAdapter } from '../broker/mock-broker.adapter';
+import {
+  LeanRunConfigEvidence,
+  assessBrokerSnapshotForLive,
+  assessStaticLeanRunBlockers,
+  readLeanParameter,
+} from './live-preflight-readiness';
+import { MlModelRegistryService } from '../ml/ml-model-registry.service';
 
-type LeanRunConfigOnDisk = {
+type LeanRunConfigOnDisk = LeanRunConfigEvidence & {
   projectName?: string;
   algorithmVersion?: string;
-  parameters?: Record<string, string | number | boolean>;
-  simulator?: string;
-  mode?: string;
 };
 
 @Injectable()
@@ -42,7 +45,7 @@ export class LivePreflightService {
     @InjectRepository(ExecutionControlState)
     private readonly executionControlRepository: Repository<ExecutionControlState>,
     private readonly leanRunImportService: LeanRunImportService,
-    private readonly mockBrokerAdapter: MockBrokerAdapter,
+    private readonly mlModelRegistryService: MlModelRegistryService,
   ) {}
 
   async runPreflight(): Promise<LivePilotPreflightContract> {
@@ -104,10 +107,13 @@ export class LivePreflightService {
       maxPilotNotionalUsd:
         Number(process.env.MAX_LIVE_PILOT_NOTIONAL_USD ?? 0) ===
         MAX_LIVE_PILOT_NOTIONAL_USD,
-      tossOrderSchemaVerified: process.env.TOSS_ORDER_SCHEMA_VERIFIED === 'true',
+      tossOrderSchemaVerified:
+        process.env.TOSS_ORDER_SCHEMA_VERIFIED === 'true',
       tossOpenApiSchemaVerified:
         process.env.TOSS_OPEN_API_SCHEMA_VERIFIED === 'true',
       cancelFlattenReady: process.env.BROKER_CANCEL_FLATTEN_READY === 'true',
+      brokerOpenOrderPollVerified:
+        process.env.BROKER_OPEN_ORDER_POLL_VERIFIED === 'true',
     };
 
     Object.entries(requiredFlags).forEach(([flag, ready]) => {
@@ -116,9 +122,20 @@ export class LivePreflightService {
       }
     });
 
-    const openOrders = await this.mockBrokerAdapter.getOpenOrders();
-    if (openOrders.some((order) => order.status === 'open')) {
-      blockers.push('Unknown open broker orders detected.');
+    const mlReadiness = this.mlModelRegistryService.getModelReadiness();
+    if (
+      mlReadiness.registryStatus === 'promoted' &&
+      mlReadiness.status !== 'promoted_ready'
+    ) {
+      blockers.push(
+        mlReadiness.blocker ??
+          `Promoted ML model is not ready: ${mlReadiness.status}`,
+      );
+    }
+
+    const openOrderRefs: string[] = [];
+    if (!requiredFlags.brokerOpenOrderPollVerified) {
+      blockers.push('Broker open-order polling is not verified.');
     }
 
     const credentialMode = process.env.BROKER_CREDENTIAL_SECRET_REF
@@ -128,6 +145,11 @@ export class LivePreflightService {
         : 'missing';
     if (credentialMode === 'missing') {
       blockers.push('Broker credentials are missing.');
+    }
+    if (credentialMode === 'local-dev-env') {
+      blockers.push(
+        'Live pilot requires broker credentials from an external secret reference.',
+      );
     }
 
     const preflight: LivePilotPreflightContract = {
@@ -140,7 +162,7 @@ export class LivePreflightService {
       latestLeanRunId: latestLeanRun?.runId,
       latestPaperPlanId: latestPaperPlan?.id,
       latestBrokerSnapshotId: latestBrokerSnapshot?.id,
-      openOrderRefs: openOrders.map((order) => order.orderRefHash),
+      openOrderRefs,
       credentialMode,
     };
 
@@ -166,7 +188,10 @@ export class LivePreflightService {
       ...leanRun.parameters,
       ...(configOnDisk?.parameters ?? {}),
     };
-    const researchAllowed = this.isResearchPreflightAllowed(parameters, configOnDisk);
+    const researchAllowed = this.isResearchPreflightAllowed(
+      parameters,
+      configOnDisk,
+    );
 
     if (this.isSimulatorLeanRun(leanRun, configOnDisk, parameters)) {
       blockers.push(
@@ -174,38 +199,24 @@ export class LivePreflightService {
       );
     }
 
-    const validationMode = String(parameters.validationMode ?? '');
-    if (validationMode === 'flow-validation' && !researchAllowed) {
-      blockers.push(
-        'Latest LEAN run is flow-validation only (artifact plumbing), not a historical numeric backtest.',
-      );
-    }
-
-    const usesStaticMetaOverlay =
-      parameters.usesStaticMetaOverlay === true ||
-      parameters['uses-static-meta-overlay'] === true;
-    if (usesStaticMetaOverlay && !researchAllowed) {
-      blockers.push(
-        'Latest LEAN run used a static LLM/meta overlay; that is not historical alpha validation for live readiness.',
-      );
-    }
-
-    if (!configOnDisk && !Object.keys(leanRun.parameters).length) {
-      blockers.push(
-        'Latest LEAN run has no config.json or parameters evidence on disk.',
-      );
-    }
+    blockers.push(
+      ...assessStaticLeanRunBlockers(parameters, configOnDisk, researchAllowed),
+    );
 
     return blockers;
   }
 
-  private readLeanRunConfig(resultDirectory: string): LeanRunConfigOnDisk | null {
+  private readLeanRunConfig(
+    resultDirectory: string,
+  ): LeanRunConfigOnDisk | null {
     const configPath = join(resultDirectory, 'config.json');
     if (!existsSync(configPath)) {
       return null;
     }
     try {
-      return JSON.parse(readFileSync(configPath, 'utf8')) as LeanRunConfigOnDisk;
+      return JSON.parse(
+        readFileSync(configPath, 'utf8'),
+      ) as LeanRunConfigOnDisk;
     } catch {
       return null;
     }
@@ -218,7 +229,9 @@ export class LivePreflightService {
     if (process.env.LIVE_PREFLIGHT_ALLOW_RESEARCH === 'true') {
       return true;
     }
-    const mode = String(parameters.mode ?? configOnDisk?.mode ?? '');
+    const mode = String(
+      readLeanParameter(parameters, 'mode') ?? configOnDisk?.mode ?? '',
+    );
     return mode === 'research';
   }
 
@@ -230,7 +243,9 @@ export class LivePreflightService {
     if (configOnDisk?.simulator) {
       return true;
     }
-    const mode = String(parameters.mode ?? configOnDisk?.mode ?? '');
+    const mode = String(
+      readLeanParameter(parameters, 'mode') ?? configOnDisk?.mode ?? '',
+    );
     if (mode.startsWith('simulator') || mode === 'simulator') {
       return true;
     }
@@ -248,19 +263,7 @@ export class LivePreflightService {
   }
 
   private assessBrokerSnapshot(snapshot: BrokerSnapshot): string[] {
-    const blockers: string[] = [];
-    if (snapshot.provider === 'simulated') {
-      blockers.push(
-        'Latest broker snapshot provider is simulated; live requires a read-only broker poll.',
-      );
-    }
-    const reconciliationStatus = snapshot.reconciliation?.status;
-    if (reconciliationStatus !== 'matched') {
-      blockers.push(
-        `Broker snapshot reconciliation is "${reconciliationStatus ?? 'unknown'}"; matched required before live.`,
-      );
-    }
-    return blockers;
+    return assessBrokerSnapshotForLive(snapshot);
   }
 
   private assessPaperReconciliation(plan: PaperOrderPlan): string[] {

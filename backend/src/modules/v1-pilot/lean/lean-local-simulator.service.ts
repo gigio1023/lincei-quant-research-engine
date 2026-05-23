@@ -42,7 +42,8 @@ export class LeanLocalSimulatorService {
     const runId = request.runId ?? this.buildRunId(startedAt);
     const projectName = request.projectName ?? DEFAULT_PROJECT;
     const workspaceRoot = resolve(
-      request.workspaceRoot ?? join(process.cwd(), '..', 'engines/lean', projectName),
+      request.workspaceRoot ??
+        join(process.cwd(), '..', 'engines/lean', projectName),
     );
     const resultRoot = resolve(
       request.resultRoot ?? join(process.cwd(), '..', 'artifacts/lean-runs'),
@@ -84,7 +85,10 @@ export class LeanLocalSimulatorService {
       asOf: startedAt.toISOString(),
       insights,
     });
-    this.writeJson(portfolioTargetsRef, this.buildTargetsPayload(runId, startedAt, targets));
+    this.writeJson(
+      portfolioTargetsRef,
+      this.buildTargetsPayload(runId, startedAt, targets),
+    );
     this.writeJson(orderEventsRef, { events: orderEvents });
     this.writeJson(fillsRef, { fills });
     this.writeJson(statisticsRef, statistics);
@@ -102,7 +106,10 @@ export class LeanLocalSimulatorService {
     );
 
     const completedAt = new Date();
-    const sourceHash = this.hashDirectory(workspaceRoot, ['main.py', 'config.json']);
+    const sourceHash = this.hashDirectory(workspaceRoot, [
+      'main.py',
+      'config.json',
+    ]);
     const configHash = this.hashObject(configPayload);
     const dataManifestHash = this.hashObject({
       universe: DEFAULT_UNIVERSE,
@@ -169,7 +176,9 @@ export class LeanLocalSimulatorService {
     return payload.decisions ?? [];
   }
 
-  private buildInsights(metaDecisions: MetaDecisionRecord[]): LeanInsightArtifact[] {
+  private buildInsights(
+    metaDecisions: MetaDecisionRecord[],
+  ): LeanInsightArtifact[] {
     const generatedTime = new Date().toISOString();
     const insights: LeanInsightArtifact[] = [];
 
@@ -222,7 +231,9 @@ export class LeanLocalSimulatorService {
       return [];
     }
 
-    const rawWeights = ranked.map((insight) => (insight.finalScore ?? 0.5) + 0.25);
+    const rawWeights = ranked.map(
+      (insight) => (insight.finalScore ?? 0.5) + 0.25,
+    );
     const total = rawWeights.reduce((sum, weight) => sum + weight, 0);
     return ranked.map((insight, index) => ({
       symbol: insight.symbol,
@@ -317,7 +328,10 @@ export class LeanLocalSimulatorService {
   }
 
   private buildRunId(startedAt: Date): string {
-    const stamp = startedAt.toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
+    const stamp = startedAt
+      .toISOString()
+      .replace(/[-:TZ.]/g, '')
+      .slice(0, 14);
     return `sim-${stamp}-${randomUUID().slice(0, 8)}`;
   }
 

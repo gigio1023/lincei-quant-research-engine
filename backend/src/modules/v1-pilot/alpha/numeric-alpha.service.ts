@@ -5,7 +5,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AlphaDecision } from '../../../entities/alpha-decision.entity';
-import { AlphaDecisionContract, FeatureSnapshotContract } from '../contracts/v1-pilot.contracts';
+import {
+  AlphaDecisionContract,
+  FeatureSnapshotContract,
+} from '../contracts/v1-pilot.contracts';
 import { validateAlphaDecision } from '../contracts/v1-pilot.validators';
 import { hashObject } from '../../../shared/hash.util';
 import { MlBaselineInferenceService } from '../ml/ml-baseline-inference.service';
@@ -44,8 +47,12 @@ export class NumericAlphaService {
     snapshots: FeatureSnapshotContract[],
     predictions: MlPrediction[],
   ): Promise<AlphaDecisionContract[]> {
-    const predictionBySymbol = new Map(predictions.map((item) => [item.symbol, item]));
-    const modelName = this.mlRegistry.getPromotedModel()?.modelName ?? 'external-tabular-baseline';
+    const predictionBySymbol = new Map(
+      predictions.map((item) => [item.symbol, item]),
+    );
+    const modelName =
+      this.mlRegistry.getPromotedModel()?.modelName ??
+      'external-tabular-baseline';
     const decisions: AlphaDecisionContract[] = [];
 
     snapshots.forEach((snapshot) => {
@@ -54,7 +61,12 @@ export class NumericAlphaService {
         return;
       }
       const score = prediction.score;
-      const direction = score >= UP_THRESHOLD ? 'up' : score <= FLAT_THRESHOLD ? 'flat' : 'flat';
+      const direction =
+        score >= UP_THRESHOLD
+          ? 'up'
+          : score <= FLAT_THRESHOLD
+            ? 'flat'
+            : 'flat';
       const confidence = Math.min(1, Math.max(0.2, Math.abs(score - 0.5) * 2));
       const decision = this.buildDecision({
         snapshot,
@@ -66,7 +78,10 @@ export class NumericAlphaService {
           direction === 'up'
             ? `External tabular model ${modelName} score ${score.toFixed(3)} (raw ${prediction.rawScore.toFixed(4)}).`
             : undefined,
-        outputExtra: { rawScore: prediction.rawScore, expectedReturnBps: prediction.expectedReturnBps },
+        outputExtra: {
+          rawScore: prediction.rawScore,
+          expectedReturnBps: prediction.expectedReturnBps,
+        },
       });
       if (direction !== 'flat') {
         validateAlphaDecision(decision);
@@ -96,8 +111,15 @@ export class NumericAlphaService {
     const decisions: AlphaDecisionContract[] = [];
     ranked.forEach((entry) => {
       const direction =
-        entry.score >= UP_THRESHOLD ? 'up' : entry.score <= FLAT_THRESHOLD ? 'flat' : 'flat';
-      const confidence = Math.min(1, Math.max(0.2, Math.abs(entry.score - 0.5) * 2));
+        entry.score >= UP_THRESHOLD
+          ? 'up'
+          : entry.score <= FLAT_THRESHOLD
+            ? 'flat'
+            : 'flat';
+      const confidence = Math.min(
+        1,
+        Math.max(0.2, Math.abs(entry.score - 0.5) * 2),
+      );
       const decision = this.buildDecision({
         snapshot: entry.snapshot,
         score: entry.score,
@@ -143,17 +165,26 @@ export class NumericAlphaService {
       direction: input.direction,
       expectedReturnBps: Number(((input.score - 0.5) * 400).toFixed(2)),
       confidence: input.confidence,
-      conviction: input.confidence > 0.7 ? 'high' : input.confidence > 0.5 ? 'medium' : 'low',
+      conviction:
+        input.confidence > 0.7
+          ? 'high'
+          : input.confidence > 0.5
+            ? 'medium'
+            : 'low',
       maxPositionPct: input.direction === 'up' ? 0.35 : 0,
       featureSnapshotHash: input.snapshot.inputHash,
       sourceModels: input.sourceModels,
-      evidenceRefs: [...input.snapshot.sourceRefs, 'ml/registry/model_registry.json'],
+      evidenceRefs: [
+        ...input.snapshot.sourceRefs,
+        'ml/registry/model_registry.json',
+      ],
       thesis: input.thesis,
       counterThesis:
         input.direction === 'up'
           ? 'Model or regime shift can invalidate the forward-return estimate.'
           : undefined,
-      abstainReason: input.direction === 'flat' ? 'Score in neutral band.' : undefined,
+      abstainReason:
+        input.direction === 'flat' ? 'Score in neutral band.' : undefined,
       inputHash: input.snapshot.inputHash,
       outputHash: hashObject({
         symbol: input.snapshot.symbol,

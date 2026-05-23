@@ -82,7 +82,10 @@ export interface PortfolioTargetSnapshotContract {
 }
 
 export type ExecutionMode = 'paper' | 'live';
-export type ExecutionIntentSource = 'lean-target' | 'manual-flatten' | 'risk-reduce';
+export type ExecutionIntentSource =
+  | 'lean-target'
+  | 'manual-flatten'
+  | 'risk-reduce';
 export type OrderSide = 'buy' | 'sell';
 export type OrderType = 'market' | 'limit';
 export type TimeInForce = 'day' | 'gtc' | 'ioc';

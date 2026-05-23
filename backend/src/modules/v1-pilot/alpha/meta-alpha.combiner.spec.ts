@@ -24,24 +24,31 @@ type FixtureCase = {
 };
 
 const fixturePath = join(__dirname, 'fixtures/meta-alpha-parity.fixture.json');
-const fixture = JSON.parse(readFileSync(fixturePath, 'utf8')) as { cases: FixtureCase[] };
+const fixture = JSON.parse(readFileSync(fixturePath, 'utf8')) as {
+  cases: FixtureCase[];
+};
 
 describe('meta-alpha combiner parity', () => {
-  it.each(fixture.cases)('nest combiner matches fixture for $name', ({ numeric, llmEvent, llmMacro, llmRisk, expected }) => {
-    const result = combineMetaFromDecisions({
-      numeric,
-      llmEvent,
-      llmMacro,
-      llmRisk,
-    });
+  it.each(fixture.cases)(
+    'nest combiner matches fixture for $name',
+    ({ numeric, llmEvent, llmMacro, llmRisk, expected }) => {
+      const result = combineMetaFromDecisions({
+        numeric,
+        llmEvent,
+        llmMacro,
+        llmRisk,
+      });
 
-    expect(result.numericScore).toBeCloseTo(expected.numericScore, 4);
-    expect(result.eventScore).toBeCloseTo(expected.eventScore, 4);
-    expect(result.macroScore).toBeCloseTo(expected.macroScore, 4);
-    expect(result.riskAdjustment).toBeCloseTo(expected.riskAdjustment, 4);
-    expect(result.finalScore).toBeCloseTo(expected.finalScore, 4);
-    expect(directionFromMetaScore(result.finalScore)).toBe(expected.direction);
-  });
+      expect(result.numericScore).toBeCloseTo(expected.numericScore, 4);
+      expect(result.eventScore).toBeCloseTo(expected.eventScore, 4);
+      expect(result.macroScore).toBeCloseTo(expected.macroScore, 4);
+      expect(result.riskAdjustment).toBeCloseTo(expected.riskAdjustment, 4);
+      expect(result.finalScore).toBeCloseTo(expected.finalScore, 4);
+      expect(directionFromMetaScore(result.finalScore)).toBe(
+        expected.direction,
+      );
+    },
+  );
 
   it.each(fixture.cases)(
     'lean replay uses exported component scores for $name',

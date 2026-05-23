@@ -40,7 +40,9 @@ export class MockBrokerAdapter implements BrokerAdapter {
     };
   }
 
-  async submitOrder(intent: ExecutionIntentContract): Promise<BrokerOrderStatusView> {
+  async submitOrder(
+    intent: ExecutionIntentContract,
+  ): Promise<BrokerOrderStatusView> {
     const orderRefHash = hashString(intent.idempotencyKey);
     const status: BrokerOrderStatusView = {
       orderRefHash,

@@ -3,9 +3,17 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { execFileSync, spawnSync } from 'child_process';
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'fs';
 import { join, resolve } from 'path';
 import { randomBytes } from 'crypto';
+import { assertLeanRunArtifactsAccepted } from './lean-run-acceptance';
 
 const REQUIRED_ARTIFACTS = [
   'statistics.json',
@@ -28,6 +36,8 @@ export type LeanCliBacktestRequest = {
   noStaticMeta?: boolean;
   noStaticMl?: boolean;
   alphaMode?: string;
+  allowSummaryHydration?: boolean;
+  requireStrategyEvidence?: boolean;
 };
 
 export type LeanCliBacktestResult = {
@@ -78,7 +88,10 @@ export class LeanCliRunner {
     const projectName = request.projectName ?? 'aggressive_llm_momentum';
     const runId =
       request.runId ??
-      `bt-${new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14)}-${randomBytes(4).toString('hex')}`;
+      `bt-${new Date()
+        .toISOString()
+        .replace(/[-:TZ.]/g, '')
+        .slice(0, 14)}-${randomBytes(4).toString('hex')}`;
     const outputDirectory = join(this.repoRoot, 'artifacts/lean-runs', runId);
     mkdirSync(outputDirectory, { recursive: true });
     const artifactRelativeDir = `backtests/lincei-artifacts/${runId}`;
@@ -142,11 +155,18 @@ export class LeanCliRunner {
         env: { ...process.env },
       });
     } catch (error) {
-      const execError = error as { stdout?: string; stderr?: string; message?: string };
+      const execError = error as {
+        stdout?: string;
+        stderr?: string;
+        message?: string;
+      };
       stdout = execError.stdout ?? '';
       stderr = execError.stderr ?? '';
       this.logger.warn(
         `Lean CLI exited non-zero for ${runId}: ${execError.message ?? 'unknown'}`,
+      );
+      throw new Error(
+        `Lean CLI backtest failed for ${runId}: ${execError.message ?? 'unknown error'}`,
       );
     }
 
@@ -154,9 +174,21 @@ export class LeanCliRunner {
       cpSync(projectArtifactDir, outputDirectory, { recursive: true });
     }
     if (!existsSync(join(outputDirectory, 'statistics.json'))) {
-      this.hydrateArtifactsFromLeanBacktest(projectName, outputDirectory, runId);
+      if (!request.allowSummaryHydration) {
+        throw new Error(
+          `Lean backtest did not export host-visible artifacts for ${runId}. Expected ${projectArtifactDir}.`,
+        );
+      }
+      this.hydrateArtifactsFromLeanBacktest(
+        projectName,
+        outputDirectory,
+        runId,
+      );
     }
     this.verifyRequiredArtifacts(outputDirectory);
+    if (request.requireStrategyEvidence) {
+      assertLeanRunArtifactsAccepted(outputDirectory, 'strategy-backtest');
+    }
 
     return {
       runId,
@@ -189,7 +221,9 @@ export class LeanCliRunner {
       return;
     }
     const latest = readdirSync(backtestsRoot, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory() && entry.name !== 'lincei-artifacts')
+      .filter(
+        (entry) => entry.isDirectory() && entry.name !== 'lincei-artifacts',
+      )
       .map((entry) => join(backtestsRoot, entry.name))
       .sort()
       .pop();
@@ -217,7 +251,9 @@ export class LeanCliRunner {
       );
     }
 
-    const logPath = readdirSync(latest).find((name) => name.endsWith('-log.txt'));
+    const logPath = readdirSync(latest).find((name) =>
+      name.endsWith('-log.txt'),
+    );
     if (logPath) {
       cpSync(join(latest, logPath), join(outputDirectory, 'logs.txt'));
     }
@@ -255,7 +291,10 @@ export class LeanCliRunner {
       );
     }
     if (!existsSync(join(outputDirectory, 'order_events.json'))) {
-      writeFileSync(join(outputDirectory, 'order_events.json'), '{"events":[]}\n');
+      writeFileSync(
+        join(outputDirectory, 'order_events.json'),
+        '{"events":[]}\n',
+      );
     }
     if (!existsSync(join(outputDirectory, 'fills.json'))) {
       writeFileSync(join(outputDirectory, 'fills.json'), '{"fills":[]}\n');
@@ -276,7 +315,10 @@ export class LeanCliRunner {
       );
     }
     if (!existsSync(join(outputDirectory, 'logs.txt'))) {
-      writeFileSync(join(outputDirectory, 'logs.txt'), `hydrated from ${latest}\n`);
+      writeFileSync(
+        join(outputDirectory, 'logs.txt'),
+        `hydrated from ${latest}\n`,
+      );
     }
   }
 

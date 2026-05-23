@@ -59,7 +59,9 @@ export class LivePilot10UsdService {
     });
     const topTarget = latestTarget?.targets[0];
     if (!topTarget) {
-      throw new BadRequestException('No portfolio target available for live pilot.');
+      throw new BadRequestException(
+        'No portfolio target available for live pilot.',
+      );
     }
 
     const notionalUsd = Math.min(
@@ -78,22 +80,49 @@ export class LivePilot10UsdService {
       limitPrice: 100,
       timeInForce: 'day',
       maxSlippageBps: 25,
-      idempotencyKey: options.idempotencyKey ?? `live-pilot-10usd:${topTarget.symbol}`,
+      idempotencyKey:
+        options.idempotencyKey ?? `live-pilot-10usd:${topTarget.symbol}`,
       approvalRef: 'live-pilot-v1',
-      intentHash: hashObject({ symbol: topTarget.symbol, notionalUsd }),
+      intentHash: hashObject({
+        portfolioTargetSnapshotId: latestTarget.id,
+        symbol: topTarget.symbol,
+        side: 'buy',
+        orderType: 'limit',
+        notionalUsd,
+        limitPrice: 100,
+      }),
     };
     validateExecutionIntent(intent);
 
     const existing = await this.intentRepository.findOne({
       where: { idempotencyKey: intent.idempotencyKey },
     });
-    if (existing?.status === 'filled') {
+    if (existing) {
+      if (existing.intentHash !== intent.intentHash) {
+        throw new BadRequestException(
+          'Existing live pilot idempotency key points to a different intent hash.',
+        );
+      }
       return {
-        submitted: true,
+        submitted:
+          existing.status === 'submitted' || existing.status === 'filled',
         intentId: existing.id,
-        blockers: [],
+        blockers:
+          existing.status === 'planned'
+            ? [
+                'Existing live pilot intent is planned; refusing duplicate broker submit.',
+              ]
+            : existing.blockers,
       };
     }
+
+    await this.intentRepository.save(
+      this.intentRepository.create({
+        ...intent,
+        status: 'planned',
+        blockers: [],
+      }),
+    );
 
     // Real Toss adapter only after explicit schema + write flags; otherwise mock proves plumbing only.
     const adapter =
@@ -104,6 +133,13 @@ export class LivePilot10UsdService {
 
     const preview = await adapter.previewOrder(intent);
     if (!preview.allowed) {
+      await this.intentRepository.save(
+        this.intentRepository.create({
+          ...intent,
+          status: 'blocked',
+          blockers: preview.blockers,
+        }),
+      );
       return {
         submitted: false,
         intentId: intent.id,
@@ -132,7 +168,9 @@ export class LivePilot10UsdService {
         realOrderSent,
         blockers: realOrderSent
           ? []
-          : ['Live pilot used mock adapter because Toss write gates are not verified.'],
+          : [
+              'Live pilot used mock adapter because Toss write gates are not verified.',
+            ],
         latestLeanRunId: preflight.latestLeanRunId,
         latestPaperPlanId: preflight.latestPaperPlanId,
       }),
@@ -143,7 +181,9 @@ export class LivePilot10UsdService {
       intentId: intent.id,
       blockers: realOrderSent
         ? []
-        : ['No real broker order sent; mock adapter used for plumbing verification.'],
+        : [
+            'No real broker order sent; mock adapter used for plumbing verification.',
+          ],
     };
   }
 }

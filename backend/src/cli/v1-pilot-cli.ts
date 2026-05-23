@@ -28,7 +28,13 @@ async function bootstrap(): Promise<void> {
       case 'import-lean-run': {
         const target = args[0] ?? 'latest';
         const imported = await orchestrator.importLeanRun(target);
-        console.log(JSON.stringify({ runId: imported.runId, status: imported.status }, null, 2));
+        console.log(
+          JSON.stringify(
+            { runId: imported.runId, status: imported.status },
+            null,
+            2,
+          ),
+        );
         break;
       }
       case 'train-ml-baseline': {
@@ -45,8 +51,11 @@ async function bootstrap(): Promise<void> {
         const skipAlphaCycle = args.includes('--skip-alpha-cycle');
         const noDownloadData = args.includes('--no-download-data');
         const skipIngest = args.includes('--skip-market-data-ingest');
-        const noStaticMeta = args.includes('--no-static-meta');
-        const noStaticMl = args.includes('--no-static-ml');
+        const noStaticMeta =
+          args.includes('--no-static-meta') ||
+          !args.includes('--with-static-meta');
+        const noStaticMl =
+          args.includes('--no-static-ml') || !args.includes('--with-static-ml');
         const result = await orchestrator.runFullBacktest({
           skipAlphaCycle,
           downloadData: !noDownloadData,
@@ -64,7 +73,13 @@ async function bootstrap(): Promise<void> {
       }
       case 'run-paper-cycle': {
         const plan = await orchestrator.runPaperCycle();
-        console.log(JSON.stringify({ paperOrderPlanId: plan.id, status: plan.status }, null, 2));
+        console.log(
+          JSON.stringify(
+            { paperOrderPlanId: plan.id, status: plan.status },
+            null,
+            2,
+          ),
+        );
         break;
       }
       case 'live-preflight': {
@@ -86,7 +101,10 @@ async function bootstrap(): Promise<void> {
         }
         console.log(
           JSON.stringify(
-            { status: 'blocked', reason: 'Flatten path reserved for verified broker adapter.' },
+            {
+              status: 'blocked',
+              reason: 'Flatten path reserved for verified broker adapter.',
+            },
             null,
             2,
           ),

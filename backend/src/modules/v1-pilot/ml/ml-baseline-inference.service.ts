@@ -34,7 +34,8 @@ export class MlBaselineInferenceService {
       if (registry.framework === 'jc-stockprediction-lgb') {
         payload.configPath = join(this.repoRoot, registry.configPath ?? '');
         payload.databasePath =
-          process.env.DATABASE_PATH ?? join(this.repoRoot, 'backend/data/investment.db');
+          process.env.DATABASE_PATH ??
+          join(this.repoRoot, 'backend/data/investment.db');
         payload.datasetId = 'v1-lean-universe';
         payload.symbols = snapshots.map((snapshot) => snapshot.symbol);
       } else {
@@ -43,10 +44,9 @@ export class MlBaselineInferenceService {
           features: snapshot.features,
         }));
       }
-      const response = this.pythonRunner.runJsonScript<{ predictions: MlPrediction[] }>(
-        'ml/inference/predict.py',
-        payload,
-      );
+      const response = this.pythonRunner.runJsonScript<{
+        predictions: MlPrediction[];
+      }>('ml/inference/predict.py', payload);
       const predictions = response.predictions ?? [];
       this.exportPredictionsForLean(registry.modelName, predictions);
       return predictions;
@@ -58,8 +58,14 @@ export class MlBaselineInferenceService {
     }
   }
 
-  private exportPredictionsForLean(modelName: string, predictions: MlPrediction[]): void {
-    const workspaceRoot = join(this.repoRoot, 'engines/lean/aggressive_llm_momentum');
+  private exportPredictionsForLean(
+    modelName: string,
+    predictions: MlPrediction[],
+  ): void {
+    const workspaceRoot = join(
+      this.repoRoot,
+      'engines/lean/aggressive_llm_momentum',
+    );
     const inputDir = join(workspaceRoot, 'input');
     mkdirSync(inputDir, { recursive: true });
     writeFileSync(

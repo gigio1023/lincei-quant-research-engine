@@ -34,7 +34,9 @@ describe('v1-pilot.validators', () => {
 
   it('rejects_stale_feature_snapshot', () => {
     const stale = freshSnapshot();
-    stale.dataAvailabilityTime = new Date(Date.now() - 96 * 60 * 60 * 1000).toISOString();
+    stale.dataAvailabilityTime = new Date(
+      Date.now() - 96 * 60 * 60 * 1000,
+    ).toISOString();
     expect(() => validateFeatureSnapshot(stale)).toThrow(BadRequestException);
   });
 

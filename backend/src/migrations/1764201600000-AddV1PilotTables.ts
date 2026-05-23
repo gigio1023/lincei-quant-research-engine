@@ -129,7 +129,9 @@ export class AddV1PilotTables1764201600000 implements MigrationInterface {
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP TABLE IF EXISTS "live_pilot_status_records"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "execution_intents"`);
-    await queryRunner.query(`DROP TABLE IF EXISTS "portfolio_target_snapshots"`);
+    await queryRunner.query(
+      `DROP TABLE IF EXISTS "portfolio_target_snapshots"`,
+    );
     await queryRunner.query(`DROP TABLE IF EXISTS "alpha_decisions"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "feature_snapshots"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "lean_runs"`);

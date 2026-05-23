@@ -1,4 +1,12 @@
 export type MlModelRegistryStatus = 'promoted' | 'not_promoted';
+export type MlModelReadinessStatus =
+  | 'missing_registry'
+  | 'not_promoted'
+  | 'promoted_ready'
+  | 'promoted_missing_artifact'
+  | 'promoted_missing_config'
+  | 'promoted_local_only_artifact'
+  | 'promoted_hash_mismatch';
 
 export type MlModelRegistryRecord = {
   modelName: string;
@@ -33,4 +41,11 @@ export type MlPrediction = {
   rawScore: number;
   score: number;
   expectedReturnBps: number;
+};
+
+export type MlModelReadiness = {
+  status: MlModelReadinessStatus;
+  modelName?: string;
+  registryStatus?: MlModelRegistryStatus;
+  blocker?: string;
 };

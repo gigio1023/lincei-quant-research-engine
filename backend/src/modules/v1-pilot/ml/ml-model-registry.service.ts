@@ -2,19 +2,27 @@ import { Injectable, Logger } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { existsSync, readFileSync } from 'fs';
 import { join, resolve } from 'path';
-import { MlModelRegistryRecord } from './ml-model-registry.types';
+import {
+  MlModelReadiness,
+  MlModelRegistryRecord,
+} from './ml-model-registry.types';
 
 @Injectable()
 export class MlModelRegistryService {
   private readonly logger = new Logger(MlModelRegistryService.name);
   private readonly repoRoot = resolve(process.cwd(), '..');
-  private readonly registryPath = join(this.repoRoot, 'ml/registry/model_registry.json');
+  private readonly registryPath = join(
+    this.repoRoot,
+    'ml/registry/model_registry.json',
+  );
 
   getRegistry(): MlModelRegistryRecord | null {
     if (!existsSync(this.registryPath)) {
       return null;
     }
-    return JSON.parse(readFileSync(this.registryPath, 'utf8')) as MlModelRegistryRecord;
+    return JSON.parse(
+      readFileSync(this.registryPath, 'utf8'),
+    ) as MlModelRegistryRecord;
   }
 
   getPromotedModel(): MlModelRegistryRecord | null {
@@ -22,29 +30,78 @@ export class MlModelRegistryService {
     if (!registry || registry.status !== 'promoted') {
       return null;
     }
+    const readiness = this.getModelReadiness(registry);
+    if (readiness.status !== 'promoted_ready') {
+      if (readiness.blocker) {
+        this.logger.warn(readiness.blocker);
+      }
+      return null;
+    }
+    return registry;
+  }
+
+  getModelReadiness(registry = this.getRegistry()): MlModelReadiness {
+    if (!registry) {
+      return { status: 'missing_registry' };
+    }
+    if (registry.status !== 'promoted') {
+      return {
+        status: 'not_promoted',
+        modelName: registry.modelName,
+        registryStatus: registry.status,
+      };
+    }
+
     const artifactPath = join(this.repoRoot, registry.artifactPath);
     if (!existsSync(artifactPath)) {
-      return null;
+      return {
+        status: 'promoted_missing_artifact',
+        modelName: registry.modelName,
+        registryStatus: registry.status,
+        blocker: `Promoted ML model ${registry.modelName} is missing artifact ${registry.artifactPath}.`,
+      };
     }
     if (registry.configPath) {
       const configPath = join(this.repoRoot, registry.configPath);
       if (!existsSync(configPath)) {
-        return null;
+        return {
+          status: 'promoted_missing_config',
+          modelName: registry.modelName,
+          registryStatus: registry.status,
+          blocker: `Promoted ML model ${registry.modelName} is missing config ${registry.configPath}.`,
+        };
       }
     }
     if (
       registry.source === 'external-download' &&
       this.isLocalOnlyJoblibArtifact(registry.artifactPath)
     ) {
-      this.logger.warn(
-        `External-download model ${registry.modelName} cannot use local-only joblib/pickle artifacts.`,
-      );
-      return null;
+      return {
+        status: 'promoted_local_only_artifact',
+        modelName: registry.modelName,
+        registryStatus: registry.status,
+        blocker: `External-download model ${registry.modelName} cannot use local-only joblib/pickle artifacts.`,
+      };
     }
-    if (!this.verifyArtifactHash(artifactPath, registry.modelHash, registry.modelName)) {
-      return null;
+    if (
+      !this.verifyArtifactHash(
+        artifactPath,
+        registry.modelHash,
+        registry.modelName,
+      )
+    ) {
+      return {
+        status: 'promoted_hash_mismatch',
+        modelName: registry.modelName,
+        registryStatus: registry.status,
+        blocker: `Promoted ML model ${registry.modelName} failed artifact hash verification.`,
+      };
     }
-    return registry;
+    return {
+      status: 'promoted_ready',
+      modelName: registry.modelName,
+      registryStatus: registry.status,
+    };
   }
 
   /** SHA-256 of raw artifact bytes; must match registry `modelHash` before inference. */

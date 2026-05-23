@@ -70,9 +70,18 @@ export function combineMetaFromDecisions(input: {
   llmMacro?: MetaDirectionInput;
   llmRisk?: MetaDirectionInput;
 }): MetaComponentScores {
-  const numericScore = directionScore(input.numeric?.direction, input.numeric?.confidence);
-  const eventScore = directionScore(input.llmEvent?.direction, input.llmEvent?.confidence);
-  const macroScore = directionScore(input.llmMacro?.direction, input.llmMacro?.confidence);
+  const numericScore = directionScore(
+    input.numeric?.direction,
+    input.numeric?.confidence,
+  );
+  const eventScore = directionScore(
+    input.llmEvent?.direction,
+    input.llmEvent?.confidence,
+  );
+  const macroScore = directionScore(
+    input.llmMacro?.direction,
+    input.llmMacro?.confidence,
+  );
   const riskAdjustment =
     1 - directionScore(input.llmRisk?.direction, input.llmRisk?.confidence);
   const finalScore = combineMetaComponentScores(
@@ -108,10 +117,16 @@ export function combineMetaLeanReplay(
   const numericScore = metaRecord.numericScore ?? liveNumericScore;
   const eventScore = metaRecord.eventScore ?? llmScores?.event ?? 0.5;
   const macroScore = metaRecord.macroScore ?? llmScores?.macro ?? 0.5;
-  const riskAdjustment = metaRecord.riskAdjustment ?? llmScores?.riskAdjustment ?? 0.5;
+  const riskAdjustment =
+    metaRecord.riskAdjustment ?? llmScores?.riskAdjustment ?? 0.5;
   const finalScore =
     metaRecord.finalScore ??
-    combineMetaComponentScores(numericScore, eventScore, macroScore, riskAdjustment);
+    combineMetaComponentScores(
+      numericScore,
+      eventScore,
+      macroScore,
+      riskAdjustment,
+    );
 
   return {
     numericScore,

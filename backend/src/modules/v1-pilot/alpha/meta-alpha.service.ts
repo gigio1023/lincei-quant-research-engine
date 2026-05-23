@@ -38,15 +38,23 @@ export class MetaAlphaService {
     const savePromises: Promise<AlphaDecision>[] = [];
 
     snapshots.forEach((snapshot) => {
-      const numericDecision = numeric.find((item) => item.symbol === snapshot.symbol);
+      const numericDecision = numeric.find(
+        (item) => item.symbol === snapshot.symbol,
+      );
       const llmEvent = llm.find(
-        (item) => item.symbol === snapshot.symbol && item.sourceModels[0]?.includes('event'),
+        (item) =>
+          item.symbol === snapshot.symbol &&
+          item.sourceModels[0]?.includes('event'),
       );
       const llmMacro = llm.find(
-        (item) => item.symbol === snapshot.symbol && item.sourceModels[0]?.includes('macro'),
+        (item) =>
+          item.symbol === snapshot.symbol &&
+          item.sourceModels[0]?.includes('macro'),
       );
       const llmRisk = llm.find(
-        (item) => item.symbol === snapshot.symbol && item.sourceModels[0]?.includes('risk'),
+        (item) =>
+          item.symbol === snapshot.symbol &&
+          item.sourceModels[0]?.includes('risk'),
       );
       const components = combineMetaFromDecisions({
         numeric: numericDecision,
@@ -54,12 +62,21 @@ export class MetaAlphaService {
         llmMacro,
         llmRisk,
       });
-      const { numericScore, eventScore, macroScore, riskAdjustment, finalScore } = components;
+      const {
+        numericScore,
+        eventScore,
+        macroScore,
+        riskAdjustment,
+        finalScore,
+      } = components;
       let direction = directionFromMetaScore(finalScore);
       let maxPositionPct = direction === 'up' ? 0.35 : 0;
 
       // Spec conflict rules: dampen size when committees disagree or risk reviewer is elevated.
-      if (numericDecision?.direction === 'up' && llmEvent?.direction === 'flat') {
+      if (
+        numericDecision?.direction === 'up' &&
+        llmEvent?.direction === 'flat'
+      ) {
         maxPositionPct = Math.min(maxPositionPct, 0.175);
       }
       if (llmRisk && llmRisk.confidence > 0.7) {
@@ -77,7 +94,8 @@ export class MetaAlphaService {
         horizonDays: 21,
         direction,
         confidence: Number(Math.min(1, Math.max(0.2, finalScore)).toFixed(4)),
-        conviction: finalScore > 0.75 ? 'high' : finalScore > 0.55 ? 'medium' : 'low',
+        conviction:
+          finalScore > 0.75 ? 'high' : finalScore > 0.55 ? 'medium' : 'low',
         maxPositionPct,
         featureSnapshotHash: snapshot.inputHash,
         sourceModels: ['LinceiMetaAlphaModel'],
@@ -93,12 +111,19 @@ export class MetaAlphaService {
           direction === 'up'
             ? 'LLM disagreement or elevated risk score may reduce live exposure.'
             : undefined,
-        abstainReason: direction === 'flat' ? 'Meta score below promotion threshold.' : undefined,
+        abstainReason:
+          direction === 'flat'
+            ? 'Meta score below promotion threshold.'
+            : undefined,
         inputHash: hashObject({
           numeric: numericDecision?.outputHash,
           llm: llm.map((item) => item.outputHash),
         }),
-        outputHash: hashObject({ symbol: snapshot.symbol, finalScore, direction }),
+        outputHash: hashObject({
+          symbol: snapshot.symbol,
+          finalScore,
+          direction,
+        }),
       };
 
       if (direction !== 'flat') {
@@ -122,7 +147,9 @@ export class MetaAlphaService {
         },
         maxPositionPct,
       });
-      savePromises.push(this.alphaRepository.save(this.alphaRepository.create(decision)));
+      savePromises.push(
+        this.alphaRepository.save(this.alphaRepository.create(decision)),
+      );
     });
 
     await Promise.all(savePromises);

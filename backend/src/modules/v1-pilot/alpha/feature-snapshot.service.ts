@@ -49,7 +49,8 @@ export class FeatureSnapshotService {
         symbol,
         asOf,
         dataAvailabilityTime:
-          bars[0]?.availabilityTimestamp ?? new Date(Date.now() - 86_400_000).toISOString(),
+          bars[0]?.availabilityTimestamp ??
+          new Date(Date.now() - 86_400_000).toISOString(),
         timeframe: 'daily',
         features,
         sourceRefs: bars.length
@@ -60,7 +61,9 @@ export class FeatureSnapshotService {
       };
       validateFeatureSnapshot(snapshot);
       snapshots.push(snapshot);
-      await this.featureRepository.save(this.featureRepository.create(snapshot));
+      await this.featureRepository.save(
+        this.featureRepository.create(snapshot),
+      );
     }
 
     return snapshots;
@@ -103,7 +106,8 @@ export class FeatureSnapshotService {
       return previous === 0 ? 0 : value / previous - 1;
     });
     const mean =
-      returns.reduce((sum, value) => sum + value, 0) / Math.max(returns.length, 1);
+      returns.reduce((sum, value) => sum + value, 0) /
+      Math.max(returns.length, 1);
     const variance =
       returns.reduce((sum, value) => sum + (value - mean) ** 2, 0) /
       Math.max(returns.length, 1);

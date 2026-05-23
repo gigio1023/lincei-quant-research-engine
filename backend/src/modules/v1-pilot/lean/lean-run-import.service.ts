@@ -12,6 +12,10 @@ import { PortfolioTargetSnapshot } from '../../../entities/portfolio-target-snap
 import { LeanRunResult } from './lean-run.types';
 import { LeanPortfolioTargetsPayload } from './lean-run.types';
 import { hashObject } from '../../../shared/hash.util';
+import {
+  LeanAcceptanceMode,
+  assessLeanRunArtifacts,
+} from './lean-run-acceptance';
 
 @Injectable()
 export class LeanRunImportService {
@@ -25,6 +29,7 @@ export class LeanRunImportService {
   async importFromDirectory(
     resultDirectory: string,
     idempotencyKey?: string,
+    options: { acceptanceMode?: LeanAcceptanceMode } = {},
   ): Promise<LeanRun> {
     const manifestPath = join(resultDirectory, 'statistics.json');
     if (!existsSync(manifestPath)) {
@@ -57,6 +62,16 @@ export class LeanRunImportService {
       string,
       string | number
     >;
+    const acceptance = assessLeanRunArtifacts(
+      resultDirectory,
+      options.acceptanceMode ?? 'schema-import',
+    );
+    if (!acceptance.passed) {
+      throw new BadRequestException(
+        `LEAN ${acceptance.mode} rejected: ${acceptance.blockers.join('; ')}`,
+      );
+    }
+
     const result: LeanRunResult = {
       runId,
       projectName: config.projectName ?? 'aggressive_llm_momentum',
@@ -75,7 +90,7 @@ export class LeanRunImportService {
       orderEventsRef: join(resultDirectory, 'order_events.json'),
       fillsRef: join(resultDirectory, 'fills.json'),
       logsRef: join(resultDirectory, 'logs.txt'),
-      blockerReasons: [],
+      blockerReasons: acceptance.blockers,
     };
 
     this.assertArtifacts(result);
@@ -91,11 +106,11 @@ export class LeanRunImportService {
     return saved;
   }
 
-  async importLatestFromArtifactsRoot(
-    artifactsRoot: string,
-  ): Promise<LeanRun> {
+  async importLatestFromArtifactsRoot(artifactsRoot: string): Promise<LeanRun> {
     if (!existsSync(artifactsRoot)) {
-      throw new BadRequestException(`Artifacts root not found: ${artifactsRoot}`);
+      throw new BadRequestException(
+        `Artifacts root not found: ${artifactsRoot}`,
+      );
     }
     const entries = readFileSync(join(artifactsRoot, '.latest'), 'utf8').trim();
     return this.importFromDirectory(join(artifactsRoot, entries));
@@ -120,7 +135,9 @@ export class LeanRunImportService {
     ];
     required.forEach((artifactPath) => {
       if (!artifactPath || !existsSync(artifactPath)) {
-        throw new BadRequestException(`Missing required artifact: ${artifactPath}`);
+        throw new BadRequestException(
+          `Missing required artifact: ${artifactPath}`,
+        );
       }
     });
   }

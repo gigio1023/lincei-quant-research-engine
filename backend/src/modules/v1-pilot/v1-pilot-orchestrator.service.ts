@@ -53,31 +53,37 @@ export class V1PilotOrchestratorService {
    * End-to-end production backtest: optional Stooq ingest → alpha → Lean CLI → DB import.
    * Does not fall back to the local simulator.
    */
-  async runFullBacktest(options: {
-    skipAlphaCycle?: boolean;
-    downloadData?: boolean;
-    ingestUniverseBars?: boolean;
-    validationMode?: string;
-    noStaticMeta?: boolean;
-    noStaticMl?: boolean;
-  } = {}): Promise<Record<string, unknown>> {
+  async runFullBacktest(
+    options: {
+      skipAlphaCycle?: boolean;
+      downloadData?: boolean;
+      ingestUniverseBars?: boolean;
+      validationMode?: string;
+      noStaticMeta?: boolean;
+      noStaticMl?: boolean;
+    } = {},
+  ): Promise<Record<string, unknown>> {
     const repoRoot = resolve(process.cwd(), '..');
     const steps: Record<string, unknown> = {};
+    const noStaticMeta = options.noStaticMeta ?? true;
+    const noStaticMl = options.noStaticMl ?? true;
+    const shouldRunAlphaCycle =
+      options.skipAlphaCycle !== true && (!noStaticMeta || !noStaticMl);
     const validationMode =
       options.validationMode ??
-      (options.noStaticMeta || options.noStaticMl
-        ? 'historical-research'
-        : !options.skipAlphaCycle
-          ? 'flow-validation'
-          : undefined);
-    const usesStaticMetaOverlay =
-      !options.skipAlphaCycle && !options.noStaticMeta;
-    const usesStaticMlPredictions = !options.noStaticMl;
-    const alphaMode = options.noStaticMeta ? 'numeric-only' : 'meta-overlay';
+      (noStaticMeta && noStaticMl ? 'historical-research' : 'flow-validation');
+    const usesStaticMetaOverlay = !noStaticMeta;
+    const usesStaticMlPredictions = !noStaticMl;
+    const alphaMode = noStaticMeta ? 'numeric-only' : 'meta-overlay';
 
-    if (options.ingestUniverseBars !== false) {
+    if (
+      options.ingestUniverseBars === true ||
+      (options.ingestUniverseBars !== false && shouldRunAlphaCycle)
+    ) {
       const windowEnd = new Date();
-      const windowStart = new Date(windowEnd.getTime() - 400 * 24 * 60 * 60_000);
+      const windowStart = new Date(
+        windowEnd.getTime() - 400 * 24 * 60 * 60_000,
+      );
       try {
         steps.marketDataIngestion = await this.marketDataIngestionService.poll(
           {
@@ -100,7 +106,7 @@ export class V1PilotOrchestratorService {
       }
     }
 
-    if (!options.skipAlphaCycle) {
+    if (shouldRunAlphaCycle) {
       steps.alphaCycle = await this.runAlphaCycle();
     }
 
@@ -115,16 +121,23 @@ export class V1PilotOrchestratorService {
       validationMode,
       usesStaticMetaOverlay,
       usesStaticMlPredictions,
-      noStaticMeta: options.noStaticMeta,
-      noStaticMl: options.noStaticMl,
+      noStaticMeta,
+      noStaticMl,
       alphaMode,
+      requireStrategyEvidence: true,
     });
     steps.leanBacktest = leanResult;
 
     const artifactsRoot = join(repoRoot, 'artifacts/lean-runs');
-    writeFileSync(join(artifactsRoot, '.latest'), `${leanResult.runId}\n`, 'utf8');
+    writeFileSync(
+      join(artifactsRoot, '.latest'),
+      `${leanResult.runId}\n`,
+      'utf8',
+    );
     steps.import = await this.leanRunImportService.importFromDirectory(
       leanResult.outputDirectory,
+      undefined,
+      { acceptanceMode: 'strategy-backtest' },
     );
 
     return {
@@ -135,20 +148,21 @@ export class V1PilotOrchestratorService {
         validationMode,
         usesStaticMetaOverlay,
         usesStaticMlPredictions,
-        noStaticMeta: options.noStaticMeta ?? false,
-        noStaticMl: options.noStaticMl ?? false,
+        noStaticMeta,
+        noStaticMl,
         alphaMode,
       },
       steps,
     };
   }
 
-  getMlModelStatus(): { status: string; modelName?: string } {
-    const registry = this.mlModelRegistryService.getRegistry();
-    if (!registry) {
-      return { status: 'missing' };
-    }
-    return { status: registry.status, modelName: registry.modelName };
+  getMlModelStatus(): { status: string; modelName?: string; blocker?: string } {
+    const readiness = this.mlModelRegistryService.getModelReadiness();
+    return {
+      status: readiness.status,
+      modelName: readiness.modelName,
+      blocker: readiness.blocker,
+    };
   }
 
   async runAlphaCycle(): Promise<{
@@ -157,10 +171,11 @@ export class V1PilotOrchestratorService {
     llmCount: number;
     metaCount: number;
   }> {
-    const snapshots = await this.featureSnapshotService.buildSnapshotsForUniverse(
-      'v1-lean-universe',
-      { allowSynthetic: false },
-    );
+    const snapshots =
+      await this.featureSnapshotService.buildSnapshotsForUniverse(
+        'v1-lean-universe',
+        { allowSynthetic: false },
+      );
     const numeric = await this.numericAlphaService.buildDecisions(snapshots);
     const llm = await this.llmAlphaService.buildDecisions(snapshots, numeric);
     const meta = await this.metaAlphaService.combine(snapshots, numeric, llm);
@@ -172,7 +187,9 @@ export class V1PilotOrchestratorService {
     };
   }
 
-  async runLeanBacktest(projectName: string): Promise<{ runId: string; mode: string }> {
+  async runLeanBacktest(
+    projectName: string,
+  ): Promise<{ runId: string; mode: string }> {
     if (projectName !== 'aggressive_llm_momentum') {
       throw new Error(`Unsupported LEAN project: ${projectName}`);
     }
@@ -183,7 +200,10 @@ export class V1PilotOrchestratorService {
 
     if (preferSimulator) {
       const workspaceRoot = join(repoRoot, 'engines/lean', projectName);
-      const metaDecisionsPath = join(workspaceRoot, 'input/meta_decisions.json');
+      const metaDecisionsPath = join(
+        workspaceRoot,
+        'input/meta_decisions.json',
+      );
       const result = this.leanLocalSimulatorService.simulateRun({
         projectName,
         workspaceRoot,
@@ -194,7 +214,11 @@ export class V1PilotOrchestratorService {
       });
       const artifactsRoot = join(repoRoot, 'artifacts/lean-runs');
       mkdirSync(artifactsRoot, { recursive: true });
-      writeFileSync(join(artifactsRoot, '.latest'), `${result.runId}\n`, 'utf8');
+      writeFileSync(
+        join(artifactsRoot, '.latest'),
+        `${result.runId}\n`,
+        'utf8',
+      );
       return { runId: result.runId, mode: 'simulator' };
     }
 
@@ -202,7 +226,11 @@ export class V1PilotOrchestratorService {
       try {
         const result = this.leanCliRunner.runBacktest({ projectName });
         const artifactsRoot = join(repoRoot, 'artifacts/lean-runs');
-        writeFileSync(join(artifactsRoot, '.latest'), `${result.runId}\n`, 'utf8');
+        writeFileSync(
+          join(artifactsRoot, '.latest'),
+          `${result.runId}\n`,
+          'utf8',
+        );
         return { runId: result.runId, mode: result.mode };
       } catch (error) {
         if (process.env.LEAN_STRICT_CLI !== 'false') {
@@ -223,7 +251,10 @@ export class V1PilotOrchestratorService {
       return { runId: latestRunId, mode: 'lean-cli' };
     } catch (error) {
       const workspaceRoot = join(repoRoot, 'engines/lean', projectName);
-      const metaDecisionsPath = join(workspaceRoot, 'input/meta_decisions.json');
+      const metaDecisionsPath = join(
+        workspaceRoot,
+        'input/meta_decisions.json',
+      );
       const result = this.leanLocalSimulatorService.simulateRun({
         projectName,
         workspaceRoot,
@@ -234,7 +265,11 @@ export class V1PilotOrchestratorService {
       });
       const artifactsRoot = join(repoRoot, 'artifacts/lean-runs');
       mkdirSync(artifactsRoot, { recursive: true });
-      writeFileSync(join(artifactsRoot, '.latest'), `${result.runId}\n`, 'utf8');
+      writeFileSync(
+        join(artifactsRoot, '.latest'),
+        `${result.runId}\n`,
+        'utf8',
+      );
       return {
         runId: result.runId,
         mode: `simulator:${error instanceof Error ? error.message : 'lean-cli-unavailable'}`,
@@ -247,12 +282,13 @@ export class V1PilotOrchestratorService {
     const artifactsRoot = join(repoRoot, 'artifacts/lean-runs');
     if (target === 'latest') {
       if (!existsSync(join(artifactsRoot, '.latest'))) {
-        const simulated = await this.runLeanBacktest('aggressive_llm_momentum');
-        return this.leanRunImportService.importFromDirectory(
-          join(artifactsRoot, simulated.runId),
+        throw new Error(
+          'No latest LEAN run marker found. Run lean-backtest or run-full-backtest first.',
         );
       }
-      return this.leanRunImportService.importLatestFromArtifactsRoot(artifactsRoot);
+      return this.leanRunImportService.importLatestFromArtifactsRoot(
+        artifactsRoot,
+      );
     }
     return this.leanRunImportService.importFromDirectory(
       join(artifactsRoot, target),

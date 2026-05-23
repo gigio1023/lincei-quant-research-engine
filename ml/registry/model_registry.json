@@ -2,7 +2,7 @@
   "modelName": "jc-stockprediction-ai-live",
   "modelType": "lightgbm",
   "framework": "jc-stockprediction-lgb",
-  "status": "promoted",
+  "status": "not_promoted",
   "featureVersion": "jc-stockprediction-v1",
   "featureColumns": [
     "logret_1d",
@@ -70,6 +70,6 @@
   "promotionThreshold": {
     "directionalAccuracy": 0.0
   },
-  "notes": "QC-style LightGBM tabular baseline (text booster only). NLP/sentiment is OpenAI LLM committee only \u2014 no FinBERT.",
+  "notes": "QC-style LightGBM tabular baseline (text booster only). Downloaded baseline only; promote after local walk-forward validation. NLP/sentiment is OpenAI LLM committee only \u2014 no FinBERT.",
   "securityManifest": "ml/registry/external_artifact_manifest.json"
 }

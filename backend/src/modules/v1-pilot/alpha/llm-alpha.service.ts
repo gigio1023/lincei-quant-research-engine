@@ -43,7 +43,11 @@ export class LlmAlphaService {
     numeric: AlphaDecisionContract[],
   ): Promise<AlphaDecisionContract[]> {
     const env = loadOpenAiEnv();
-    if (!env.apiKey || env.apiKey.includes('your_openai') || env.apiKey.startsWith('test-')) {
+    if (
+      !env.apiKey ||
+      env.apiKey.includes('your_openai') ||
+      env.apiKey.startsWith('test-')
+    ) {
       this.logger.warn('OPENAI_API_KEY missing; skipping LLM alpha committee.');
       return [];
     }
@@ -105,7 +109,10 @@ export class LlmAlphaService {
         thesis: entry.thesis,
         counterThesis: entry.counterThesis,
         abstainReason: entry.abstainReason,
-        inputHash: hashObject({ snapshot: snapshot.inputHash, role: entry.role }),
+        inputHash: hashObject({
+          snapshot: snapshot.inputHash,
+          role: entry.role,
+        }),
         outputHash: hashObject(entry),
       };
       if (decision.direction !== 'flat') {

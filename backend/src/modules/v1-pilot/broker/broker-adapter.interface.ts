@@ -7,7 +7,11 @@ import { ExecutionIntentContract } from '../contracts/v1-pilot.contracts';
 export type BrokerSnapshotView = {
   cashUsd: number;
   equityUsd: number;
-  positions: Array<{ symbol: string; quantity: number; marketValueUsd: number }>;
+  positions: Array<{
+    symbol: string;
+    quantity: number;
+    marketValueUsd: number;
+  }>;
   snapshotHash: string;
 };
 

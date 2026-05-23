@@ -68,6 +68,10 @@ import { LeanCliRunner } from './lean/lean-cli.runner';
     TossWriteBrokerAdapter,
     V1PilotOrchestratorService,
   ],
-  exports: [V1PilotOrchestratorService, LeanRunImportService, LivePreflightService],
+  exports: [
+    V1PilotOrchestratorService,
+    LeanRunImportService,
+    LivePreflightService,
+  ],
 })
 export class V1PilotModule {}
