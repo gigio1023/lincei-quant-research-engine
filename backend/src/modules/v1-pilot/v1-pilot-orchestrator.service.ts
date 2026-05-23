@@ -6,9 +6,9 @@
  * simulator exists so CI and dev machines without Docker/Lean can still prove artifact flow.
  */
 import { Injectable } from '@nestjs/common';
-import { execSync } from 'child_process';
-import { existsSync, writeFileSync, mkdirSync, readdirSync } from 'fs';
+import { existsSync, writeFileSync, mkdirSync } from 'fs';
 import { join, resolve } from 'path';
+import { LeanAcceptanceMode } from './lean/lean-run-acceptance';
 import { FeatureSnapshotService } from './alpha/feature-snapshot.service';
 import { NumericAlphaService } from './alpha/numeric-alpha.service';
 import { LlmAlphaService } from './alpha/llm-alpha.service';
@@ -195,7 +195,6 @@ export class V1PilotOrchestratorService {
     }
 
     const repoRoot = resolve(process.cwd(), '..');
-    const leanConfig = join(repoRoot, 'engines/lean/lean.json');
     const preferSimulator = process.env.LEAN_ALLOW_SIMULATOR === 'true';
 
     if (preferSimulator) {
@@ -222,62 +221,18 @@ export class V1PilotOrchestratorService {
       return { runId: result.runId, mode: 'simulator' };
     }
 
-    if (existsSync(leanConfig)) {
-      try {
-        const result = this.leanCliRunner.runBacktest({ projectName });
-        const artifactsRoot = join(repoRoot, 'artifacts/lean-runs');
-        writeFileSync(
-          join(artifactsRoot, '.latest'),
-          `${result.runId}\n`,
-          'utf8',
-        );
-        return { runId: result.runId, mode: result.mode };
-      } catch (error) {
-        if (process.env.LEAN_STRICT_CLI !== 'false') {
-          throw error;
-        }
-      }
-    }
-
-    const leanCli = process.env.LEAN_CLI_PATH ?? 'lean';
-    try {
-      execSync(`${leanCli} backtest "${projectName}"`, {
-        cwd: join(repoRoot, 'engines/lean'),
-        stdio: 'pipe',
-      });
-      const artifactsRoot = join(repoRoot, 'artifacts/lean-runs');
-      const latestRunId = this.findLatestRunDirectory(artifactsRoot);
-      writeFileSync(join(artifactsRoot, '.latest'), `${latestRunId}\n`, 'utf8');
-      return { runId: latestRunId, mode: 'lean-cli' };
-    } catch (error) {
-      const workspaceRoot = join(repoRoot, 'engines/lean', projectName);
-      const metaDecisionsPath = join(
-        workspaceRoot,
-        'input/meta_decisions.json',
-      );
-      const result = this.leanLocalSimulatorService.simulateRun({
-        projectName,
-        workspaceRoot,
-        resultRoot: join(repoRoot, 'artifacts/lean-runs'),
-        metaDecisionsPath: existsSync(metaDecisionsPath)
-          ? metaDecisionsPath
-          : join(workspaceRoot, 'input/meta_decisions.json.example'),
-      });
-      const artifactsRoot = join(repoRoot, 'artifacts/lean-runs');
-      mkdirSync(artifactsRoot, { recursive: true });
-      writeFileSync(
-        join(artifactsRoot, '.latest'),
-        `${result.runId}\n`,
-        'utf8',
-      );
-      return {
-        runId: result.runId,
-        mode: `simulator:${error instanceof Error ? error.message : 'lean-cli-unavailable'}`,
-      };
-    }
+    const result = this.leanCliRunner.runBacktest({ projectName });
+    const artifactsRoot = join(repoRoot, 'artifacts/lean-runs');
+    writeFileSync(join(artifactsRoot, '.latest'), `${result.runId}\n`, 'utf8');
+    return { runId: result.runId, mode: result.mode };
   }
 
-  async importLeanRun(target: string) {
+  async importLeanRun(
+    target: string,
+    options: { acceptanceMode?: LeanAcceptanceMode } = {
+      acceptanceMode: 'strategy-backtest',
+    },
+  ) {
     const repoRoot = resolve(process.cwd(), '..');
     const artifactsRoot = join(repoRoot, 'artifacts/lean-runs');
     if (target === 'latest') {
@@ -288,10 +243,13 @@ export class V1PilotOrchestratorService {
       }
       return this.leanRunImportService.importLatestFromArtifactsRoot(
         artifactsRoot,
+        options,
       );
     }
     return this.leanRunImportService.importFromDirectory(
       join(artifactsRoot, target),
+      undefined,
+      options,
     );
   }
 
@@ -305,20 +263,5 @@ export class V1PilotOrchestratorService {
 
   async runLivePilot10Usd(confirmRealMoney: boolean) {
     return this.livePilot10UsdService.execute({ confirmRealMoney });
-  }
-
-  private findLatestRunDirectory(artifactsRoot: string): string {
-    if (!existsSync(artifactsRoot)) {
-      throw new Error(`Artifacts root not found: ${artifactsRoot}`);
-    }
-    const entries = readdirSync(artifactsRoot, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name)
-      .sort();
-    const latest = entries[entries.length - 1];
-    if (!latest) {
-      throw new Error('No LEAN run directories found.');
-    }
-    return latest;
   }
 }

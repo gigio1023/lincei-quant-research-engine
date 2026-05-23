@@ -17,6 +17,7 @@ class LinceiArtifactExporter:
         self._algorithm = algorithm
         self._numeric_scores: list[dict[str, Any]] = []
         self._insights: list[dict[str, Any]] = []
+        self._latest_insight_ids_by_symbol: dict[str, list[str]] = {}
         self._portfolio_targets: list[dict[str, Any]] = []
         self._portfolio_meta: dict[str, Any] = {
             "grossExposurePct": 0.0,
@@ -40,6 +41,8 @@ class LinceiArtifactExporter:
         direction: str,
         confidence: float,
     ) -> None:
+        insight_id = f"insight-{symbol}-{datetime.now(timezone.utc):%Y%m%d%H%M%S}"
+        self._latest_insight_ids_by_symbol[symbol] = [insight_id]
         self._numeric_scores.append(
             {
                 "symbol": symbol,
@@ -47,6 +50,21 @@ class LinceiArtifactExporter:
                 "direction": direction,
                 "confidence": round(confidence, 6),
                 "recordedAt": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+        self._insights.append(
+            {
+                "id": insight_id,
+                "symbol": symbol,
+                "direction": direction,
+                "periodDays": 21,
+                "confidence": round(confidence, 6),
+                "magnitude": round(score - 0.5, 6),
+                "sourceModel": "LinceiNumericAlphaModel",
+                "generatedTime": datetime.now(timezone.utc).isoformat(),
+                "finalScore": round(score, 6),
+                "conflictNotes": [],
+                "metaDecisionId": None,
             },
         )
 
@@ -61,6 +79,7 @@ class LinceiArtifactExporter:
         component_scores: dict[str, float] | None = None,
     ) -> None:
         insight_id = f"insight-{symbol}-{datetime.now(timezone.utc):%Y%m%d%H%M%S}"
+        self._latest_insight_ids_by_symbol[symbol] = [insight_id]
         scores = component_scores or {}
         self._insights.append(
             {
@@ -89,7 +108,21 @@ class LinceiArtifactExporter:
         max_single_name_pct: float,
         risk_notes: list[str],
     ) -> None:
-        self._portfolio_targets = targets
+        previous_sources = {
+            row.get("symbol"): row.get("sourceInsightIds", [])
+            for row in self._portfolio_targets
+        }
+        normalized_targets: list[dict[str, Any]] = []
+        for target in targets:
+            row = dict(target)
+            symbol = row.get("symbol")
+            if symbol in self._latest_insight_ids_by_symbol:
+                row["sourceInsightIds"] = self._latest_insight_ids_by_symbol[symbol]
+            elif not row.get("sourceInsightIds") and symbol in previous_sources:
+                row["sourceInsightIds"] = previous_sources[symbol]
+            normalized_targets.append(row)
+
+        self._portfolio_targets = normalized_targets
         self._portfolio_meta = {
             "grossExposurePct": round(gross_exposure_pct, 6),
             "maxSingleNamePct": round(max_single_name_pct, 6),

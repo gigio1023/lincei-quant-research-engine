@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import math
 from pathlib import Path
 
 import lightgbm as lgb
@@ -16,8 +15,21 @@ from ml.features.jc_lgb_features import (
 )
 
 
-def _sigmoid_score(log_return: float) -> float:
-    return float(1.0 / (1.0 + math.exp(-80.0 * log_return)))
+def _regime_decision(log_return: float, row: pd.Series, config: dict) -> dict:
+    regime_rule = config.get("regime_rule", {})
+    live_split = config.get("splits", {}).get("live", {})
+    bull_threshold = float(regime_rule.get("bull_threshold", -0.003))
+    bear_threshold = float(live_split.get("bear_threshold", -0.00125))
+    spy_over_ma_200 = float(row.get("spy_over_ma_200", 0.0))
+    regime = "bull" if spy_over_ma_200 > 0 else "bear"
+    threshold = bull_threshold if regime == "bull" else bear_threshold
+    long_signal = log_return > threshold
+    return {
+        "score": 1.0 if long_signal else 0.0,
+        "regime": regime,
+        "threshold": threshold,
+        "decision": "long" if long_signal else "cash",
+    }
 
 
 def predict_jc(
@@ -44,12 +56,16 @@ def predict_jc(
     predictions: list[dict] = []
     for index, raw in enumerate(raw_predictions):
         log_return = float(raw)
+        decision = _regime_decision(log_return, frame.iloc[index], config)
         predictions.append(
             {
                 "symbol": str(frame.iloc[index]["symbol"]),
                 "rawScore": log_return,
-                "score": _sigmoid_score(log_return),
+                "score": decision["score"],
                 "expectedReturnBps": log_return * 10_000,
+                "regime": decision["regime"],
+                "decisionThreshold": decision["threshold"],
+                "decision": decision["decision"],
             },
         )
     return predictions

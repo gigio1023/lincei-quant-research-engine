@@ -12,6 +12,7 @@ import { LivePilotStatusRecord } from '../../entities/live-pilot-status.entity';
 import { MarketDataBar } from '../../entities/market-data-bar.entity';
 import { PortfolioTargetSnapshot } from '../../entities/portfolio-target-snapshot.entity';
 import { PaperOrderPlan } from '../../entities/paper-order-plan.entity';
+import { InvestmentProposal } from '../../entities/investment-proposal.entity';
 import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
 import { ControlPlaneModule } from '../control-plane/control-plane.module';
@@ -45,6 +46,7 @@ import { LeanCliRunner } from './lean/lean-cli.runner';
       MarketDataBar,
       PortfolioTargetSnapshot,
       PaperOrderPlan,
+      InvestmentProposal,
       BrokerSnapshot,
       ExecutionControlState,
     ]),

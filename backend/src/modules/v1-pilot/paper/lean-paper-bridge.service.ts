@@ -54,9 +54,12 @@ export class LeanPaperBridgeService {
     if (!snapshot?.targets.length) {
       throw new Error('Latest LEAN run has no portfolio targets.');
     }
+    const scopedIdempotencyKey = `${idempotencyKey}:${latestRun.runId}:${snapshot.id}`;
+    const leanRunEvidenceRef = `lean-run:${latestRun.runId}`;
+    const targetEvidenceRef = `portfolio-target:${snapshot.id}`;
 
     const existingPlans = await this.paperPlanRepository.find({
-      where: { idempotencyKey },
+      where: { idempotencyKey: scopedIdempotencyKey },
       order: { updatedAt: 'DESC' },
       take: 1,
     });
@@ -67,7 +70,7 @@ export class LeanPaperBridgeService {
     const budget = await this.ensureBudget();
     const paperAccount = await this.ensurePaperAccount(
       budget.id,
-      'v1-lean-paper-cycle',
+      scopedIdempotencyKey,
     );
     await this.ensureBrokerSnapshot(paperAccount.id);
     const researchRun = await this.controlPlaneService.createResearchRun({
@@ -130,7 +133,7 @@ export class LeanPaperBridgeService {
       },
       orders,
       thesis: 'Paper cycle from latest LEAN portfolio targets.',
-      evidenceRefs: [latestRun.runId, snapshot.id],
+      evidenceRefs: [leanRunEvidenceRef, targetEvidenceRef],
     });
 
     await this.controlPlaneService.evaluateProposal(proposal.id);
@@ -140,7 +143,7 @@ export class LeanPaperBridgeService {
     const approval = await this.controlPlaneService.createOrderPlanApproval(
       proposal.id,
       {
-        idempotencyKey,
+        idempotencyKey: scopedIdempotencyKey,
         approver: 'v1-lean-paper-bridge',
         reason: 'Auto-approve paper cycle for V1 LEAN target bridge.',
         expectedPaperAccountEventHash: latestEvent?.eventHash,
@@ -148,7 +151,7 @@ export class LeanPaperBridgeService {
     );
 
     return this.controlPlaneService.paperExecuteProposal(proposal.id, {
-      idempotencyKey,
+      idempotencyKey: scopedIdempotencyKey,
       orderPlanApprovalId: approval.id,
     });
   }

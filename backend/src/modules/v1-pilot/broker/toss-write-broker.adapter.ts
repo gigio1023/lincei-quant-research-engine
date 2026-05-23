@@ -14,6 +14,10 @@ import {
 
 @Injectable()
 export class TossWriteBrokerAdapter implements BrokerAdapter {
+  isLiveReady(): boolean {
+    return false;
+  }
+
   private blocked(reason: string): never {
     throw new Error(
       `Toss write adapter blocked: ${reason}. Complete schema verification before live writes.`,

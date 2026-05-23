@@ -2193,6 +2193,21 @@ describe('ControlPlaneService', () => {
     expect(brokerSnapshots).toHaveLength(0);
   });
 
+  it('rejects manual broker snapshot imports that claim Toss provenance', async () => {
+    await expect(
+      service.importBrokerSnapshot({
+        provider: 'toss',
+        sourceRef: 'toss-read-only-poll:forged',
+        asOf: '2026-05-22T23:59:00.000Z',
+        cash: 1_000_000,
+        equity: 1_000_000,
+        positions: [],
+      }),
+    ).rejects.toThrow(
+      'Manual broker snapshot import cannot claim Toss provider',
+    );
+  });
+
   it('imports read-only broker fill evidence without enabling broker execution', async () => {
     const fill = await service.importBrokerFill({
       provider: 'manual',

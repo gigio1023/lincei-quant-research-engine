@@ -7,7 +7,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from huggingface_hub import hf_hub_download
+from huggingface_hub import HfApi, hf_hub_download
 
 from ml.security.verify_artifact import (
     verify_file,
@@ -23,6 +23,7 @@ REGISTRY_PATH = REPO_ROOT / "ml/registry/model_registry.json"
 def download_entry(entry: dict) -> dict:
     entry_id = entry["id"]
     hf_repo = entry["huggingfaceRepo"]
+    hf_info = HfApi().model_info(hf_repo)
     artifact_dir = REPO_ROOT / entry["artifactDir"]
     artifact_dir.mkdir(parents=True, exist_ok=True)
 
@@ -61,6 +62,14 @@ def download_entry(entry: dict) -> dict:
         "configPath": str(Path(entry["artifactDir"]) / "config.json"),
         "modelHash": f"sha256:{verified_files[0]['sha256']}",
         "dataSource": f"huggingface:{hf_repo}",
+        "hfRepo": hf_repo,
+        "hfSha": hf_info.sha,
+        "hfLastModified": (
+            hf_info.last_modified.isoformat() if hf_info.last_modified else None
+        ),
+        "artifactSha256": verified_files[0]["sha256"],
+        "configSha256": verified_files[1]["sha256"],
+        "trainingCutoff": entry.get("trainingCutoff"),
         "source": "external-download",
         "license": entry.get("license", "see model card"),
         "trainedAt": datetime.now(timezone.utc).isoformat(),

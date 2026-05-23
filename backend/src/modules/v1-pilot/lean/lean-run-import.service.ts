@@ -5,7 +5,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { existsSync, readFileSync } from 'fs';
-import { join } from 'path';
+import { join, resolve, sep } from 'path';
 import { Repository } from 'typeorm';
 import { LeanRun } from '../../../entities/lean-run.entity';
 import { PortfolioTargetSnapshot } from '../../../entities/portfolio-target-snapshot.entity';
@@ -49,12 +49,6 @@ export class LeanRunImportService {
 
     const runId = resultDirectory.split('/').pop() ?? `import-${Date.now()}`;
     const importKey = idempotencyKey ?? `import:${runId}`;
-    const existing = await this.leanRunRepository.findOne({
-      where: { importIdempotencyKey: importKey },
-    });
-    if (existing) {
-      return existing;
-    }
 
     const startedAt = new Date();
     const completedAt = new Date();
@@ -62,14 +56,23 @@ export class LeanRunImportService {
       string,
       string | number
     >;
-    const acceptance = assessLeanRunArtifacts(
+    const mode = options.acceptanceMode ?? 'schema-import';
+    const acceptance = assessLeanRunArtifacts(resultDirectory, mode);
+    const strategyAcceptance = assessLeanRunArtifacts(
       resultDirectory,
-      options.acceptanceMode ?? 'schema-import',
+      'strategy-backtest',
     );
     if (!acceptance.passed) {
       throw new BadRequestException(
         `LEAN ${acceptance.mode} rejected: ${acceptance.blockers.join('; ')}`,
       );
+    }
+
+    const existing = await this.leanRunRepository.findOne({
+      where: { importIdempotencyKey: importKey },
+    });
+    if (existing) {
+      return existing;
     }
 
     const result: LeanRunResult = {
@@ -79,7 +82,7 @@ export class LeanRunImportService {
       parameters: config.parameters ?? {},
       startedAt: startedAt.toISOString(),
       completedAt: completedAt.toISOString(),
-      status: 'passed',
+      status: strategyAcceptance.passed ? 'passed' : 'failed',
       resultDirectory,
       sourceHash: hashObject({ runId }),
       configHash: hashObject(config),
@@ -90,7 +93,7 @@ export class LeanRunImportService {
       orderEventsRef: join(resultDirectory, 'order_events.json'),
       fillsRef: join(resultDirectory, 'fills.json'),
       logsRef: join(resultDirectory, 'logs.txt'),
-      blockerReasons: acceptance.blockers,
+      blockerReasons: strategyAcceptance.blockers,
     };
 
     this.assertArtifacts(result);
@@ -106,14 +109,24 @@ export class LeanRunImportService {
     return saved;
   }
 
-  async importLatestFromArtifactsRoot(artifactsRoot: string): Promise<LeanRun> {
+  async importLatestFromArtifactsRoot(
+    artifactsRoot: string,
+    options: { acceptanceMode?: LeanAcceptanceMode } = {},
+  ): Promise<LeanRun> {
     if (!existsSync(artifactsRoot)) {
       throw new BadRequestException(
         `Artifacts root not found: ${artifactsRoot}`,
       );
     }
-    const entries = readFileSync(join(artifactsRoot, '.latest'), 'utf8').trim();
-    return this.importFromDirectory(join(artifactsRoot, entries));
+    const latestPath = join(artifactsRoot, '.latest');
+    if (!existsSync(latestPath)) {
+      throw new BadRequestException(
+        `Latest LEAN run marker not found: ${latestPath}`,
+      );
+    }
+    const runId = readFileSync(latestPath, 'utf8').trim();
+    const resultDirectory = this.resolveSafeRunDirectory(artifactsRoot, runId);
+    return this.importFromDirectory(resultDirectory, undefined, options);
   }
 
   async listRuns(): Promise<LeanRun[]> {
@@ -140,6 +153,26 @@ export class LeanRunImportService {
         );
       }
     });
+  }
+
+  private resolveSafeRunDirectory(
+    artifactsRoot: string,
+    runId: string,
+  ): string {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(runId)) {
+      throw new BadRequestException(`Unsafe LEAN run id in .latest: ${runId}`);
+    }
+    const root = resolve(artifactsRoot);
+    const resultDirectory = resolve(root, runId);
+    if (
+      resultDirectory !== root &&
+      !resultDirectory.startsWith(`${root}${sep}`)
+    ) {
+      throw new BadRequestException(
+        `Unsafe LEAN run path in .latest: ${runId}`,
+      );
+    }
+    return resultDirectory;
   }
 
   private async importPortfolioTargets(

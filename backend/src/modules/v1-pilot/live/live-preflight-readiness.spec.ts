@@ -57,12 +57,39 @@ describe('live preflight readiness helpers', () => {
   });
 
   it('accepts matched Toss read-only broker evidence', () => {
+    const now = new Date();
     const toss = {
       provider: 'toss',
       sourceRef: 'toss-read-only-poll:manual',
-      reconciliation: { status: 'matched' },
+      asOf: now,
+      reconciliation: {
+        status: 'matched',
+        checkedAt: now.toISOString(),
+        maxAgeMinutes: 60,
+      },
     } as BrokerSnapshot;
 
     expect(assessBrokerSnapshotForLive(toss)).toEqual([]);
+  });
+
+  it('blocks stale Toss broker evidence', () => {
+    const stale = new Date(Date.now() - 90 * 60_000);
+    const toss = {
+      provider: 'toss',
+      sourceRef: 'toss-read-only-poll:manual',
+      asOf: stale,
+      reconciliation: {
+        status: 'matched',
+        checkedAt: stale.toISOString(),
+        maxAgeMinutes: 60,
+      },
+    } as BrokerSnapshot;
+
+    expect(assessBrokerSnapshotForLive(toss)).toEqual(
+      expect.arrayContaining([
+        'Broker snapshot is stale for live readiness.',
+        'Broker snapshot reconciliation is stale.',
+      ]),
+    );
   });
 });

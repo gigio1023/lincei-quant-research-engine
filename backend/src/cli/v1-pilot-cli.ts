@@ -26,8 +26,11 @@ async function bootstrap(): Promise<void> {
         break;
       }
       case 'import-lean-run': {
-        const target = args[0] ?? 'latest';
-        const imported = await orchestrator.importLeanRun(target);
+        const target = args.find((arg) => !arg.startsWith('--')) ?? 'latest';
+        const schemaOnly = args.includes('--schema-only');
+        const imported = await orchestrator.importLeanRun(target, {
+          acceptanceMode: schemaOnly ? 'schema-import' : 'strategy-backtest',
+        });
         console.log(
           JSON.stringify(
             { runId: imported.runId, status: imported.status },

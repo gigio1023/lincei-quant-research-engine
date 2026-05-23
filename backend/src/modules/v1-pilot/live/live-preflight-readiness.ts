@@ -87,5 +87,35 @@ export function assessBrokerSnapshotForLive(
       `Broker snapshot reconciliation is "${reconciliationStatus ?? 'unknown'}"; matched required before live.`,
     );
   }
+
+  const maxAgeMinutes = snapshot.reconciliation?.maxAgeMinutes;
+  const snapshotAsOf = validDate(snapshot.asOf);
+  const checkedAt = validDate(snapshot.reconciliation?.checkedAt);
+  if (!snapshotAsOf) {
+    blockers.push('Broker snapshot asOf is missing or invalid.');
+  }
+  if (!checkedAt) {
+    blockers.push('Broker snapshot reconciliation checkedAt is missing.');
+  }
+  if (snapshotAsOf && typeof maxAgeMinutes === 'number') {
+    const snapshotAgeMs = Date.now() - snapshotAsOf.getTime();
+    if (snapshotAgeMs > maxAgeMinutes * 60_000) {
+      blockers.push('Broker snapshot is stale for live readiness.');
+    }
+  }
+  if (checkedAt && typeof maxAgeMinutes === 'number') {
+    const reconciliationAgeMs = Date.now() - checkedAt.getTime();
+    if (reconciliationAgeMs > maxAgeMinutes * 60_000) {
+      blockers.push('Broker snapshot reconciliation is stale.');
+    }
+  }
   return blockers;
+}
+
+function validDate(value: Date | string | undefined): Date | null {
+  if (!value) {
+    return null;
+  }
+  const parsed = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }

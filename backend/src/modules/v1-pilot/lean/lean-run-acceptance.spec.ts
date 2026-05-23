@@ -11,14 +11,21 @@ describe('lean run acceptance', () => {
 
   beforeEach(() => {
     tempDir = mkdtempSync(join(tmpdir(), 'lean-acceptance-'));
+    const runId = tempDir.split('/').pop() ?? 'lean-acceptance';
     writeArtifactSet(tempDir, {
+      runId,
       insights: [{ id: 'i1', symbol: 'SPY' }],
-      targets: [{ symbol: 'SPY', targetWeight: 0.35 }],
-      events: [{ id: '1', status: 'Filled' }],
-      fills: [{ id: 'f1' }],
+      targets: [
+        { symbol: 'SPY', targetWeight: 0.35, sourceInsightIds: ['i1'] },
+      ],
+      events: [{ id: '1', status: 'Filled', fillQuantity: 1, fillPrice: 100 }],
+      fills: [{ id: 'f1', orderId: '1', quantity: 1, price: 100 }],
       statistics: { 'Total Orders': 1, 'End Equity': 100500 },
       config: {
+        projectName: 'aggressive_llm_momentum',
+        algorithmVersion: 'v1',
         parameters: {
+          'run-id': runId,
           'validation-mode': 'historical-research',
           'uses-static-meta-overlay': false,
           'uses-static-ml-predictions': false,
@@ -38,13 +45,15 @@ describe('lean run acceptance', () => {
   });
 
   it('keeps empty placeholders importable for schema mode only', () => {
+    const runId = tempDir.split('/').pop() ?? 'lean-acceptance';
     writeArtifactSet(tempDir, {
+      runId,
       insights: [],
       targets: [],
       events: [],
       fills: [],
       statistics: { 'Total Orders': 0, 'End Equity': 100000 },
-      config: { parameters: { hydrated: true } },
+      config: { parameters: { 'run-id': runId, hydrated: true } },
       riskNotes: ['hydrated_from_lean_summary_only'],
     });
 
@@ -61,14 +70,21 @@ describe('lean run acceptance', () => {
   });
 
   it('rejects flow validation and static overlays as strategy evidence', () => {
+    const runId = tempDir.split('/').pop() ?? 'lean-acceptance';
     writeArtifactSet(tempDir, {
+      runId,
       insights: [{ id: 'i1', symbol: 'SPY' }],
-      targets: [{ symbol: 'SPY', targetWeight: 0.35 }],
-      events: [{ id: '1', status: 'Filled' }],
-      fills: [{ id: 'f1' }],
+      targets: [
+        { symbol: 'SPY', targetWeight: 0.35, sourceInsightIds: ['i1'] },
+      ],
+      events: [{ id: '1', status: 'Filled', fillQuantity: 1, fillPrice: 100 }],
+      fills: [{ id: 'f1', orderId: '1', quantity: 1, price: 100 }],
       statistics: { 'Total Orders': '1', 'End Equity': '100,500' },
       config: {
+        projectName: 'aggressive_llm_momentum',
+        algorithmVersion: 'v1',
         parameters: {
+          'run-id': runId,
           'validation-mode': 'flow-validation',
           'uses-static-meta-overlay': true,
           'uses-static-ml-predictions': true,
@@ -85,11 +101,36 @@ describe('lean run acceptance', () => {
       ]),
     );
   });
+
+  it('requires an explicit historical validation mode for strategy evidence', () => {
+    const runId = tempDir.split('/').pop() ?? 'lean-acceptance';
+    writeArtifactSet(tempDir, {
+      runId,
+      insights: [{ id: 'i1', symbol: 'SPY' }],
+      targets: [
+        { symbol: 'SPY', targetWeight: 0.35, sourceInsightIds: ['i1'] },
+      ],
+      events: [{ id: '1', status: 'Filled', fillQuantity: 1, fillPrice: 100 }],
+      fills: [{ id: 'f1', orderId: '1', quantity: 1, price: 100 }],
+      statistics: { 'Total Orders': 1, 'End Equity': 100500 },
+      config: {
+        projectName: 'aggressive_llm_momentum',
+        algorithmVersion: 'v1',
+        parameters: { 'run-id': runId },
+      },
+    });
+
+    const report = assessLeanRunArtifacts(tempDir, 'strategy-backtest');
+    expect(report.blockers).toContain(
+      'Run validation mode is "missing"; historical-research required for strategy evidence.',
+    );
+  });
 });
 
 function writeArtifactSet(
   directory: string,
   input: {
+    runId: string;
     insights: unknown[];
     targets: unknown[];
     events: unknown[];
@@ -99,10 +140,13 @@ function writeArtifactSet(
     riskNotes?: string[];
   },
 ): void {
-  writeJson(join(directory, 'insights.json'), { insights: input.insights });
+  writeJson(join(directory, 'insights.json'), {
+    runId: input.runId,
+    insights: input.insights,
+  });
   writeJson(join(directory, 'portfolio_targets.json'), {
     id: 'targets-test',
-    leanRunId: 'test',
+    leanRunId: input.runId,
     asOf: '2026-05-24T00:00:00.000Z',
     targets: input.targets,
     grossExposurePct: input.targets.length ? 0.35 : 0,

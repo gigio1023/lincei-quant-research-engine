@@ -21,6 +21,12 @@ export type MlModelRegistryRecord = {
   configPath?: string;
   modelHash: string;
   dataSource: string;
+  hfRepo?: string;
+  hfSha?: string;
+  hfLastModified?: string;
+  artifactSha256?: string;
+  configSha256?: string;
+  trainingCutoff?: string;
   source?: 'external-download' | 'local-train';
   license?: string;
   securityManifest?: string;

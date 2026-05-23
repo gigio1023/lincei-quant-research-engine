@@ -1217,7 +1217,37 @@ export class ControlPlaneService {
     request: ImportBrokerSnapshotRequest,
   ): Promise<BrokerSnapshot> {
     this.assertReadOnlyBrokerSnapshotRequest(request);
+    if (request.provider === 'toss') {
+      throw new BadRequestException(
+        'Manual broker snapshot import cannot claim Toss provider; use Toss read-only polling.',
+      );
+    }
 
+    return this.saveBrokerSnapshot(request);
+  }
+
+  async importTossReadOnlyBrokerSnapshot(
+    request: ImportBrokerSnapshotRequest,
+  ): Promise<BrokerSnapshot> {
+    this.assertReadOnlyBrokerSnapshotRequest(request);
+    if (request.provider && request.provider !== 'toss') {
+      throw new BadRequestException(
+        'Toss read-only broker snapshot import requires provider=toss.',
+      );
+    }
+    const sourceRef = request.sourceRef?.startsWith('toss-read-only-poll:')
+      ? request.sourceRef
+      : `toss-read-only-poll:${request.sourceRef ?? 'manual'}`;
+    return this.saveBrokerSnapshot({
+      ...request,
+      provider: 'toss',
+      sourceRef,
+    });
+  }
+
+  private async saveBrokerSnapshot(
+    request: ImportBrokerSnapshotRequest,
+  ): Promise<BrokerSnapshot> {
     const asOf = new Date(request.asOf);
 
     if (Number.isNaN(asOf.getTime())) {

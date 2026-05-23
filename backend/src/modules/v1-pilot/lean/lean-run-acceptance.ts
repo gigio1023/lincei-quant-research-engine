@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'fs';
-import { join } from 'path';
+import { basename, join } from 'path';
 import {
+  LeanFillArtifact,
   LeanInsightArtifact,
   LeanOrderEventArtifact,
   LeanPortfolioTargetsPayload,
@@ -23,11 +24,15 @@ export type LeanRunAcceptanceReport = {
 };
 
 type LeanRunConfig = {
+  projectName?: string;
+  algorithmVersion?: string;
   simulator?: string;
+  mode?: string;
   parameters?: Record<string, string | number | boolean>;
 };
 
 type InsightsPayload = {
+  runId?: string;
   insights?: LeanInsightArtifact[];
 };
 
@@ -36,10 +41,11 @@ type OrderEventsPayload = {
 };
 
 type FillsPayload = {
-  fills?: unknown[];
+  fills?: LeanFillArtifact[];
 };
 
 const HYDRATION_NOTE = 'hydrated_from_lean_summary_only';
+const STRATEGY_VALIDATION_MODE = 'historical-research';
 
 export function assessLeanRunArtifacts(
   resultDirectory: string,
@@ -83,7 +89,17 @@ export function assessLeanRunArtifacts(
   };
 
   if (mode === 'strategy-backtest') {
-    blockers.push(...strategyEvidenceBlockers(config, targets, metrics));
+    blockers.push(
+      ...strategyEvidenceBlockers(
+        resultDirectory,
+        config,
+        insights,
+        targets,
+        orderEvents,
+        fills,
+        metrics,
+      ),
+    );
   }
 
   return {
@@ -108,15 +124,35 @@ export function assertLeanRunArtifactsAccepted(
 }
 
 function strategyEvidenceBlockers(
+  resultDirectory: string,
   config: LeanRunConfig | null,
+  insights: InsightsPayload | null,
   targets: LeanPortfolioTargetsPayload | null,
+  orderEvents: OrderEventsPayload | null,
+  fills: FillsPayload | null,
   metrics: LeanRunAcceptanceReport['metrics'],
 ): string[] {
   const blockers: string[] = [];
   const parameters = config?.parameters ?? {};
+  const runId = basename(resultDirectory);
 
   if (config?.simulator) {
     blockers.push('Run used the local simulator.');
+  }
+  if (config?.projectName !== 'aggressive_llm_momentum') {
+    blockers.push('Run config projectName is missing or unsupported.');
+  }
+  if (config?.algorithmVersion !== 'v1') {
+    blockers.push('Run config algorithmVersion is missing or unsupported.');
+  }
+  if (stringParameter(parameters, 'run-id') !== runId) {
+    blockers.push('Run id does not match config parameters.');
+  }
+  if (insights?.runId && insights.runId !== runId) {
+    blockers.push('Run id does not match insights artifact.');
+  }
+  if (targets?.leanRunId !== runId) {
+    blockers.push('Run id does not match portfolio targets artifact.');
   }
   if (parameters.hydrated === true) {
     blockers.push('Run artifacts were hydrated from LEAN summary only.');
@@ -125,11 +161,20 @@ function strategyEvidenceBlockers(
     blockers.push('Portfolio targets are hydration-only placeholders.');
   }
 
-  const validationMode = String(
-    parameters['validation-mode'] ?? parameters.validationMode ?? '',
-  );
-  if (validationMode === 'flow-validation') {
-    blockers.push('Run is flow-validation only, not strategy evidence.');
+  const validationMode = stringParameter(parameters, 'validation-mode');
+  if (validationMode !== STRATEGY_VALIDATION_MODE) {
+    if (validationMode === 'flow-validation') {
+      blockers.push('Run is flow-validation only, not strategy evidence.');
+    } else {
+      blockers.push(
+        `Run validation mode is "${validationMode || 'missing'}"; ${STRATEGY_VALIDATION_MODE} required for strategy evidence.`,
+      );
+    }
+  }
+
+  const runMode = stringParameter(parameters, 'mode') || config?.mode || '';
+  if (runMode === 'simulator' || runMode.startsWith('simulator-')) {
+    blockers.push('Run mode is simulator-only, not strategy evidence.');
   }
 
   if (booleanParameter(parameters, 'uses-static-meta-overlay')) {
@@ -157,8 +202,105 @@ function strategyEvidenceBlockers(
   if (metrics.endEquity <= 0) {
     blockers.push('LEAN statistics do not include a positive ending equity.');
   }
+  blockers.push(...targetIntegrityBlockers(insights, targets));
+  blockers.push(...fillIntegrityBlockers(orderEvents, fills));
 
   return blockers;
+}
+
+function targetIntegrityBlockers(
+  insights: InsightsPayload | null,
+  targets: LeanPortfolioTargetsPayload | null,
+): string[] {
+  const blockers: string[] = [];
+  const insightIds = new Set(
+    (insights?.insights ?? []).map((insight) => insight.id),
+  );
+  const targetRows = targets?.targets ?? [];
+
+  for (const target of targetRows) {
+    if (!Number.isFinite(target.targetWeight)) {
+      blockers.push(`Portfolio target ${target.symbol} has non-finite weight.`);
+    }
+    const sourceInsightIds = target.sourceInsightIds ?? [];
+    if (sourceInsightIds.length === 0) {
+      blockers.push(
+        `Portfolio target ${target.symbol} has no source insight ids.`,
+      );
+      continue;
+    }
+    for (const insightId of sourceInsightIds) {
+      if (!insightIds.has(insightId)) {
+        blockers.push(
+          `Portfolio target ${target.symbol} references unknown insight ${insightId}.`,
+        );
+      }
+    }
+  }
+
+  const gross = sumRounded(
+    targetRows.map((target) => Math.abs(target.targetWeight)),
+  );
+  const maxSingle = maxRounded(
+    targetRows.map((target) => Math.abs(target.targetWeight)),
+  );
+  if (targets && Math.abs(gross - targets.grossExposurePct) > 0.0001) {
+    blockers.push('Portfolio target gross exposure does not match targets.');
+  }
+  if (targets && Math.abs(maxSingle - targets.maxSingleNamePct) > 0.0001) {
+    blockers.push(
+      'Portfolio target max single-name exposure does not match targets.',
+    );
+  }
+
+  return blockers;
+}
+
+function fillIntegrityBlockers(
+  orderEvents: OrderEventsPayload | null,
+  fills: FillsPayload | null,
+): string[] {
+  const blockers: string[] = [];
+  const filledOrderIds = new Set(
+    (orderEvents?.events ?? [])
+      .filter((event) => String(event.status).toLowerCase().includes('filled'))
+      .map((event) => event.id),
+  );
+
+  for (const event of orderEvents?.events ?? []) {
+    if (String(event.status).toLowerCase().includes('filled')) {
+      if (!Number.isFinite(event.fillQuantity) || event.fillQuantity === 0) {
+        blockers.push(
+          `Filled order event ${event.id} has invalid fill quantity.`,
+        );
+      }
+      if (!Number.isFinite(event.fillPrice) || event.fillPrice <= 0) {
+        blockers.push(`Filled order event ${event.id} has invalid fill price.`);
+      }
+    }
+  }
+
+  for (const fill of fills?.fills ?? []) {
+    if (!filledOrderIds.has(fill.orderId)) {
+      blockers.push(`Fill ${fill.id} does not match a filled order event.`);
+    }
+    if (!Number.isFinite(fill.quantity) || fill.quantity === 0) {
+      blockers.push(`Fill ${fill.id} has invalid quantity.`);
+    }
+    if (!Number.isFinite(fill.price) || fill.price <= 0) {
+      blockers.push(`Fill ${fill.id} has invalid price.`);
+    }
+  }
+
+  return blockers;
+}
+
+function sumRounded(values: number[]): number {
+  return Number(values.reduce((sum, value) => sum + value, 0).toFixed(6));
+}
+
+function maxRounded(values: number[]): number {
+  return Number(Math.max(0, ...values).toFixed(6));
 }
 
 function readJson<T>(
@@ -200,10 +342,7 @@ function booleanParameter(
   parameters: Record<string, string | number | boolean>,
   key: string,
 ): boolean {
-  const camelKey = key.replace(/-([a-z])/g, (_, char: string) =>
-    char.toUpperCase(),
-  );
-  const raw = parameters[key] ?? parameters[camelKey];
+  const raw = rawParameter(parameters, key);
   if (typeof raw === 'boolean') {
     return raw;
   }
@@ -211,4 +350,22 @@ function booleanParameter(
     return raw !== 0;
   }
   return String(raw).toLowerCase() === 'true';
+}
+
+function stringParameter(
+  parameters: Record<string, string | number | boolean>,
+  key: string,
+): string {
+  const raw = rawParameter(parameters, key);
+  return raw === undefined ? '' : String(raw);
+}
+
+function rawParameter(
+  parameters: Record<string, string | number | boolean>,
+  key: string,
+): string | number | boolean | undefined {
+  const camelKey = key.replace(/-([a-z])/g, (_, char: string) =>
+    char.toUpperCase(),
+  );
+  return parameters[key] ?? parameters[camelKey];
 }

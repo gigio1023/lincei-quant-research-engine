@@ -6,11 +6,12 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { LivePilotStatusRecord } from '../../../entities/live-pilot-status.entity';
 import { LeanRun } from '../../../entities/lean-run.entity';
 import { PortfolioTargetSnapshot } from '../../../entities/portfolio-target-snapshot.entity';
 import { PaperOrderPlan } from '../../../entities/paper-order-plan.entity';
+import { InvestmentProposal } from '../../../entities/investment-proposal.entity';
 import { BrokerSnapshot } from '../../../entities/broker-snapshot.entity';
 import { ExecutionControlState } from '../../../entities/execution-control-state.entity';
 import {
@@ -18,13 +19,16 @@ import {
   MAX_LIVE_PILOT_NOTIONAL_USD,
 } from '../contracts/v1-pilot.contracts';
 import { LeanRunImportService } from '../lean/lean-run-import.service';
+import { assessLeanRunArtifacts } from '../lean/lean-run-acceptance';
 import {
   LeanRunConfigEvidence,
   assessBrokerSnapshotForLive,
   assessStaticLeanRunBlockers,
+  readLeanBooleanParameter,
   readLeanParameter,
 } from './live-preflight-readiness';
 import { MlModelRegistryService } from '../ml/ml-model-registry.service';
+import { TossWriteBrokerAdapter } from '../broker/toss-write-broker.adapter';
 
 type LeanRunConfigOnDisk = LeanRunConfigEvidence & {
   projectName?: string;
@@ -40,12 +44,15 @@ export class LivePreflightService {
     private readonly targetRepository: Repository<PortfolioTargetSnapshot>,
     @InjectRepository(PaperOrderPlan)
     private readonly paperPlanRepository: Repository<PaperOrderPlan>,
+    @InjectRepository(InvestmentProposal)
+    private readonly proposalRepository: Repository<InvestmentProposal>,
     @InjectRepository(BrokerSnapshot)
     private readonly brokerSnapshotRepository: Repository<BrokerSnapshot>,
     @InjectRepository(ExecutionControlState)
     private readonly executionControlRepository: Repository<ExecutionControlState>,
     private readonly leanRunImportService: LeanRunImportService,
     private readonly mlModelRegistryService: MlModelRegistryService,
+    private readonly tossWriteBrokerAdapter: TossWriteBrokerAdapter,
   ) {}
 
   async runPreflight(): Promise<LivePilotPreflightContract> {
@@ -69,14 +76,17 @@ export class LivePreflightService {
       blockers.push('Latest portfolio target snapshot is missing.');
     }
 
-    const latestPaperPlans = await this.paperPlanRepository.find({
-      where: { status: 'filled' },
-      order: { updatedAt: 'DESC' },
-      take: 1,
-    });
-    const latestPaperPlan = latestPaperPlans[0];
+    const latestPaperPlan =
+      latestLeanRun && latestTarget
+        ? await this.findLatestPaperPlanForEvidence(
+            latestLeanRun.runId,
+            latestTarget.id,
+          )
+        : null;
     if (!latestPaperPlan) {
-      blockers.push('Latest paper cycle has not produced a filled plan.');
+      blockers.push(
+        'Latest paper cycle has not produced a filled plan for the latest LEAN target.',
+      );
     } else {
       blockers.push(...this.assessPaperReconciliation(latestPaperPlan));
     }
@@ -114,6 +124,7 @@ export class LivePreflightService {
       cancelFlattenReady: process.env.BROKER_CANCEL_FLATTEN_READY === 'true',
       brokerOpenOrderPollVerified:
         process.env.BROKER_OPEN_ORDER_POLL_VERIFIED === 'true',
+      tossWriteAdapterReady: this.tossWriteBrokerAdapter.isLiveReady(),
     };
 
     Object.entries(requiredFlags).forEach(([flag, ready]) => {
@@ -124,12 +135,13 @@ export class LivePreflightService {
 
     const mlReadiness = this.mlModelRegistryService.getModelReadiness();
     if (
-      mlReadiness.registryStatus === 'promoted' &&
+      latestLeanRun &&
+      !this.latestRunProvesNoExternalMl(latestLeanRun) &&
       mlReadiness.status !== 'promoted_ready'
     ) {
       blockers.push(
         mlReadiness.blocker ??
-          `Promoted ML model is not ready: ${mlReadiness.status}`,
+          `Live readiness requires a promoted ML model or an accepted no-ML LEAN run: ${mlReadiness.status}`,
       );
     }
 
@@ -188,16 +200,19 @@ export class LivePreflightService {
       ...leanRun.parameters,
       ...(configOnDisk?.parameters ?? {}),
     };
-    const researchAllowed = this.isResearchPreflightAllowed(
-      parameters,
-      configOnDisk,
-    );
+    const researchAllowed = this.isResearchPreflightAllowed();
 
     if (this.isSimulatorLeanRun(leanRun, configOnDisk, parameters)) {
       blockers.push(
         'Latest LEAN run used the local simulator or smoke mode; live requires a Lean CLI historical backtest.',
       );
     }
+
+    const acceptance = assessLeanRunArtifacts(
+      leanRun.resultDirectory,
+      'strategy-backtest',
+    );
+    blockers.push(...acceptance.blockers);
 
     blockers.push(
       ...assessStaticLeanRunBlockers(parameters, configOnDisk, researchAllowed),
@@ -222,17 +237,8 @@ export class LivePreflightService {
     }
   }
 
-  private isResearchPreflightAllowed(
-    parameters: Record<string, string | number | boolean>,
-    configOnDisk: LeanRunConfigOnDisk | null,
-  ): boolean {
-    if (process.env.LIVE_PREFLIGHT_ALLOW_RESEARCH === 'true') {
-      return true;
-    }
-    const mode = String(
-      readLeanParameter(parameters, 'mode') ?? configOnDisk?.mode ?? '',
-    );
-    return mode === 'research';
+  private isResearchPreflightAllowed(): boolean {
+    return process.env.LIVE_PREFLIGHT_ALLOW_RESEARCH === 'true';
   }
 
   private isSimulatorLeanRun(
@@ -274,5 +280,43 @@ export class LivePreflightService {
       ];
     }
     return [];
+  }
+
+  private async findLatestPaperPlanForEvidence(
+    leanRunId: string,
+    targetSnapshotId: string,
+  ): Promise<PaperOrderPlan | null> {
+    const candidates = await this.paperPlanRepository.find({
+      where: { status: In(['filled', 'reconciled']) },
+      order: { updatedAt: 'DESC' },
+      take: 20,
+    });
+    for (const plan of candidates) {
+      const proposal = await this.proposalRepository.findOne({
+        where: { id: plan.proposalId },
+      });
+      const evidenceRefs = new Set(proposal?.evidenceRefs ?? []);
+      if (
+        evidenceRefs.has(`lean-run:${leanRunId}`) &&
+        evidenceRefs.has(`portfolio-target:${targetSnapshotId}`)
+      ) {
+        return plan;
+      }
+    }
+    return null;
+  }
+
+  private latestRunProvesNoExternalMl(leanRun: LeanRun): boolean {
+    const configOnDisk = this.readLeanRunConfig(leanRun.resultDirectory);
+    const parameters = {
+      ...leanRun.parameters,
+      ...(configOnDisk?.parameters ?? {}),
+    };
+    return (
+      readLeanBooleanParameter(parameters, 'no-static-ml') &&
+      !readLeanBooleanParameter(parameters, 'uses-static-ml-predictions') &&
+      String(readLeanParameter(parameters, 'alpha-mode') ?? '') ===
+        'numeric-only'
+    );
   }
 }
