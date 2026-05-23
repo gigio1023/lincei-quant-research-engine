@@ -1,8 +1,8 @@
 /**
- * Builds deterministic feature snapshots from ingested bars (or synthetic fallbacks).
- * Stale snapshots are rejected downstream so live exposure cannot rely on expired inputs.
+ * Builds deterministic feature snapshots from ingested bars.
+ * Synthetic features are test-only (ALLOW_SYNTHETIC_FEATURES); production paths fail closed on thin history.
  */
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FeatureSnapshot } from '../../../entities/feature-snapshot.entity';
@@ -24,7 +24,11 @@ export class FeatureSnapshotService {
 
   async buildSnapshotsForUniverse(
     datasetId = 'v1-lean-universe',
+    options?: { allowSynthetic?: boolean },
   ): Promise<FeatureSnapshotContract[]> {
+    const allowSynthetic =
+      options?.allowSynthetic === true ||
+      process.env.ALLOW_SYNTHETIC_FEATURES === 'true';
     const asOf = new Date().toISOString();
     const snapshots: FeatureSnapshotContract[] = [];
 
@@ -34,7 +38,12 @@ export class FeatureSnapshotService {
         order: { timestamp: 'DESC' },
         take: 260,
       });
-      const features = this.computeFeatures(bars);
+      if (bars.length < 2 && !allowSynthetic) {
+        throw new BadRequestException(
+          `Insufficient market data for ${symbol}: need at least 2 daily bars in dataset "${datasetId}" (found ${bars.length}). Ingest bars or set ALLOW_SYNTHETIC_FEATURES=true for simulator/tests only.`,
+        );
+      }
+      const features = this.computeFeatures(bars, allowSynthetic);
       const snapshot: FeatureSnapshotContract = {
         id: `feature-${symbol}-${asOf.slice(0, 10)}`,
         symbol,
@@ -59,8 +68,14 @@ export class FeatureSnapshotService {
 
   private computeFeatures(
     bars: MarketDataBar[],
+    allowSynthetic: boolean,
   ): Record<string, number | string | boolean | null> {
     if (bars.length < 2) {
+      if (!allowSynthetic) {
+        throw new BadRequestException(
+          'computeFeatures called without enough bars and synthetic features disabled',
+        );
+      }
       return {
         return_20d: 0.02,
         return_63d: 0.04,

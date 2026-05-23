@@ -12,7 +12,12 @@ from typing import TYPE_CHECKING, Any
 
 from AlgorithmImports import *
 
+from alpha.meta_alpha_combiner import (
+    UP_THRESHOLD,
+    resolve_component_scores,
+)
 from alpha.numeric_alpha import LinceiNumericAlphaModel
+from shared.history_frame import insight_direction_label
 
 if TYPE_CHECKING:
     from export.artifact_exporter import LinceiArtifactExporter
@@ -25,7 +30,7 @@ class LinceiMetaAlphaModel(AlphaModel):
     EVENT_WEIGHT = 0.25
     MACRO_WEIGHT = 0.15
     RISK_WEIGHT = 0.10
-    UP_THRESHOLD = 0.65
+    UP_THRESHOLD = UP_THRESHOLD
     FLAT_THRESHOLD = 0.35
     INSIGHT_PERIOD = 21
 
@@ -34,14 +39,20 @@ class LinceiMetaAlphaModel(AlphaModel):
         algorithm: QCAlgorithm,
         meta_decisions_path: str | None = None,
         artifact_exporter: LinceiArtifactExporter | None = None,
+        *,
+        use_ml_predictions: bool = True,
     ) -> None:
         self._algorithm = algorithm
-        self._numeric = LinceiNumericAlphaModel(artifact_exporter=artifact_exporter)
+        self._numeric = LinceiNumericAlphaModel(
+            artifact_exporter=artifact_exporter,
+            use_ml_predictions=use_ml_predictions,
+        )
         self._artifact_exporter = artifact_exporter
         self._meta_by_symbol = self._load_meta_decisions(
             meta_decisions_path or self._default_meta_path(algorithm),
         )
         self._last_final_scores: dict[str, float] = {}
+        self._last_component_scores: dict[str, dict[str, float]] = {}
 
     def Update(
         self,
@@ -62,8 +73,12 @@ class LinceiMetaAlphaModel(AlphaModel):
                 continue
 
             meta_record = self._meta_by_symbol.get(symbol_value.upper())
-            final_score, conflict_notes = self._combine_scores(numeric_score, meta_record)
+            final_score, conflict_notes, component_scores = self._combine_scores(
+                numeric_score,
+                meta_record,
+            )
             self._last_final_scores[symbol_value] = final_score
+            self._last_component_scores[symbol_value] = component_scores
             direction = self._direction_from_score(final_score)
             if direction == InsightDirection.Flat:
                 continue
@@ -90,16 +105,20 @@ class LinceiMetaAlphaModel(AlphaModel):
                 self._artifact_exporter.record_meta_insight(
                     symbol_value,
                     final_score,
-                    direction.name.lower(),
+                    insight_direction_label(direction),
                     confidence,
                     conflict_notes,
                     meta_record,
+                    component_scores,
                 )
 
         return insights
 
     def get_last_final_score(self, symbol: str) -> float | None:
         return self._last_final_scores.get(symbol)
+
+    def get_last_component_scores(self, symbol: str) -> dict[str, float] | None:
+        return self._last_component_scores.get(symbol)
 
     def _default_meta_path(self, algorithm: QCAlgorithm) -> str:
         configured = algorithm.GetParameter("meta-decisions-path")
@@ -144,33 +163,20 @@ class LinceiMetaAlphaModel(AlphaModel):
         self,
         numeric_score: float,
         meta_record: dict[str, Any] | None,
-    ) -> tuple[float, list[str]]:
+    ) -> tuple[float, list[str], dict[str, float]]:
         conflict_notes: list[str] = []
+        component_scores = resolve_component_scores(numeric_score, meta_record)
+        final_score = component_scores["finalScore"]
+
         if meta_record is None:
-            return numeric_score, conflict_notes
+            return final_score, conflict_notes, component_scores
 
-        llm_scores = meta_record.get("llmScores") or {}
+        numeric_used = component_scores["numericScore"]
         direction = str(meta_record.get("direction", "flat")).lower()
-        llm_direction_score = 0.5
-        if direction == "up":
-            llm_direction_score = 0.75
-        elif direction == "down":
-            llm_direction_score = 0.25
+        risk_adjustment = component_scores["riskAdjustment"]
 
-        event_score = float(llm_scores.get("event", llm_direction_score))
-        macro_score = float(llm_scores.get("macro", llm_direction_score))
-        risk_adjustment = float(llm_scores.get("riskAdjustment", 0.5))
-
-        final_score = (
-            self.NUMERIC_WEIGHT * numeric_score
-            + self.EVENT_WEIGHT * event_score
-            + self.MACRO_WEIGHT * macro_score
-            + self.RISK_WEIGHT * risk_adjustment
-        )
-        final_score = max(0.0, min(1.0, final_score))
-
-        numeric_up = numeric_score >= self.UP_THRESHOLD
-        numeric_flat = numeric_score <= self.FLAT_THRESHOLD
+        numeric_up = numeric_used >= self.UP_THRESHOLD
+        numeric_flat = numeric_used <= self.FLAT_THRESHOLD
         llm_up = direction == "up"
         llm_flat = direction == "flat"
 
@@ -184,7 +190,8 @@ class LinceiMetaAlphaModel(AlphaModel):
             final_score = min(final_score, 0.52)
             conflict_notes.append("risk_reviewer_high_risk_cap")
 
-        return final_score, conflict_notes
+        component_scores["finalScore"] = round(final_score, 6)
+        return final_score, conflict_notes, component_scores
 
     def _direction_from_score(self, score: float) -> InsightDirection:
         if score >= self.UP_THRESHOLD:

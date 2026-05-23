@@ -1,0 +1,19 @@
+{
+  "policyVersion": "1",
+  "approved": [
+    {
+      "id": "jc-stockprediction-ai-live",
+      "huggingfaceRepo": "jc-builds/stockprediction-ai",
+      "license": "See model card on Hugging Face",
+      "modelType": "lightgbm-booster-txt",
+      "files": [
+        { "repoPath": "boosters/live.txt", "localRel": "boosters/live.txt", "maxBytes": 52428800 },
+        { "repoPath": "config.json", "localRel": "config.json", "maxBytes": 1048576 }
+      ],
+      "artifactDir": "artifacts/external-baselines/jc-builds-stockprediction-ai",
+      "framework": "jc-stockprediction-lgb",
+      "modelName": "jc-stockprediction-ai-live",
+      "notes": "QC-style LightGBM tabular baseline (text booster only). NLP/sentiment is OpenAI LLM committee only — no FinBERT."
+    }
+  ]
+}

@@ -6,8 +6,10 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
 import { V1PilotOrchestratorService } from '../modules/v1-pilot/v1-pilot-orchestrator.service';
 import { loadOpenAiEnv } from '../shared/openai-env.loader';
+import { loadRepoEnv } from '../shared/repo-env.loader';
 
 async function bootstrap(): Promise<void> {
+  loadRepoEnv();
   loadOpenAiEnv();
   const app = await NestFactory.createApplicationContext(AppModule, {
     logger: ['error', 'warn', 'log'],
@@ -31,6 +33,27 @@ async function bootstrap(): Promise<void> {
       }
       case 'train-ml-baseline': {
         const result = await orchestrator.trainMlBaseline();
+        console.log(JSON.stringify(result, null, 2));
+        break;
+      }
+      case 'download-external-baselines': {
+        const result = await orchestrator.downloadExternalBaselines();
+        console.log(JSON.stringify(result, null, 2));
+        break;
+      }
+      case 'run-full-backtest': {
+        const skipAlphaCycle = args.includes('--skip-alpha-cycle');
+        const noDownloadData = args.includes('--no-download-data');
+        const skipIngest = args.includes('--skip-market-data-ingest');
+        const noStaticMeta = args.includes('--no-static-meta');
+        const noStaticMl = args.includes('--no-static-ml');
+        const result = await orchestrator.runFullBacktest({
+          skipAlphaCycle,
+          downloadData: !noDownloadData,
+          ingestUniverseBars: !skipIngest,
+          noStaticMeta,
+          noStaticMl,
+        });
         console.log(JSON.stringify(result, null, 2));
         break;
       }
@@ -73,7 +96,7 @@ async function bootstrap(): Promise<void> {
       }
       default:
         throw new Error(
-          `Unknown command: ${command ?? '(missing)'}. Expected lean-backtest, import-lean-run, run-alpha-cycle, run-paper-cycle, live-preflight, live-pilot-10usd.`,
+          `Unknown command: ${command ?? '(missing)'}. Expected run-full-backtest, lean-backtest, import-lean-run, download-external-baselines, train-ml-baseline, run-alpha-cycle, run-paper-cycle, live-preflight, live-pilot-10usd.`,
         );
     }
   } finally {

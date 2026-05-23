@@ -1,38 +1,48 @@
-# ML Training Baseline (V1)
+# ML Baselines (V1)
 
-Structured alpha defaults to a **LightGBM** regressor on V1 tabular features — the same family QuantConnect community alphas commonly use for cross-sectional ETF/stock signals (gradient boosted trees on momentum, vol, liquidity).
+## Roles
 
-LLM alpha remains OpenAI API-only. Heuristic scoring is **degraded fallback** when no promoted model exists or Python inference fails.
+| Layer | Model | How you get it |
+|-------|--------|----------------|
+| **Numeric / structured alpha** | External LightGBM (`jc-builds/stockprediction-ai`) | `./scripts/download-external-baselines` |
+| **Event / macro / risk text** | OpenAI LLM committee | API only — **no FinBERT** |
+| **Fallback** | Heuristic scorer | Only when no promoted external model or inference fails |
+| **Optional** | Local v1 LightGBM/sklearn | `./scripts/train-ml-baseline` (does not replace external unless you edit registry) |
 
 ## Setup
 
 ```bash
-python3 -m venv .venv-ml
-source .venv-ml/bin/activate
-pip install -r ml/requirements.txt
+./scripts/setup-ml-venv.sh
+./scripts/download-external-baselines
 ```
 
-## Train and promote
+Download verifies SHA-256, scans text/json for suspicious content, and load-tests the LightGBM booster (text format only — no pickle).
+
+## Alpha cycle
 
 ```bash
-./scripts/train-ml-baseline
-# or: ML_FORCE_PROMOTE=true ./scripts/train-ml-baseline
+./scripts/run-alpha-cycle
 ```
 
-Reads `backend/data/investment.db` `market_data_bars` when enough history exists; otherwise trains on reproducible synthetic data for plumbing. Promotion requires walk-forward directional accuracy ≥ 0.52 (configurable in `train_lightgbm_baseline.py`).
+Uses `ml/registry/model_registry.json` when `status: promoted` and artifacts exist under `artifacts/external-baselines/`.
 
-Artifacts:
+## Full LEAN backtest (production)
 
-- `artifacts/model-registry/lightgbm-v1/model.txt`
-- `ml/registry/model_registry.json` — `status: promoted | not_promoted`
+Not the local simulator — see [docs/full-lean-backtest-setup.md](../docs/full-lean-backtest-setup.md).
 
-## Inference
-
-`run-alpha-cycle` loads the promoted model via `ml/inference/predict.py` and writes `engines/lean/aggressive_llm_momentum/input/ml_predictions.json` for LEAN replay.
+```bash
+./scripts/setup-lean-cli.sh
+./scripts/setup-lean-workspace.sh   # interactive QC login
+# download QC data (see doc)
+./scripts/run-full-backtest.sh
+```
 
 ## Layout
 
-- `shared/feature_schema.py` — column order aligned with NestJS `FeatureSnapshot`
-- `features/build_training_matrix.py` — SQLite bars → labels
-- `training/train_lightgbm_baseline.py` — walk-forward validation + registry update
-- `inference/predict.py` — batch scoring for alpha cycle
+- `external/download_baselines.py` — Hugging Face download + registry promotion
+- `features/jc_lgb_features.py` — 47-feature builder from `market_data_bars`
+- `inference/predict_jc_external.py` — external booster scoring
+- `security/verify_artifact.py` — allowlist/denylist + content scan
+- `registry/external_baselines_catalog.json` — approved sources (tabular only)
+
+See [docs/ml-external-baselines-research.md](../docs/ml-external-baselines-research.md).

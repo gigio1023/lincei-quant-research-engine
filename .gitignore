@@ -25,6 +25,14 @@ engines/lean/aggressive_llm_momentum/input/meta_decisions.json
 engines/lean/aggressive_llm_momentum/input/ml_predictions.json
 artifacts/model-registry/
 .venv-ml/
+.venv-lean-cli/
+engines/lean/data/
+engines/lean/lean.json
+engines/lean/backtests/
+engines/lean/aggressive_llm_momentum/backtests/
+data/
+engines/lean/live/
+engines/lean/optimizations/
 **/__pycache__/
 *.pyc
 backend/tmp-test-lean-runs/

@@ -15,6 +15,7 @@ describe('V1 pilot (e2e)', () => {
 
   beforeAll(async () => {
     process.env.LINCEI_OPENAI_ENV_FILE = '/dev/null';
+    process.env.ALLOW_SYNTHETIC_FEATURES = 'true';
     delete process.env.OPENAI_API_KEY;
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [

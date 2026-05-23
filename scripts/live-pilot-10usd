@@ -3,4 +3,4 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT/backend"
-npm run v1:cli -- live-pilot-10usd "$@"
+bun run v1:cli -- live-pilot-10usd "$@"

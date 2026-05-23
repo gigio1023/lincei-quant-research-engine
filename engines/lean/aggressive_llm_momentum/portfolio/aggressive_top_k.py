@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING
 
 from AlgorithmImports import *
 
+from shared.history_frame import history_frame
+
 if TYPE_CHECKING:
     from export.artifact_exporter import LinceiArtifactExporter
 
@@ -63,7 +65,7 @@ class AggressiveTopKPortfolioConstructionModel(PortfolioConstructionModel):
         max_single = 0.0
         for insight, weight in zip(ranked, scaled):
             max_single = max(max_single, weight)
-            target = PortfolioTarget(insight.Symbol, weight)
+            target = PortfolioTarget.Percent(algorithm, insight.Symbol, weight)
             targets.append(target)
             insight_id = f"{insight.Symbol.Value}-{insight.GeneratedTimeUtc:%Y%m%d}"
             self._last_insight_ids[str(insight.Symbol.Value)] = [insight_id]
@@ -97,8 +99,8 @@ class AggressiveTopKPortfolioConstructionModel(PortfolioConstructionModel):
 
         volatilities: list[float] = []
         for symbol in symbols:
-            history = algorithm.History[TradeBar](symbol, 25, Resolution.Daily)
-            if history.empty:
+            history = history_frame(algorithm, symbol, 25, Resolution.Daily)
+            if history is None:
                 continue
             daily_returns = history["close"].astype(float).pct_change().dropna()
             if daily_returns.empty:

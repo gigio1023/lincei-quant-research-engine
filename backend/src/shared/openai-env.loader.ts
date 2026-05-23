@@ -6,6 +6,7 @@
  */
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
+import { resolveRepoEnvPath } from './repo-env.loader';
 
 export type OpenAiEnvSnapshot = {
   apiKey?: string;
@@ -17,11 +18,8 @@ export type OpenAiEnvSnapshot = {
   sourcePath: string;
 };
 
-const DEFAULT_OPENAI_ENV_FILE =
-  '/Users/naem1023/git/iyuno-ai-engineer-task/.env';
-
 export function loadOpenAiEnv(
-  envFile = process.env.LINCEI_OPENAI_ENV_FILE ?? DEFAULT_OPENAI_ENV_FILE,
+  envFile = process.env.LINCEI_OPENAI_ENV_FILE || resolveRepoEnvPath(),
 ): OpenAiEnvSnapshot {
   const sourcePath = resolve(envFile);
   const merged = { ...process.env };

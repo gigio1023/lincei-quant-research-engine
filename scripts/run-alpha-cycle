@@ -3,4 +3,4 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT/backend"
-npm run v1:cli -- run-alpha-cycle
+bun run v1:cli -- run-alpha-cycle

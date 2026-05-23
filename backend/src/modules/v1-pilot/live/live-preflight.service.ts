@@ -1,9 +1,11 @@
 /**
- * Fail-closed gate before any live notional. "Unknown" broker or schema state is treated as blocked,
- * per docs/v1-live-pilot-spec/07-broker-and-live-pilot.md — never optimistically ready.
+ * Fail-closed gate before any live notional. "Unknown" broker, LEAN run mode, or reconciliation
+ * state is treated as blocked — never optimistically ready.
  */
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
 import { Repository } from 'typeorm';
 import { LivePilotStatusRecord } from '../../../entities/live-pilot-status.entity';
 import { LeanRun } from '../../../entities/lean-run.entity';
@@ -18,13 +20,19 @@ import {
 import { LeanRunImportService } from '../lean/lean-run-import.service';
 import { MockBrokerAdapter } from '../broker/mock-broker.adapter';
 
+type LeanRunConfigOnDisk = {
+  projectName?: string;
+  algorithmVersion?: string;
+  parameters?: Record<string, string | number | boolean>;
+  simulator?: string;
+  mode?: string;
+};
+
 @Injectable()
 export class LivePreflightService {
   constructor(
     @InjectRepository(LivePilotStatusRecord)
     private readonly statusRepository: Repository<LivePilotStatusRecord>,
-    @InjectRepository(LeanRun)
-    private readonly leanRunRepository: Repository<LeanRun>,
     @InjectRepository(PortfolioTargetSnapshot)
     private readonly targetRepository: Repository<PortfolioTargetSnapshot>,
     @InjectRepository(PaperOrderPlan)
@@ -42,6 +50,8 @@ export class LivePreflightService {
     const latestLeanRun = await this.leanRunImportService.getLatestRun();
     if (!latestLeanRun || latestLeanRun.status !== 'passed') {
       blockers.push('Latest LEAN backtest did not pass.');
+    } else {
+      blockers.push(...this.assessLeanRunReadiness(latestLeanRun));
     }
 
     const latestTargets = latestLeanRun
@@ -64,6 +74,8 @@ export class LivePreflightService {
     const latestPaperPlan = latestPaperPlans[0];
     if (!latestPaperPlan) {
       blockers.push('Latest paper cycle has not produced a filled plan.');
+    } else {
+      blockers.push(...this.assessPaperReconciliation(latestPaperPlan));
     }
 
     const latestBrokerSnapshots = await this.brokerSnapshotRepository.find({
@@ -73,6 +85,8 @@ export class LivePreflightService {
     const latestBrokerSnapshot = latestBrokerSnapshots[0];
     if (!latestBrokerSnapshot) {
       blockers.push('Broker read-only snapshot is missing.');
+    } else {
+      blockers.push(...this.assessBrokerSnapshot(latestBrokerSnapshot));
     }
 
     const executionControls = await this.executionControlRepository.find({
@@ -143,5 +157,119 @@ export class LivePreflightService {
     );
 
     return preflight;
+  }
+
+  private assessLeanRunReadiness(leanRun: LeanRun): string[] {
+    const blockers: string[] = [];
+    const configOnDisk = this.readLeanRunConfig(leanRun.resultDirectory);
+    const parameters = {
+      ...leanRun.parameters,
+      ...(configOnDisk?.parameters ?? {}),
+    };
+    const researchAllowed = this.isResearchPreflightAllowed(parameters, configOnDisk);
+
+    if (this.isSimulatorLeanRun(leanRun, configOnDisk, parameters)) {
+      blockers.push(
+        'Latest LEAN run used the local simulator or smoke mode; live requires a Lean CLI historical backtest.',
+      );
+    }
+
+    const validationMode = String(parameters.validationMode ?? '');
+    if (validationMode === 'flow-validation' && !researchAllowed) {
+      blockers.push(
+        'Latest LEAN run is flow-validation only (artifact plumbing), not a historical numeric backtest.',
+      );
+    }
+
+    const usesStaticMetaOverlay =
+      parameters.usesStaticMetaOverlay === true ||
+      parameters['uses-static-meta-overlay'] === true;
+    if (usesStaticMetaOverlay && !researchAllowed) {
+      blockers.push(
+        'Latest LEAN run used a static LLM/meta overlay; that is not historical alpha validation for live readiness.',
+      );
+    }
+
+    if (!configOnDisk && !Object.keys(leanRun.parameters).length) {
+      blockers.push(
+        'Latest LEAN run has no config.json or parameters evidence on disk.',
+      );
+    }
+
+    return blockers;
+  }
+
+  private readLeanRunConfig(resultDirectory: string): LeanRunConfigOnDisk | null {
+    const configPath = join(resultDirectory, 'config.json');
+    if (!existsSync(configPath)) {
+      return null;
+    }
+    try {
+      return JSON.parse(readFileSync(configPath, 'utf8')) as LeanRunConfigOnDisk;
+    } catch {
+      return null;
+    }
+  }
+
+  private isResearchPreflightAllowed(
+    parameters: Record<string, string | number | boolean>,
+    configOnDisk: LeanRunConfigOnDisk | null,
+  ): boolean {
+    if (process.env.LIVE_PREFLIGHT_ALLOW_RESEARCH === 'true') {
+      return true;
+    }
+    const mode = String(parameters.mode ?? configOnDisk?.mode ?? '');
+    return mode === 'research';
+  }
+
+  private isSimulatorLeanRun(
+    leanRun: LeanRun,
+    configOnDisk: LeanRunConfigOnDisk | null,
+    parameters: Record<string, string | number | boolean>,
+  ): boolean {
+    if (configOnDisk?.simulator) {
+      return true;
+    }
+    const mode = String(parameters.mode ?? configOnDisk?.mode ?? '');
+    if (mode.startsWith('simulator') || mode === 'simulator') {
+      return true;
+    }
+    const simulatorStatistic = leanRun.statistics?.Simulator;
+    if (
+      typeof simulatorStatistic === 'string' &&
+      simulatorStatistic.includes('simulator')
+    ) {
+      return true;
+    }
+    if (leanRun.runId.startsWith('sim-')) {
+      return true;
+    }
+    return false;
+  }
+
+  private assessBrokerSnapshot(snapshot: BrokerSnapshot): string[] {
+    const blockers: string[] = [];
+    if (snapshot.provider === 'simulated') {
+      blockers.push(
+        'Latest broker snapshot provider is simulated; live requires a read-only broker poll.',
+      );
+    }
+    const reconciliationStatus = snapshot.reconciliation?.status;
+    if (reconciliationStatus !== 'matched') {
+      blockers.push(
+        `Broker snapshot reconciliation is "${reconciliationStatus ?? 'unknown'}"; matched required before live.`,
+      );
+    }
+    return blockers;
+  }
+
+  private assessPaperReconciliation(plan: PaperOrderPlan): string[] {
+    const reconciliationStatus = plan.reconciliation?.status;
+    if (reconciliationStatus !== 'matched') {
+      return [
+        `Paper plan reconciliation is "${reconciliationStatus ?? 'unknown'}"; matched required before live.`,
+      ];
+    }
+    return [];
   }
 }

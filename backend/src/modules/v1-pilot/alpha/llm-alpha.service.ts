@@ -1,6 +1,6 @@
 /**
- * OpenAI committee outside LEAN so backtests stay reproducible and broker credentials never enter prompts.
- * Missing or invalid API config skips LLM gracefully; committee failure must not abort the numeric/meta path.
+ * OpenAI LLM committee for event/macro/risk text — no local NLP models (e.g. FinBERT).
+ * Runs outside LEAN so backtests stay reproducible and broker credentials never enter prompts.
  */
 import { Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
@@ -57,9 +57,10 @@ export class LlmAlphaService {
       });
       const model = env.model ?? 'gpt-4.1-nano';
       const prompt = this.buildPrompt(snapshots, numeric);
+      const reasoningModel = /^gpt-5/i.test(model) || /^o\d/i.test(model);
       const response = await client.chat.completions.create({
         model,
-        temperature: 0.2,
+        ...(reasoningModel ? {} : { temperature: 0.2 }),
         response_format: { type: 'json_object' },
         messages: [
           {
@@ -111,8 +112,13 @@ export class LlmAlphaService {
         validateAlphaDecision(decision);
       }
       decisions.push(decision);
-      void this.alphaRepository.save(this.alphaRepository.create(decision));
     });
+
+    if (decisions.length > 0) {
+      await this.alphaRepository.save(
+        decisions.map((decision) => this.alphaRepository.create(decision)),
+      );
+    }
 
     return decisions;
   }

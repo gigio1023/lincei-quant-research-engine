@@ -14,6 +14,11 @@ import {
 } from '../contracts/v1-pilot.contracts';
 import { validateAlphaDecision } from '../contracts/v1-pilot.validators';
 import { hashObject } from '../../../shared/hash.util';
+import {
+  combineMetaFromDecisions,
+  directionFromMetaScore,
+  MetaDecisionExportRecord,
+} from './meta-alpha.combiner';
 
 @Injectable()
 export class MetaAlphaService {
@@ -28,6 +33,9 @@ export class MetaAlphaService {
     llm: AlphaDecisionContract[],
   ): Promise<AlphaDecisionContract[]> {
     const metaDecisions: AlphaDecisionContract[] = [];
+    const exportRecords: MetaDecisionExportRecord[] = [];
+
+    const savePromises: Promise<AlphaDecision>[] = [];
 
     snapshots.forEach((snapshot) => {
       const numericDecision = numeric.find((item) => item.symbol === snapshot.symbol);
@@ -40,16 +48,14 @@ export class MetaAlphaService {
       const llmRisk = llm.find(
         (item) => item.symbol === snapshot.symbol && item.sourceModels[0]?.includes('risk'),
       );
-      const numericScore = this.directionScore(numericDecision?.direction, numericDecision?.confidence);
-      const eventScore = this.directionScore(llmEvent?.direction, llmEvent?.confidence);
-      const macroScore = this.directionScore(llmMacro?.direction, llmMacro?.confidence);
-      const riskScore = 1 - this.directionScore(llmRisk?.direction, llmRisk?.confidence);
-      const finalScore =
-        numericScore * 0.5 +
-        eventScore * 0.25 +
-        macroScore * 0.15 +
-        riskScore * 0.1;
-      let direction: 'up' | 'down' | 'flat' = finalScore >= 0.65 ? 'up' : 'flat';
+      const components = combineMetaFromDecisions({
+        numeric: numericDecision,
+        llmEvent,
+        llmMacro,
+        llmRisk,
+      });
+      const { numericScore, eventScore, macroScore, riskAdjustment, finalScore } = components;
+      let direction = directionFromMetaScore(finalScore);
       let maxPositionPct = direction === 'up' ? 0.35 : 0;
 
       // Spec conflict rules: dampen size when committees disagree or risk reviewer is elevated.
@@ -99,14 +105,32 @@ export class MetaAlphaService {
         validateAlphaDecision(decision);
       }
       metaDecisions.push(decision);
-      void this.alphaRepository.save(this.alphaRepository.create(decision));
+      exportRecords.push({
+        id: decision.id,
+        symbol: decision.symbol,
+        direction,
+        confidence: decision.confidence,
+        numericScore,
+        eventScore,
+        macroScore,
+        riskAdjustment,
+        finalScore,
+        llmScores: {
+          event: eventScore,
+          macro: macroScore,
+          riskAdjustment,
+        },
+        maxPositionPct,
+      });
+      savePromises.push(this.alphaRepository.save(this.alphaRepository.create(decision)));
     });
 
-    this.exportMetaDecisionsFile(metaDecisions);
+    await Promise.all(savePromises);
+    this.exportMetaDecisionsFile(exportRecords);
     return metaDecisions;
   }
 
-  private exportMetaDecisionsFile(decisions: AlphaDecisionContract[]): void {
+  private exportMetaDecisionsFile(records: MetaDecisionExportRecord[]): void {
     const workspaceRoot = resolve(
       process.cwd(),
       '../engines/lean/aggressive_llm_momentum',
@@ -115,35 +139,12 @@ export class MetaAlphaService {
     mkdirSync(inputDir, { recursive: true });
     const payload = {
       generatedAt: new Date().toISOString(),
-      decisions: decisions.map((decision) => ({
-        id: decision.id,
-        symbol: decision.symbol,
-        direction: decision.direction,
-        confidence: decision.confidence,
-        llmScores: {
-          event: decision.confidence,
-          macro: decision.confidence * 0.9,
-          riskAdjustment: 1 - decision.confidence * 0.5,
-        },
-      })),
+      decisions: records,
     };
     writeFileSync(
       join(inputDir, 'meta_decisions.json'),
       `${JSON.stringify(payload, null, 2)}\n`,
       'utf8',
     );
-  }
-
-  private directionScore(
-    direction: AlphaDecisionContract['direction'] | undefined,
-    confidence = 0.5,
-  ): number {
-    if (direction === 'up') {
-      return confidence;
-    }
-    if (direction === 'down') {
-      return 1 - confidence;
-    }
-    return 0.5;
   }
 }

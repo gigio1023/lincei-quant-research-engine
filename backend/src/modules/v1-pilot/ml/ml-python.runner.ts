@@ -42,6 +42,21 @@ export class MlPythonRunner {
     return JSON.parse(stdout) as T;
   }
 
+  runExternalBaselineDownload(): Record<string, unknown> {
+    const python = this.resolvePythonBin();
+    const stdout = execFileSync(python, ['-m', 'ml.external.download_baselines'], {
+      cwd: this.repoRoot,
+      env: {
+        ...process.env,
+        PYTHONPATH: this.repoRoot,
+      },
+      encoding: 'utf8',
+      maxBuffer: 10 * 1024 * 1024,
+    });
+    this.logger.log('External tabular baseline download completed');
+    return JSON.parse(stdout) as Record<string, unknown>;
+  }
+
   runTraining(): Record<string, unknown> {
     const python = this.resolvePythonBin();
     const scriptPath = join(this.repoRoot, 'ml/training/train_lightgbm_baseline.py');

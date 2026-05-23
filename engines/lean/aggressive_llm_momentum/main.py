@@ -12,6 +12,7 @@ from datetime import timedelta
 from AlgorithmImports import *
 
 from alpha.meta_alpha import LinceiMetaAlphaModel
+from alpha.numeric_alpha import LinceiNumericAlphaModel
 from export.artifact_exporter import LinceiArtifactExporter
 from portfolio.aggressive_top_k import AggressiveTopKPortfolioConstructionModel
 from risk.lincei_risk import LinceiRiskManagementModel
@@ -22,10 +23,27 @@ class AggressiveLlmMomentum(QCAlgorithm):
 
     UNIVERSE = ("SPY", "QQQ", "IWM", "TLT", "GLD")
 
+    @staticmethod
+    def _parse_bool(value: str | None, *, default: bool = False) -> bool:
+        if value is None or value == "":
+            return default
+        return value.strip().lower() in ("1", "true", "yes", "on")
+
+    def _parse_date_param(self, key: str, default_year: int, default_month: int, default_day: int) -> tuple[int, int, int]:
+        raw = self.GetParameter(key)
+        if not raw:
+            return default_year, default_month, default_day
+        parts = raw.strip().split("-")
+        if len(parts) != 3:
+            return default_year, default_month, default_day
+        return int(parts[0]), int(parts[1]), int(parts[2])
+
     def Initialize(self) -> None:
         self.run_id = self.GetParameter("run-id") or "local-run"
-        self.SetStartDate(2024, 1, 1)
-        self.SetEndDate(2025, 12, 31)
+        start = self._parse_date_param("backtest-start-date", 2024, 1, 1)
+        end = self._parse_date_param("backtest-end-date", 2025, 12, 31)
+        self.SetStartDate(start[0], start[1], start[2])
+        self.SetEndDate(end[0], end[1], end[2])
         self.SetCash(100_000)
         self.SetBenchmark("SPY")
 
@@ -48,6 +66,24 @@ class AggressiveLlmMomentum(QCAlgorithm):
         max_gross_exposure_pct = float(self.GetParameter("max-gross-exposure-pct") or "1.0")
         stale_data_hours = int(float(self.GetParameter("stale-data-hours") or "48"))
         meta_decisions_path = self.GetParameter("meta-decisions-path") or "input/meta_decisions.json"
+        validation_mode = self.GetParameter("validation-mode") or ""
+        uses_static_meta_overlay = self._parse_bool(
+            self.GetParameter("uses-static-meta-overlay"),
+            default=True,
+        )
+        uses_static_ml_predictions = self._parse_bool(
+            self.GetParameter("uses-static-ml-predictions"),
+            default=True,
+        )
+        no_static_meta = self._parse_bool(self.GetParameter("no-static-meta"))
+        no_static_ml = self._parse_bool(self.GetParameter("no-static-ml"))
+        alpha_mode = self.GetParameter("alpha-mode") or (
+            "numeric-only" if no_static_meta else "meta-overlay"
+        )
+        if no_static_meta:
+            uses_static_meta_overlay = False
+        if no_static_ml:
+            uses_static_ml_predictions = False
 
         self._parameters = {
             "max-single-name-pct": max_single_name_pct,
@@ -58,15 +94,30 @@ class AggressiveLlmMomentum(QCAlgorithm):
             "stale-data-hours": stale_data_hours,
             "meta-decisions-path": meta_decisions_path,
             "run-id": self.run_id,
+            "validation-mode": validation_mode,
+            "uses-static-meta-overlay": uses_static_meta_overlay,
+            "uses-static-ml-predictions": uses_static_ml_predictions,
+            "no-static-meta": no_static_meta,
+            "no-static-ml": no_static_ml,
+            "alpha-mode": alpha_mode,
         }
 
-        self.SetAlpha(
-            LinceiMetaAlphaModel(
-                self,
-                meta_decisions_path=meta_decisions_path,
-                artifact_exporter=self._artifact_exporter,
-            ),
-        )
+        if no_static_meta or alpha_mode == "numeric-only":
+            self.SetAlpha(
+                LinceiNumericAlphaModel(
+                    artifact_exporter=self._artifact_exporter,
+                    use_ml_predictions=uses_static_ml_predictions and not no_static_ml,
+                ),
+            )
+        else:
+            self.SetAlpha(
+                LinceiMetaAlphaModel(
+                    self,
+                    meta_decisions_path=meta_decisions_path,
+                    artifact_exporter=self._artifact_exporter,
+                    use_ml_predictions=uses_static_ml_predictions and not no_static_ml,
+                ),
+            )
         self.SetPortfolioConstruction(
             AggressiveTopKPortfolioConstructionModel(
                 top_k=top_k,

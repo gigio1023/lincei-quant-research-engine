@@ -27,29 +27,38 @@ export class MlBaselineInferenceService {
     }
     try {
       const modelPath = join(this.repoRoot, registry.artifactPath);
+      const payload: Record<string, unknown> = {
+        modelPath,
+        registry,
+      };
+      if (registry.framework === 'jc-stockprediction-lgb') {
+        payload.configPath = join(this.repoRoot, registry.configPath ?? '');
+        payload.databasePath =
+          process.env.DATABASE_PATH ?? join(this.repoRoot, 'backend/data/investment.db');
+        payload.datasetId = 'v1-lean-universe';
+        payload.symbols = snapshots.map((snapshot) => snapshot.symbol);
+      } else {
+        payload.snapshots = snapshots.map((snapshot) => ({
+          symbol: snapshot.symbol,
+          features: snapshot.features,
+        }));
+      }
       const response = this.pythonRunner.runJsonScript<{ predictions: MlPrediction[] }>(
         'ml/inference/predict.py',
-        {
-          modelPath,
-          registry,
-          snapshots: snapshots.map((snapshot) => ({
-            symbol: snapshot.symbol,
-            features: snapshot.features,
-          })),
-        },
+        payload,
       );
       const predictions = response.predictions ?? [];
-      this.exportPredictionsForLean(predictions);
+      this.exportPredictionsForLean(registry.modelName, predictions);
       return predictions;
     } catch (error) {
       this.logger.warn(
-        `LightGBM inference unavailable: ${error instanceof Error ? error.message : 'unknown'}`,
+        `Structured ML inference unavailable: ${error instanceof Error ? error.message : 'unknown'}`,
       );
       return [];
     }
   }
 
-  private exportPredictionsForLean(predictions: MlPrediction[]): void {
+  private exportPredictionsForLean(modelName: string, predictions: MlPrediction[]): void {
     const workspaceRoot = join(this.repoRoot, 'engines/lean/aggressive_llm_momentum');
     const inputDir = join(workspaceRoot, 'input');
     mkdirSync(inputDir, { recursive: true });
@@ -58,7 +67,7 @@ export class MlBaselineInferenceService {
       `${JSON.stringify(
         {
           generatedAt: new Date().toISOString(),
-          modelName: 'tabular-forward-return-21d-v1',
+          modelName,
           predictions,
         },
         null,

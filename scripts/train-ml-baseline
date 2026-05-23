@@ -3,4 +3,4 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT/backend"
-npm run v1:cli -- train-ml-baseline
+bun run v1:cli -- train-ml-baseline

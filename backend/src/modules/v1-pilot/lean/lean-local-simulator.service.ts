@@ -51,9 +51,13 @@ export class LeanLocalSimulatorService {
     mkdirSync(resultDirectory, { recursive: true });
 
     const parameters = this.resolveParameters(request.parameters);
-    const metaDecisions = this.loadMetaDecisions(
+    const metaPath =
       request.metaDecisionsPath ??
-        join(workspaceRoot, 'input/meta_decisions.json.example'),
+      join(workspaceRoot, 'input/meta_decisions.json');
+    const metaDecisions = this.loadMetaDecisions(
+      existsSync(metaPath)
+        ? metaPath
+        : join(workspaceRoot, 'input/meta_decisions.json.example'),
     );
     const insights = this.buildInsights(metaDecisions);
     const targets = this.buildPortfolioTargets(insights, parameters);

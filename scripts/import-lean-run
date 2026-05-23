@@ -4,4 +4,4 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TARGET="${1:-latest}"
 cd "$ROOT/backend"
-npm run v1:cli -- import-lean-run "$TARGET"
+bun run v1:cli -- import-lean-run "$TARGET"

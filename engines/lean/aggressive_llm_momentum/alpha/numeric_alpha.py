@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING
 
 from AlgorithmImports import *
 
+from shared.history_frame import history_frame, insight_direction_label
+
 if TYPE_CHECKING:
     from export.artifact_exporter import LinceiArtifactExporter
 
@@ -28,8 +30,14 @@ class LinceiNumericAlphaModel(AlphaModel):
     FLAT_THRESHOLD = 0.35
     INSIGHT_PERIOD = 21
 
-    def __init__(self, artifact_exporter: LinceiArtifactExporter | None = None) -> None:
+    def __init__(
+        self,
+        artifact_exporter: LinceiArtifactExporter | None = None,
+        *,
+        use_ml_predictions: bool = True,
+    ) -> None:
         self._artifact_exporter = artifact_exporter
+        self._use_ml_predictions = use_ml_predictions
         self._last_scores: dict[str, float] = {}
 
     def Update(
@@ -76,7 +84,7 @@ class LinceiNumericAlphaModel(AlphaModel):
                 self._artifact_exporter.record_numeric_score(
                     str(symbol.Value),
                     score,
-                    direction.name.lower(),
+                    insight_direction_label(direction),
                     confidence,
                 )
 
@@ -90,8 +98,8 @@ class LinceiNumericAlphaModel(AlphaModel):
         algorithm: QCAlgorithm,
         symbol: Symbol,
     ) -> dict[str, float] | None:
-        history = algorithm.History[TradeBar](symbol, self.SMA_LOOKBACK + 5, Resolution.Daily)
-        if history.empty or len(history) < self.LOOKBACK_LONG + 1:
+        history = history_frame(algorithm, symbol, self.SMA_LOOKBACK + 5, Resolution.Daily)
+        if history is None or len(history) < self.LOOKBACK_LONG + 1:
             return None
 
         closes = history["close"].astype(float)
@@ -131,6 +139,8 @@ class LinceiNumericAlphaModel(AlphaModel):
         return float(drawdowns.min())
 
     def _load_ml_scores(self) -> dict[str, float]:
+        if not self._use_ml_predictions:
+            return {}
         path = os.path.join("input", "ml_predictions.json")
         if not os.path.exists(path):
             return {}

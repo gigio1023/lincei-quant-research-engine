@@ -7,6 +7,8 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 
+from AlgorithmImports import OrderStatus
+
 
 class LinceiArtifactExporter:
     """Collects runtime events and writes importable JSON artifacts."""
@@ -56,8 +58,10 @@ class LinceiArtifactExporter:
         confidence: float,
         conflict_notes: list[str],
         meta_record: dict[str, Any] | None,
+        component_scores: dict[str, float] | None = None,
     ) -> None:
         insight_id = f"insight-{symbol}-{datetime.now(timezone.utc):%Y%m%d%H%M%S}"
+        scores = component_scores or {}
         self._insights.append(
             {
                 "id": insight_id,
@@ -69,6 +73,10 @@ class LinceiArtifactExporter:
                 "sourceModel": "LinceiMetaAlphaModel",
                 "generatedTime": datetime.now(timezone.utc).isoformat(),
                 "finalScore": round(final_score, 6),
+                "numericScore": scores.get("numericScore"),
+                "eventScore": scores.get("eventScore"),
+                "macroScore": scores.get("macroScore"),
+                "riskAdjustment": scores.get("riskAdjustment"),
                 "conflictNotes": conflict_notes,
                 "metaDecisionId": meta_record.get("id") if meta_record else None,
             },

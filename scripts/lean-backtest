@@ -4,4 +4,4 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROJECT="${1:-aggressive_llm_momentum}"
 cd "$ROOT/backend"
-npm run v1:cli -- lean-backtest "$PROJECT"
+bun run v1:cli -- lean-backtest "$PROJECT"

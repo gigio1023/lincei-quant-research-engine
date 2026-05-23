@@ -9,6 +9,7 @@ import { AlphaDecisionContract, FeatureSnapshotContract } from '../contracts/v1-
 import { validateAlphaDecision } from '../contracts/v1-pilot.validators';
 import { hashObject } from '../../../shared/hash.util';
 import { MlBaselineInferenceService } from '../ml/ml-baseline-inference.service';
+import { MlModelRegistryService } from '../ml/ml-model-registry.service';
 import { MlPrediction } from '../ml/ml-model-registry.types';
 import { scoreSnapshotHeuristic } from './heuristic-numeric.scorer';
 
@@ -23,6 +24,7 @@ export class NumericAlphaService {
     @InjectRepository(AlphaDecision)
     private readonly alphaRepository: Repository<AlphaDecision>,
     private readonly mlInference: MlBaselineInferenceService,
+    private readonly mlRegistry: MlModelRegistryService,
   ) {}
 
   async buildDecisions(
@@ -33,7 +35,7 @@ export class NumericAlphaService {
       return this.buildFromMl(snapshots, mlPredictions);
     }
     this.logger.warn(
-      'No promoted LightGBM model or inference failed; using heuristic fallback (degraded mode).',
+      'No promoted external tabular model or inference failed; using heuristic fallback (degraded mode).',
     );
     return this.buildFromHeuristic(snapshots);
   }
@@ -43,6 +45,7 @@ export class NumericAlphaService {
     predictions: MlPrediction[],
   ): Promise<AlphaDecisionContract[]> {
     const predictionBySymbol = new Map(predictions.map((item) => [item.symbol, item]));
+    const modelName = this.mlRegistry.getPromotedModel()?.modelName ?? 'external-tabular-baseline';
     const decisions: AlphaDecisionContract[] = [];
 
     snapshots.forEach((snapshot) => {
@@ -58,10 +61,10 @@ export class NumericAlphaService {
         score,
         direction,
         confidence,
-        sourceModels: ['tabular-forward-return-21d-v1'],
+        sourceModels: [modelName],
         thesis:
           direction === 'up'
-            ? `LightGBM 21d forward-return score ${score.toFixed(3)} (raw ${prediction.rawScore.toFixed(4)}).`
+            ? `External tabular model ${modelName} score ${score.toFixed(3)} (raw ${prediction.rawScore.toFixed(4)}).`
             : undefined,
         outputExtra: { rawScore: prediction.rawScore, expectedReturnBps: prediction.expectedReturnBps },
       });
@@ -69,8 +72,13 @@ export class NumericAlphaService {
         validateAlphaDecision(decision);
       }
       decisions.push(decision);
-      void this.alphaRepository.save(this.alphaRepository.create(decision));
     });
+
+    if (decisions.length > 0) {
+      await this.alphaRepository.save(
+        decisions.map((decision) => this.alphaRepository.create(decision)),
+      );
+    }
 
     return decisions.sort((left, right) => right.confidence - left.confidence);
   }
@@ -106,8 +114,14 @@ export class NumericAlphaService {
         validateAlphaDecision(decision);
       }
       decisions.push(decision);
-      void this.alphaRepository.save(this.alphaRepository.create(decision));
     });
+
+    if (decisions.length > 0) {
+      await this.alphaRepository.save(
+        decisions.map((decision) => this.alphaRepository.create(decision)),
+      );
+    }
+
     return decisions;
   }
 

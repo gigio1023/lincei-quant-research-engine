@@ -10,8 +10,12 @@ export type MlModelRegistryRecord = {
   target: string;
   horizonDays: number;
   artifactPath: string;
+  configPath?: string;
   modelHash: string;
   dataSource: string;
+  source?: 'external-download' | 'local-train';
+  license?: string;
+  securityManifest?: string;
   trainedAt: string;
   validation: {
     mse: number;

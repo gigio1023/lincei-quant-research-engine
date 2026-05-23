@@ -31,6 +31,7 @@ import { V1PilotController } from './v1-pilot.controller';
 import { MlModelRegistryService } from './ml/ml-model-registry.service';
 import { MlPythonRunner } from './ml/ml-python.runner';
 import { MlBaselineInferenceService } from './ml/ml-baseline-inference.service';
+import { LeanCliRunner } from './lean/lean-cli.runner';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { MlBaselineInferenceService } from './ml/ml-baseline-inference.service';
     LlmAlphaService,
     MetaAlphaService,
     LeanLocalSimulatorService,
+    LeanCliRunner,
     LeanRunImportService,
     LeanPaperBridgeService,
     LivePreflightService,
