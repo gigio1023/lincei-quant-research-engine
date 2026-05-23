@@ -12,7 +12,10 @@ import {
   RiskPolicy,
   SafetyGate,
 } from "../../types";
-import { DOCUMENTED_FUNDING_READINESS } from "./dashboardSamples";
+import {
+  DOCUMENTED_FUNDING_READINESS,
+  DOCUMENTED_LIVE_PILOT_READINESS,
+} from "./dashboardSamples";
 export {
   DOCUMENTED_AUTONOMOUS_RUNS,
   DOCUMENTED_AUTONOMOUS_RUN_SCHEDULES,
@@ -22,6 +25,7 @@ export {
   DOCUMENTED_BUDGET_ENVELOPES,
   DOCUMENTED_FUNDING_READINESS,
   DOCUMENTED_INVESTMENT_PROPOSALS,
+  DOCUMENTED_LIVE_PILOT_READINESS,
   DOCUMENTED_ORDER_PLAN_APPROVALS,
   DOCUMENTED_PAPER_ACCOUNT_EVENTS,
   DOCUMENTED_PAPER_ORDER_PLANS,
@@ -175,6 +179,7 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
     liveTradingEnabled: false,
   },
   fundingReadiness: DOCUMENTED_FUNDING_READINESS[0],
+  livePilotReadiness: DOCUMENTED_LIVE_PILOT_READINESS[0],
   readiness: [
     {
       key: "budgetEnvelopeActive",
@@ -292,6 +297,17 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
       key: "brokerFillLedgerReady",
       ready: true,
       detail: "Documented broker read-only fill sample is available",
+    },
+    {
+      key: "livePilotReadinessLedgerReady",
+      ready: true,
+      detail: "Documented live pilot readiness sample is available",
+    },
+    {
+      key: "livePilotReady",
+      ready: false,
+      detail:
+        "Latest live pilot readiness is blocked: broker write preflight gates are not ready",
     },
     {
       key: "liveTradingReady",

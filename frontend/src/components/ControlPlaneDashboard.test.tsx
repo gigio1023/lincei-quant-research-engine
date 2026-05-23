@@ -25,6 +25,7 @@ vi.mock("../services/api", () => ({
     getPaperOrderPlans: vi.fn(),
     getBrokerSnapshots: vi.fn(),
     getFundingReadinessRecords: vi.fn(),
+    getLivePilotReadinessRecords: vi.fn(),
     getBrokerFills: vi.fn(),
     reconcileBrokerFill: vi.fn(),
     pollBrokerReadOnlyFills: vi.fn(),
@@ -183,6 +184,56 @@ const mockControlPlaneStatus = {
     createdAt: "2026-05-22T09:08:00.000Z",
     updatedAt: "2026-05-22T09:08:00.000Z",
   },
+  livePilotReadiness: {
+    id: "live-pilot-readiness-api-1",
+    idempotencyKey: "live-pilot-api-1",
+    fundingReadinessId: "funding-readiness-api-1",
+    currency: "KRW",
+    pilotBudgetAmount: 500000,
+    maxPilotBudgetAmount: 1000000,
+    maxSingleOrderNotional: 100000,
+    status: "blocked",
+    checkedAt: "2026-05-22T09:09:00.000Z",
+    readinessSnapshot: {
+      pilotBudgetAmount: 500000,
+      maxPilotBudgetAmount: 1000000,
+      maxSingleOrderNotional: 100000,
+      fundingReadinessId: "funding-readiness-api-1",
+      fundingReady: true,
+      schemaMigrationReady: false,
+      credentialCustodyReady: false,
+      brokerSchemaVerified: false,
+      brokerSandboxVerified: false,
+      brokerReadOnlyReady: false,
+      brokerFillPollingReady: false,
+      brokerCancelReady: false,
+      brokerFlattenReady: false,
+      openOrderPollingReady: false,
+      orderEndpointImplemented: false,
+      brokerWriteEnabled: false,
+      productionApprovalCustodyReady: false,
+      brokerExecutionEnabled: false,
+      liveTradingEnabled: false,
+      blockers: [
+        "Broker cancel/flatten/open-order emergency controls are not ready",
+        "Live order endpoint is not implemented",
+      ],
+      notes: [
+        "Live pilot readiness is evidence only. No broker order endpoint was called.",
+      ],
+    },
+    blockers: [
+      "Broker cancel/flatten/open-order emergency controls are not ready",
+      "Live order endpoint is not implemented",
+    ],
+    notes: [
+      "Live pilot readiness is evidence only. No broker order endpoint was called.",
+    ],
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+    createdAt: "2026-05-22T09:09:00.000Z",
+    updatedAt: "2026-05-22T09:09:00.000Z",
+  },
   readiness: [
     {
       key: "riskGateReady",
@@ -228,6 +279,17 @@ const mockControlPlaneStatus = {
       ready: true,
       detail:
         "Latest funding readiness is ready: expected deposit matches read-only broker cash and equity",
+    },
+    {
+      key: "livePilotReadinessLedgerReady",
+      ready: true,
+      detail: "1 live pilot readiness records",
+    },
+    {
+      key: "livePilotReady",
+      ready: false,
+      detail:
+        "Latest live pilot readiness is blocked: broker write preflight gates are not ready",
     },
   ],
   blockers: [
@@ -1177,6 +1239,9 @@ describe("ControlPlaneDashboard", () => {
     vi.mocked(controlPlaneApi.getFundingReadinessRecords).mockResolvedValue([
       mockControlPlaneStatus.fundingReadiness,
     ]);
+    vi.mocked(controlPlaneApi.getLivePilotReadinessRecords).mockResolvedValue([
+      mockControlPlaneStatus.livePilotReadiness,
+    ]);
     vi.mocked(controlPlaneApi.getBrokerFills).mockResolvedValue(
       mockBrokerFills,
     );
@@ -1330,6 +1395,7 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("researchRunLedgerReady")).toBeInTheDocument();
     expect(screen.getByText("schemaMigrationPolicyReady")).toBeInTheDocument();
     expect(screen.getByText("fundingCapitalUsable")).toBeInTheDocument();
+    expect(screen.getByText("livePilotReady")).toBeInTheDocument();
     expect(
       screen.getAllByText("Production schema migrations are not enforced")
         .length,
@@ -1398,16 +1464,22 @@ describe("ControlPlaneDashboard", () => {
     expect(
       screen.getByText("expected deposit matches read-only broker truth"),
     ).toBeInTheDocument();
+    expect(screen.getByText("Broker Write Readiness")).toBeInTheDocument();
+    expect(screen.getByText("API live pilot readiness")).toBeInTheDocument();
+    expect(screen.getByText("Broker write blockers")).toBeInTheDocument();
+    expect(
+      screen.getAllByText("Live order endpoint is not implemented").length,
+    ).toBeGreaterThan(0);
     expect(screen.getByText("API broker adapter status")).toBeInTheDocument();
     expect(
       screen.getByText("toss / oauth2_client_credentials"),
     ).toBeInTheDocument();
-    expect(screen.getByText("Read-only polling")).toBeInTheDocument();
+    expect(screen.getAllByText("Read-only polling").length).toBeGreaterThan(0);
     expect(screen.getByText("Emergency controls")).toBeInTheDocument();
     expect(screen.getByText("runtime stop")).toBeInTheDocument();
     expect(screen.getByText("cancel orders")).toBeInTheDocument();
     expect(screen.getByText("flatten positions")).toBeInTheDocument();
-    expect(screen.getByText("Fill polling")).toBeInTheDocument();
+    expect(screen.getAllByText("Fill polling").length).toBeGreaterThan(0);
     expect(screen.getByText("last fill poll")).toBeInTheDocument();
     expect(screen.getByText("fill reconcile")).toBeInTheDocument();
     expect(screen.getAllByText("blocked").length).toBeGreaterThan(0);
@@ -1486,6 +1558,8 @@ describe("ControlPlaneDashboard", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("자금 준비 상태")).toBeInTheDocument();
     expect(screen.getByText("API 자금 준비")).toBeInTheDocument();
+    expect(screen.getByText("브로커 쓰기 준비 상태")).toBeInTheDocument();
+    expect(screen.getByText("API 실거래 파일럿 준비")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "한국어" })).toHaveAttribute(
       "aria-pressed",
       "true",

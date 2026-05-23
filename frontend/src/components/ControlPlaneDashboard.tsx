@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ActionAuditTimelinePanel } from "./control-plane-dashboard/ActionAuditTimelinePanel";
 import { AutonomousRunLedger } from "./control-plane-dashboard/AutonomousRunLedger";
 import { AutonomousActionStatusPanel } from "./control-plane-dashboard/AutonomousActionStatusPanel";
+import { BrokerWriteReadinessPanel } from "./control-plane-dashboard/BrokerWriteReadinessPanel";
 import { BrokerSnapshotPanel } from "./control-plane-dashboard/BrokerSnapshotPanel";
 import { CurrentCycleEvidencePanel } from "./control-plane-dashboard/CurrentCycleEvidencePanel";
 import { DashboardHeader } from "./control-plane-dashboard/DashboardHeader";
@@ -50,6 +51,7 @@ const ControlPlaneDashboard = () => {
               <ResearchLedgerPanel model={model} />
               <PaperExecutionPanel model={model} />
               <FundingReadinessPanel model={model} />
+              <BrokerWriteReadinessPanel model={model} />
               <BrokerSnapshotPanel model={model} />
             </div>
             <RightRail model={model} />

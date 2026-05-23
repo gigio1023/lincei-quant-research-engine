@@ -4,6 +4,7 @@ import {
 } from '../../entities/broker-snapshot.entity';
 import { BrokerFill } from '../../entities/broker-fill.entity';
 import { FundingReadinessRecord } from '../../entities/funding-readiness-record.entity';
+import { LivePilotReadinessRecord } from '../../entities/live-pilot-readiness-record.entity';
 import { ExecutionControlStateValue } from '../../entities/execution-control-state.entity';
 import {
   BacktestMetrics,
@@ -272,6 +273,17 @@ export interface AssessFundingReadinessRequest {
   notes?: string[];
 }
 
+export interface AssessLivePilotReadinessRequest {
+  pilotBudgetAmount: number;
+  maxPilotBudgetAmount?: number;
+  maxSingleOrderNotional?: number;
+  budgetEnvelopeId?: number;
+  fundingReadinessId?: number;
+  currency?: string;
+  idempotencyKey?: string;
+  notes?: string[];
+}
+
 export type BrokerAdapterProvider = 'toss' | 'manual' | 'simulated';
 
 export type BrokerAdapterCapabilityStatus =
@@ -481,6 +493,7 @@ export interface ControlPlaneStatus {
   killSwitch: KillSwitchStatus;
   actionStatus: ControlPlaneActionStatus;
   fundingReadiness?: FundingReadinessRecord;
+  livePilotReadiness?: LivePilotReadinessRecord;
   readiness: Array<{
     key: string;
     ready: boolean;

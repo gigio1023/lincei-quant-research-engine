@@ -800,6 +800,59 @@ describe("API Service", () => {
       expect(result).toEqual(mockRecords);
     });
 
+    it("should_assess_live_pilot_readiness_from_funding_record", async () => {
+      const mockReadiness = {
+        id: "live-pilot-readiness-1",
+        fundingReadinessId: "funding-readiness-1",
+        status: "blocked",
+        pilotBudgetAmount: 500000,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      };
+      const request = {
+        pilotBudgetAmount: 500000,
+        maxPilotBudgetAmount: 1000000,
+        maxSingleOrderNotional: 100000,
+        idempotencyKey: "live-pilot-1",
+      };
+
+      mockPost.mockResolvedValue({ data: mockReadiness });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.assessLivePilotReadiness(
+        "funding-readiness-1",
+        request,
+      );
+
+      expect(mockPost).toHaveBeenCalledWith(
+        "/control-plane/funding-readiness/funding-readiness-1/assess-live-pilot-readiness",
+        request,
+      );
+      expect(result).toEqual(mockReadiness);
+    });
+
+    it("should_get_live_pilot_readiness_records", async () => {
+      const mockRecords = [
+        {
+          id: "live-pilot-readiness-1",
+          fundingReadinessId: "funding-readiness-1",
+          status: "blocked",
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+        },
+      ];
+
+      mockGet.mockResolvedValue({ data: mockRecords });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.getLivePilotReadinessRecords();
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/control-plane/live-pilot-readiness",
+      );
+      expect(result).toEqual(mockRecords);
+    });
+
     it("should_get_broker_adapter_status", async () => {
       const mockStatus = {
         provider: "toss",

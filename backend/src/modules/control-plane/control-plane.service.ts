@@ -31,6 +31,7 @@ import {
 } from '../../entities/execution-control-state.entity';
 import { FundingReadinessRecord } from '../../entities/funding-readiness-record.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
+import { LivePilotReadinessRecord } from '../../entities/live-pilot-readiness-record.entity';
 import { MarketDataBar } from '../../entities/market-data-bar.entity';
 import { MarketDataIngestionRun } from '../../entities/market-data-ingestion-run.entity';
 import { OrderPlanApproval } from '../../entities/order-plan-approval.entity';
@@ -68,6 +69,8 @@ import { buildControlPlaneActionStatus } from './control-plane-status.presenter'
 import {
   AdvanceAutonomousRunRequest,
   AssessFundingReadinessRequest,
+  AssessLivePilotReadinessRequest,
+  BrokerAdapterStatus,
   ControlPlaneAuditEvent,
   ControlPlaneStatus,
   CreateAutonomousRunScheduleRequest,
@@ -144,6 +147,8 @@ export class ControlPlaneService {
     private readonly brokerSnapshotRepository: Repository<BrokerSnapshot>,
     @InjectRepository(FundingReadinessRecord)
     private readonly fundingReadinessRepository: Repository<FundingReadinessRecord>,
+    @InjectRepository(LivePilotReadinessRecord)
+    private readonly livePilotReadinessRepository: Repository<LivePilotReadinessRecord>,
     @InjectRepository(InvestmentProposal)
     private readonly proposalRepository: Repository<InvestmentProposal>,
     @InjectRepository(MarketDataBar)
@@ -198,6 +203,13 @@ export class ControlPlaneService {
         where: {},
         order: { checkedAt: 'DESC', updatedAt: 'DESC' },
       });
+    const livePilotReadinessCount =
+      await this.livePilotReadinessRepository.count();
+    const latestLivePilotReadiness =
+      await this.livePilotReadinessRepository.findOne({
+        where: {},
+        order: { checkedAt: 'DESC', updatedAt: 'DESC' },
+      });
     const executionControlState = await this.getExecutionControlState();
     const runCount = await this.runRepository.count();
     const schemaMigrationPolicy = await this.buildSchemaMigrationPolicyStatus();
@@ -225,6 +237,7 @@ export class ControlPlaneService {
       killSwitch,
       actionStatus,
       fundingReadiness: latestFundingReadiness ?? undefined,
+      livePilotReadiness: latestLivePilotReadiness ?? undefined,
       readiness: [
         {
           key: 'budgetEnvelopeActive',
@@ -346,6 +359,18 @@ export class ControlPlaneService {
           detail: `${brokerFillCount} broker read-only fill records imported`,
         },
         {
+          key: 'livePilotReadinessLedgerReady',
+          ready: livePilotReadinessCount > 0,
+          detail: `${livePilotReadinessCount} live pilot readiness records`,
+        },
+        {
+          key: 'livePilotReady',
+          ready: latestLivePilotReadiness?.status === 'ready',
+          detail: latestLivePilotReadiness
+            ? `Latest live pilot readiness is ${latestLivePilotReadiness.status}: ${latestLivePilotReadiness.blockers.join('; ') || 'all live pilot preflight gates are ready'}`
+            : 'No live pilot readiness record has verified broker write preflight gates',
+        },
+        {
           key: 'liveTradingReady',
           ready: false,
           detail: liveTradingGate.detail,
@@ -357,6 +382,9 @@ export class ControlPlaneService {
         ...(latestFundingReadiness?.status === 'ready'
           ? []
           : ['No usable funding readiness record tied to broker truth']),
+        ...(latestLivePilotReadiness?.status === 'ready'
+          ? []
+          : ['No verified live pilot readiness record']),
         'No production-verified broker polling loop',
         ...schemaMigrationPolicy.blockers,
         ...liveTradingGate.blockers,
@@ -1325,6 +1353,186 @@ export class ControlPlaneService {
 
   async listFundingReadinessRecords(): Promise<FundingReadinessRecord[]> {
     return this.fundingReadinessRepository.find({
+      order: { checkedAt: 'DESC', updatedAt: 'DESC' },
+    });
+  }
+
+  async assessLivePilotReadiness(
+    request: AssessLivePilotReadinessRequest,
+    brokerAdapterStatus: BrokerAdapterStatus,
+  ): Promise<LivePilotReadinessRecord> {
+    this.assertLivePilotReadinessRequest(request);
+
+    const idempotencyKey = request.idempotencyKey;
+    if (idempotencyKey) {
+      const existing = await this.livePilotReadinessRepository.findOne({
+        where: { idempotencyKey },
+      });
+
+      if (existing) {
+        return existing;
+      }
+    }
+
+    const checkedAt = new Date();
+    const hardMaxPilotBudgetAmount = Number(
+      process.env.LIVE_PILOT_HARD_MAX_BUDGET_KRW ?? 1_000_000,
+    );
+    const pilotBudgetAmount = this.roundMoney(request.pilotBudgetAmount);
+    const maxPilotBudgetAmount = this.roundMoney(
+      request.maxPilotBudgetAmount ?? hardMaxPilotBudgetAmount,
+    );
+    const maxSingleOrderNotional = this.roundMoney(
+      request.maxSingleOrderNotional ?? Math.min(100_000, pilotBudgetAmount),
+    );
+    const fundingReadiness = request.fundingReadinessId
+      ? await this.fundingReadinessRepository.findOne({
+          where: { id: request.fundingReadinessId },
+        })
+      : await this.fundingReadinessRepository.findOne({
+          where: {},
+          order: { checkedAt: 'DESC', updatedAt: 'DESC' },
+        });
+
+    if (request.fundingReadinessId && !fundingReadiness) {
+      throw new NotFoundException(
+        `Funding readiness ${request.fundingReadinessId} not found`,
+      );
+    }
+
+    const budget = request.budgetEnvelopeId
+      ? await this.budgetRepository.findOne({
+          where: { id: request.budgetEnvelopeId },
+        })
+      : await this.budgetRepository.findOne({
+          where: { status: 'active' },
+          order: { updatedAt: 'DESC' },
+        });
+
+    if (request.budgetEnvelopeId && !budget) {
+      throw new NotFoundException(
+        `Budget ${request.budgetEnvelopeId} not found`,
+      );
+    }
+
+    const schemaMigrationPolicy = await this.buildSchemaMigrationPolicyStatus();
+    const credentialCustodyReady =
+      brokerAdapterStatus.credentialCustody.productionReady;
+    const brokerReadOnlyReady =
+      brokerAdapterStatus.readOnlyEnabled &&
+      brokerAdapterStatus.readOnlyPoll.canPoll;
+    const brokerFillPollingReady =
+      brokerAdapterStatus.readOnlyPoll.canPollFills === true;
+    const fundingReady = fundingReadiness?.status === 'ready';
+    const brokerEmergencyControlsReady =
+      brokerAdapterStatus.emergencyControls.brokerCancelReady &&
+      brokerAdapterStatus.emergencyControls.brokerFlattenReady &&
+      brokerAdapterStatus.emergencyControls.openOrderPollingReady;
+
+    const blockers = [
+      budget ? undefined : 'No budget envelope selected for live pilot',
+      budget?.mode === 'live'
+        ? undefined
+        : 'Live pilot requires a budget envelope in live mode',
+      budget?.policy.allowLiveTrading === true
+        ? undefined
+        : 'Budget policy does not allow live trading',
+      fundingReady
+        ? undefined
+        : 'No ready funding readiness record is tied to broker truth',
+      fundingReadiness && request.currency
+        ? fundingReadiness.currency === request.currency
+          ? undefined
+          : 'Funding readiness currency does not match live pilot request'
+        : undefined,
+      fundingReadiness &&
+      pilotBudgetAmount <= fundingReadiness.expectedDepositAmount
+        ? undefined
+        : 'Live pilot budget exceeds verified funding readiness amount',
+      pilotBudgetAmount <= maxPilotBudgetAmount
+        ? undefined
+        : 'Live pilot budget exceeds requested pilot cap',
+      maxPilotBudgetAmount <= hardMaxPilotBudgetAmount
+        ? undefined
+        : 'Live pilot cap exceeds hard environment pilot cap',
+      maxSingleOrderNotional <= pilotBudgetAmount
+        ? undefined
+        : 'Single order cap exceeds pilot budget',
+      schemaMigrationPolicy.ready
+        ? undefined
+        : 'Schema migration policy is not ready',
+      credentialCustodyReady
+        ? undefined
+        : 'Production broker credential custody is not ready',
+      brokerAdapterStatus.schemaVerified
+        ? undefined
+        : 'Broker OpenAPI schema is not verified',
+      brokerAdapterStatus.sandboxVerified
+        ? undefined
+        : 'Broker sandbox or paper environment is not verified',
+      brokerReadOnlyReady ? undefined : 'Broker read-only polling is not ready',
+      brokerFillPollingReady ? undefined : 'Broker fill polling is not ready',
+      brokerEmergencyControlsReady
+        ? undefined
+        : 'Broker cancel/flatten/open-order emergency controls are not ready',
+      'Live order endpoint is not implemented',
+      'Broker write access is disabled',
+      'Production signed order-plan custody is not implemented',
+    ].filter((blocker): blocker is string => Boolean(blocker));
+    const notes = [
+      'Live pilot readiness is evidence only. No broker order endpoint was called.',
+      ...(request.notes ?? []),
+    ];
+    const readinessSnapshot = {
+      pilotBudgetAmount,
+      maxPilotBudgetAmount,
+      maxSingleOrderNotional,
+      budgetEnvelopeId: budget?.id,
+      fundingReadinessId: fundingReadiness?.id,
+      fundingReady,
+      schemaMigrationReady: schemaMigrationPolicy.ready,
+      credentialCustodyReady,
+      brokerSchemaVerified: brokerAdapterStatus.schemaVerified,
+      brokerSandboxVerified: brokerAdapterStatus.sandboxVerified,
+      brokerReadOnlyReady,
+      brokerFillPollingReady,
+      brokerCancelReady:
+        brokerAdapterStatus.emergencyControls.brokerCancelReady,
+      brokerFlattenReady:
+        brokerAdapterStatus.emergencyControls.brokerFlattenReady,
+      openOrderPollingReady:
+        brokerAdapterStatus.emergencyControls.openOrderPollingReady,
+      orderEndpointImplemented: false as const,
+      brokerWriteEnabled: false as const,
+      productionApprovalCustodyReady: false as const,
+      brokerExecutionEnabled: false as const,
+      liveTradingEnabled: false as const,
+      blockers,
+      notes,
+    };
+
+    return this.livePilotReadinessRepository.save(
+      this.livePilotReadinessRepository.create({
+        idempotencyKey,
+        budgetEnvelopeId: budget?.id,
+        fundingReadinessId: fundingReadiness?.id,
+        currency: request.currency ?? fundingReadiness?.currency ?? 'KRW',
+        pilotBudgetAmount,
+        maxPilotBudgetAmount,
+        maxSingleOrderNotional,
+        status: blockers.length === 0 ? 'ready' : 'blocked',
+        checkedAt,
+        readinessSnapshot,
+        blockers,
+        notes,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+  }
+
+  async listLivePilotReadinessRecords(): Promise<LivePilotReadinessRecord[]> {
+    return this.livePilotReadinessRepository.find({
       order: { checkedAt: 'DESC', updatedAt: 'DESC' },
     });
   }
@@ -4372,6 +4580,71 @@ export class ControlPlaneService {
     if (request.maxAgeMinutes !== undefined && request.maxAgeMinutes <= 0) {
       throw new BadRequestException(
         'Funding readiness maxAgeMinutes must be positive',
+      );
+    }
+  }
+
+  private assertLivePilotReadinessRequest(
+    request: AssessLivePilotReadinessRequest,
+  ): void {
+    const disallowedKeys = [
+      'brokerCredentials',
+      'accessToken',
+      'refreshToken',
+      'secret',
+      'clientSecret',
+      'apiKey',
+      'accountRef',
+      'accountId',
+      'orders',
+      'order',
+      'orderPayload',
+      'clientOrderId',
+      'placeOrder',
+      'cancelOrder',
+      'modifyOrder',
+      'flattenPositions',
+    ];
+    const presentDisallowedKey = disallowedKeys.find(
+      (key) =>
+        (request as unknown as Record<string, unknown>)[key] !== undefined,
+    );
+
+    if (presentDisallowedKey) {
+      throw new BadRequestException(
+        `Live pilot readiness cannot include ${presentDisallowedKey}`,
+      );
+    }
+
+    if (
+      typeof request.pilotBudgetAmount !== 'number' ||
+      !Number.isFinite(request.pilotBudgetAmount) ||
+      request.pilotBudgetAmount <= 0
+    ) {
+      throw new BadRequestException(
+        'Live pilot readiness pilotBudgetAmount must be positive',
+      );
+    }
+
+    if (
+      request.maxPilotBudgetAmount !== undefined &&
+      (typeof request.maxPilotBudgetAmount !== 'number' ||
+        !Number.isFinite(request.maxPilotBudgetAmount) ||
+        request.maxPilotBudgetAmount <= 0)
+    ) {
+      throw new BadRequestException(
+        'Live pilot readiness maxPilotBudgetAmount must be positive',
+      );
+    }
+
+    if (
+      request.maxSingleOrderNotional !== undefined &&
+      (typeof request.maxSingleOrderNotional !== 'number' ||
+        !Number.isFinite(request.maxSingleOrderNotional) ||
+        request.maxSingleOrderNotional <= 0)
+    ) {
+      throw new BadRequestException(
+        'Live pilot readiness maxSingleOrderNotional must be positive',
       );
     }
   }

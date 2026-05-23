@@ -534,6 +534,63 @@ export interface FundingReadinessRecord {
   updatedAt: string;
 }
 
+export type LivePilotReadinessStatus = "ready" | "blocked";
+
+export interface LivePilotReadinessSnapshot {
+  pilotBudgetAmount: number;
+  maxPilotBudgetAmount: number;
+  maxSingleOrderNotional: number;
+  budgetEnvelopeId?: number | string;
+  fundingReadinessId?: number | string;
+  fundingReady: boolean;
+  schemaMigrationReady: boolean;
+  credentialCustodyReady: boolean;
+  brokerSchemaVerified: boolean;
+  brokerSandboxVerified: boolean;
+  brokerReadOnlyReady: boolean;
+  brokerFillPollingReady: boolean;
+  brokerCancelReady: boolean;
+  brokerFlattenReady: boolean;
+  openOrderPollingReady: boolean;
+  orderEndpointImplemented: false;
+  brokerWriteEnabled: false;
+  productionApprovalCustodyReady: false;
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+  blockers: string[];
+  notes: string[];
+}
+
+export interface LivePilotReadinessRecord {
+  id: number | string;
+  idempotencyKey?: string;
+  budgetEnvelopeId?: number | string;
+  fundingReadinessId?: number | string;
+  currency: string;
+  pilotBudgetAmount: number;
+  maxPilotBudgetAmount: number;
+  maxSingleOrderNotional: number;
+  status: LivePilotReadinessStatus;
+  checkedAt: string;
+  readinessSnapshot: LivePilotReadinessSnapshot;
+  blockers: string[];
+  notes: string[];
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AssessLivePilotReadinessRequest {
+  pilotBudgetAmount: number;
+  maxPilotBudgetAmount?: number;
+  maxSingleOrderNotional?: number;
+  budgetEnvelopeId?: number | string;
+  currency?: string;
+  idempotencyKey?: string;
+  notes?: string[];
+}
+
 export interface AssessFundingReadinessRequest {
   expectedDepositAmount: number;
   currency?: string;
@@ -775,6 +832,7 @@ export interface ControlPlaneStatus {
   killSwitch: KillSwitchStatus;
   actionStatus: ControlPlaneActionStatus;
   fundingReadiness?: FundingReadinessRecord;
+  livePilotReadiness?: LivePilotReadinessRecord;
   readiness: ControlPlaneReadinessItem[];
   blockers: string[];
 }

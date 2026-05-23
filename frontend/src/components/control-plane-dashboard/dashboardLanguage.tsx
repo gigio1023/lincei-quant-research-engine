@@ -474,6 +474,51 @@ const KOREAN_COPY: Record<string, string> = {
   "Funding readiness is read-only broker evidence. No order endpoint was called.":
     "자금 준비 상태는 읽기 전용 브로커 증거입니다. 주문 엔드포인트는 호출되지 않았습니다.",
 
+  "Broker Write Readiness": "브로커 쓰기 준비 상태",
+  "Live pilot preflight evidence. This panel explains why broker write remains blocked.":
+    "소규모 실거래 파일럿 사전 점검 증거입니다. 브로커 쓰기가 왜 차단되어 있는지 보여줍니다.",
+  brokerWriteEnabled: "브로커 쓰기",
+  orderEndpointImplemented: "주문 엔드포인트",
+  Funding: "자금",
+  "Schema migrations": "스키마 마이그레이션",
+  "Credential custody": "자격 증명 보관",
+  "Broker schema": "브로커 스키마",
+  "Sandbox parity": "샌드박스 동등성",
+  "Cancel orders": "주문 취소",
+  "Flatten positions": "포지션 청산",
+  "Open-order polling": "미체결 주문 조회",
+  "pilot budget": "파일럿 예산",
+  "single order cap": "단일 주문 한도",
+  funding: "자금",
+  "Broker write blockers": "브로커 쓰기 차단 항목",
+  "Live pilot readiness API is unavailable. Showing documented live pilot sample.":
+    "실거래 파일럿 준비 API를 사용할 수 없어 문서화된 샘플을 표시합니다.",
+  "Live pilot readiness refresh failed after automation action.":
+    "자동화 작업 후 실거래 파일럿 준비 상태 새로고침에 실패했습니다.",
+  "API live pilot readiness": "API 실거래 파일럿 준비",
+  "Loading live pilot readiness": "실거래 파일럿 준비 로딩 중",
+  "Documented live pilot sample": "문서화된 실거래 파일럿 샘플",
+  "Documented live pilot readiness sample is available":
+    "문서화된 실거래 파일럿 준비 샘플 사용 가능",
+  "Latest live pilot readiness is blocked: broker write preflight gates are not ready":
+    "최근 실거래 파일럿 준비 상태가 차단됨: 브로커 쓰기 사전 점검 게이트가 준비되지 않았습니다.",
+  "Production broker credential custody is not ready":
+    "프로덕션 브로커 자격 증명 보관이 준비되지 않았습니다.",
+  "Broker OpenAPI schema is not verified":
+    "브로커 OpenAPI 스키마가 검증되지 않았습니다.",
+  "Broker sandbox or paper environment is not verified":
+    "브로커 샌드박스 또는 모의 환경이 검증되지 않았습니다.",
+  "Broker read-only polling is not ready":
+    "브로커 읽기 전용 폴링이 준비되지 않았습니다.",
+  "Broker fill polling is not ready": "브로커 체결 폴링이 준비되지 않았습니다.",
+  "Broker cancel/flatten/open-order emergency controls are not ready":
+    "브로커 주문 취소/청산/미체결 조회 긴급 제어가 준비되지 않았습니다.",
+  "Live order endpoint is not implemented":
+    "실거래 주문 엔드포인트가 구현되지 않았습니다.",
+  "Broker write access is disabled": "브로커 쓰기 접근이 비활성입니다.",
+  "Production signed order-plan custody is not implemented":
+    "프로덕션 서명 주문 계획 보관이 구현되지 않았습니다.",
+
   "Risk Policy": "리스크 정책",
   Gross: "총액",
   Single: "단일",

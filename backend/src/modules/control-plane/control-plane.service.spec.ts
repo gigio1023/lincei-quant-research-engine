@@ -6,6 +6,7 @@ import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
 import { FundingReadinessRecord } from '../../entities/funding-readiness-record.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
+import { LivePilotReadinessRecord } from '../../entities/live-pilot-readiness-record.entity';
 import { MarketDataBar } from '../../entities/market-data-bar.entity';
 import { OrderPlanApproval } from '../../entities/order-plan-approval.entity';
 import { PaperAccountEvent } from '../../entities/paper-account-event.entity';
@@ -23,6 +24,7 @@ describe('ControlPlaneService', () => {
   let brokerFills: BrokerFill[];
   let brokerSnapshots: BrokerSnapshot[];
   let fundingReadinessRecords: FundingReadinessRecord[];
+  let livePilotReadinessRecords: LivePilotReadinessRecord[];
   let orderPlanApprovals: OrderPlanApproval[];
   let researchRuns: ResearchRun[];
   let marketDataBars: MarketDataBar[];
@@ -182,6 +184,7 @@ describe('ControlPlaneService', () => {
     brokerFills = [];
     brokerSnapshots = [];
     fundingReadinessRecords = [];
+    livePilotReadinessRecords = [];
     orderPlanApprovals = [];
     researchRuns = [];
     marketDataBars = [];
@@ -199,6 +202,7 @@ describe('ControlPlaneService', () => {
       makeRepository(brokerFills) as any,
       makeRepository(brokerSnapshots) as any,
       makeRepository(fundingReadinessRecords) as any,
+      makeRepository(livePilotReadinessRecords) as any,
       makeRepository(proposals) as any,
       makeRepository(marketDataBars) as any,
       makeRepository(orderPlanApprovals) as any,
@@ -1644,6 +1648,235 @@ describe('ControlPlaneService', () => {
         orders: [],
       } as any),
     ).rejects.toThrow('Funding readiness cannot include orders');
+  });
+
+  it('records blocked live pilot readiness before broker write controls exist', async () => {
+    const snapshot = await service.importBrokerSnapshot({
+      provider: 'manual',
+      accountRef: 'pilot-account-ref',
+      asOf: '2026-05-22T23:59:00.000Z',
+      currency: 'KRW',
+      cash: 10_000_000,
+      equity: 10_000_000,
+      positions: [],
+    });
+    snapshot.status = 'matched';
+    snapshot.reconciliation.status = 'matched';
+    const funding = await service.assessFundingReadiness(snapshot.id, {
+      expectedDepositAmount: 10_000_000,
+      maxAgeMinutes: 120,
+      idempotencyKey: 'pilot-funding-ready-1',
+    });
+
+    const readiness = await service.assessLivePilotReadiness(
+      {
+        fundingReadinessId: funding.id,
+        pilotBudgetAmount: 500_000,
+        maxPilotBudgetAmount: 1_000_000,
+        maxSingleOrderNotional: 100_000,
+        idempotencyKey: 'live-pilot-blocked-1',
+        notes: ['Operator requested tiny live pilot preflight.'],
+      },
+      {
+        provider: 'toss',
+        configured: false,
+        readOnlyEnabled: false,
+        paperTradingEnabled: false,
+        liveTradingEnabled: false,
+        authMethod: 'oauth2_client_credentials',
+        credentialRef: 'missing',
+        credentialCustody: {
+          mode: 'missing',
+          configured: false,
+          productionReady: false,
+          secretRef: 'missing',
+          detail: 'External secret custody is required.',
+        },
+        schemaVerified: false,
+        sandboxVerified: false,
+        readOnlyPoll: {
+          provider: 'toss',
+          enabled: false,
+          configured: false,
+          schemaVerified: false,
+          canPoll: false,
+          canPollFills: false,
+          baseUrl: 'https://openapi.tossinvest.com',
+          accountRef: 'missing',
+          allowedEndpoints: [],
+          cron: '*/5 * * * *',
+          running: false,
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+        },
+        emergencyControls: {
+          runtimeKillSwitchReady: true,
+          brokerCancelReady: false,
+          brokerFlattenReady: false,
+          openOrderPollingReady: false,
+          brokerWriteEnabled: false,
+          dryRunOnly: true,
+          checkedAt: new Date().toISOString(),
+          blockers: [],
+          detail:
+            'Runtime stop can halt autonomous advancement, but broker-order cancel/flatten emergency controls are not implemented.',
+        },
+        capabilities: [],
+        blockers: [],
+        brokerExecutionEnabled: false,
+      },
+    );
+
+    expect(readiness.status).toBe('blocked');
+    expect(readiness.fundingReadinessId).toBe(funding.id);
+    expect(readiness.blockers).toEqual(
+      expect.arrayContaining([
+        'Live pilot requires a budget envelope in live mode',
+        'Production broker credential custody is not ready',
+        'Broker OpenAPI schema is not verified',
+        'Broker sandbox or paper environment is not verified',
+        'Broker cancel/flatten/open-order emergency controls are not ready',
+        'Live order endpoint is not implemented',
+        'Broker write access is disabled',
+        'Production signed order-plan custody is not implemented',
+      ]),
+    );
+    expect(readiness.readinessSnapshot).toEqual(
+      expect.objectContaining({
+        fundingReady: true,
+        orderEndpointImplemented: false,
+        brokerWriteEnabled: false,
+        productionApprovalCustodyReady: false,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+
+    const status = await service.getStatus();
+    expect(status.livePilotReadiness).toEqual(
+      expect.objectContaining({
+        id: readiness.id,
+        status: 'blocked',
+      }),
+    );
+    expect(status.readiness).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'livePilotReady',
+          ready: false,
+        }),
+      ]),
+    );
+  });
+
+  it('rejects live pilot readiness requests that include order intent', async () => {
+    await expect(
+      service.assessLivePilotReadiness({} as any, {
+        provider: 'toss',
+        configured: false,
+        readOnlyEnabled: false,
+        paperTradingEnabled: false,
+        liveTradingEnabled: false,
+        authMethod: 'oauth2_client_credentials',
+        credentialRef: 'missing',
+        credentialCustody: {
+          mode: 'missing',
+          configured: false,
+          productionReady: false,
+          secretRef: 'missing',
+          detail: 'External secret custody is required.',
+        },
+        schemaVerified: false,
+        sandboxVerified: false,
+        readOnlyPoll: {
+          provider: 'toss',
+          enabled: false,
+          configured: false,
+          schemaVerified: false,
+          canPoll: false,
+          canPollFills: false,
+          baseUrl: 'https://openapi.tossinvest.com',
+          accountRef: 'missing',
+          allowedEndpoints: [],
+          cron: '*/5 * * * *',
+          running: false,
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+        },
+        emergencyControls: {
+          runtimeKillSwitchReady: true,
+          brokerCancelReady: false,
+          brokerFlattenReady: false,
+          openOrderPollingReady: false,
+          brokerWriteEnabled: false,
+          dryRunOnly: true,
+          checkedAt: new Date().toISOString(),
+          blockers: [],
+          detail: 'blocked',
+        },
+        capabilities: [],
+        blockers: [],
+        brokerExecutionEnabled: false,
+      }),
+    ).rejects.toThrow(
+      'Live pilot readiness pilotBudgetAmount must be positive',
+    );
+
+    await expect(
+      service.assessLivePilotReadiness(
+        {
+          pilotBudgetAmount: 500_000,
+          placeOrder: true,
+        } as any,
+        {
+          provider: 'toss',
+          configured: false,
+          readOnlyEnabled: false,
+          paperTradingEnabled: false,
+          liveTradingEnabled: false,
+          authMethod: 'oauth2_client_credentials',
+          credentialRef: 'missing',
+          credentialCustody: {
+            mode: 'missing',
+            configured: false,
+            productionReady: false,
+            secretRef: 'missing',
+            detail: 'External secret custody is required.',
+          },
+          schemaVerified: false,
+          sandboxVerified: false,
+          readOnlyPoll: {
+            provider: 'toss',
+            enabled: false,
+            configured: false,
+            schemaVerified: false,
+            canPoll: false,
+            canPollFills: false,
+            baseUrl: 'https://openapi.tossinvest.com',
+            accountRef: 'missing',
+            allowedEndpoints: [],
+            cron: '*/5 * * * *',
+            running: false,
+            brokerExecutionEnabled: false,
+            liveTradingEnabled: false,
+          },
+          emergencyControls: {
+            runtimeKillSwitchReady: true,
+            brokerCancelReady: false,
+            brokerFlattenReady: false,
+            openOrderPollingReady: false,
+            brokerWriteEnabled: false,
+            dryRunOnly: true,
+            checkedAt: new Date().toISOString(),
+            blockers: [],
+            detail: 'blocked',
+          },
+          capabilities: [],
+          blockers: [],
+          brokerExecutionEnabled: false,
+        },
+      ),
+    ).rejects.toThrow('Live pilot readiness cannot include placeOrder');
   });
 
   it('rejects broker snapshot imports that include credentials or order intent', async () => {

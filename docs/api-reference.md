@@ -529,6 +529,29 @@ all broker/live execution flags remain `false`.
 
 - **Description**: Lists funding readiness records ordered by latest check. This is a local evidence ledger for deposit readiness, not a broker transfer, deposit, or order capability.
 
+#### `POST /control-plane/funding-readiness/:id/assess-live-pilot-readiness`
+
+- **Description**: Records whether a ready funding check can move into a tiny live pilot preflight. This endpoint is a readiness ledger only. It rejects credentials, raw account/order refs, and order intent fields, then combines funding readiness, active budget policy, broker adapter status, schema migration policy, read-only/fill polling, and broker emergency-control evidence. The current implementation keeps live pilot readiness `blocked` because no live order endpoint, broker write path, or production signed order-plan custody exists.
+- **Example Request**:
+  ```json
+  {
+    "pilotBudgetAmount": 500000,
+    "maxPilotBudgetAmount": 1000000,
+    "maxSingleOrderNotional": 100000,
+    "idempotencyKey": "live-pilot-readiness-20260523-001",
+    "notes": ["Tiny pilot gate checked after funding readiness."]
+  }
+  ```
+- **Response Notes**:
+  - returns a `LivePilotReadinessRecord`;
+  - `status` remains `blocked` until funding readiness is ready, the active budget explicitly allows live trading for a tiny budget, production schema migrations are enforced, credential custody is production-ready, broker schema/sandbox/read-only/fill polling are verified, broker cancel/flatten/open-order polling are implemented, and a separate live order path exists;
+  - `brokerWriteEnabled`, `orderEndpointImplemented`, `brokerExecutionEnabled`, and `liveTradingEnabled` are always `false` in the current slice;
+  - explicit idempotency keys replay the prior time-sensitive readiness result.
+
+#### `GET /control-plane/live-pilot-readiness`
+
+- **Description**: Lists live pilot readiness records ordered by latest check. This is local preflight evidence for eventual tiny live trading; it cannot place, cancel, modify, flatten, or route broker orders.
+
 #### `POST /control-plane/broker-fills/import-read-only`
 
 - **Description**: Imports read-only broker fill evidence and immediately attempts to match it against existing paper fills. This is a provider-neutral ledger step for later broker fill polling. It does not call a broker, does not store raw account/order/fill refs, rejects credential/order payload fields, and cannot place, cancel, or modify orders.

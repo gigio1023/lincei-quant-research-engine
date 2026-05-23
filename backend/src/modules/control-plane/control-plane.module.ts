@@ -8,6 +8,7 @@ import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
 import { FundingReadinessRecord } from '../../entities/funding-readiness-record.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
+import { LivePilotReadinessRecord } from '../../entities/live-pilot-readiness-record.entity';
 import { MarketDataBar } from '../../entities/market-data-bar.entity';
 import { MarketDataIngestionRun } from '../../entities/market-data-ingestion-run.entity';
 import { OrderPlanApproval } from '../../entities/order-plan-approval.entity';
@@ -39,6 +40,7 @@ import { TossReadOnlyBrokerService } from './toss-read-only-broker.service';
       ExecutionControlState,
       FundingReadinessRecord,
       InvestmentProposal,
+      LivePilotReadinessRecord,
       MarketDataBar,
       MarketDataIngestionRun,
       OrderPlanApproval,

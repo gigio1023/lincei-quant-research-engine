@@ -15,6 +15,7 @@ import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
 import { FundingReadinessRecord } from '../../entities/funding-readiness-record.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
+import { LivePilotReadinessRecord } from '../../entities/live-pilot-readiness-record.entity';
 import { MarketDataBar } from '../../entities/market-data-bar.entity';
 import { MarketDataIngestionRun } from '../../entities/market-data-ingestion-run.entity';
 import { OrderPlanApproval } from '../../entities/order-plan-approval.entity';
@@ -32,6 +33,7 @@ import { TossReadOnlyBrokerService } from './toss-read-only-broker.service';
 import {
   AdvanceAutonomousRunRequest,
   AssessFundingReadinessRequest,
+  AssessLivePilotReadinessRequest,
   BrokerAdapterStatus,
   BrokerReadOnlyPollResponse,
   ControlPlaneAuditEvent,
@@ -218,6 +220,22 @@ export class ControlPlaneController {
   @Get('funding-readiness')
   listFundingReadinessRecords(): Promise<FundingReadinessRecord[]> {
     return this.controlPlaneService.listFundingReadinessRecords();
+  }
+
+  @Post('funding-readiness/:id/assess-live-pilot-readiness')
+  assessLivePilotReadiness(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() request: AssessLivePilotReadinessRequest,
+  ): Promise<LivePilotReadinessRecord> {
+    return this.controlPlaneService.assessLivePilotReadiness(
+      { ...request, fundingReadinessId: id },
+      this.getBrokerAdapterStatus(),
+    );
+  }
+
+  @Get('live-pilot-readiness')
+  listLivePilotReadinessRecords(): Promise<LivePilotReadinessRecord[]> {
+    return this.controlPlaneService.listLivePilotReadinessRecords();
   }
 
   @Get('broker-adapter/status')

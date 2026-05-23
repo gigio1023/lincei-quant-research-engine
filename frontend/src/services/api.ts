@@ -14,6 +14,7 @@ import {
   FundingReadinessRecord,
   ImportMarketDataBarsRequest,
   InvestmentProposal,
+  LivePilotReadinessRecord,
   MarketDataBar,
   MarketDataBarsImportResponse,
   MarketDataIngestionPollRequest,
@@ -36,6 +37,7 @@ import {
   RunScheduleWorkerStatus,
   RiskGateStatus,
   AssessFundingReadinessRequest,
+  AssessLivePilotReadinessRequest,
   TickAutonomousRunScheduleRequest,
   TripKillSwitchRequest,
 } from "../types";
@@ -204,6 +206,24 @@ export const controlPlaneApi = {
 
   getFundingReadinessRecords: async (): Promise<FundingReadinessRecord[]> => {
     const response = await api.get("/control-plane/funding-readiness");
+    return response.data;
+  },
+
+  assessLivePilotReadiness: async (
+    fundingReadinessId: number | string,
+    request: AssessLivePilotReadinessRequest,
+  ): Promise<LivePilotReadinessRecord> => {
+    const response = await api.post(
+      `/control-plane/funding-readiness/${fundingReadinessId}/assess-live-pilot-readiness`,
+      request,
+    );
+    return response.data;
+  },
+
+  getLivePilotReadinessRecords: async (): Promise<
+    LivePilotReadinessRecord[]
+  > => {
+    const response = await api.get("/control-plane/live-pilot-readiness");
     return response.data;
   },
 

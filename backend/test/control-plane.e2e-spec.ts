@@ -10,6 +10,7 @@ import { BudgetEnvelope } from '../src/entities/budget-envelope.entity';
 import { ExecutionControlState } from '../src/entities/execution-control-state.entity';
 import { FundingReadinessRecord } from '../src/entities/funding-readiness-record.entity';
 import { InvestmentProposal } from '../src/entities/investment-proposal.entity';
+import { LivePilotReadinessRecord } from '../src/entities/live-pilot-readiness-record.entity';
 import { MarketDataBar } from '../src/entities/market-data-bar.entity';
 import { MarketDataIngestionRun } from '../src/entities/market-data-ingestion-run.entity';
 import { OrderPlanApproval } from '../src/entities/order-plan-approval.entity';
@@ -39,6 +40,7 @@ describe('ControlPlane research provenance (e2e)', () => {
             ExecutionControlState,
             FundingReadinessRecord,
             InvestmentProposal,
+            LivePilotReadinessRecord,
             MarketDataBar,
             MarketDataIngestionRun,
             OrderPlanApproval,
@@ -853,6 +855,46 @@ describe('ControlPlane research provenance (e2e)', () => {
       expect.objectContaining({
         id: fundingReadinessResponse.body.id,
         status: 'ready',
+      }),
+    );
+
+    const livePilotReadinessResponse = await request(app.getHttpServer())
+      .post(
+        `/control-plane/funding-readiness/${fundingReadinessResponse.body.id}/assess-live-pilot-readiness`,
+      )
+      .send({
+        pilotBudgetAmount: 500_000,
+        maxPilotBudgetAmount: 1_000_000,
+        maxSingleOrderNotional: 100_000,
+        idempotencyKey: 'e2e-live-pilot-readiness-1',
+        notes: ['E2E tiny live pilot preflight only.'],
+      })
+      .expect(201);
+
+    expect(livePilotReadinessResponse.body).toEqual(
+      expect.objectContaining({
+        fundingReadinessId: fundingReadinessResponse.body.id,
+        status: 'blocked',
+        pilotBudgetAmount: 500_000,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+    expect(livePilotReadinessResponse.body.blockers).toEqual(
+      expect.arrayContaining([
+        'Live order endpoint is not implemented',
+        'Broker write access is disabled',
+        'Broker cancel/flatten/open-order emergency controls are not ready',
+      ]),
+    );
+
+    const livePilotReadinessRecordsResponse = await request(app.getHttpServer())
+      .get('/control-plane/live-pilot-readiness')
+      .expect(200);
+    expect(livePilotReadinessRecordsResponse.body[0]).toEqual(
+      expect.objectContaining({
+        id: livePilotReadinessResponse.body.id,
+        status: 'blocked',
       }),
     );
 
