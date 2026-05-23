@@ -32,6 +32,7 @@ import {
   AdvanceAutonomousRunRequest,
   BrokerAdapterStatus,
   BrokerReadOnlyPollResponse,
+  ControlPlaneAuditEvent,
   ControlPlaneStatus,
   CreateAutonomousRunScheduleRequest,
   CreateAutonomousRunRequest,
@@ -76,6 +77,16 @@ export class ControlPlaneController {
   @Get('status')
   getStatus(): Promise<ControlPlaneStatus> {
     return this.controlPlaneService.getStatus();
+  }
+
+  @Get('action-timeline')
+  async listActionTimeline(
+    @Query('limit') limit?: string,
+  ): Promise<ControlPlaneAuditEvent[]> {
+    return this.controlPlaneService.listActionTimeline({
+      limit: limit ? Number(limit) : undefined,
+      marketDataIngestionRuns: await this.marketDataIngestionService.listRuns(),
+    });
   }
 
   @Post('budgets')

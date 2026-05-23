@@ -31,6 +31,7 @@ import {
 } from '../../entities/execution-control-state.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
 import { MarketDataBar } from '../../entities/market-data-bar.entity';
+import { MarketDataIngestionRun } from '../../entities/market-data-ingestion-run.entity';
 import { OrderPlanApproval } from '../../entities/order-plan-approval.entity';
 import {
   PaperAccountEvent,
@@ -61,9 +62,11 @@ import {
   BaselineMarketDataset,
   buildBaselineResearchRunRequest,
 } from './baseline-research-runner';
+import { buildControlPlaneActionTimeline } from './control-plane-action-timeline.presenter';
 import { buildControlPlaneActionStatus } from './control-plane-status.presenter';
 import {
   AdvanceAutonomousRunRequest,
+  ControlPlaneAuditEvent,
   ControlPlaneStatus,
   CreateAutonomousRunScheduleRequest,
   CreateAutonomousRunRequest,
@@ -319,6 +322,61 @@ export class ControlPlaneService {
         ...liveTradingGate.blockers,
       ],
     };
+  }
+
+  async listActionTimeline(
+    input: {
+      limit?: number;
+      marketDataIngestionRuns?: MarketDataIngestionRun[];
+    } = {},
+  ): Promise<ControlPlaneAuditEvent[]> {
+    const [
+      budgets,
+      executionControlStates,
+      runSchedules,
+      runs,
+      researchRuns,
+      proposals,
+      riskEvaluations,
+      orderPlanApprovals,
+      paperAccountEvents,
+      paperOrderPlans,
+      paperReservationHolds,
+      brokerSnapshots,
+      brokerFills,
+    ] = await Promise.all([
+      this.budgetRepository.find(),
+      this.executionControlRepository.find(),
+      this.runScheduleRepository.find(),
+      this.runRepository.find(),
+      this.researchRunRepository.find(),
+      this.proposalRepository.find(),
+      this.riskEvaluationRepository.find(),
+      this.orderPlanApprovalRepository.find(),
+      this.paperAccountEventRepository.find(),
+      this.paperOrderPlanRepository.find(),
+      this.paperReservationHoldRepository.find(),
+      this.brokerSnapshotRepository.find(),
+      this.brokerFillRepository.find(),
+    ]);
+
+    return buildControlPlaneActionTimeline({
+      budgets,
+      executionControlStates,
+      runSchedules,
+      runs,
+      researchRuns,
+      proposals,
+      riskEvaluations,
+      orderPlanApprovals,
+      paperAccountEvents,
+      paperOrderPlans,
+      paperReservationHolds,
+      brokerSnapshots,
+      brokerFills,
+      marketDataIngestionRuns: input.marketDataIngestionRuns,
+      limit: input.limit,
+    });
   }
 
   private buildKillSwitchStatus(

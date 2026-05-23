@@ -7,6 +7,7 @@ import {
   BrokerFill,
   BrokerSnapshot,
   BudgetEnvelope,
+  ControlPlaneAuditEvent,
   ControlPlaneReadinessItem,
   ControlPlaneStatus,
   ExecutionControlState,
@@ -25,6 +26,7 @@ import {
 } from "../../types";
 import {
   BASELINE_RESEARCH_REQUEST,
+  DOCUMENTED_ACTION_TIMELINE,
   DOCUMENTED_AUTONOMOUS_RUNS,
   DOCUMENTED_AUTONOMOUS_RUN_SCHEDULES,
   DOCUMENTED_BROKER_ADAPTER_STATUS,
@@ -78,6 +80,7 @@ export interface DashboardModel {
   visibleOrderPlanApprovals: OrderPlanApproval[];
   visibleMarketDataIngestionStatus: MarketDataIngestionStatus;
   visibleMarketDataIngestionRuns: MarketDataIngestionRun[];
+  visibleActionTimeline: ControlPlaneAuditEvent[];
   visibleExecutionControl: ExecutionControlState;
   latestPaperOrderPlans: PaperOrderPlan[];
   latestBrokerSnapshot?: BrokerSnapshot;
@@ -107,6 +110,7 @@ export interface DashboardModel {
     brokerAdapter: string;
     orderPlanApprovals: string;
     marketDataIngestion: string;
+    actionTimeline: string;
   };
   errors: {
     status: string | null;
@@ -125,6 +129,7 @@ export interface DashboardModel {
     brokerAdapter: string | null;
     orderPlanApprovals: string | null;
     marketDataIngestion: string | null;
+    actionTimeline: string | null;
     killSwitch: string | null;
     baselineResearch: string | null;
     recoveryProposal: string | null;
@@ -145,6 +150,7 @@ export interface DashboardModel {
     brokerAdapter: boolean;
     orderPlanApprovals: boolean;
     marketDataIngestion: boolean;
+    actionTimeline: boolean;
   };
   baselineResearchSuccess: string | null;
   recoveryProposalSuccess: string | null;
@@ -394,6 +400,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const [marketDataIngestionRuns, setMarketDataIngestionRuns] = useState<
     MarketDataIngestionRun[] | null
   >(null);
+  const [actionTimeline, setActionTimeline] = useState<
+    ControlPlaneAuditEvent[] | null
+  >(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
   const [loadingBudgets, setLoadingBudgets] = useState(true);
   const [loadingResearchRuns, setLoadingResearchRuns] = useState(true);
@@ -414,6 +423,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     useState(true);
   const [loadingMarketDataIngestion, setLoadingMarketDataIngestion] =
     useState(true);
+  const [loadingActionTimeline, setLoadingActionTimeline] = useState(true);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [budgetsError, setBudgetsError] = useState<string | null>(null);
   const [researchRunsError, setResearchRunsError] = useState<string | null>(
@@ -452,6 +462,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const [marketDataIngestionError, setMarketDataIngestionError] = useState<
     string | null
   >(null);
+  const [actionTimelineError, setActionTimelineError] = useState<string | null>(
+    null,
+  );
   const [runningBaselineResearch, setRunningBaselineResearch] = useState(false);
   const [runningRecoveryProposal, setRunningRecoveryProposal] = useState(false);
   const [runningKillSwitchTrip, setRunningKillSwitchTrip] = useState(false);
@@ -496,6 +509,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           orderPlanApprovalsStatus,
           marketDataIngestionStatusResult,
           marketDataIngestionRunsStatus,
+          actionTimelineStatus,
         ] = await Promise.allSettled([
           riskGateApi.getStatus(),
           controlPlaneApi.getStatus(),
@@ -516,6 +530,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           controlPlaneApi.getOrderPlanApprovals(),
           controlPlaneApi.getMarketDataIngestionStatus(),
           controlPlaneApi.getMarketDataIngestionRuns(),
+          controlPlaneApi.getActionTimeline(100),
         ]);
 
         if (ignore) {
@@ -659,6 +674,14 @@ export const useControlPlaneDashboard = (): DashboardModel => {
             "Market-data ingestion run API is unavailable. Showing documented disabled worker sample.",
           );
         }
+        if (actionTimelineStatus.status === "fulfilled") {
+          setActionTimeline(actionTimelineStatus.value);
+          setActionTimelineError(null);
+        } else {
+          setActionTimelineError(
+            "Action timeline API is unavailable. Showing documented audit sample.",
+          );
+        }
 
         setStatusError(
           riskStatus.status === "rejected" ||
@@ -711,6 +734,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           setMarketDataIngestionError(
             "Market-data ingestion API is unavailable. Showing documented disabled worker sample.",
           );
+          setActionTimelineError(
+            "Action timeline API is unavailable. Showing documented audit sample.",
+          );
           setPaperAccountError(
             "No live paper account state was returned. A filled paper execution must create one before account values are shown.",
           );
@@ -733,6 +759,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           setLoadingBrokerAdapter(false);
           setLoadingOrderPlanApprovals(false);
           setLoadingMarketDataIngestion(false);
+          setLoadingActionTimeline(false);
         }
       }
     };
@@ -775,6 +802,8 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const visibleMarketDataIngestionRuns =
     marketDataIngestionRuns ??
     (loadingMarketDataIngestion ? [] : DOCUMENTED_MARKET_DATA_INGESTION_RUNS);
+  const visibleActionTimeline =
+    actionTimeline ?? (loadingActionTimeline ? [] : DOCUMENTED_ACTION_TIMELINE);
   const visiblePaperAccountEvents =
     paperAccountEvents ??
     (loadingPaperAccountEvents ? [] : DOCUMENTED_PAPER_ACCOUNT_EVENTS);
@@ -881,6 +910,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       refreshedExecutionControl,
       refreshedRiskGateStatus,
       refreshedControlPlaneStatus,
+      refreshedActionTimeline,
     ] = await Promise.allSettled([
       controlPlaneApi.getResearchRuns(),
       controlPlaneApi.getProposals(),
@@ -899,6 +929,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       controlPlaneApi.getExecutionControl(),
       riskGateApi.getStatus(),
       controlPlaneApi.getStatus(),
+      controlPlaneApi.getActionTimeline(100),
     ]);
 
     if (refreshedResearchRuns.status === "fulfilled") {
@@ -1032,6 +1063,15 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       setControlPlaneStatus(refreshedControlPlaneStatus.value);
     }
 
+    if (refreshedActionTimeline.status === "fulfilled") {
+      setActionTimeline(refreshedActionTimeline.value);
+      setActionTimelineError(null);
+    } else {
+      setActionTimelineError(
+        "Action timeline refresh failed after automation action.",
+      );
+    }
+
     setStatusError(
       refreshedRiskGateStatus.status === "rejected" ||
         refreshedControlPlaneStatus.status === "rejected"
@@ -1145,6 +1185,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     visibleOrderPlanApprovals,
     visibleMarketDataIngestionStatus,
     visibleMarketDataIngestionRuns,
+    visibleActionTimeline,
     visibleExecutionControl: executionControl ?? DOCUMENTED_EXECUTION_CONTROL,
     latestPaperOrderPlans: sortByUpdatedAtDesc(visiblePaperOrderPlans).slice(
       0,
@@ -1283,6 +1324,11 @@ export const useControlPlaneDashboard = (): DashboardModel => {
         : loadingMarketDataIngestion
           ? "Loading market-data ingestion"
           : "Documented ingestion sample",
+      actionTimeline: actionTimeline
+        ? "Live action timeline"
+        : loadingActionTimeline
+          ? "Loading action timeline"
+          : "Documented audit sample",
     },
     errors: {
       status: statusError,
@@ -1301,6 +1347,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       brokerAdapter: brokerAdapterError,
       orderPlanApprovals: orderPlanApprovalsError,
       marketDataIngestion: marketDataIngestionError,
+      actionTimeline: actionTimelineError,
       killSwitch: killSwitchError,
       baselineResearch: baselineResearchError,
       recoveryProposal: recoveryProposalError,
@@ -1321,6 +1368,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       brokerAdapter: loadingBrokerAdapter,
       orderPlanApprovals: loadingOrderPlanApprovals,
       marketDataIngestion: loadingMarketDataIngestion,
+      actionTimeline: loadingActionTimeline,
     },
     baselineResearchSuccess,
     recoveryProposalSuccess,

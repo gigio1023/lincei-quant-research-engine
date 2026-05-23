@@ -1,4 +1,5 @@
 import {
+  ControlPlaneAuditEvent,
   ControlPlaneStage,
   ControlPlaneStatus,
   ExecutionControlState,
@@ -26,6 +27,53 @@ export {
   DOCUMENTED_RESEARCH_RUNS,
   DOCUMENTED_RUN_SCHEDULE_WORKER_STATUS,
 } from "./dashboardSamples";
+
+const DOCUMENTED_ACTION_TIMELINE_EVENTS: ControlPlaneAuditEvent[] = [
+  {
+    id: "audit-docs-risk-1",
+    at: "2026-05-22T08:55:00.000Z",
+    severity: "ready",
+    category: "risk",
+    sourceType: "risk_evaluation",
+    sourceId: "risk-docs-001",
+    runId: "run-docs-001",
+    title: "Risk ALLOW",
+    detail: "Risk evaluation risk-docs-001 returned ALLOW.",
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+  },
+  {
+    id: "audit-docs-paper-plan-1",
+    at: "2026-05-22T09:06:00.000Z",
+    severity: "ready",
+    category: "paper",
+    sourceType: "paper_order_plan",
+    sourceId: "paper-docs-plan-001",
+    runId: "run-docs-001",
+    title: "Paper plan reconciled",
+    detail: "1 paper orders / 1 fills / matched.",
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+  },
+  {
+    id: "audit-docs-broker-1",
+    at: "2026-05-22T09:10:00.000Z",
+    severity: "ready",
+    category: "broker",
+    sourceType: "broker_snapshot",
+    sourceId: "broker-snapshot-docs-001",
+    title: "Broker snapshot matched",
+    detail: "Read-only broker snapshot matched paper account evidence.",
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+  },
+];
+
+export const DOCUMENTED_ACTION_TIMELINE: ControlPlaneAuditEvent[] = [
+  ...DOCUMENTED_ACTION_TIMELINE_EVENTS,
+].sort(
+  (left, right) => new Date(right.at).getTime() - new Date(left.at).getTime(),
+);
 
 export const DEFAULT_POLICY: RiskPolicy = {
   maxGrossExposurePct: 100,

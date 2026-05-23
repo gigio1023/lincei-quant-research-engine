@@ -182,6 +182,25 @@ describe('ControlPlane research provenance (e2e)', () => {
         }),
       ]),
     );
+
+    const timelineResponse = await request(app.getHttpServer())
+      .get('/control-plane/action-timeline?limit=20')
+      .expect(200);
+
+    expect(timelineResponse.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceType: 'risk_evaluation',
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+        }),
+        expect.objectContaining({
+          sourceType: 'proposal',
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+        }),
+      ]),
+    );
   });
 
   it('rejects proposals without a research run id', async () => {

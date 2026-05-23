@@ -8,6 +8,7 @@ import {
   BrokerReadOnlyPollResponse,
   BrokerSnapshot,
   BudgetEnvelope,
+  ControlPlaneAuditEvent,
   ControlPlaneStatus,
   ExecutionControlState,
   ImportMarketDataBarsRequest,
@@ -78,6 +79,13 @@ export const riskGateApi = {
 export const controlPlaneApi = {
   getStatus: async (): Promise<ControlPlaneStatus> => {
     const response = await api.get("/control-plane/status");
+    return response.data;
+  },
+
+  getActionTimeline: async (limit = 100): Promise<ControlPlaneAuditEvent[]> => {
+    const response = await api.get("/control-plane/action-timeline", {
+      params: { limit },
+    });
     return response.data;
   },
 

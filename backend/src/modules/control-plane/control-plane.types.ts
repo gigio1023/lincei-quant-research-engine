@@ -478,6 +478,57 @@ export interface ControlPlaneStatus {
   blockers: string[];
 }
 
+export type ControlPlaneAuditSeverity =
+  | 'info'
+  | 'ready'
+  | 'attention'
+  | 'blocked';
+
+export type ControlPlaneAuditCategory =
+  | 'control'
+  | 'schedule'
+  | 'market_data'
+  | 'research'
+  | 'proposal'
+  | 'risk'
+  | 'approval'
+  | 'paper'
+  | 'broker';
+
+export type ControlPlaneAuditSourceType =
+  | 'budget_envelope'
+  | 'execution_control'
+  | 'autonomous_run_schedule'
+  | 'autonomous_run'
+  | 'research_run'
+  | 'proposal'
+  | 'risk_evaluation'
+  | 'order_plan_approval'
+  | 'paper_account_event'
+  | 'paper_order_plan'
+  | 'paper_reservation_hold'
+  | 'broker_snapshot'
+  | 'broker_fill'
+  | 'market_data_ingestion';
+
+export interface ControlPlaneAuditEvent {
+  id: string;
+  at: string;
+  severity: ControlPlaneAuditSeverity;
+  category: ControlPlaneAuditCategory;
+  sourceType: ControlPlaneAuditSourceType;
+  sourceId?: number | string;
+  runId?: number | string;
+  scheduleId?: number | string;
+  cycleKey?: string;
+  title: string;
+  detail: string;
+  blocker?: string;
+  nextSafeAction?: string;
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+}
+
 export interface LiveTradingGateStatus {
   enabled: false;
   mode: 'disabled';

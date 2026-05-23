@@ -190,6 +190,16 @@ all broker/live execution flags remain `false`.
   - `actionStatus` summarizes the latest autonomous run, paper evidence, broker snapshot evidence, broker fill evidence, current blocker, and next safe action for the one-page dashboard;
   - `liveTradingGate.blockers` lists the missing production controls that must be cleared before any real-money order path can be considered.
 
+#### `GET /control-plane/action-timeline`
+
+- **Description**: Returns a single chronological audit feed across budgets, execution-control states, autonomous schedules/runs, research runs, proposals, risk evaluations, order-plan approvals, paper account events, paper order plans, paper reservation holds, broker snapshots, broker fills, and market-data ingestion runs.
+- **Query Parameters**:
+  - `limit`: optional number from `1` to `250`; defaults to `100`.
+- **Response Notes**:
+  - every event includes `severity`, `category`, `sourceType`, `title`, `detail`, optional blocker/next action fields, and source provenance ids;
+  - `brokerExecutionEnabled` and `liveTradingEnabled` remain `false` on every event;
+  - this endpoint is for operator visibility and audit review only; it does not advance automation or place/cancel broker orders.
+
 #### `POST /control-plane/budgets`
 
 - **Description**: Creates an active budget envelope. Live trading is forcibly disabled even if requested. `policy.allowPaperAutoApproval` defaults to `false`; setting it to `true` only permits explicitly authorized paper schedules to create per-proposal signed paper approvals.

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ActionAuditTimelinePanel } from "./control-plane-dashboard/ActionAuditTimelinePanel";
 import { AutonomousRunLedger } from "./control-plane-dashboard/AutonomousRunLedger";
 import { AutonomousActionStatusPanel } from "./control-plane-dashboard/AutonomousActionStatusPanel";
 import { BrokerSnapshotPanel } from "./control-plane-dashboard/BrokerSnapshotPanel";
@@ -38,6 +39,7 @@ const ControlPlaneDashboard = () => {
         <div className="mx-auto max-w-[1440px] space-y-4">
           <DashboardHeader model={model} />
           <AutonomousActionStatusPanel model={model} />
+          <ActionAuditTimelinePanel model={model} />
           <CurrentCycleEvidencePanel model={model} />
           <WorkflowActionRail model={model} />
           <AutonomousRunLedger model={model} />

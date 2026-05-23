@@ -59,6 +59,30 @@ const KOREAN_COPY: Record<string, string> = {
   "flatten positions": "포지션 청산",
   "open order poll": "미체결 주문 조회",
   "Dashboard emergency stop": "대시보드 긴급 정지",
+  "Action Audit Timeline": "행동 감사 타임라인",
+  "Chronological audit feed across research, schedules, approvals, paper execution, broker evidence, and emergency controls.":
+    "리서치, 스케줄, 승인, 모의 실행, 브로커 증거, 긴급 제어를 시간순으로 보여주는 감사 피드입니다.",
+  "No action audit events recorded yet.":
+    "아직 행동 감사 이벤트가 기록되지 않았습니다.",
+  "Live action timeline": "실시간 행동 타임라인",
+  "Loading action timeline": "행동 타임라인 로딩 중",
+  "Documented audit sample": "문서화된 감사 샘플",
+  "Action timeline API is unavailable. Showing documented audit sample.":
+    "행동 타임라인 API를 사용할 수 없어 문서화된 감사 샘플을 표시합니다.",
+  "Action timeline refresh failed after automation action.":
+    "자동화 작업 후 행동 타임라인 새로고침에 실패했습니다.",
+  events: "이벤트",
+  control: "제어",
+  market_data: "시장 데이터",
+  broker: "브로커",
+  "Risk ALLOW": "리스크 허용",
+  "Paper plan reconciled": "모의 계획 대사 완료",
+  "Broker snapshot matched": "브로커 스냅샷 일치",
+  "Risk evaluation risk-docs-001 returned ALLOW.":
+    "risk-docs-001 리스크 평가가 ALLOW를 반환했습니다.",
+  "1 paper orders / 1 fills / matched.": "모의 주문 1건 / 체결 1건 / 일치.",
+  "Read-only broker snapshot matched paper account evidence.":
+    "읽기 전용 브로커 스냅샷이 모의 계정 증거와 일치했습니다.",
   armed: "준비됨",
   tripped: "작동됨",
   "Market ingestion": "시장 데이터 수집",

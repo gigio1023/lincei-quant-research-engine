@@ -34,6 +34,7 @@ vi.mock("../services/api", () => ({
     getRunScheduleWorkerStatus: vi.fn(),
     getMarketDataIngestionStatus: vi.fn(),
     getMarketDataIngestionRuns: vi.fn(),
+    getActionTimeline: vi.fn(),
     advanceRun: vi.fn(),
     tickRunSchedule: vi.fn(),
     runBaselineResearch: vi.fn(),
@@ -1030,6 +1031,33 @@ const mockMarketDataIngestionRuns = [
   },
 ];
 
+const mockActionTimeline = [
+  {
+    id: "broker_fill:broker-fill-api-1",
+    at: "2026-05-22T09:08:00.000Z",
+    severity: "ready",
+    category: "broker",
+    sourceType: "broker_fill",
+    sourceId: "broker-fill-api-1",
+    title: "Broker fill matched",
+    detail: "Broker fill matched paper fill evidence.",
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+  },
+  {
+    id: "risk_evaluation:risk-api-1",
+    at: "2026-05-22T09:02:00.000Z",
+    severity: "ready",
+    category: "risk",
+    sourceType: "risk_evaluation",
+    sourceId: "risk-api-1",
+    title: "Risk ALLOW",
+    detail: "API paper proposal is inside policy limits.",
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+  },
+];
+
 describe("ControlPlaneDashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -1082,6 +1110,9 @@ describe("ControlPlaneDashboard", () => {
     );
     vi.mocked(controlPlaneApi.getMarketDataIngestionRuns).mockResolvedValue(
       mockMarketDataIngestionRuns,
+    );
+    vi.mocked(controlPlaneApi.getActionTimeline).mockResolvedValue(
+      mockActionTimeline,
     );
     vi.mocked(controlPlaneApi.runBaselineResearch).mockResolvedValue(
       mockBaselineResearchRun,
@@ -1171,6 +1202,9 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("Live proposals")).toBeInTheDocument();
     expect(screen.getByText("Live risk evaluations")).toBeInTheDocument();
     expect(screen.getByText("Automation Action Ledger")).toBeInTheDocument();
+    expect(screen.getByText("Action Audit Timeline")).toBeInTheDocument();
+    expect(screen.getByText("Live action timeline")).toBeInTheDocument();
+    expect(screen.getByText("Broker fill matched")).toBeInTheDocument();
     expect(screen.getByText("Current Cycle Evidence")).toBeInTheDocument();
     expect(screen.getByText("Research Data")).toBeInTheDocument();
     expect(screen.getByText("Decision Chain")).toBeInTheDocument();
@@ -1349,6 +1383,9 @@ describe("ControlPlaneDashboard", () => {
     expect(
       screen.getByRole("region", { name: "행동 상태" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "행동 감사 타임라인" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "KR" })).toHaveAttribute(
       "aria-pressed",
       "true",
@@ -1422,6 +1459,9 @@ describe("ControlPlaneDashboard", () => {
     vi.mocked(controlPlaneApi.getOrderPlanApprovals).mockRejectedValue(
       new Error("offline"),
     );
+    vi.mocked(controlPlaneApi.getActionTimeline).mockRejectedValue(
+      new Error("offline"),
+    );
 
     render(<ControlPlaneDashboard />);
 
@@ -1473,6 +1513,8 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("paper-docs-plan-001")).toBeInTheDocument();
     expect(screen.getByText("Documented broker sample")).toBeInTheDocument();
     expect(screen.getByText("broker-snapshot-docs-001")).toBeInTheDocument();
+    expect(screen.getByText("Documented audit sample")).toBeInTheDocument();
+    expect(screen.getByText("Broker snapshot matched")).toBeInTheDocument();
   });
 
   it("should_show_empty_state_when_live_research_ledger_is_empty", async () => {

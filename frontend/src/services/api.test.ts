@@ -165,6 +165,33 @@ describe("API Service", () => {
       expect(result).toEqual(mockStatus);
     });
 
+    it("should_get_action_timeline_with_limit", async () => {
+      const mockTimeline = [
+        {
+          id: "broker_fill:broker-fill-1",
+          at: "2026-05-22T09:08:00.000Z",
+          severity: "ready",
+          category: "broker",
+          sourceType: "broker_fill",
+          sourceId: "broker-fill-1",
+          title: "Broker fill matched",
+          detail: "Broker fill matched paper fill evidence.",
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+        },
+      ];
+
+      mockGet.mockResolvedValue({ data: mockTimeline });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.getActionTimeline(25);
+
+      expect(mockGet).toHaveBeenCalledWith("/control-plane/action-timeline", {
+        params: { limit: 25 },
+      });
+      expect(result).toEqual(mockTimeline);
+    });
+
     it("should_get_budgets", async () => {
       const mockBudgets = [
         {

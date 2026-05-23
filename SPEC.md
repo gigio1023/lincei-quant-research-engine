@@ -228,6 +228,7 @@ Current paper slice:
 - `POST /control-plane/paper-order-plans/:id/reconcile` reconciles expected paper cash and positions against account ledger entries for that plan;
 - `GET/POST /control-plane/execution-control` stores a minimal execution-control state (`active`, `paused`, `reducing`, `halted`) and paper execution blocks when the state forbids new exposure;
 - `GET /control-plane/kill-switch/status` and `POST /control-plane/kill-switch/trip` expose a durable runtime stop that halts autonomous advancement and paper execution without consuming schedule cycles;
+- `GET /control-plane/action-timeline` exposes a unified operator audit feed across control, schedule, market-data, research, proposal, risk, approval, paper, and broker evidence so the dashboard can show what the autonomous system did and why it stopped;
 - broker and live execution flags remain `false`.
 
 This is a paper simulator ledger, not broker-grade execution readiness. Broker-grade paper readiness still requires production-grade signing custody, database-level account balance locks, scheduled broker read-only polling, broker-order emergency cancel/flatten controls, and reconciliation against external account truth.
