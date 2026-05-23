@@ -231,7 +231,7 @@ Current paper slice:
 - `GET /control-plane/action-timeline` exposes a unified operator audit feed across control, schedule, market-data, research, proposal, risk, approval, paper, and broker evidence so the dashboard can show what the autonomous system did and why it stopped;
 - broker and live execution flags remain `false`.
 
-This is a paper simulator ledger, not broker-grade execution readiness. Broker-grade paper readiness still requires production-grade signing custody, explicit database migrations and deployment policy for the lock columns/indexes, scheduled broker read-only polling, broker-order emergency cancel/flatten controls, and reconciliation against external account truth.
+This is a paper simulator ledger, not broker-grade execution readiness. Broker-grade paper readiness still requires production-grade signing custody, scheduled broker read-only polling, broker-order emergency cancel/flatten controls, and reconciliation against external account truth. The paper-account lock and reservation schema now has an explicit TypeORM migration/deployment gate, but that gate must be green in the target environment before relying on it operationally.
 
 ### 6. Broker Adapter
 
@@ -458,7 +458,7 @@ Current status:
 - control-plane status now exposes an explicit disabled live-trading gate with blockers for order endpoints, broker write access, credential custody, fill polling, reconciliation, and broker-order emergency controls;
 - control-plane status now exposes a top-level action summary that ties latest autonomous run, paper evidence, broker snapshot/fill evidence, current blocker, and next safe action together;
 - frontend dashboard shows paper account state, execution-control state, latest paper plans, fills, reconciliation notes, hashes, the top-level action summary, and broker/live disabled guardrails;
-- still missing production signing custody, explicit migrations/deployment policy for the database lock schema, and scheduled broker-backed reconciliation.
+- still missing production signing custody and scheduled broker-backed reconciliation; the paper lock schema now has explicit migration scripts and a deployment readiness gate.
 
 ### Phase 4: Broker Read-Only
 
@@ -521,7 +521,7 @@ Blocking items:
 - verified broker-backed reconciliation with real Toss schema/client responses;
 - explicit paper account seed/promote workflow exists, but production custody and operator policy still need hardening;
 - schedule leases and an env-gated in-process worker for autonomous runs exist with due/not-due checks, TTL validation, owner-checked release, overlap guard, and cycle keys; distributed DB lock audit, scheduler deployment policy, and auth boundary still need hardening;
-- production migration/deployment policy for paper-account lock columns and reservation indexes;
+- production schema migration gate must be green in the target environment;
 - operational monitoring;
 - legal and terms review;
 - explicit live-trading gate.

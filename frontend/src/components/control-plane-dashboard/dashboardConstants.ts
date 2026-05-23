@@ -227,6 +227,12 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
         "Paper account reservation readiness, hold creation, and final apply run inside a TypeORM transaction after an optimistic account lock-version claim",
     },
     {
+      key: "schemaMigrationPolicyReady",
+      ready: false,
+      detail:
+        "Production schema policy requires TYPEORM_SYNCHRONIZE=false and TYPEORM_MIGRATIONS_RUN=true",
+    },
+    {
       key: "paperAccountReady",
       ready: false,
       detail: "No durable paper account records yet",

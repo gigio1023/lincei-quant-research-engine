@@ -174,6 +174,8 @@ describe('ControlPlaneService', () => {
 
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(new Date('2026-05-23T00:00:00.000Z'));
+    delete process.env.TYPEORM_SYNCHRONIZE;
+    delete process.env.TYPEORM_MIGRATIONS_RUN;
     budgets = [];
     brokerFills = [];
     brokerSnapshots = [];
@@ -2793,6 +2795,12 @@ describe('ControlPlaneService', () => {
             'Paper account reservation lock readiness requires a TypeORM DataSource transaction boundary',
         }),
         expect.objectContaining({
+          key: 'schemaMigrationPolicyReady',
+          ready: false,
+          detail:
+            'Production schema policy is blocked: TYPEORM_SYNCHRONIZE must be false in production; TYPEORM_MIGRATIONS_RUN must be true in production; Pending schema migrations must be applied',
+        }),
+        expect.objectContaining({
           key: 'paperAccountEventLedgerReady',
           ready: false,
         }),
@@ -2813,6 +2821,35 @@ describe('ControlPlaneService', () => {
           ready: false,
         }),
       ]),
+    );
+  });
+
+  it('reports production schema migration policy readiness when migrations are enforced', async () => {
+    process.env.TYPEORM_SYNCHRONIZE = 'false';
+    process.env.TYPEORM_MIGRATIONS_RUN = 'true';
+    (
+      service as unknown as {
+        dataSource: { isInitialized: boolean; showMigrations: () => boolean };
+      }
+    ).dataSource = {
+      isInitialized: true,
+      showMigrations: jest.fn(() => false),
+    };
+
+    const status = await service.getStatus();
+
+    expect(status.readiness).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'schemaMigrationPolicyReady',
+          ready: true,
+          detail:
+            'Production schema policy uses explicit TypeORM migrations with synchronize disabled and no pending migrations',
+        }),
+      ]),
+    );
+    expect(status.blockers).not.toContain(
+      'Production schema migrations are not enforced',
     );
   });
 

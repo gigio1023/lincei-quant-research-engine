@@ -189,6 +189,7 @@ all broker/live execution flags remain `false`.
   - `killSwitch.runtimeReady` only means autonomous advancement can be halted; it does not cancel or flatten broker orders;
   - `actionStatus` summarizes the latest autonomous run, paper evidence, broker snapshot evidence, broker fill evidence, current blocker, and next safe action for the one-page dashboard;
   - `paperAccountReservationLockReady` reports whether reservation readiness recompute, hold creation, and final paper account apply can run inside a TypeORM transaction after an optimistic account lock-version claim; it does not prove broker custody or external broker truth;
+  - `schemaMigrationPolicyReady` reports whether production-style schema policy is enforced with `TYPEORM_SYNCHRONIZE=false`, `TYPEORM_MIGRATIONS_RUN=true`, and no pending TypeORM migrations;
   - `liveTradingGate.blockers` lists the missing production controls that must be cleared before any real-money order path can be considered.
 
 #### `GET /control-plane/action-timeline`

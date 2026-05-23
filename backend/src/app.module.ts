@@ -9,24 +9,7 @@ import { NewsModule } from './modules/news/news.module';
 import { LlmModule } from './modules/llm/llm.module';
 import { RiskGateModule } from './modules/risk-gate/risk-gate.module';
 import { ControlPlaneModule } from './modules/control-plane/control-plane.module';
-import { BrokerFill } from './entities/broker-fill.entity';
-import { Report } from './entities/report.entity';
-import { NewsSource } from './entities/news-source.entity';
-import { OrderPlanApproval } from './entities/order-plan-approval.entity';
-import { PaperAccountEvent } from './entities/paper-account-event.entity';
-import { BudgetEnvelope } from './entities/budget-envelope.entity';
-import { BrokerSnapshot } from './entities/broker-snapshot.entity';
-import { ExecutionControlState } from './entities/execution-control-state.entity';
-import { InvestmentProposal } from './entities/investment-proposal.entity';
-import { MarketDataBar } from './entities/market-data-bar.entity';
-import { MarketDataIngestionRun } from './entities/market-data-ingestion-run.entity';
-import { RiskEvaluation } from './entities/risk-evaluation.entity';
-import { AutonomousRun } from './entities/autonomous-run.entity';
-import { AutonomousRunSchedule } from './entities/autonomous-run-schedule.entity';
-import { ResearchRun } from './entities/research-run.entity';
-import { PaperAccount } from './entities/paper-account.entity';
-import { PaperOrderPlan } from './entities/paper-order-plan.entity';
-import { PaperReservationHoldRecord } from './entities/paper-reservation-hold.entity';
+import { databaseEntities, databaseMigrations } from './data-source';
 
 @Module({
   imports: [
@@ -38,27 +21,13 @@ import { PaperReservationHoldRecord } from './entities/paper-reservation-hold.en
       useFactory: (configService: ConfigService) => ({
         type: 'better-sqlite3',
         database: configService.get('DATABASE_PATH', 'data/investment.db'),
-        entities: [
-          Report,
-          NewsSource,
-          BrokerFill,
-          OrderPlanApproval,
-          PaperAccountEvent,
-          BudgetEnvelope,
-          BrokerSnapshot,
-          ExecutionControlState,
-          InvestmentProposal,
-          MarketDataBar,
-          MarketDataIngestionRun,
-          RiskEvaluation,
-          AutonomousRun,
-          AutonomousRunSchedule,
-          ResearchRun,
-          PaperAccount,
-          PaperOrderPlan,
-          PaperReservationHoldRecord,
-        ],
-        synchronize: true,
+        entities: databaseEntities,
+        migrations: databaseMigrations,
+        migrationsTableName: 'schema_migrations',
+        migrationsRun: configService.get('TYPEORM_MIGRATIONS_RUN') === 'true',
+        migrationsTransactionMode: 'all',
+        synchronize:
+          configService.get('TYPEORM_SYNCHRONIZE', 'true') === 'true',
         autoLoadEntities: true,
       }),
       inject: [ConfigService],

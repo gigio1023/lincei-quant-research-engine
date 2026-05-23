@@ -199,6 +199,14 @@ const KOREAN_COPY: Record<string, string> = {
     "낙관적 계정 락 버전 클레임 후 예약 준비 재계산, 보류 생성, 최종 반영을 TypeORM 트랜잭션 안에서 실행합니다.",
   "Paper account lock readiness requires a TypeORM DataSource transaction boundary":
     "모의 계정 락 준비에는 TypeORM DataSource 트랜잭션 경계가 필요합니다.",
+  "Production schema policy requires TYPEORM_SYNCHRONIZE=false and TYPEORM_MIGRATIONS_RUN=true":
+    "운영 스키마 정책에는 TYPEORM_SYNCHRONIZE=false 및 TYPEORM_MIGRATIONS_RUN=true가 필요합니다.",
+  "Production schema policy uses explicit TypeORM migrations with synchronize disabled and no pending migrations":
+    "운영 스키마 정책은 synchronize 비활성화와 미적용 마이그레이션 없는 명시적 TypeORM 마이그레이션을 사용합니다.",
+  "Production schema migrations are not enforced":
+    "운영 스키마 마이그레이션이 강제되지 않았습니다.",
+  "Production schema policy is blocked: TYPEORM_SYNCHRONIZE must be false in production; TYPEORM_MIGRATIONS_RUN must be true in production; Pending schema migrations must be applied":
+    "운영 스키마 정책 차단: 운영에서는 TYPEORM_SYNCHRONIZE=false, TYPEORM_MIGRATIONS_RUN=true가 필요하며 미적용 마이그레이션을 먼저 적용해야 합니다.",
   "No durable paper account records yet": "아직 영구 모의 계정 기록 없음",
   "Documented append-only paper account event sample is available":
     "문서화된 추가 전용 모의 계정 이벤트 샘플 사용 가능",

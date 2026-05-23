@@ -190,6 +190,7 @@ export class ControlPlaneService {
     const brokerSnapshotCount = await this.brokerSnapshotRepository.count();
     const executionControlState = await this.getExecutionControlState();
     const runCount = await this.runRepository.count();
+    const schemaMigrationPolicy = await this.buildSchemaMigrationPolicyStatus();
     const [runs, paperPlans, brokerSnapshots, brokerFills] = await Promise.all([
       this.runRepository.find(),
       this.paperOrderPlanRepository.find(),
@@ -275,6 +276,11 @@ export class ControlPlaneService {
             : 'Paper account reservation lock readiness requires a TypeORM DataSource transaction boundary',
         },
         {
+          key: 'schemaMigrationPolicyReady',
+          ready: schemaMigrationPolicy.ready,
+          detail: schemaMigrationPolicy.detail,
+        },
+        {
           key: 'paperAccountReady',
           ready: paperAccountCount > 0,
           detail: `${paperAccountCount} durable paper account records`,
@@ -326,8 +332,47 @@ export class ControlPlaneService {
         'No verified Toss read-only adapter schema or credentials',
         'No production signed order-plan workflow',
         'No production-verified broker polling loop',
+        ...schemaMigrationPolicy.blockers,
         ...liveTradingGate.blockers,
       ],
+    };
+  }
+
+  private async buildSchemaMigrationPolicyStatus(): Promise<{
+    ready: boolean;
+    detail: string;
+    blockers: string[];
+  }> {
+    const synchronizeDisabled = process.env.TYPEORM_SYNCHRONIZE === 'false';
+    const migrationsRunEnabled = process.env.TYPEORM_MIGRATIONS_RUN === 'true';
+    let pendingMigrations = true;
+
+    if (this.dataSource?.isInitialized) {
+      pendingMigrations = await this.dataSource.showMigrations();
+    }
+
+    const blockers = [
+      synchronizeDisabled
+        ? undefined
+        : 'TYPEORM_SYNCHRONIZE must be false in production',
+      migrationsRunEnabled
+        ? undefined
+        : 'TYPEORM_MIGRATIONS_RUN must be true in production',
+      pendingMigrations
+        ? 'Pending schema migrations must be applied'
+        : undefined,
+    ].filter((blocker): blocker is string => Boolean(blocker));
+
+    return {
+      ready: blockers.length === 0,
+      detail:
+        blockers.length === 0
+          ? 'Production schema policy uses explicit TypeORM migrations with synchronize disabled and no pending migrations'
+          : `Production schema policy is blocked: ${blockers.join('; ')}`,
+      blockers:
+        blockers.length === 0
+          ? []
+          : ['Production schema migrations are not enforced'],
     };
   }
 

@@ -160,8 +160,17 @@ const mockControlPlaneStatus = {
       detail:
         "Paper account reservation readiness, hold creation, and final apply run inside a TypeORM transaction after an optimistic account lock-version claim",
     },
+    {
+      key: "schemaMigrationPolicyReady",
+      ready: false,
+      detail:
+        "Production schema policy requires TYPEORM_SYNCHRONIZE=false and TYPEORM_MIGRATIONS_RUN=true",
+    },
   ],
-  blockers: ["No production signed order-plan workflow"],
+  blockers: [
+    "No production signed order-plan workflow",
+    "Production schema migrations are not enforced",
+  ],
 };
 
 const mockBudgets = [
@@ -1253,6 +1262,11 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("System Readiness Matrix")).toBeInTheDocument();
     expect(screen.getByText("riskGateReady")).toBeInTheDocument();
     expect(screen.getByText("researchRunLedgerReady")).toBeInTheDocument();
+    expect(screen.getByText("schemaMigrationPolicyReady")).toBeInTheDocument();
+    expect(
+      screen.getAllByText("Production schema migrations are not enforced")
+        .length,
+    ).toBeGreaterThanOrEqual(1);
     expect(
       screen.getAllByText(
         "Paper simulator ledger registered; broker-grade readiness is blocked",
@@ -1386,6 +1400,10 @@ describe("ControlPlaneDashboard", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("실거래 차단")).toBeInTheDocument();
     expect(screen.getByText("대시보드 언어")).toBeInTheDocument();
+    expect(
+      screen.getAllByText("운영 스키마 마이그레이션이 강제되지 않았습니다.")
+        .length,
+    ).toBeGreaterThanOrEqual(1);
     expect(
       screen.getByRole("region", { name: "행동 상태" }),
     ).toBeInTheDocument();
