@@ -38,6 +38,21 @@ const KOREAN_COPY: Record<string, string> = {
   quantity: "수량",
   notional: "명목금액",
   "Dashboard language": "대시보드 언어",
+  "Paper auto": "모의 자동승인",
+  paper_auto: "모의 자동승인",
+  human: "수동 승인",
+  "Paper Order Approval": "모의 주문 승인",
+  "paper auto approval": "모의 자동승인",
+  "human approval": "수동 승인",
+  approvedByRun: "승인 실행",
+  approvedBySchedule: "승인 스케줄",
+  autoApprovalPolicy: "자동승인 정책",
+  "Approval evidence": "승인 증거",
+  "no approval": "승인 없음",
+  "Standing schedule authorization for paper-only autonomous execution. Broker and live trading remain disabled.":
+    "모의 전용 자율 실행을 위한 스케줄 상시 승인입니다. 브로커와 실거래는 계속 비활성입니다.",
+  "Auto-approved paper-only execution under the active budget policy. Broker and live trading remain disabled.":
+    "활성 예산 정책에 따라 모의 전용 실행을 자동 승인했습니다. 브로커와 실거래는 계속 비활성입니다.",
 
   "Action Status": "행동 상태",
   checked: "확인",

@@ -35,6 +35,7 @@ export interface RiskPolicy {
   maxDataAgeMinutes: number;
   allowedAssetClasses: AssetClass[];
   allowLiveTrading: boolean;
+  allowPaperAutoApproval?: boolean;
   requireHumanApproval: boolean;
 }
 

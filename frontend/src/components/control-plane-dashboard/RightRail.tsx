@@ -41,6 +41,14 @@ const RiskPolicyCard = ({ model }: RightRailProps) => {
           ["Data age", `${model.status.defaultPolicy.maxDataAgeMinutes}m`],
           ["Daily loss", `${model.status.defaultPolicy.maxDailyLossPct}%`],
           ["Drawdown", `${model.status.defaultPolicy.maxDrawdownPct}%`],
+          [
+            "Paper auto",
+            t(
+              formatBoolean(
+                model.status.defaultPolicy.allowPaperAutoApproval === true,
+              ),
+            ),
+          ],
         ].map(([label, value]) => (
           <div
             key={label}

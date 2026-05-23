@@ -190,14 +190,17 @@ all broker/live execution flags remain `false`.
 
 #### `POST /control-plane/budgets`
 
-- **Description**: Creates an active budget envelope. Live trading is forcibly disabled even if requested.
+- **Description**: Creates an active budget envelope. Live trading is forcibly disabled even if requested. `policy.allowPaperAutoApproval` defaults to `false`; setting it to `true` only permits explicitly authorized paper schedules to create per-proposal signed paper approvals.
 - **Example Request**:
   ```json
   {
     "name": "Aggressive dry run",
     "totalBudget": 10000000,
     "currency": "KRW",
-    "mode": "dry_run"
+    "mode": "dry_run",
+    "policy": {
+      "allowPaperAutoApproval": false
+    }
   }
   ```
 
@@ -657,7 +660,7 @@ all broker/live execution flags remain `false`.
 
 #### `POST /control-plane/run-schedules`
 
-- **Description**: Creates an autonomous run schedule for an active budget. The schedule stores cadence, next-run timestamp, paper-execution intent, and lease fields for duplicate-tick protection. It never enables broker execution or live trading. `cadenceMinutes` must be at least 5. `mode` can be `dry_run`, `paper`, or `broker_read_only`; `live` is rejected. `dry_run` and `broker_read_only` schedules keep paper execution off even if a caller asks for it.
+- **Description**: Creates an autonomous run schedule for an active budget. The schedule stores cadence, next-run timestamp, paper-execution intent, optional standing paper authorization, and lease fields for duplicate-tick protection. It never enables broker execution or live trading. `cadenceMinutes` must be at least 5. `mode` can be `dry_run`, `paper`, or `broker_read_only`; `live` is rejected. `dry_run` and `broker_read_only` schedules keep paper execution off even if a caller asks for it. `autoPaperApprovalEnabled` is accepted only when the schedule and budget are both `paper`, `attemptPaperExecution` is true, the budget policy has `allowPaperAutoApproval: true`, broker/live flags are false, and the stored budget hash still matches when a run is advanced.
 - **Example Request**:
   ```json
   {
@@ -665,7 +668,8 @@ all broker/live execution flags remain `false`.
     "objective": "Research and allocate dry-run budget every hour",
     "cadenceMinutes": 60,
     "mode": "dry_run",
-    "attemptPaperExecution": false
+    "attemptPaperExecution": false,
+    "autoPaperApprovalEnabled": false
   }
   ```
 - **Example Response**:
@@ -679,6 +683,11 @@ all broker/live execution flags remain `false`.
     "nextRunAt": "2026-05-23T00:00:00.000Z",
     "enabled": true,
     "attemptPaperExecution": false,
+    "autoPaperApprovalEnabled": false,
+    "autoPaperApprover": null,
+    "autoPaperApprovalReason": null,
+    "autoPaperApprovalSignerKeyRef": null,
+    "autoPaperApprovalBudgetHash": null,
     "lastRunId": null,
     "lastCycleKey": null,
     "lastTickAt": null,

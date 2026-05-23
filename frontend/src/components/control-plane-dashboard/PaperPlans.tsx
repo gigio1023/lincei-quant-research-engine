@@ -98,6 +98,9 @@ const PaperPlanCard = ({ plan }: { plan: PaperPlan }) => {
           <div>
             {t("Idempotency")}: {plan.idempotencyKey}
           </div>
+          <div>
+            {t("Approval")}: {plan.orderPlanApprovalId ?? t("none")}
+          </div>
           {plan.reservationHold && (
             <div>
               {t("Hold")}: {t(plan.reservationHold.status)} /{" "}

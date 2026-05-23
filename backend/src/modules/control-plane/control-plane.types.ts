@@ -142,6 +142,10 @@ export interface CreateOrderPlanApprovalRequest {
   expectedPaperAccountEventHash: string;
   signerKeyRef?: string;
   expiresAt?: string;
+  approvalSource?: 'human' | 'paper_auto';
+  approvedByRunId?: number;
+  approvedByScheduleId?: number;
+  autoApprovalPolicyRef?: string;
 }
 
 export interface SeedPaperAccountRequest {
@@ -323,6 +327,10 @@ export interface CreateAutonomousRunScheduleRequest {
   nextRunAt?: string;
   enabled?: boolean;
   attemptPaperExecution?: boolean;
+  autoPaperApprovalEnabled?: boolean;
+  autoPaperApprover?: string;
+  autoPaperApprovalReason?: string;
+  autoPaperApprovalSignerKeyRef?: string;
 }
 
 export interface TickAutonomousRunScheduleRequest {

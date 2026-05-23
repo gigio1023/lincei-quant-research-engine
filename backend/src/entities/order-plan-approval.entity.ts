@@ -17,6 +17,10 @@ export interface OrderPlanApprovalSnapshot {
   proposalId: number;
   riskEvaluationId: number;
   mode: 'paper';
+  approvalSource?: 'human' | 'paper_auto';
+  approvedByRunId?: number;
+  approvedByScheduleId?: number;
+  autoApprovalPolicyRef?: string;
   approver: string;
   reason: string;
   idempotencyKey: string;
@@ -60,6 +64,18 @@ export class OrderPlanApproval {
 
   @Column({ default: 'paper' })
   mode: 'paper';
+
+  @Column({ default: 'human' })
+  approvalSource: 'human' | 'paper_auto';
+
+  @Column({ nullable: true })
+  approvedByRunId?: number;
+
+  @Column({ nullable: true })
+  approvedByScheduleId?: number;
+
+  @Column({ nullable: true })
+  autoApprovalPolicyRef?: string;
 
   @Column()
   approver: string;

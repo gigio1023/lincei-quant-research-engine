@@ -40,6 +40,7 @@ export const AutonomousActionStatusPanel = ({
     attention: "border-[#f0b90b] text-[#fcd535]",
     blocked: "border-[#f6465d] text-[#f6465d]",
   }[status.verdict];
+  const approval = model.latestOrderPlanApproval;
 
   return (
     <section
@@ -70,7 +71,7 @@ export const AutonomousActionStatusPanel = ({
         </div>
       </div>
 
-      <div className="grid gap-3 p-4 lg:grid-cols-[1.1fr_1fr_1fr_1fr]">
+      <div className="grid gap-3 p-4 lg:grid-cols-[1.1fr_1fr_1fr_1fr_1fr]">
         <StatusBlock
           label={t("Latest system action")}
           value={`${status.latestAction.stage} / ${t(status.latestAction.status)}`}
@@ -89,6 +90,20 @@ export const AutonomousActionStatusPanel = ({
             status.paper.planId
               ? `${t("plan")} ${status.paper.planId} / ${t(status.paper.reconciliationStatus ?? "not_checked")}`
               : t("no paper plan")
+          }
+        />
+        <StatusBlock
+          label={t("Approval evidence")}
+          value={
+            approval ? t(approval.approvalSource ?? "human") : t("missing")
+          }
+          detail={
+            approval ? t(approval.reason) : t("No signed paper order approval")
+          }
+          meta={
+            approval
+              ? `${t("approval")} ${approval.id} / ${t(approval.status)}`
+              : t("no approval")
           }
         />
         <StatusBlock

@@ -183,6 +183,7 @@ Minimum checks:
 - reject gross exposure above policy;
 - reject daily loss and drawdown breaches;
 - mark paper or live-adjacent actions for human review unless explicitly approved.
+- keep `allowPaperAutoApproval` disabled by default; when enabled, it is only an input to schedule-scoped paper authorization and never enables broker or live execution.
 
 ### 5. Execution Enclave
 
@@ -208,6 +209,8 @@ Current paper slice:
 - each plan stores proposal/risk/plan hashes, an idempotency key, readiness snapshot, immutable paper order ids, fill events, cash ledger rows, position ledger rows, portfolio before/after snapshots, reconciliation state, and kill-switch snapshot;
 - `paper_accounts` stores the current durable paper account projection for paper cash, equity, gross exposure, positions, applied plan ids, and account-level cash/position ledgers across cycles;
 - `paper_account_events` stores append-only seed, promotion, and paper-plan account events with per-account sequence, request hash, event hash, and previous-event hash;
+- `autonomous_run_schedules` can store a standing paper-only authorization, but only when the schedule is `paper`, the budget is `paper`, `attemptPaperExecution` is on, the active budget policy explicitly sets `allowPaperAutoApproval: true`, and the schedule's stored budget-policy hash still matches at execution time;
+- automatically created paper approvals are still durable `order_plan_approvals` records with local hash-signature custody, current paper-account event binding, consumed-plan evidence, `approvalSource: paper_auto`, run/schedule provenance, and `brokerExecutionEnabled/liveTradingEnabled: false`;
 - paper-mode risk evaluation and paper execution require an explicitly seeded and promoted active paper account;
 - `order_plan_approvals` stores durable signed paper approvals with approver, reason, proposal hash, risk request hash, approval hash, idempotency key, status, expiry, and consumed plan id;
 - paper approvals are locally signed over a canonical payload that includes proposal, risk, idempotency, approver, expiry, paper account id, latest paper account event hash/sequence, signer key ref, and approval custody mode;
@@ -500,7 +503,7 @@ Exit criteria:
 
 Current verdict: not ready.
 
-The system is not ready for "deposit money and let it invest." After this PR it can import timestamped market bars, create reproducible baseline research runs from sample or pinned imported datasets, advance an autonomous run through budget-bound research, proposal generation, and risk evaluation, run an env-gated in-process worker that ticks atomically leased run schedules, and simulate approved paper order plans against a durable local paper account with ledger/reconciliation evidence. It still cannot allocate, execute, or recover real capital end to end.
+The system is not ready for "deposit money and let it invest." After this PR it can import timestamped market bars, create reproducible baseline research runs from sample or pinned imported datasets, advance an autonomous run through budget-bound research, proposal generation, and risk evaluation, run an env-gated in-process worker that ticks atomically leased run schedules, and simulate approved or schedule-auto-approved paper order plans against a durable local paper account with ledger/reconciliation evidence. It still cannot allocate, execute, or recover real capital end to end.
 
 Blocking items:
 

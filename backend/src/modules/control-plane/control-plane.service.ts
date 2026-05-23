@@ -347,6 +347,7 @@ export class ControlPlaneService {
         request.policy?.allowedAssetClasses ??
         defaultPolicy.allowedAssetClasses,
       allowLiveTrading: false,
+      allowPaperAutoApproval: request.policy?.allowPaperAutoApproval === true,
       requireHumanApproval: true,
     };
 
@@ -554,6 +555,7 @@ export class ControlPlaneService {
       request.idempotencyKey ?? `paper:proposal:${proposal.id}:approved`;
     const expiresAt = request.expiresAt ? new Date(request.expiresAt) : null;
     const signerKeyRef = request.signerKeyRef ?? 'local-paper-approval-key-v1';
+    const approvalSource = request.approvalSource ?? 'human';
 
     if (expiresAt && Number.isNaN(expiresAt.getTime())) {
       throw new BadRequestException('Order-plan approval expiresAt is invalid');
@@ -577,6 +579,10 @@ export class ControlPlaneService {
         paperAccountId: paperAccount.id,
         paperAccountEventHash: request.expectedPaperAccountEventHash,
         signerKeyRef,
+        approvalSource,
+        approvedByRunId: request.approvedByRunId,
+        approvedByScheduleId: request.approvedByScheduleId,
+        autoApprovalPolicyRef: request.autoApprovalPolicyRef,
       });
 
       return existingApproval;
@@ -622,6 +628,10 @@ export class ControlPlaneService {
       proposalId: proposal.id,
       riskEvaluationId: latestEvaluation.id,
       mode: 'paper' as const,
+      approvalSource,
+      approvedByRunId: request.approvedByRunId,
+      approvedByScheduleId: request.approvedByScheduleId,
+      autoApprovalPolicyRef: request.autoApprovalPolicyRef,
       approver: request.approver,
       reason: request.reason,
       idempotencyKey,
@@ -655,6 +665,10 @@ export class ControlPlaneService {
         riskEvaluationId: latestEvaluation.id,
         idempotencyKey,
         mode: 'paper',
+        approvalSource,
+        approvedByRunId: request.approvedByRunId,
+        approvedByScheduleId: request.approvedByScheduleId,
+        autoApprovalPolicyRef: request.autoApprovalPolicyRef,
         approver: request.approver,
         reason: request.reason,
         status: 'active',
@@ -2311,12 +2325,20 @@ export class ControlPlaneService {
       paperAccountId: number;
       paperAccountEventHash: string;
       signerKeyRef: string;
+      approvalSource?: 'human' | 'paper_auto';
+      approvedByRunId?: number;
+      approvedByScheduleId?: number;
+      autoApprovalPolicyRef?: string;
     },
   ): void {
     const snapshot = approval.approvalSnapshot;
     const mismatched =
       approval.approver !== expected.approver ||
       approval.reason !== expected.reason ||
+      approval.approvalSource !== (expected.approvalSource ?? 'human') ||
+      approval.approvedByRunId !== expected.approvedByRunId ||
+      approval.approvedByScheduleId !== expected.approvedByScheduleId ||
+      approval.autoApprovalPolicyRef !== expected.autoApprovalPolicyRef ||
       snapshot.expiresAt !== expected.expiresAt ||
       approval.paperAccountId !== expected.paperAccountId ||
       approval.paperAccountEventHash !== expected.paperAccountEventHash ||
@@ -3163,6 +3185,10 @@ export class ControlPlaneService {
       proposalId: snapshot.proposalId,
       riskEvaluationId: snapshot.riskEvaluationId,
       mode: snapshot.mode,
+      approvalSource: snapshot.approvalSource,
+      approvedByRunId: snapshot.approvedByRunId,
+      approvedByScheduleId: snapshot.approvedByScheduleId,
+      autoApprovalPolicyRef: snapshot.autoApprovalPolicyRef,
       approver: snapshot.approver,
       reason: snapshot.reason,
       idempotencyKey: snapshot.idempotencyKey,
@@ -4404,6 +4430,33 @@ export class ControlPlaneService {
 
     const cadenceMinutes = request.cadenceMinutes ?? 60;
     const mode = request.mode ?? 'dry_run';
+    const attemptPaperExecution =
+      mode === 'paper' && (request.attemptPaperExecution ?? true);
+    const autoPaperApprovalEnabled = request.autoPaperApprovalEnabled === true;
+
+    if (autoPaperApprovalEnabled) {
+      if (mode !== 'paper' || budget.mode !== 'paper') {
+        throw new BadRequestException(
+          'Paper auto approval requires schedule and budget mode paper',
+        );
+      }
+
+      if (!attemptPaperExecution) {
+        throw new BadRequestException(
+          'Paper auto approval requires attemptPaperExecution',
+        );
+      }
+
+      if (
+        budget.policy?.allowPaperAutoApproval !== true ||
+        budget.brokerExecutionEnabled ||
+        budget.liveTradingEnabled
+      ) {
+        throw new BadRequestException(
+          'Paper auto approval requires an active paper budget policy with broker/live execution disabled',
+        );
+      }
+    }
 
     const nextRunAt = request.nextRunAt
       ? new Date(request.nextRunAt)
@@ -4421,8 +4474,22 @@ export class ControlPlaneService {
         cadenceMinutes,
         nextRunAt,
         enabled: request.enabled ?? true,
-        attemptPaperExecution:
-          mode === 'paper' && (request.attemptPaperExecution ?? true),
+        attemptPaperExecution,
+        autoPaperApprovalEnabled,
+        autoPaperApprover: autoPaperApprovalEnabled
+          ? (request.autoPaperApprover?.trim() ?? 'system:paper-auto-approval')
+          : null,
+        autoPaperApprovalReason: autoPaperApprovalEnabled
+          ? (request.autoPaperApprovalReason?.trim() ??
+            'Standing schedule authorization for paper-only autonomous execution. Broker and live trading remain disabled.')
+          : null,
+        autoPaperApprovalSignerKeyRef: autoPaperApprovalEnabled
+          ? (request.autoPaperApprovalSignerKeyRef?.trim() ??
+            'local-paper-auto-approval-key-v1')
+          : null,
+        autoPaperApprovalBudgetHash: autoPaperApprovalEnabled
+          ? this.buildAutoPaperApprovalBudgetHash(budget)
+          : null,
         brokerExecutionEnabled: false,
         liveTradingEnabled: false,
       }),
@@ -4738,10 +4805,12 @@ export class ControlPlaneService {
       const paperPlan =
         request.attemptPaperExecution === false
           ? null
-          : await this.tryPaperExecutionForRun(proposal);
+          : await this.tryPaperExecutionForRun(proposal, budget, run);
 
       if (paperPlan) {
         run.paperOrderPlanId = paperPlan.id;
+        run.riskEvaluationId =
+          paperPlan.riskEvaluationId ?? run.riskEvaluationId;
         run.status =
           paperPlan.status === 'blocked' ? 'risk_checked' : 'paper_ready';
         run.currentStage =
@@ -4831,10 +4900,11 @@ export class ControlPlaneService {
     const paperPlan =
       request.attemptPaperExecution === false
         ? null
-        : await this.tryPaperExecutionForRun(recovery.proposal);
+        : await this.tryPaperExecutionForRun(recovery.proposal, budget, run);
 
     if (paperPlan) {
       run.paperOrderPlanId = paperPlan.id;
+      run.riskEvaluationId = paperPlan.riskEvaluationId ?? run.riskEvaluationId;
       run.status =
         paperPlan.status === 'blocked' ? 'risk_checked' : 'paper_ready';
       run.currentStage =
@@ -4908,6 +4978,22 @@ export class ControlPlaneService {
     this.validateOptionalBoolean(
       request.attemptPaperExecution,
       'Autonomous schedule attemptPaperExecution must be boolean',
+    );
+    this.validateOptionalBoolean(
+      request.autoPaperApprovalEnabled,
+      'Autonomous schedule autoPaperApprovalEnabled must be boolean',
+    );
+    this.validateOptionalNonEmptyString(
+      request.autoPaperApprover,
+      'Autonomous schedule autoPaperApprover must be a non-empty string',
+    );
+    this.validateOptionalNonEmptyString(
+      request.autoPaperApprovalReason,
+      'Autonomous schedule autoPaperApprovalReason must be a non-empty string',
+    );
+    this.validateOptionalNonEmptyString(
+      request.autoPaperApprovalSignerKeyRef,
+      'Autonomous schedule autoPaperApprovalSignerKeyRef must be a non-empty string',
     );
   }
 
@@ -5043,6 +5129,8 @@ export class ControlPlaneService {
 
   private async tryPaperExecutionForRun(
     proposal: InvestmentProposal,
+    budget?: BudgetEnvelope | null,
+    run?: AutonomousRun,
   ): Promise<PaperOrderPlan | null> {
     const existingPlan = (
       await this.findPaperOrderPlansForProposal(proposal.id)
@@ -5058,7 +5146,7 @@ export class ControlPlaneService {
       return existingPlan;
     }
 
-    const activeApproval = (
+    let activeApproval = (
       await this.orderPlanApprovalRepository.find({
         order: { updatedAt: 'DESC' },
       })
@@ -5068,6 +5156,14 @@ export class ControlPlaneService {
     );
     const paperAccount = await this.findPaperAccountForProposal(proposal);
 
+    if (!activeApproval) {
+      activeApproval = await this.maybeCreatePaperAutoApproval(
+        proposal,
+        budget,
+        run,
+      );
+    }
+
     if (!activeApproval || !paperAccount) {
       return null;
     }
@@ -5076,6 +5172,99 @@ export class ControlPlaneService {
       idempotencyKey: activeApproval.idempotencyKey,
       orderPlanApprovalId: activeApproval.id,
       expectedRiskEvaluationId: activeApproval.riskEvaluationId,
+    });
+  }
+
+  private async maybeCreatePaperAutoApproval(
+    proposal: InvestmentProposal,
+    budget?: BudgetEnvelope | null,
+    run?: AutonomousRun,
+  ): Promise<OrderPlanApproval | null> {
+    const resolvedBudget =
+      budget ??
+      (proposal.budgetEnvelopeId
+        ? await this.budgetRepository.findOne({
+            where: { id: proposal.budgetEnvelopeId },
+          })
+        : null);
+
+    if (!run?.scheduleId) {
+      return null;
+    }
+
+    const schedule = await this.runScheduleRepository.findOne({
+      where: { id: run.scheduleId },
+    });
+
+    if (
+      !schedule ||
+      schedule.autoPaperApprovalEnabled !== true ||
+      schedule.mode !== 'paper' ||
+      schedule.attemptPaperExecution !== true ||
+      schedule.brokerExecutionEnabled ||
+      schedule.liveTradingEnabled
+    ) {
+      return null;
+    }
+
+    if (
+      !resolvedBudget ||
+      resolvedBudget.mode !== 'paper' ||
+      resolvedBudget.policy?.allowPaperAutoApproval !== true ||
+      resolvedBudget.brokerExecutionEnabled ||
+      resolvedBudget.liveTradingEnabled ||
+      proposal.brokerExecutionEnabled
+    ) {
+      return null;
+    }
+
+    const budgetHash = this.buildAutoPaperApprovalBudgetHash(resolvedBudget);
+
+    if (schedule.autoPaperApprovalBudgetHash !== budgetHash) {
+      return null;
+    }
+
+    const paperAccount = await this.findPaperAccountForProposal(proposal);
+
+    if (!paperAccount) {
+      return null;
+    }
+
+    const latestPaperAccountEvent = await this.getLatestPaperAccountEvent(
+      paperAccount.id,
+    );
+
+    if (!latestPaperAccountEvent) {
+      return null;
+    }
+
+    return this.createOrderPlanApproval(proposal.id, {
+      approver: schedule.autoPaperApprover ?? 'system:paper-auto-approval',
+      reason:
+        schedule.autoPaperApprovalReason ??
+        'Standing schedule authorization for paper-only autonomous execution. Broker and live trading remain disabled.',
+      idempotencyKey: `auto-paper-approval:schedule:${schedule.id}:cycle:${run.cycleKey ?? run.id}:proposal:${proposal.id}`,
+      expectedPaperAccountEventHash: latestPaperAccountEvent.eventHash,
+      signerKeyRef:
+        schedule.autoPaperApprovalSignerKeyRef ??
+        'local-paper-auto-approval-key-v1',
+      approvalSource: 'paper_auto',
+      approvedByRunId: run.id,
+      approvedByScheduleId: schedule.id,
+      autoApprovalPolicyRef: schedule.autoPaperApprovalBudgetHash,
+    });
+  }
+
+  private buildAutoPaperApprovalBudgetHash(budget: BudgetEnvelope): string {
+    return this.hashObject({
+      budgetEnvelopeId: budget.id,
+      mode: budget.mode,
+      totalBudget: budget.totalBudget,
+      cashReservePct: budget.cashReservePct,
+      allowedAssetClasses: budget.allowedAssetClasses,
+      policy: budget.policy,
+      brokerExecutionEnabled: budget.brokerExecutionEnabled,
+      liveTradingEnabled: budget.liveTradingEnabled,
     });
   }
 

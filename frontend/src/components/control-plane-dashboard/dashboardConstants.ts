@@ -40,6 +40,7 @@ export const DEFAULT_POLICY: RiskPolicy = {
     "foreign_etf",
   ],
   allowLiveTrading: false,
+  allowPaperAutoApproval: false,
   requireHumanApproval: true,
 };
 

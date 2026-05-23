@@ -33,6 +33,21 @@ export class AutonomousRunSchedule {
   @Column({ default: true })
   attemptPaperExecution: boolean;
 
+  @Column({ default: false })
+  autoPaperApprovalEnabled: boolean;
+
+  @Column({ nullable: true })
+  autoPaperApprover?: string | null;
+
+  @Column('text', { nullable: true })
+  autoPaperApprovalReason?: string | null;
+
+  @Column({ nullable: true })
+  autoPaperApprovalSignerKeyRef?: string | null;
+
+  @Column({ nullable: true })
+  autoPaperApprovalBudgetHash?: string | null;
+
   @Column({ nullable: true })
   lastRunId?: number | null;
 

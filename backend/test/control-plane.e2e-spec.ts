@@ -794,6 +794,117 @@ describe('ControlPlane research provenance (e2e)', () => {
       .expect(400);
   });
 
+  it('auto-approves a paper schedule into a filled paper plan without broker access', async () => {
+    const budgetResponse = await request(app.getHttpServer())
+      .post('/control-plane/budgets')
+      .send({
+        name: 'Auto paper schedule e2e budget',
+        totalBudget: 10_000_000,
+        mode: 'paper',
+        policy: {
+          allowPaperAutoApproval: true,
+        },
+      })
+      .expect(201);
+
+    const seededAccountResponse = await request(app.getHttpServer())
+      .post('/control-plane/paper-account/seed')
+      .send({
+        budgetEnvelopeId: budgetResponse.body.id,
+        cash: 10_000_000,
+        actor: 'e2e-operator',
+        reason: 'Seed before paper schedule automation.',
+        idempotencyKey: 'e2e-auto-paper-seed-1',
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post(
+        `/control-plane/paper-account/${seededAccountResponse.body.id}/promote`,
+      )
+      .send({
+        actor: 'e2e-operator',
+        reason: 'Promote before paper schedule automation.',
+        idempotencyKey: 'e2e-auto-paper-promote-1',
+      })
+      .expect(201);
+
+    const scheduleResponse = await request(app.getHttpServer())
+      .post('/control-plane/run-schedules')
+      .send({
+        budgetEnvelopeId: budgetResponse.body.id,
+        objective: 'Run auto-approved paper schedule',
+        cadenceMinutes: 30,
+        nextRunAt: new Date(Date.now() - 60_000).toISOString(),
+        mode: 'paper',
+        attemptPaperExecution: true,
+        autoPaperApprovalEnabled: true,
+      })
+      .expect(201);
+
+    expect(scheduleResponse.body).toEqual(
+      expect.objectContaining({
+        mode: 'paper',
+        attemptPaperExecution: true,
+        autoPaperApprovalEnabled: true,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+    expect(scheduleResponse.body.autoPaperApprovalBudgetHash).toMatch(
+      /^sha256:/,
+    );
+
+    const tickResponse = await request(app.getHttpServer())
+      .post(`/control-plane/run-schedules/${scheduleResponse.body.id}/tick`)
+      .send({
+        leaseOwner: 'e2e-auto-paper-scheduler',
+      })
+      .expect(201);
+
+    expect(tickResponse.body).toEqual(
+      expect.objectContaining({
+        status: 'paper_ready',
+        scheduleId: scheduleResponse.body.id,
+      }),
+    );
+    expect(tickResponse.body.paperOrderPlanId).toEqual(expect.any(Number));
+
+    const approvalsResponse = await request(app.getHttpServer())
+      .get('/control-plane/order-plan-approvals')
+      .expect(200);
+    const approval = approvalsResponse.body.find(
+      (item: { approvedByRunId?: number }) =>
+        item.approvedByRunId === tickResponse.body.id,
+    );
+    expect(approval).toEqual(
+      expect.objectContaining({
+        approvalSource: 'paper_auto',
+        approvedByScheduleId: scheduleResponse.body.id,
+        autoApprovalPolicyRef:
+          scheduleResponse.body.autoPaperApprovalBudgetHash,
+        status: 'consumed',
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+
+    const paperPlansResponse = await request(app.getHttpServer())
+      .get('/control-plane/paper-order-plans')
+      .expect(200);
+    const paperPlan = paperPlansResponse.body.find(
+      (item: { id: number }) => item.id === tickResponse.body.paperOrderPlanId,
+    );
+    expect(paperPlan).toEqual(
+      expect.objectContaining({
+        orderPlanApprovalId: approval.id,
+        status: 'filled',
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+  });
+
   it('creates and paper executes a SELL-only recovery proposal without broker access', async () => {
     const budgetResponse = await request(app.getHttpServer())
       .post('/control-plane/budgets')

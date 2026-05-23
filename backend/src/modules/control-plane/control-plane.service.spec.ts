@@ -2469,6 +2469,101 @@ describe('ControlPlaneService', () => {
     expect(advanced.nextAction).toContain('recovery');
   });
 
+  it('auto-approves and executes a paper schedule with standing authorization', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Standing paper auto budget',
+      totalBudget: 10_000_000,
+      mode: 'paper',
+      policy: { allowPaperAutoApproval: true },
+    });
+    const account = await service.seedPaperAccount({
+      budgetEnvelopeId: budget.id,
+      cash: 10_000_000,
+      actor: 'operator',
+      reason: 'Seed before scheduled paper automation.',
+      idempotencyKey: 'auto-schedule-paper-seed',
+    });
+    await service.promotePaperAccount(account.id, {
+      actor: 'operator',
+      reason: 'Promote before scheduled paper automation.',
+      idempotencyKey: 'auto-schedule-paper-promote',
+      expectedEventHash: paperAccountEvents[0].eventHash,
+    });
+    const schedule = await service.createRunSchedule({
+      budgetEnvelopeId: budget.id,
+      objective: 'Run paper automation under standing authorization',
+      mode: 'paper',
+      cadenceMinutes: 30,
+      nextRunAt: '2026-05-23T00:00:00.000Z',
+      attemptPaperExecution: true,
+      autoPaperApprovalEnabled: true,
+      autoPaperApprover: 'system:paper-auto-approval',
+      autoPaperApprovalReason: 'Standing paper schedule approval.',
+    });
+
+    const advanced = await service.tickRunSchedule(schedule.id, {
+      leaseOwner: 'unit-test-scheduler',
+    });
+    const repeated = await service.advanceRun(advanced.id);
+
+    expect(advanced.status).toBe('paper_ready');
+    expect(advanced.paperOrderPlanId).toBe(paperOrderPlans[0].id);
+    expect(advanced.riskEvaluationId).toBe(
+      orderPlanApprovals[0].riskEvaluationId,
+    );
+    expect(repeated.paperOrderPlanId).toBe(paperOrderPlans[0].id);
+    expect(orderPlanApprovals).toHaveLength(1);
+    expect(orderPlanApprovals[0]).toEqual(
+      expect.objectContaining({
+        proposalId: advanced.proposalId,
+        approvalSource: 'paper_auto',
+        approvedByRunId: advanced.id,
+        approvedByScheduleId: schedule.id,
+        status: 'consumed',
+        approver: 'system:paper-auto-approval',
+        reason: 'Standing paper schedule approval.',
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+    expect(orderPlanApprovals[0].idempotencyKey).toContain(
+      `auto-paper-approval:schedule:${schedule.id}:cycle:${advanced.cycleKey}:proposal:${advanced.proposalId}`,
+    );
+    expect(orderPlanApprovals[0].autoApprovalPolicyRef).toBe(
+      schedule.autoPaperApprovalBudgetHash,
+    );
+    expect(paperOrderPlans).toHaveLength(1);
+    expect(paperOrderPlans[0]).toEqual(
+      expect.objectContaining({
+        proposalId: advanced.proposalId,
+        orderPlanApprovalId: orderPlanApprovals[0].id,
+        riskEvaluationId: orderPlanApprovals[0].riskEvaluationId,
+        status: 'filled',
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+    expect(paperAccountEvents).toHaveLength(3);
+  });
+
+  it('rejects standing paper authorization without an explicit budget policy', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Paper budget without standing authorization',
+      totalBudget: 10_000_000,
+      mode: 'paper',
+    });
+
+    await expect(
+      service.createRunSchedule({
+        budgetEnvelopeId: budget.id,
+        objective: 'Attempt paper automation without policy opt-in',
+        mode: 'paper',
+        attemptPaperExecution: true,
+        autoPaperApprovalEnabled: true,
+      }),
+    ).rejects.toThrow('Paper auto approval requires');
+  });
+
   it('continues an approved autonomous run into one paper plan', async () => {
     const budget = await service.createBudgetEnvelope({
       name: 'Paper autonomous budget',

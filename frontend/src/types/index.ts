@@ -55,6 +55,7 @@ export interface RiskPolicy {
   maxDataAgeMinutes: number;
   allowedAssetClasses: AssetClass[];
   allowLiveTrading: boolean;
+  allowPaperAutoApproval?: boolean;
   requireHumanApproval: boolean;
 }
 
@@ -375,6 +376,10 @@ export interface OrderPlanApprovalSnapshot {
   proposalId: number;
   riskEvaluationId: number;
   mode: "paper";
+  approvalSource?: "human" | "paper_auto";
+  approvedByRunId?: number | string;
+  approvedByScheduleId?: number | string;
+  autoApprovalPolicyRef?: string;
   approver: string;
   reason: string;
   idempotencyKey: string;
@@ -399,6 +404,10 @@ export interface OrderPlanApproval {
   riskEvaluationId: number | string;
   idempotencyKey: string;
   mode: "paper";
+  approvalSource?: "human" | "paper_auto";
+  approvedByRunId?: number | string;
+  approvedByScheduleId?: number | string;
+  autoApprovalPolicyRef?: string;
   approver: string;
   reason: string;
   status: OrderPlanApprovalStatus;
@@ -862,6 +871,11 @@ export interface AutonomousRunSchedule {
   nextRunAt: string;
   enabled: boolean;
   attemptPaperExecution: boolean;
+  autoPaperApprovalEnabled?: boolean;
+  autoPaperApprover?: string | null;
+  autoPaperApprovalReason?: string | null;
+  autoPaperApprovalSignerKeyRef?: string | null;
+  autoPaperApprovalBudgetHash?: string | null;
   lastRunId?: number | string | null;
   lastCycleKey?: string | null;
   lastTickAt?: string | null;
@@ -882,6 +896,10 @@ export interface CreateAutonomousRunScheduleRequest {
   nextRunAt?: string;
   enabled?: boolean;
   attemptPaperExecution?: boolean;
+  autoPaperApprovalEnabled?: boolean;
+  autoPaperApprover?: string;
+  autoPaperApprovalReason?: string;
+  autoPaperApprovalSignerKeyRef?: string;
 }
 
 export interface TickAutonomousRunScheduleRequest {

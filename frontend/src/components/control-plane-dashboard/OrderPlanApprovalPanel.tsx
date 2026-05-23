@@ -11,13 +11,14 @@ export const OrderPlanApprovalPanel = ({
 }: OrderPlanApprovalPanelProps) => {
   const { t } = useDashboardLanguage();
   const approval = model.latestOrderPlanApproval;
+  const approvalSource = approval?.approvalSource ?? "human";
 
   return (
     <section className="rounded-xl border border-[#2b3139] bg-[#181a20] p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h3 className="text-base font-bold text-white">
-            {t("Signed Order Approval")}
+            {t("Paper Order Approval")}
           </h3>
           <p className="mt-1 text-xs text-[#707a8a]">
             {t("Durable approval record required before paper fills.")}
@@ -48,15 +49,40 @@ export const OrderPlanApprovalPanel = ({
                 {approval.approver} / {approval.mode}
               </div>
             </div>
-            <span
-              className={`${paperOrderPlanStatusClass(approval.status)} rounded-md border px-2 py-1 text-[11px] font-bold uppercase`}
-            >
-              {t(approval.status)}
-            </span>
+            <div className="flex flex-wrap justify-end gap-2">
+              <span
+                className={
+                  approvalSource === "paper_auto"
+                    ? "rounded-md border border-[#fcd535]/30 bg-[#fcd535]/10 px-2 py-1 text-[11px] font-bold uppercase text-[#fcd535]"
+                    : "rounded-md border border-[#2b3139] bg-[#181a20] px-2 py-1 text-[11px] font-bold uppercase text-[#eaecef]"
+                }
+              >
+                {t(
+                  approvalSource === "paper_auto"
+                    ? "paper auto approval"
+                    : "human approval",
+                )}
+              </span>
+              <span
+                className={`${paperOrderPlanStatusClass(approval.status)} rounded-md border px-2 py-1 text-[11px] font-bold uppercase`}
+              >
+                {t(approval.status)}
+              </span>
+            </div>
           </div>
 
           <div className="mt-4 grid gap-2 text-xs">
             {[
+              ["source", approvalSource],
+              ["approvedByRun", approval.approvedByRunId ?? t("none")],
+              [
+                "approvedBySchedule",
+                approval.approvedByScheduleId ?? t("none"),
+              ],
+              [
+                "autoApprovalPolicy",
+                approval.autoApprovalPolicyRef ?? t("none"),
+              ],
               ["idempotency", approval.idempotencyKey],
               ["riskEvaluation", approval.riskEvaluationId],
               ["custodyMode", approval.custodyMode],

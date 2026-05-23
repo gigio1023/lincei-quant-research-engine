@@ -263,10 +263,12 @@ const buildWorkflowStages = (input: {
       label: "Approval",
       status: latestApproval?.status ?? "missing",
       detail: latestApproval
-        ? latestApproval.reason
+        ? `${latestApproval.approvalSource ?? "human"} / ${latestApproval.status} / ${latestApproval.reason}`
         : "No signed paper order approval",
       source: latestApproval ? `approval ${latestApproval.id}` : "missing",
-      ready: Boolean(latestApproval),
+      ready:
+        latestApproval?.status === "active" ||
+        latestApproval?.status === "consumed",
       blocked: !latestApproval,
     },
     {

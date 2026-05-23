@@ -495,6 +495,7 @@ const mockPaperOrderPlans = [
     proposalId: "proposal-api-1",
     researchRunId: "rr-api-1",
     budgetEnvelopeId: "budget-api-1",
+    orderPlanApprovalId: "approval-api-1",
     riskEvaluationId: "risk-api-1",
     proposalHash: "sha256:proposal-api",
     riskRequestHash: "sha256:risk-api",
@@ -896,8 +897,13 @@ const mockOrderPlanApprovals = [
     riskEvaluationId: "risk-api-1",
     idempotencyKey: "paper-api-1",
     mode: "paper",
-    approver: "api-operator",
-    reason: "Approve API paper plan.",
+    approvalSource: "paper_auto",
+    approvedByRunId: "run-api-1",
+    approvedByScheduleId: "schedule-api-1",
+    autoApprovalPolicyRef: "sha256:auto-policy-api",
+    approver: "system:paper-auto-approval",
+    reason:
+      "Standing schedule authorization for paper-only autonomous execution. Broker and live trading remain disabled.",
     status: "consumed",
     proposalHash: "sha256:proposal-api",
     riskRequestHash: "sha256:risk-api",
@@ -913,8 +919,13 @@ const mockOrderPlanApprovals = [
       proposalId: 1,
       riskEvaluationId: 1,
       mode: "paper",
-      approver: "api-operator",
-      reason: "Approve API paper plan.",
+      approvalSource: "paper_auto",
+      approvedByRunId: "run-api-1",
+      approvedByScheduleId: "schedule-api-1",
+      autoApprovalPolicyRef: "sha256:auto-policy-api",
+      approver: "system:paper-auto-approval",
+      reason:
+        "Standing schedule authorization for paper-only autonomous execution. Broker and live trading remain disabled.",
       idempotencyKey: "paper-api-1",
       approvedOrderCount: 1,
       approvedAt: "2026-05-22T09:03:00.000Z",
@@ -1029,6 +1040,11 @@ describe("ControlPlaneDashboard", () => {
     expect(
       actionStatus.getByText("plan paper-plan-api-1 / matched"),
     ).toBeInTheDocument();
+    expect(actionStatus.getByText("Approval evidence")).toBeInTheDocument();
+    expect(actionStatus.getByText("paper_auto")).toBeInTheDocument();
+    expect(
+      actionStatus.getByText("approval approval-api-1 / consumed"),
+    ).toBeInTheDocument();
     expect(actionStatus.getByText("Broker truth")).toBeInTheDocument();
     expect(
       actionStatus.getByText("snapshot broker-snapshot-api-1 / matched"),
@@ -1059,7 +1075,7 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("Worker Idle")).toBeInTheDocument();
     expect(screen.getByText("test-worker")).toBeInTheDocument();
     expect(screen.getAllByText("schedule-api-1").length).toBeGreaterThan(0);
-    expect(screen.getByText("run-api-1")).toBeInTheDocument();
+    expect(screen.getAllByText("run-api-1").length).toBeGreaterThan(0);
     expect(
       screen.getByText("Autonomously prepare API paper allocation"),
     ).toBeInTheDocument();
@@ -1118,6 +1134,13 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("Live paper plans")).toBeInTheDocument();
     expect(screen.getByText("paper-plan-api-1")).toBeInTheDocument();
     expect(screen.getByText("Proposal proposal-api-1")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        (_, element) => element?.textContent === "Approval: approval-api-1",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("paper auto approval")).toBeInTheDocument();
+    expect(screen.getByText("sha256:auto-policy-api")).toBeInTheDocument();
     expect(screen.getByText("Paper fills")).toBeInTheDocument();
     expect(screen.getByText("Reconciliation")).toBeInTheDocument();
     expect(screen.getByText("Plan hash: sha256:plan-api")).toBeInTheDocument();
@@ -1157,13 +1180,15 @@ describe("ControlPlaneDashboard", () => {
         "Broker fill compared against paper fill paper-order:proposal-api-1:0:fill:0 from paper order plan paper-plan-api-1.",
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText("Signed Order Approval")).toBeInTheDocument();
+    expect(screen.getByText("Paper Order Approval")).toBeInTheDocument();
     expect(screen.getByText("Live signed approvals")).toBeInTheDocument();
     expect(
       screen.getAllByText("approval approval-api-1").length,
     ).toBeGreaterThan(0);
     expect(
-      screen.getAllByText("Approve API paper plan.").length,
+      screen.getAllByText(
+        "Standing schedule authorization for paper-only autonomous execution. Broker and live trading remain disabled.",
+      ).length,
     ).toBeGreaterThan(0);
     expect(
       screen.getAllByText("brokerExecutionEnabled: false").length,

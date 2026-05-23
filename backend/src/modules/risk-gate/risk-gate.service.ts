@@ -21,6 +21,7 @@ const DEFAULT_POLICY: RiskPolicy = {
     'foreign_etf',
   ],
   allowLiveTrading: false,
+  allowPaperAutoApproval: false,
   requireHumanApproval: true,
 };
 
@@ -90,6 +91,7 @@ export class RiskGateService {
       allowedAssetClasses:
         policy?.allowedAssetClasses ?? DEFAULT_POLICY.allowedAssetClasses,
       allowLiveTrading: false,
+      allowPaperAutoApproval: policy?.allowPaperAutoApproval === true,
     };
   }
 
