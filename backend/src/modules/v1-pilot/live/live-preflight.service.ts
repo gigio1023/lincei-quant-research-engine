@@ -150,9 +150,16 @@ export class LivePreflightService {
       blockers.push('Broker open-order polling is not verified.');
     }
 
-    const credentialMode = process.env.BROKER_CREDENTIAL_SECRET_REF
+    const hasExternalBrokerSecret = Boolean(
+      process.env.BROKER_CREDENTIAL_SECRET_REF ??
+        process.env.TOSS_OPEN_API_SECRET_REF,
+    );
+    const hasLocalBrokerCredential = Boolean(
+      process.env.TOSS_OPEN_API_CLIENT_ID ?? process.env.TOSS_CLIENT_ID,
+    );
+    const credentialMode = hasExternalBrokerSecret
       ? 'external-secret'
-      : process.env.TOSS_CLIENT_ID
+      : hasLocalBrokerCredential
         ? 'local-dev-env'
         : 'missing';
     if (credentialMode === 'missing') {

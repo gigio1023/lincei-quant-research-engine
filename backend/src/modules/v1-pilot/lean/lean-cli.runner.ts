@@ -14,6 +14,18 @@ import {
 import { join, resolve } from 'path';
 import { randomBytes } from 'crypto';
 import { assertLeanRunArtifactsAccepted } from './lean-run-acceptance';
+import {
+  summarizeLeanCliFailure,
+  writeLeanCliFailureDiagnostics,
+} from './lean-cli-failure-diagnostics';
+import {
+  copyArtifactsFromBacktestDirectory,
+  copyDataMonitorReport,
+  findBacktestDirectoryForRunId,
+  latestBacktestDirectory,
+  prepareRunLeanConfig,
+  readLeanLog,
+} from './lean-cli-backtest-files';
 
 const REQUIRED_ARTIFACTS = [
   'statistics.json',
@@ -122,6 +134,11 @@ export class LeanCliRunner {
     mkdirSync(outputDirectory, { recursive: true });
     const artifactRelativeDir = `lincei-artifacts/${runId}`;
     const artifactOutputDir = `/Results/${artifactRelativeDir}`;
+    const runLeanConfigPath = prepareRunLeanConfig({
+      leanWorkspace: this.leanWorkspace,
+      runId,
+      downloadData: request.downloadData !== false,
+    });
     const projectArtifactDir = join(
       this.leanWorkspace,
       projectName,
@@ -133,7 +150,7 @@ export class LeanCliRunner {
       'backtest',
       projectName,
       '--lean-config',
-      join(this.leanWorkspace, 'lean.json'),
+      runLeanConfigPath,
       '--parameter',
       'run-id',
       runId,
@@ -190,18 +207,73 @@ export class LeanCliRunner {
       };
       stdout = execError.stdout ?? '';
       stderr = execError.stderr ?? '';
-      this.logger.warn(
-        `Lean CLI exited non-zero for ${runId}: ${execError.message ?? 'unknown'}`,
-      );
+      const matchedBacktestDirectory =
+        findBacktestDirectoryForRunId({
+          leanWorkspace: this.leanWorkspace,
+          projectName,
+          runId,
+        }) ??
+        latestBacktestDirectory({
+          leanWorkspace: this.leanWorkspace,
+          projectName,
+        });
+      copyArtifactsFromBacktestDirectory({
+        backtestDirectory: matchedBacktestDirectory,
+        outputDirectory,
+        runId,
+      });
+      const dataMonitorReportPath = copyDataMonitorReport({
+        backtestDirectory: matchedBacktestDirectory,
+        outputDirectory,
+      });
+      const latestLog = readLeanLog(matchedBacktestDirectory);
+      const diagnostic = summarizeLeanCliFailure({
+        stdout,
+        stderr,
+        logText: latestLog?.text,
+      });
+      writeLeanCliFailureDiagnostics({
+        outputDirectory,
+        runId,
+        projectName,
+        args,
+        diagnostic,
+        stdout,
+        stderr,
+        latestLog,
+        matchedBacktestDirectory,
+        dataMonitorReportPath,
+      });
+      this.logger.warn(`Lean CLI exited non-zero for ${runId}: ${diagnostic}`);
       throw new Error(
-        `Lean CLI backtest failed for ${runId}: ${execError.message ?? 'unknown error'}`,
+        `Lean CLI backtest failed for ${runId}: ${diagnostic}${
+          latestLog?.path ? ` (latest log: ${latestLog.path})` : ''
+        }`,
       );
     }
 
     if (existsSync(projectArtifactDir)) {
       cpSync(projectArtifactDir, outputDirectory, { recursive: true });
     }
-    this.copyArtifactsFromLatestBacktest(projectName, outputDirectory, runId);
+    const matchedBacktestDirectory =
+      findBacktestDirectoryForRunId({
+        leanWorkspace: this.leanWorkspace,
+        projectName,
+        runId,
+      }) ??
+      latestBacktestDirectory({
+        leanWorkspace: this.leanWorkspace,
+        projectName,
+      });
+    copyArtifactsFromBacktestDirectory({
+      backtestDirectory: matchedBacktestDirectory,
+      outputDirectory,
+      runId,
+    });
+    copyDataMonitorReport({
+      backtestDirectory: matchedBacktestDirectory,
+      outputDirectory,
+    });
     if (!existsSync(join(outputDirectory, 'statistics.json'))) {
       if (!request.allowSummaryHydration) {
         throw new Error(
@@ -245,7 +317,10 @@ export class LeanCliRunner {
     outputDirectory: string,
     runId: string,
   ): void {
-    const latest = this.latestBacktestDirectory(projectName);
+    const latest = latestBacktestDirectory({
+      leanWorkspace: this.leanWorkspace,
+      projectName,
+    });
     if (!latest) {
       return;
     }
@@ -350,34 +425,5 @@ export class LeanCliRunner {
       return;
     }
     args.push('--parameter', name, String(value));
-  }
-
-  private copyArtifactsFromLatestBacktest(
-    projectName: string,
-    outputDirectory: string,
-    runId: string,
-  ): void {
-    const latest = this.latestBacktestDirectory(projectName);
-    if (!latest) {
-      return;
-    }
-    const resultArtifactDir = join(latest, 'lincei-artifacts', runId);
-    if (existsSync(resultArtifactDir)) {
-      cpSync(resultArtifactDir, outputDirectory, { recursive: true });
-    }
-  }
-
-  private latestBacktestDirectory(projectName: string): string | undefined {
-    const backtestsRoot = join(this.leanWorkspace, projectName, 'backtests');
-    if (!existsSync(backtestsRoot)) {
-      return undefined;
-    }
-    return readdirSync(backtestsRoot, { withFileTypes: true })
-      .filter(
-        (entry) => entry.isDirectory() && entry.name !== 'lincei-artifacts',
-      )
-      .map((entry) => join(backtestsRoot, entry.name))
-      .sort()
-      .pop();
   }
 }

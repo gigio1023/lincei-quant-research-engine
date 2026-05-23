@@ -20,6 +20,9 @@ export type LeanRunAcceptanceReport = {
     fillCount: number;
     totalOrders: number;
     endEquity: number;
+    totalDataRequests: number;
+    failedDataRequests: number;
+    failedUniverseDataRequests: number;
   };
 };
 
@@ -42,6 +45,12 @@ type OrderEventsPayload = {
 
 type FillsPayload = {
   fills?: LeanFillArtifact[];
+};
+
+type DataMonitorReport = {
+  'total-data-requests-count'?: number;
+  'failed-data-requests-count'?: number;
+  'failed-universe-data-requests-count'?: number;
 };
 
 const HYDRATION_NOTE = 'hydrated_from_lean_summary_only';
@@ -78,6 +87,10 @@ export function assessLeanRunArtifacts(
     blockers,
   );
   const fills = readJson<FillsPayload>(resultDirectory, 'fills.json', blockers);
+  const dataMonitorReport = readOptionalJson<DataMonitorReport>(
+    resultDirectory,
+    'data-monitor-report.json',
+  );
 
   const metrics = {
     insightCount: insights?.insights?.length ?? 0,
@@ -86,6 +99,18 @@ export function assessLeanRunArtifacts(
     fillCount: fills?.fills?.length ?? 0,
     totalOrders: numericStat(statistics, 'Total Orders'),
     endEquity: numericStat(statistics, 'End Equity'),
+    totalDataRequests: numericField(
+      dataMonitorReport,
+      'total-data-requests-count',
+    ),
+    failedDataRequests: numericField(
+      dataMonitorReport,
+      'failed-data-requests-count',
+    ),
+    failedUniverseDataRequests: numericField(
+      dataMonitorReport,
+      'failed-universe-data-requests-count',
+    ),
   };
 
   if (mode === 'strategy-backtest') {
@@ -97,6 +122,7 @@ export function assessLeanRunArtifacts(
         targets,
         orderEvents,
         fills,
+        dataMonitorReport,
         metrics,
       ),
     );
@@ -130,6 +156,7 @@ function strategyEvidenceBlockers(
   targets: LeanPortfolioTargetsPayload | null,
   orderEvents: OrderEventsPayload | null,
   fills: FillsPayload | null,
+  dataMonitorReport: DataMonitorReport | null,
   metrics: LeanRunAcceptanceReport['metrics'],
 ): string[] {
   const blockers: string[] = [];
@@ -204,7 +231,32 @@ function strategyEvidenceBlockers(
   }
   blockers.push(...targetIntegrityBlockers(insights, targets));
   blockers.push(...fillIntegrityBlockers(orderEvents, fills));
+  blockers.push(...dataCoverageBlockers(dataMonitorReport, metrics));
 
+  return blockers;
+}
+
+function dataCoverageBlockers(
+  dataMonitorReport: DataMonitorReport | null,
+  metrics: LeanRunAcceptanceReport['metrics'],
+): string[] {
+  const blockers: string[] = [];
+  if (!dataMonitorReport) {
+    return ['Missing data-monitor-report.json.'];
+  }
+  if (metrics.totalDataRequests <= 0) {
+    blockers.push('LEAN data monitor did not report any data requests.');
+  }
+  if (metrics.failedDataRequests > 0) {
+    blockers.push(
+      `LEAN data monitor reports ${metrics.failedDataRequests} failed data requests.`,
+    );
+  }
+  if (metrics.failedUniverseDataRequests > 0) {
+    blockers.push(
+      `LEAN data monitor reports ${metrics.failedUniverseDataRequests} failed universe data requests.`,
+    );
+  }
   return blockers;
 }
 
@@ -323,6 +375,21 @@ function readJson<T>(
   }
 }
 
+function readOptionalJson<T>(
+  resultDirectory: string,
+  fileName: string,
+): T | null {
+  const path = join(resultDirectory, fileName);
+  if (!existsSync(path)) {
+    return null;
+  }
+  try {
+    return JSON.parse(readFileSync(path, 'utf8')) as T;
+  } catch {
+    return null;
+  }
+}
+
 function numericStat(
   statistics: Record<string, string | number> | null,
   key: string,
@@ -336,6 +403,14 @@ function numericStat(
   }
   const parsed = Number(raw.replace(/[%$,]/g, ''));
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function numericField(
+  payload: Record<string, unknown> | null,
+  key: string,
+): number {
+  const raw = payload?.[key];
+  return typeof raw === 'number' && Number.isFinite(raw) ? raw : 0;
 }
 
 function booleanParameter(

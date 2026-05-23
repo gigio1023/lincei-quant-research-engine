@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join, resolve } from 'path';
 import { LeanCliRunner } from './lean-cli.runner';
+import { summarizeLeanCliFailure } from './lean-cli-failure-diagnostics';
 
 describe('LeanCliRunner environment', () => {
   const originalEnv = { ...process.env };
@@ -46,5 +47,21 @@ describe('LeanCliRunner environment', () => {
 
     expect(env.DOCKER_HOST).toBe('unix:///custom/docker.sock');
     expect(env.TMPDIR).toBe(`${tempTmpDir}/`);
+  });
+});
+
+describe('summarizeLeanCliFailure', () => {
+  it('extracts actionable LEAN errors from buffered output', () => {
+    const summary = summarizeLeanCliFailure({
+      stdout: [
+        'TRACE:: Engine.Main(): Started',
+        'ERROR:: Engine.Run(): During initialization, ApiDataProvider(): Must be subscribed to map and factor files.',
+        'TRACE:: Engine.Main(): Analysis Completed',
+      ].join('\n'),
+      stderr: 'pkg_resources is deprecated as an API',
+    });
+
+    expect(summary).toContain('Must be subscribed to map and factor files');
+    expect(summary).not.toContain('pkg_resources');
   });
 });

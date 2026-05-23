@@ -21,6 +21,11 @@ describe('lean run acceptance', () => {
       events: [{ id: '1', status: 'Filled', fillQuantity: 1, fillPrice: 100 }],
       fills: [{ id: 'f1', orderId: '1', quantity: 1, price: 100 }],
       statistics: { 'Total Orders': 1, 'End Equity': 100500 },
+      dataMonitorReport: {
+        'total-data-requests-count': 5,
+        'failed-data-requests-count': 0,
+        'failed-universe-data-requests-count': 0,
+      },
       config: {
         projectName: 'aggressive_llm_momentum',
         algorithmVersion: 'v1',
@@ -53,6 +58,11 @@ describe('lean run acceptance', () => {
       events: [],
       fills: [],
       statistics: { 'Total Orders': 0, 'End Equity': 100000 },
+      dataMonitorReport: {
+        'total-data-requests-count': 5,
+        'failed-data-requests-count': 0,
+        'failed-universe-data-requests-count': 0,
+      },
       config: { parameters: { 'run-id': runId, hydrated: true } },
       riskNotes: ['hydrated_from_lean_summary_only'],
     });
@@ -80,6 +90,11 @@ describe('lean run acceptance', () => {
       events: [{ id: '1', status: 'Filled', fillQuantity: 1, fillPrice: 100 }],
       fills: [{ id: 'f1', orderId: '1', quantity: 1, price: 100 }],
       statistics: { 'Total Orders': '1', 'End Equity': '100,500' },
+      dataMonitorReport: {
+        'total-data-requests-count': 5,
+        'failed-data-requests-count': 0,
+        'failed-universe-data-requests-count': 0,
+      },
       config: {
         projectName: 'aggressive_llm_momentum',
         algorithmVersion: 'v1',
@@ -113,6 +128,11 @@ describe('lean run acceptance', () => {
       events: [{ id: '1', status: 'Filled', fillQuantity: 1, fillPrice: 100 }],
       fills: [{ id: 'f1', orderId: '1', quantity: 1, price: 100 }],
       statistics: { 'Total Orders': 1, 'End Equity': 100500 },
+      dataMonitorReport: {
+        'total-data-requests-count': 5,
+        'failed-data-requests-count': 0,
+        'failed-universe-data-requests-count': 0,
+      },
       config: {
         projectName: 'aggressive_llm_momentum',
         algorithmVersion: 'v1',
@@ -123,6 +143,40 @@ describe('lean run acceptance', () => {
     const report = assessLeanRunArtifacts(tempDir, 'strategy-backtest');
     expect(report.blockers).toContain(
       'Run validation mode is "missing"; historical-research required for strategy evidence.',
+    );
+  });
+
+  it('rejects strategy evidence with failed LEAN data requests', () => {
+    const runId = tempDir.split('/').pop() ?? 'lean-acceptance';
+    writeArtifactSet(tempDir, {
+      runId,
+      insights: [{ id: 'i1', symbol: 'SPY' }],
+      targets: [
+        { symbol: 'SPY', targetWeight: 0.35, sourceInsightIds: ['i1'] },
+      ],
+      events: [{ id: '1', status: 'Filled', fillQuantity: 1, fillPrice: 100 }],
+      fills: [{ id: 'f1', orderId: '1', quantity: 1, price: 100 }],
+      statistics: { 'Total Orders': 1, 'End Equity': 100500 },
+      dataMonitorReport: {
+        'total-data-requests-count': 9,
+        'failed-data-requests-count': 4,
+        'failed-universe-data-requests-count': 0,
+      },
+      config: {
+        projectName: 'aggressive_llm_momentum',
+        algorithmVersion: 'v1',
+        parameters: {
+          'run-id': runId,
+          'validation-mode': 'historical-research',
+          'uses-static-meta-overlay': false,
+          'uses-static-ml-predictions': false,
+        },
+      },
+    });
+
+    const report = assessLeanRunArtifacts(tempDir, 'strategy-backtest');
+    expect(report.blockers).toContain(
+      'LEAN data monitor reports 4 failed data requests.',
     );
   });
 });
@@ -136,6 +190,7 @@ function writeArtifactSet(
     events: unknown[];
     fills: unknown[];
     statistics: Record<string, string | number>;
+    dataMonitorReport?: Record<string, number>;
     config: Record<string, unknown>;
     riskNotes?: string[];
   },
@@ -156,6 +211,12 @@ function writeArtifactSet(
   writeJson(join(directory, 'order_events.json'), { events: input.events });
   writeJson(join(directory, 'fills.json'), { fills: input.fills });
   writeJson(join(directory, 'statistics.json'), input.statistics);
+  if (input.dataMonitorReport) {
+    writeJson(
+      join(directory, 'data-monitor-report.json'),
+      input.dataMonitorReport,
+    );
+  }
   writeJson(join(directory, 'config.json'), input.config);
 }
 

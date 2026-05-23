@@ -90,6 +90,11 @@ function writeAcceptedLeanArtifacts(directory: string): void {
     'Total Orders': 1,
     'End Equity': 100500,
   });
+  writeJson(join(directory, 'data-monitor-report.json'), {
+    'total-data-requests-count': 5,
+    'failed-data-requests-count': 0,
+    'failed-universe-data-requests-count': 0,
+  });
   writeJson(join(directory, 'config.json'), {
     projectName: 'aggressive_llm_momentum',
     algorithmVersion: 'v1',

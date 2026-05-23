@@ -29,6 +29,7 @@ artifacts/model-registry/
 .tmp/
 engines/lean/data/
 engines/lean/lean.json
+engines/lean/.lean-cli-config-*.json
 engines/lean/backtests/
 engines/lean/aggressive_llm_momentum/backtests/
 data/

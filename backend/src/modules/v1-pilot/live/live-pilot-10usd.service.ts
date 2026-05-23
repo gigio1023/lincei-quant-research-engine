@@ -124,12 +124,14 @@ export class LivePilot10UsdService {
       }),
     );
 
-    // Real Toss adapter only after explicit schema + write flags; otherwise mock proves plumbing only.
-    const adapter =
+    const realTossWriteReady =
       process.env.TOSS_ORDER_SCHEMA_VERIFIED === 'true' &&
-      process.env.BROKER_WRITE_ENABLED === 'true'
-        ? this.tossWriteBrokerAdapter
-        : this.mockBrokerAdapter;
+      process.env.BROKER_WRITE_ENABLED === 'true' &&
+      process.env.LIVE_TRADING_ENABLED === 'true' &&
+      this.tossWriteBrokerAdapter.isLiveReady();
+    const adapter = realTossWriteReady
+      ? this.tossWriteBrokerAdapter
+      : this.mockBrokerAdapter;
 
     const preview = await adapter.previewOrder(intent);
     if (!preview.allowed) {
@@ -156,17 +158,13 @@ export class LivePilot10UsdService {
       }),
     );
 
-    const realOrderSent =
-      process.env.TOSS_ORDER_SCHEMA_VERIFIED === 'true' &&
-      process.env.BROKER_WRITE_ENABLED === 'true';
-
     await this.statusRepository.save(
       this.statusRepository.create({
-        status: realOrderSent ? 'ready' : 'blocked',
+        status: realTossWriteReady ? 'ready' : 'blocked',
         checkedAt: new Date(),
         preflight,
-        realOrderSent,
-        blockers: realOrderSent
+        realOrderSent: realTossWriteReady,
+        blockers: realTossWriteReady
           ? []
           : [
               'Live pilot used mock adapter because Toss write gates are not verified.',
@@ -179,7 +177,7 @@ export class LivePilot10UsdService {
     return {
       submitted: true,
       intentId: intent.id,
-      blockers: realOrderSent
+      blockers: realTossWriteReady
         ? []
         : [
             'No real broker order sent; mock adapter used for plumbing verification.',

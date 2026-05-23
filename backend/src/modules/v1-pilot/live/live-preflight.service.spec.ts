@@ -21,6 +21,8 @@ describe('LivePreflightService', () => {
       BROKER_CREDENTIAL_SECRET_REF: 'secret://broker/toss',
     });
     delete process.env.TOSS_CLIENT_ID;
+    delete process.env.TOSS_OPEN_API_CLIENT_ID;
+    delete process.env.TOSS_OPEN_API_SECRET_REF;
   });
 
   afterEach(() => {
@@ -51,6 +53,30 @@ describe('LivePreflightService', () => {
         'LEAN statistics report zero total orders.',
       ]),
     );
+  });
+
+  it('classifies Toss OpenAPI env credentials as local-dev only', async () => {
+    delete process.env.BROKER_CREDENTIAL_SECRET_REF;
+    process.env.TOSS_OPEN_API_CLIENT_ID = 'local-client-id';
+    const service = new LivePreflightService(
+      statusRepository(),
+      targetRepository(),
+      paperPlanRepository(),
+      proposalRepository(),
+      brokerSnapshotRepository(),
+      executionControlRepository(),
+      leanRunImportService(tempDir),
+      mlRegistryService(),
+      tossWriteBrokerAdapter(),
+    );
+
+    const preflight = await service.runPreflight();
+
+    expect(preflight.credentialMode).toBe('local-dev-env');
+    expect(preflight.blockers).toContain(
+      'Live pilot requires broker credentials from an external secret reference.',
+    );
+    expect(preflight.blockers).not.toContain('Broker credentials are missing.');
   });
 });
 

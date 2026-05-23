@@ -8,11 +8,20 @@ const latestTarget = {
 };
 
 describe('LivePilot10UsdService', () => {
+  const envBackup = { ...process.env };
   const preflight = {
     status: 'ready',
     latestLeanRunId: 'lean-1',
     blockers: [],
   };
+
+  beforeEach(() => {
+    process.env = { ...envBackup };
+  });
+
+  afterEach(() => {
+    process.env = { ...envBackup };
+  });
 
   function buildService(existingIntent?: Record<string, unknown>) {
     const intentRepository = {
@@ -37,6 +46,7 @@ describe('LivePilot10UsdService', () => {
     const tossWriteBrokerAdapter = {
       previewOrder: jest.fn(),
       submitOrder: jest.fn(),
+      isLiveReady: jest.fn(() => false),
     };
     const service = new LivePilot10UsdService(
       intentRepository as any,
@@ -47,7 +57,12 @@ describe('LivePilot10UsdService', () => {
       tossWriteBrokerAdapter as any,
     );
 
-    return { service, intentRepository, mockBrokerAdapter };
+    return {
+      service,
+      intentRepository,
+      mockBrokerAdapter,
+      tossWriteBrokerAdapter,
+    };
   }
 
   it('replays an existing submitted intent without broker I/O', async () => {
@@ -90,6 +105,28 @@ describe('LivePilot10UsdService', () => {
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(mockBrokerAdapter.submitOrder).not.toHaveBeenCalled();
+  });
+
+  it('does not select Toss write unless live adapter readiness passes', async () => {
+    process.env.TOSS_ORDER_SCHEMA_VERIFIED = 'true';
+    process.env.BROKER_WRITE_ENABLED = 'true';
+    process.env.LIVE_TRADING_ENABLED = 'true';
+    const { service, mockBrokerAdapter, tossWriteBrokerAdapter } =
+      buildService();
+
+    const result = await service.execute({
+      confirmRealMoney: true,
+      idempotencyKey: 'live-pilot-10usd:SPY',
+    });
+
+    expect(tossWriteBrokerAdapter.isLiveReady).toHaveBeenCalled();
+    expect(tossWriteBrokerAdapter.previewOrder).not.toHaveBeenCalled();
+    expect(tossWriteBrokerAdapter.submitOrder).not.toHaveBeenCalled();
+    expect(mockBrokerAdapter.previewOrder).toHaveBeenCalled();
+    expect(mockBrokerAdapter.submitOrder).toHaveBeenCalled();
+    expect(result.blockers).toContain(
+      'No real broker order sent; mock adapter used for plumbing verification.',
+    );
   });
 });
 
