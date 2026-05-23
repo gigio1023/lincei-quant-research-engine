@@ -552,6 +552,47 @@ all broker/live execution flags remain `false`.
 
 - **Description**: Lists live pilot readiness records ordered by latest check. This is local preflight evidence for eventual tiny live trading; it cannot place, cancel, modify, flatten, or route broker orders.
 
+#### `POST /control-plane/paper-order-plans/:id/prepare-broker-order-command`
+
+- **Description**: Creates or replays a blocked dry-run broker command record from a stored paper order plan. This endpoint is a broker-command ledger only. It copies order intent from the persisted paper plan and its signed approval evidence; it rejects credentials, raw account refs, caller-supplied order payloads, and live execution fields.
+- **Example Request**:
+  ```json
+  {
+    "livePilotReadinessId": "live-pilot-readiness-1",
+    "idempotencyKey": "broker-command-20260523-001",
+    "notes": ["Prepare the paper order plan for broker-write review."]
+  }
+  ```
+- **Response Notes**:
+  - returns a `BrokerOrderCommand`;
+  - `commandType` is `submit_order_plan`;
+  - `status` is `blocked` and `mode` is `dry_run`;
+  - `orderIntents` are copied from the paper plan and are not accepted from the request body;
+  - `brokerExecutionEnabled` and `liveTradingEnabled` are always `false`;
+  - this endpoint does not place, preview, cancel, flatten, or route broker orders.
+
+#### `POST /control-plane/broker-order-commands/emergency-dry-run`
+
+- **Description**: Records a blocked dry-run emergency broker command for future cancel/flatten controls. This is an audit and readiness artifact only; it does not call broker cancel, open-order, or liquidation endpoints.
+- **Example Request**:
+  ```json
+  {
+    "commandType": "cancel_open_orders",
+    "livePilotReadinessId": "live-pilot-readiness-1",
+    "idempotencyKey": "cancel-dry-run-20260523-001",
+    "reason": "Operator verifies emergency-control blockers before broker write work.",
+    "notes": ["No broker endpoint called."]
+  }
+  ```
+- **Response Notes**:
+  - `commandType` must be `cancel_open_orders` or `flatten_positions`;
+  - `status` is `blocked` and `mode` is `dry_run`;
+  - `brokerExecutionEnabled` and `liveTradingEnabled` are always `false`.
+
+#### `GET /control-plane/broker-order-commands`
+
+- **Description**: Lists blocked dry-run broker command records ordered by latest update. This endpoint is for dashboard/operator review before any broker write adapter exists.
+
 #### `POST /control-plane/broker-fills/import-read-only`
 
 - **Description**: Imports read-only broker fill evidence and immediately attempts to match it against existing paper fills. This is a provider-neutral ledger step for later broker fill polling. It does not call a broker, does not store raw account/order/fill refs, rejects credential/order payload fields, and cannot place, cancel, or modify orders.

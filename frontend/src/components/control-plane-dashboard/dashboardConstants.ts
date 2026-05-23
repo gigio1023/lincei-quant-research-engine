@@ -13,6 +13,7 @@ import {
   SafetyGate,
 } from "../../types";
 import {
+  DOCUMENTED_BROKER_ORDER_COMMANDS,
   DOCUMENTED_FUNDING_READINESS,
   DOCUMENTED_LIVE_PILOT_READINESS,
 } from "./dashboardSamples";
@@ -21,6 +22,7 @@ export {
   DOCUMENTED_AUTONOMOUS_RUN_SCHEDULES,
   DOCUMENTED_BROKER_ADAPTER_STATUS,
   DOCUMENTED_BROKER_FILLS,
+  DOCUMENTED_BROKER_ORDER_COMMANDS,
   DOCUMENTED_BROKER_SNAPSHOTS,
   DOCUMENTED_BUDGET_ENVELOPES,
   DOCUMENTED_FUNDING_READINESS,
@@ -180,6 +182,7 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
   },
   fundingReadiness: DOCUMENTED_FUNDING_READINESS[0],
   livePilotReadiness: DOCUMENTED_LIVE_PILOT_READINESS[0],
+  brokerOrderCommand: DOCUMENTED_BROKER_ORDER_COMMANDS[0],
   readiness: [
     {
       key: "budgetEnvelopeActive",
@@ -302,6 +305,11 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
       key: "livePilotReadinessLedgerReady",
       ready: true,
       detail: "Documented live pilot readiness sample is available",
+    },
+    {
+      key: "brokerOrderCommandLedgerReady",
+      ready: true,
+      detail: "Documented broker order command dry-run sample is available",
     },
     {
       key: "livePilotReady",

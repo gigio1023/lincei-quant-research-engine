@@ -5,6 +5,7 @@ import {
   AutonomousRunSchedule,
   BrokerAdapterStatus,
   BrokerFill,
+  BrokerOrderCommand,
   BrokerReadOnlyPollResponse,
   BrokerSnapshot,
   BudgetEnvelope,
@@ -26,12 +27,14 @@ import {
   PaperAccountEvent,
   PaperOrderPlan,
   PaperExecuteProposalRequest,
+  PrepareBrokerOrderCommandRequest,
   ReconcileBrokerFillRequest,
   Report,
   ReportsResponse,
   ResearchRun,
   RiskEvaluation,
   RunBaselineResearchRequest,
+  RunBrokerEmergencyCommandRequest,
   RunRecoveryProposalRequest,
   RunRecoveryProposalResponse,
   RunScheduleWorkerStatus,
@@ -224,6 +227,32 @@ export const controlPlaneApi = {
     LivePilotReadinessRecord[]
   > => {
     const response = await api.get("/control-plane/live-pilot-readiness");
+    return response.data;
+  },
+
+  prepareBrokerOrderCommand: async (
+    paperOrderPlanId: number | string,
+    request: PrepareBrokerOrderCommandRequest,
+  ): Promise<BrokerOrderCommand> => {
+    const response = await api.post(
+      `/control-plane/paper-order-plans/${paperOrderPlanId}/prepare-broker-order-command`,
+      request,
+    );
+    return response.data;
+  },
+
+  runBrokerEmergencyCommandDryRun: async (
+    request: RunBrokerEmergencyCommandRequest,
+  ): Promise<BrokerOrderCommand> => {
+    const response = await api.post(
+      "/control-plane/broker-order-commands/emergency-dry-run",
+      request,
+    );
+    return response.data;
+  },
+
+  getBrokerOrderCommands: async (): Promise<BrokerOrderCommand[]> => {
+    const response = await api.get("/control-plane/broker-order-commands");
     return response.data;
   },
 

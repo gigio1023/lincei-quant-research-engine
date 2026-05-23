@@ -5,6 +5,7 @@ import * as request from 'supertest';
 import { AutonomousRun } from '../src/entities/autonomous-run.entity';
 import { AutonomousRunSchedule } from '../src/entities/autonomous-run-schedule.entity';
 import { BrokerFill } from '../src/entities/broker-fill.entity';
+import { BrokerOrderCommand } from '../src/entities/broker-order-command.entity';
 import { BrokerSnapshot } from '../src/entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../src/entities/budget-envelope.entity';
 import { ExecutionControlState } from '../src/entities/execution-control-state.entity';
@@ -35,6 +36,7 @@ describe('ControlPlane research provenance (e2e)', () => {
             AutonomousRun,
             AutonomousRunSchedule,
             BrokerFill,
+            BrokerOrderCommand,
             BrokerSnapshot,
             BudgetEnvelope,
             ExecutionControlState,
@@ -709,6 +711,56 @@ describe('ControlPlane research provenance (e2e)', () => {
       .get(`/control-plane/paper-order-plans/${paperResponse.body.id}`)
       .expect(200);
     expect(fetchedPlanResponse.body.id).toBe(paperResponse.body.id);
+
+    const brokerCommandResponse = await request(app.getHttpServer())
+      .post(
+        `/control-plane/paper-order-plans/${paperResponse.body.id}/prepare-broker-order-command`,
+      )
+      .send({
+        idempotencyKey: 'e2e-broker-command-1',
+        notes: ['E2E broker command dry run.'],
+      })
+      .expect(201);
+    expect(brokerCommandResponse.body.status).toBe('blocked');
+    expect(brokerCommandResponse.body.commandType).toBe('submit_order_plan');
+    expect(brokerCommandResponse.body.orderIntents[0]).toEqual(
+      expect.objectContaining({
+        sourcePaperOrderId: paperResponse.body.orders[0].paperOrderId,
+        symbol: '005930',
+        status: 'blocked',
+      }),
+    );
+    expect(brokerCommandResponse.body.blockedReasons).toEqual(
+      expect.arrayContaining([
+        'Live broker order endpoint is not implemented',
+        'Broker write access is disabled',
+      ]),
+    );
+    expect(brokerCommandResponse.body.brokerExecutionEnabled).toBe(false);
+    expect(brokerCommandResponse.body.liveTradingEnabled).toBe(false);
+
+    const emergencyCommandResponse = await request(app.getHttpServer())
+      .post('/control-plane/broker-order-commands/emergency-dry-run')
+      .send({
+        commandType: 'cancel_open_orders',
+        reason: 'E2E cancel drill before broker write access.',
+        idempotencyKey: 'e2e-broker-emergency-1',
+      })
+      .expect(201);
+    expect(emergencyCommandResponse.body.status).toBe('blocked');
+    expect(emergencyCommandResponse.body.emergencyActions[0]).toEqual(
+      expect.objectContaining({
+        actionType: 'cancel_open_orders',
+        status: 'blocked',
+      }),
+    );
+    expect(emergencyCommandResponse.body.brokerExecutionEnabled).toBe(false);
+    expect(emergencyCommandResponse.body.liveTradingEnabled).toBe(false);
+
+    const brokerCommandsResponse = await request(app.getHttpServer())
+      .get('/control-plane/broker-order-commands')
+      .expect(200);
+    expect(brokerCommandsResponse.body).toHaveLength(2);
 
     const replayResponse = await request(app.getHttpServer())
       .post(

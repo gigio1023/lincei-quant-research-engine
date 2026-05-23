@@ -1,6 +1,7 @@
 import { AutonomousRun } from '../../entities/autonomous-run.entity';
 import { AutonomousRunSchedule } from '../../entities/autonomous-run-schedule.entity';
 import { BrokerFill } from '../../entities/broker-fill.entity';
+import { BrokerOrderCommand } from '../../entities/broker-order-command.entity';
 import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
@@ -22,6 +23,7 @@ describe('ControlPlaneService', () => {
   let service: ControlPlaneService;
   let budgets: BudgetEnvelope[];
   let brokerFills: BrokerFill[];
+  let brokerOrderCommands: BrokerOrderCommand[];
   let brokerSnapshots: BrokerSnapshot[];
   let fundingReadinessRecords: FundingReadinessRecord[];
   let livePilotReadinessRecords: LivePilotReadinessRecord[];
@@ -176,12 +178,62 @@ describe('ControlPlaneService', () => {
     count: jest.fn(async () => items.length),
   });
 
+  const makeBlockedBrokerAdapterStatus = () => ({
+    provider: 'toss',
+    configured: false,
+    readOnlyEnabled: false,
+    paperTradingEnabled: false,
+    liveTradingEnabled: false,
+    authMethod: 'oauth2_client_credentials',
+    credentialRef: 'missing',
+    credentialCustody: {
+      mode: 'missing',
+      configured: false,
+      productionReady: false,
+      secretRef: 'missing',
+      detail: 'External secret custody is required.',
+    },
+    schemaVerified: false,
+    sandboxVerified: false,
+    readOnlyPoll: {
+      provider: 'toss',
+      enabled: false,
+      configured: false,
+      schemaVerified: false,
+      canPoll: false,
+      canPollFills: false,
+      baseUrl: 'https://openapi.tossinvest.com',
+      accountRef: 'missing',
+      allowedEndpoints: [],
+      cron: '*/5 * * * *',
+      running: false,
+      brokerExecutionEnabled: false,
+      liveTradingEnabled: false,
+    },
+    emergencyControls: {
+      runtimeKillSwitchReady: true,
+      brokerCancelReady: false,
+      brokerFlattenReady: false,
+      openOrderPollingReady: false,
+      brokerWriteEnabled: false,
+      dryRunOnly: true,
+      checkedAt: new Date().toISOString(),
+      blockers: [],
+      detail:
+        'Runtime stop can halt autonomous advancement, but broker-order cancel/flatten emergency controls are not implemented.',
+    },
+    capabilities: [],
+    blockers: [],
+    brokerExecutionEnabled: false,
+  });
+
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(new Date('2026-05-23T00:00:00.000Z'));
     delete process.env.TYPEORM_SYNCHRONIZE;
     delete process.env.TYPEORM_MIGRATIONS_RUN;
     budgets = [];
     brokerFills = [];
+    brokerOrderCommands = [];
     brokerSnapshots = [];
     fundingReadinessRecords = [];
     livePilotReadinessRecords = [];
@@ -200,6 +252,7 @@ describe('ControlPlaneService', () => {
     service = new ControlPlaneService(
       makeRepository(budgets) as any,
       makeRepository(brokerFills) as any,
+      makeRepository(brokerOrderCommands) as any,
       makeRepository(brokerSnapshots) as any,
       makeRepository(fundingReadinessRecords) as any,
       makeRepository(livePilotReadinessRecords) as any,
@@ -1877,6 +1930,123 @@ describe('ControlPlaneService', () => {
         },
       ),
     ).rejects.toThrow('Live pilot readiness cannot include placeOrder');
+  });
+
+  it('records blocked dry-run broker order commands without broker writes', async () => {
+    paperOrderPlans.push({
+      id: 42,
+      proposalId: 7,
+      orderPlanApprovalId: 11,
+      planHash: 'sha256:paper-plan',
+      status: 'filled',
+      mode: 'paper',
+      orders: [
+        {
+          paperOrderId: 'paper-order:42:0',
+          proposalOrderIndex: 0,
+          symbol: '005930',
+          side: 'BUY',
+          orderType: 'MARKET',
+          requestedNotional: 100_000,
+          marketDataTimestamp: '2026-05-22T23:55:00.000Z',
+          feeModelRef: 'fixed-10bps-paper-fee-v1',
+          slippageModelRef: 'fixed-5bps-paper-slippage-v1',
+          sourceOrder: {
+            symbol: '005930',
+            assetClass: 'domestic_stock',
+            side: 'BUY',
+            orderType: 'MARKET',
+            notional: 100_000,
+          },
+        },
+      ],
+      brokerExecutionEnabled: false,
+      liveTradingEnabled: false,
+    } as any);
+
+    const command = await service.prepareBrokerOrderCommandFromPaperPlan(
+      42,
+      {
+        idempotencyKey: 'broker-command-1',
+        notes: ['Operator wants a broker write dry run.'],
+      },
+      makeBlockedBrokerAdapterStatus() as any,
+    );
+    const replayed = await service.prepareBrokerOrderCommandFromPaperPlan(
+      42,
+      { idempotencyKey: 'broker-command-1' },
+      makeBlockedBrokerAdapterStatus() as any,
+    );
+
+    expect(replayed.id).toBe(command.id);
+    expect(command).toEqual(
+      expect.objectContaining({
+        commandType: 'submit_order_plan',
+        sourceType: 'paper_order_plan',
+        paperOrderPlanId: 42,
+        orderPlanApprovalId: 11,
+        status: 'blocked',
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+    expect(command.orderIntents).toEqual([
+      expect.objectContaining({
+        brokerOrderIntentId: 'broker-intent:42:0',
+        sourcePaperOrderId: 'paper-order:42:0',
+        symbol: '005930',
+        side: 'BUY',
+        status: 'blocked',
+      }),
+    ]);
+    expect(command.blockedReasons).toEqual(
+      expect.arrayContaining([
+        'No ready live pilot readiness record',
+        'Live broker order endpoint is not implemented',
+        'Broker write access is disabled',
+        'Broker order command is dry-run only',
+      ]),
+    );
+
+    const emergency = await service.runBrokerEmergencyCommandDryRun(
+      {
+        commandType: 'cancel_open_orders',
+        reason: 'Operator drills cancel before any live pilot.',
+        idempotencyKey: 'broker-emergency-cancel-1',
+      },
+      makeBlockedBrokerAdapterStatus() as any,
+    );
+
+    expect(emergency).toEqual(
+      expect.objectContaining({
+        commandType: 'cancel_open_orders',
+        sourceType: 'emergency',
+        status: 'blocked',
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+    expect(emergency.emergencyActions[0]).toEqual(
+      expect.objectContaining({
+        actionType: 'cancel_open_orders',
+        status: 'blocked',
+      }),
+    );
+    expect(emergency.blockedReasons).toEqual(
+      expect.arrayContaining([
+        'Broker cancel/replace endpoint is not implemented',
+        'Broker open-order polling is not implemented',
+      ]),
+    );
+    expect(await service.listBrokerOrderCommands()).toHaveLength(2);
+
+    await expect(
+      service.prepareBrokerOrderCommandFromPaperPlan(
+        42,
+        { orderPayload: { symbol: '005930' } } as any,
+        makeBlockedBrokerAdapterStatus() as any,
+      ),
+    ).rejects.toThrow('Broker order command cannot include orderPayload');
   });
 
   it('rejects broker snapshot imports that include credentials or order intent', async () => {

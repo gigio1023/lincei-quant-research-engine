@@ -26,6 +26,7 @@ vi.mock("../services/api", () => ({
     getBrokerSnapshots: vi.fn(),
     getFundingReadinessRecords: vi.fn(),
     getLivePilotReadinessRecords: vi.fn(),
+    getBrokerOrderCommands: vi.fn(),
     getBrokerFills: vi.fn(),
     reconcileBrokerFill: vi.fn(),
     pollBrokerReadOnlyFills: vi.fn(),
@@ -234,6 +235,62 @@ const mockControlPlaneStatus = {
     createdAt: "2026-05-22T09:09:00.000Z",
     updatedAt: "2026-05-22T09:09:00.000Z",
   },
+  brokerOrderCommand: {
+    id: "broker-order-command-api-1",
+    provider: "toss",
+    commandType: "submit_order_plan",
+    status: "blocked",
+    mode: "dry_run",
+    sourceType: "paper_order_plan",
+    proposalId: "proposal-api-1",
+    paperOrderPlanId: "paper-plan-api-1",
+    orderPlanApprovalId: "approval-api-1",
+    livePilotReadinessId: "live-pilot-readiness-api-1",
+    idempotencyKey: "broker-command-api-1",
+    checkedAt: "2026-05-22T09:10:00.000Z",
+    commandHash: "sha256:broker-command-api",
+    readinessSnapshot: {
+      livePilotReadinessId: "live-pilot-readiness-api-1",
+      livePilotStatus: "blocked",
+      orderEndpointImplemented: false,
+      brokerWriteEnabled: false,
+      brokerExecutionEnabled: false,
+      liveTradingEnabled: false,
+      cancelReady: false,
+      flattenReady: false,
+      openOrderPollingReady: false,
+      blockers: [
+        "Live broker order endpoint is not implemented",
+        "Broker write access is disabled",
+        "Broker order command is dry-run only",
+      ],
+    },
+    orderIntents: [
+      {
+        brokerOrderIntentId: "broker-intent-api-0",
+        symbol: "005930",
+        side: "BUY",
+        orderType: "MARKET",
+        requestedNotional: 140000,
+        requestedQuantity: 2,
+        requestedPrice: 0,
+        proposalOrderIndex: 0,
+        status: "blocked",
+        blockedReason: "Broker order command is dry-run only",
+      },
+    ],
+    emergencyActions: [],
+    blockedReasons: [
+      "Live broker order endpoint is not implemented",
+      "Broker write access is disabled",
+      "Broker order command is dry-run only",
+    ],
+    notes: ["Broker command captured for dry-run review only."],
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+    createdAt: "2026-05-22T09:10:00.000Z",
+    updatedAt: "2026-05-22T09:10:00.000Z",
+  },
   readiness: [
     {
       key: "riskGateReady",
@@ -290,6 +347,11 @@ const mockControlPlaneStatus = {
       ready: false,
       detail:
         "Latest live pilot readiness is blocked: broker write preflight gates are not ready",
+    },
+    {
+      key: "brokerOrderCommandLedgerReady",
+      ready: true,
+      detail: "1 broker order command dry-run records",
     },
   ],
   blockers: [
@@ -1242,6 +1304,9 @@ describe("ControlPlaneDashboard", () => {
     vi.mocked(controlPlaneApi.getLivePilotReadinessRecords).mockResolvedValue([
       mockControlPlaneStatus.livePilotReadiness,
     ]);
+    vi.mocked(controlPlaneApi.getBrokerOrderCommands).mockResolvedValue([
+      mockControlPlaneStatus.brokerOrderCommand,
+    ]);
     vi.mocked(controlPlaneApi.getBrokerFills).mockResolvedValue(
       mockBrokerFills,
     );
@@ -1437,7 +1502,7 @@ describe("ControlPlaneDashboard", () => {
       screen.getByText("BUY paper fill net cash delta"),
     ).toBeInTheDocument();
     expect(screen.getByText("Live paper plans")).toBeInTheDocument();
-    expect(screen.getByText("paper-plan-api-1")).toBeInTheDocument();
+    expect(screen.getAllByText("paper-plan-api-1").length).toBeGreaterThan(0);
     expect(screen.getByText("Proposal proposal-api-1")).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -1469,6 +1534,17 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("Broker write blockers")).toBeInTheDocument();
     expect(
       screen.getAllByText("Live order endpoint is not implemented").length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByText("Broker Order Command Ledger")).toBeInTheDocument();
+    expect(screen.getByText("API broker order commands")).toBeInTheDocument();
+    expect(screen.getByText("submit_order_plan")).toBeInTheDocument();
+    expect(screen.getByText("hash")).toBeInTheDocument();
+    expect(screen.getByText("sha256:broker-command-api")).toBeInTheDocument();
+    expect(screen.getByText("005930 BUY MARKET")).toBeInTheDocument();
+    expect(screen.getByText("Command blockers")).toBeInTheDocument();
+    expect(
+      screen.getAllByText("Live broker order endpoint is not implemented")
+        .length,
     ).toBeGreaterThan(0);
     expect(screen.getByText("API broker adapter status")).toBeInTheDocument();
     expect(
@@ -1560,6 +1636,8 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("API 자금 준비")).toBeInTheDocument();
     expect(screen.getByText("브로커 쓰기 준비 상태")).toBeInTheDocument();
     expect(screen.getByText("API 실거래 파일럿 준비")).toBeInTheDocument();
+    expect(screen.getByText("브로커 주문 명령 원장")).toBeInTheDocument();
+    expect(screen.getByText("API 브로커 주문 명령")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "한국어" })).toHaveAttribute(
       "aria-pressed",
       "true",
@@ -1627,6 +1705,9 @@ describe("ControlPlaneDashboard", () => {
     vi.mocked(controlPlaneApi.getBrokerFills).mockRejectedValue(
       new Error("offline"),
     );
+    vi.mocked(controlPlaneApi.getBrokerOrderCommands).mockRejectedValue(
+      new Error("offline"),
+    );
     vi.mocked(controlPlaneApi.getBrokerAdapterStatus).mockRejectedValue(
       new Error("offline"),
     );
@@ -1684,7 +1765,9 @@ describe("ControlPlaneDashboard", () => {
         "No promoted paper account is active yet. Seed and promote a paper account before paper execution.",
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText("paper-docs-plan-001")).toBeInTheDocument();
+    expect(screen.getAllByText("paper-docs-plan-001").length).toBeGreaterThan(
+      0,
+    );
     expect(screen.getByText("Documented broker sample")).toBeInTheDocument();
     expect(screen.getByText("broker-snapshot-docs-001")).toBeInTheDocument();
     expect(screen.getByText("Documented audit sample")).toBeInTheDocument();

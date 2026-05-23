@@ -551,6 +551,50 @@ const KOREAN_COPY: Record<string, string> = {
   "Research automation": "리서치 자동화",
   "Broker read-only": "브로커 읽기 전용",
   "Tiny live pilot": "소규모 실거래 파일럿",
+  "Broker Order Command Ledger": "브로커 주문 명령 원장",
+  "Dry-run broker command evidence. It shows what would be prepared, not submitted.":
+    "드라이런 브로커 명령 증거입니다. 실제 제출이 아니라 준비될 내용을 보여줍니다.",
+  "API broker order commands": "API 브로커 주문 명령",
+  "Loading broker order commands": "브로커 주문 명령 로딩 중",
+  "Documented broker command sample": "문서화된 브로커 명령 샘플",
+  "Broker order command API is unavailable. Showing documented broker command sample.":
+    "브로커 주문 명령 API를 사용할 수 없어 문서화된 브로커 명령 샘플을 표시합니다.",
+  "Broker order command refresh failed after automation action.":
+    "자동화 작업 후 브로커 주문 명령 새로고침에 실패했습니다.",
+  "Documented broker order command dry-run sample is available":
+    "문서화된 브로커 주문 명령 드라이런 샘플 사용 가능",
+  command: "명령",
+  provider: "공급자",
+  "live pilot": "실거래 파일럿",
+  hash: "해시",
+  "signed approval": "서명 승인",
+  sandbox: "샌드박스",
+  "read-only": "읽기 전용",
+  cancel: "취소",
+  flatten: "청산",
+  "open orders": "미체결 주문",
+  "Order intents": "주문 의도",
+  "Emergency dry runs": "긴급 드라이런",
+  "Command blockers": "명령 차단 항목",
+  submit_order_plan: "주문 계획 제출",
+  cancel_open_orders: "미체결 주문 취소",
+  flatten_positions: "포지션 청산",
+  "No broker order command dry-run has been recorded.":
+    "아직 브로커 주문 명령 드라이런이 기록되지 않았습니다.",
+  "No ready live pilot readiness record":
+    "준비된 실거래 파일럿 준비 기록이 없습니다.",
+  "Live broker order endpoint is not implemented":
+    "실브로커 주문 엔드포인트가 구현되지 않았습니다.",
+  "Broker order command is dry-run only":
+    "브로커 주문 명령은 드라이런 전용입니다.",
+  "No signed paper order-plan approval is bound to this command":
+    "이 명령에 연결된 서명된 모의 주문 계획 승인이 없습니다.",
+  "Broker cancel/replace endpoint is not implemented":
+    "브로커 취소/정정 엔드포인트가 구현되지 않았습니다.",
+  "Broker open-order polling is not implemented":
+    "브로커 미체결 주문 조회가 구현되지 않았습니다.",
+  "Broker flatten-position order path is not implemented":
+    "브로커 포지션 청산 주문 경로가 구현되지 않았습니다.",
   "Existing reports summarize market context; they are not trade proposals.":
     "기존 보고서는 시장 맥락 요약이며 거래 제안이 아닙니다.",
   "Budget envelopes, proposal records, risk evaluations, research-run provenance, and autonomous run ledgers are implemented.":

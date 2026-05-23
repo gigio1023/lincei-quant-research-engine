@@ -21,6 +21,12 @@ import {
   BrokerFillReconciliation,
 } from '../../entities/broker-fill.entity';
 import {
+  BrokerEmergencyAction,
+  BrokerOrderCommand,
+  BrokerOrderCommandType,
+  BrokerOrderIntent,
+} from '../../entities/broker-order-command.entity';
+import {
   BrokerSnapshot,
   BrokerSnapshotReconciliation,
 } from '../../entities/broker-snapshot.entity';
@@ -85,10 +91,12 @@ import {
   KillSwitchStatus,
   MarketDataBarsImportResponse,
   PaperExecuteProposalRequest,
+  PrepareBrokerOrderCommandRequest,
   PromotePaperAccountRequest,
   ReconcileBrokerFillRequest,
   ReconcileBrokerSnapshotRequest,
   ReconcilePaperOrderPlanRequest,
+  RunBrokerEmergencyCommandRequest,
   RunBaselineResearchRequest,
   RunRecoveryProposalRequest,
   RunRecoveryProposalResponse,
@@ -143,6 +151,8 @@ export class ControlPlaneService {
     private readonly budgetRepository: Repository<BudgetEnvelope>,
     @InjectRepository(BrokerFill)
     private readonly brokerFillRepository: Repository<BrokerFill>,
+    @InjectRepository(BrokerOrderCommand)
+    private readonly brokerOrderCommandRepository: Repository<BrokerOrderCommand>,
     @InjectRepository(BrokerSnapshot)
     private readonly brokerSnapshotRepository: Repository<BrokerSnapshot>,
     @InjectRepository(FundingReadinessRecord)
@@ -196,6 +206,13 @@ export class ControlPlaneService {
     const paperReservationHoldCount =
       await this.paperReservationHoldRepository.count();
     const brokerFillCount = await this.brokerFillRepository.count();
+    const brokerOrderCommandCount =
+      await this.brokerOrderCommandRepository.count();
+    const latestBrokerOrderCommand =
+      await this.brokerOrderCommandRepository.findOne({
+        where: {},
+        order: { checkedAt: 'DESC', updatedAt: 'DESC' },
+      });
     const brokerSnapshotCount = await this.brokerSnapshotRepository.count();
     const fundingReadinessCount = await this.fundingReadinessRepository.count();
     const latestFundingReadiness =
@@ -238,6 +255,7 @@ export class ControlPlaneService {
       actionStatus,
       fundingReadiness: latestFundingReadiness ?? undefined,
       livePilotReadiness: latestLivePilotReadiness ?? undefined,
+      brokerOrderCommand: latestBrokerOrderCommand ?? undefined,
       readiness: [
         {
           key: 'budgetEnvelopeActive',
@@ -359,6 +377,11 @@ export class ControlPlaneService {
           detail: `${brokerFillCount} broker read-only fill records imported`,
         },
         {
+          key: 'brokerOrderCommandLedgerReady',
+          ready: brokerOrderCommandCount > 0,
+          detail: `${brokerOrderCommandCount} dry-run broker order command records`,
+        },
+        {
           key: 'livePilotReadinessLedgerReady',
           ready: livePilotReadinessCount > 0,
           detail: `${livePilotReadinessCount} live pilot readiness records`,
@@ -385,6 +408,9 @@ export class ControlPlaneService {
         ...(latestLivePilotReadiness?.status === 'ready'
           ? []
           : ['No verified live pilot readiness record']),
+        ...(latestBrokerOrderCommand
+          ? []
+          : ['No broker order command dry-run ledger record']),
         'No production-verified broker polling loop',
         ...schemaMigrationPolicy.blockers,
         ...liveTradingGate.blockers,
@@ -1533,6 +1559,150 @@ export class ControlPlaneService {
 
   async listLivePilotReadinessRecords(): Promise<LivePilotReadinessRecord[]> {
     return this.livePilotReadinessRepository.find({
+      order: { checkedAt: 'DESC', updatedAt: 'DESC' },
+    });
+  }
+
+  async prepareBrokerOrderCommandFromPaperPlan(
+    paperOrderPlanId: number,
+    request: PrepareBrokerOrderCommandRequest,
+    brokerAdapterStatus: BrokerAdapterStatus,
+  ): Promise<BrokerOrderCommand> {
+    this.assertBrokerOrderCommandRequest(request);
+
+    const idempotencyKey = request.idempotencyKey;
+    if (idempotencyKey) {
+      const existing = await this.brokerOrderCommandRepository.findOne({
+        where: { idempotencyKey },
+      });
+
+      if (existing) {
+        return existing;
+      }
+    }
+
+    const paperOrderPlan = await this.paperOrderPlanRepository.findOne({
+      where: { id: paperOrderPlanId },
+    });
+
+    if (!paperOrderPlan) {
+      throw new NotFoundException(
+        `Paper order plan ${paperOrderPlanId} not found`,
+      );
+    }
+
+    const livePilotReadiness = await this.resolveLivePilotReadiness(
+      request.livePilotReadinessId,
+    );
+    const checkedAt = new Date();
+    const baseBlockers = this.buildBrokerOrderCommandBlockers({
+      commandType: 'submit_order_plan',
+      livePilotReadiness,
+      brokerAdapterStatus,
+      signedPaperApprovalReady: Boolean(paperOrderPlan.orderPlanApprovalId),
+      hasOrderSource: paperOrderPlan.orders.length > 0,
+    });
+    const blockedReason =
+      baseBlockers[0] ?? 'Broker write dry-run command is blocked';
+    const orderIntents: BrokerOrderIntent[] = paperOrderPlan.orders.map(
+      (order, index) => ({
+        brokerOrderIntentId: `broker-intent:${paperOrderPlan.id}:${index}`,
+        sourcePaperOrderId: order.paperOrderId,
+        proposalOrderIndex: order.proposalOrderIndex,
+        symbol: order.symbol,
+        side: order.side,
+        orderType: order.orderType,
+        requestedNotional: order.requestedNotional,
+        requestedQuantity: order.requestedQuantity,
+        requestedPrice: order.requestedPrice,
+        status: 'blocked',
+        blockedReason,
+      }),
+    );
+    const notes = [
+      'Broker order command is dry-run evidence only. No broker order endpoint was called.',
+      ...(request.notes ?? []),
+    ];
+
+    return this.saveBrokerOrderCommand({
+      idempotencyKey,
+      commandType: 'submit_order_plan',
+      sourceType: 'paper_order_plan',
+      proposalId: paperOrderPlan.proposalId,
+      paperOrderPlanId: paperOrderPlan.id,
+      orderPlanApprovalId: paperOrderPlan.orderPlanApprovalId,
+      livePilotReadiness,
+      checkedAt,
+      brokerAdapterStatus,
+      signedPaperApprovalReady: Boolean(paperOrderPlan.orderPlanApprovalId),
+      hasOrderSource: paperOrderPlan.orders.length > 0,
+      orderIntents,
+      emergencyActions: [],
+      notes,
+    });
+  }
+
+  async runBrokerEmergencyCommandDryRun(
+    request: RunBrokerEmergencyCommandRequest,
+    brokerAdapterStatus: BrokerAdapterStatus,
+  ): Promise<BrokerOrderCommand> {
+    this.assertBrokerEmergencyCommandRequest(request);
+
+    const idempotencyKey = request.idempotencyKey;
+    if (idempotencyKey) {
+      const existing = await this.brokerOrderCommandRepository.findOne({
+        where: { idempotencyKey },
+      });
+
+      if (existing) {
+        return existing;
+      }
+    }
+
+    const livePilotReadiness = await this.resolveLivePilotReadiness(
+      request.livePilotReadinessId,
+    );
+    const checkedAt = new Date();
+    const baseBlockers = this.buildBrokerOrderCommandBlockers({
+      commandType: request.commandType,
+      livePilotReadiness,
+      brokerAdapterStatus,
+      signedPaperApprovalReady: false,
+      hasOrderSource: true,
+    });
+    const blockedReason =
+      baseBlockers[0] ?? 'Broker emergency dry-run command is blocked';
+    const emergencyActions: BrokerEmergencyAction[] = [
+      {
+        actionId: `broker-emergency:${request.commandType}:${checkedAt.toISOString()}`,
+        actionType: request.commandType,
+        status: 'blocked',
+        blockedReason,
+      },
+    ];
+    const notes = [
+      `Emergency dry-run reason: ${request.reason}`,
+      'Broker emergency command is dry-run evidence only. No broker cancel, replace, flatten, or order endpoint was called.',
+      ...(request.notes ?? []),
+    ];
+
+    return this.saveBrokerOrderCommand({
+      idempotencyKey,
+      commandType: request.commandType,
+      sourceType: 'emergency',
+      livePilotReadiness,
+      checkedAt,
+      brokerAdapterStatus,
+      signedPaperApprovalReady: false,
+      hasOrderSource: true,
+      orderIntents: [],
+      emergencyActions,
+      notes,
+    });
+  }
+
+  async listBrokerOrderCommands(): Promise<BrokerOrderCommand[]> {
+    return this.brokerOrderCommandRepository.find({
       order: { checkedAt: 'DESC', updatedAt: 'DESC' },
     });
   }
@@ -4646,6 +4816,219 @@ export class ControlPlaneService {
       throw new BadRequestException(
         'Live pilot readiness maxSingleOrderNotional must be positive',
       );
+    }
+  }
+
+  private async resolveLivePilotReadiness(
+    livePilotReadinessId: number | undefined,
+  ): Promise<LivePilotReadinessRecord | null> {
+    const livePilotReadiness = livePilotReadinessId
+      ? await this.livePilotReadinessRepository.findOne({
+          where: { id: livePilotReadinessId },
+        })
+      : await this.livePilotReadinessRepository.findOne({
+          where: {},
+          order: { checkedAt: 'DESC', updatedAt: 'DESC' },
+        });
+
+    if (livePilotReadinessId && !livePilotReadiness) {
+      throw new NotFoundException(
+        `Live pilot readiness ${livePilotReadinessId} not found`,
+      );
+    }
+
+    return livePilotReadiness;
+  }
+
+  private saveBrokerOrderCommand(input: {
+    idempotencyKey?: string;
+    commandType: BrokerOrderCommandType;
+    sourceType: 'paper_order_plan' | 'emergency';
+    proposalId?: number;
+    paperOrderPlanId?: number;
+    orderPlanApprovalId?: number;
+    livePilotReadiness: LivePilotReadinessRecord | null;
+    checkedAt: Date;
+    brokerAdapterStatus: BrokerAdapterStatus;
+    signedPaperApprovalReady: boolean;
+    hasOrderSource: boolean;
+    orderIntents: BrokerOrderIntent[];
+    emergencyActions: BrokerEmergencyAction[];
+    notes: string[];
+  }): Promise<BrokerOrderCommand> {
+    const blockedReasons = this.buildBrokerOrderCommandBlockers({
+      commandType: input.commandType,
+      livePilotReadiness: input.livePilotReadiness,
+      brokerAdapterStatus: input.brokerAdapterStatus,
+      signedPaperApprovalReady: input.signedPaperApprovalReady,
+      hasOrderSource: input.hasOrderSource,
+    });
+    const readinessSnapshot = {
+      livePilotReadinessId: input.livePilotReadiness?.id,
+      livePilotReady: input.livePilotReadiness?.status === 'ready',
+      brokerSchemaVerified: input.brokerAdapterStatus.schemaVerified,
+      brokerSandboxVerified: input.brokerAdapterStatus.sandboxVerified,
+      brokerReadOnlyReady:
+        input.brokerAdapterStatus.readOnlyEnabled &&
+        input.brokerAdapterStatus.readOnlyPoll.canPoll,
+      brokerFillPollingReady:
+        input.brokerAdapterStatus.readOnlyPoll.canPollFills === true,
+      brokerCancelReady:
+        input.brokerAdapterStatus.emergencyControls.brokerCancelReady,
+      brokerFlattenReady:
+        input.brokerAdapterStatus.emergencyControls.brokerFlattenReady,
+      openOrderPollingReady:
+        input.brokerAdapterStatus.emergencyControls.openOrderPollingReady,
+      signedPaperApprovalReady: input.signedPaperApprovalReady,
+      orderEndpointImplemented: false as const,
+      brokerWriteEnabled: false as const,
+      dryRunOnly: true as const,
+      brokerExecutionEnabled: false as const,
+      liveTradingEnabled: false as const,
+      blockers: blockedReasons,
+    };
+    const commandHash = this.hashObject({
+      commandType: input.commandType,
+      sourceType: input.sourceType,
+      proposalId: input.proposalId,
+      paperOrderPlanId: input.paperOrderPlanId,
+      orderPlanApprovalId: input.orderPlanApprovalId,
+      livePilotReadinessId: input.livePilotReadiness?.id,
+      orderIntents: input.orderIntents,
+      emergencyActions: input.emergencyActions,
+      readinessSnapshot,
+    });
+
+    return this.brokerOrderCommandRepository.save(
+      this.brokerOrderCommandRepository.create({
+        idempotencyKey: input.idempotencyKey,
+        provider: input.brokerAdapterStatus.provider,
+        commandType: input.commandType,
+        status: blockedReasons.length === 0 ? 'dry_run_planned' : 'blocked',
+        mode: 'dry_run',
+        sourceType: input.sourceType,
+        proposalId: input.proposalId,
+        paperOrderPlanId: input.paperOrderPlanId,
+        orderPlanApprovalId: input.orderPlanApprovalId,
+        livePilotReadinessId: input.livePilotReadiness?.id,
+        checkedAt: input.checkedAt,
+        commandHash,
+        readinessSnapshot,
+        orderIntents: input.orderIntents,
+        emergencyActions: input.emergencyActions,
+        blockedReasons,
+        notes: input.notes,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+  }
+
+  private buildBrokerOrderCommandBlockers(input: {
+    commandType: BrokerOrderCommandType;
+    livePilotReadiness: LivePilotReadinessRecord | null;
+    brokerAdapterStatus: BrokerAdapterStatus;
+    signedPaperApprovalReady: boolean;
+    hasOrderSource: boolean;
+  }): string[] {
+    const isEmergencyCommand =
+      input.commandType === 'cancel_open_orders' ||
+      input.commandType === 'flatten_positions';
+
+    return [
+      input.livePilotReadiness?.status === 'ready'
+        ? undefined
+        : 'No ready live pilot readiness record',
+      input.brokerAdapterStatus.schemaVerified
+        ? undefined
+        : 'Broker OpenAPI schema is not verified',
+      input.brokerAdapterStatus.sandboxVerified
+        ? undefined
+        : 'Broker sandbox or paper environment is not verified',
+      input.brokerAdapterStatus.readOnlyPoll.canPoll
+        ? undefined
+        : 'Broker read-only polling is not ready',
+      input.brokerAdapterStatus.readOnlyPoll.canPollFills === true
+        ? undefined
+        : 'Broker fill polling is not ready',
+      input.hasOrderSource
+        ? undefined
+        : 'No durable order source was selected for broker command',
+      !isEmergencyCommand && input.signedPaperApprovalReady
+        ? undefined
+        : !isEmergencyCommand
+          ? 'No signed paper order-plan approval is bound to this command'
+          : undefined,
+      isEmergencyCommand &&
+      input.commandType === 'cancel_open_orders' &&
+      !input.brokerAdapterStatus.emergencyControls.brokerCancelReady
+        ? 'Broker cancel/replace endpoint is not implemented'
+        : undefined,
+      isEmergencyCommand &&
+      input.commandType === 'flatten_positions' &&
+      !input.brokerAdapterStatus.emergencyControls.brokerFlattenReady
+        ? 'Broker flatten-position order path is not implemented'
+        : undefined,
+      isEmergencyCommand &&
+      !input.brokerAdapterStatus.emergencyControls.openOrderPollingReady
+        ? 'Broker open-order polling is not implemented'
+        : undefined,
+      'Live broker order endpoint is not implemented',
+      'Broker write access is disabled',
+      'Broker order command is dry-run only',
+    ].filter((blocker): blocker is string => Boolean(blocker));
+  }
+
+  private assertBrokerOrderCommandRequest(
+    request: PrepareBrokerOrderCommandRequest,
+  ): void {
+    const disallowedKeys = [
+      'brokerCredentials',
+      'accessToken',
+      'refreshToken',
+      'secret',
+      'clientSecret',
+      'apiKey',
+      'accountRef',
+      'accountId',
+      'brokerOrderRef',
+      'orders',
+      'order',
+      'orderPayload',
+      'clientOrderId',
+      'placeOrder',
+      'cancelOrder',
+      'modifyOrder',
+      'flattenPositions',
+    ];
+    const presentDisallowedKey = disallowedKeys.find(
+      (key) =>
+        (request as unknown as Record<string, unknown>)[key] !== undefined,
+    );
+
+    if (presentDisallowedKey) {
+      throw new BadRequestException(
+        `Broker order command cannot include ${presentDisallowedKey}`,
+      );
+    }
+  }
+
+  private assertBrokerEmergencyCommandRequest(
+    request: RunBrokerEmergencyCommandRequest,
+  ): void {
+    this.assertBrokerOrderCommandRequest(request);
+
+    if (
+      request.commandType !== 'cancel_open_orders' &&
+      request.commandType !== 'flatten_positions'
+    ) {
+      throw new BadRequestException(
+        'Broker emergency commandType must be cancel_open_orders or flatten_positions',
+      );
+    }
+
+    if (!request.reason?.trim()) {
+      throw new BadRequestException('Broker emergency command reason required');
     }
   }
 

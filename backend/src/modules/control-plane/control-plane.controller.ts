@@ -10,6 +10,7 @@ import {
 import { AutonomousRun } from '../../entities/autonomous-run.entity';
 import { AutonomousRunSchedule } from '../../entities/autonomous-run-schedule.entity';
 import { BrokerFill } from '../../entities/broker-fill.entity';
+import { BrokerOrderCommand } from '../../entities/broker-order-command.entity';
 import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
@@ -53,6 +54,7 @@ import {
   MarketDataIngestionStatus,
   MarketDataBarsImportResponse,
   PaperExecuteProposalRequest,
+  PrepareBrokerOrderCommandRequest,
   PromotePaperAccountRequest,
   ReconcileBrokerFillRequest,
   ReconcileBrokerSnapshotRequest,
@@ -61,6 +63,7 @@ import {
   RunRecoveryProposalResponse,
   RunBaselineResearchRequest,
   RunScheduleWorkerStatus,
+  RunBrokerEmergencyCommandRequest,
   SeedPaperAccountRequest,
   TickAutonomousRunScheduleRequest,
   TripKillSwitchRequest,
@@ -236,6 +239,33 @@ export class ControlPlaneController {
   @Get('live-pilot-readiness')
   listLivePilotReadinessRecords(): Promise<LivePilotReadinessRecord[]> {
     return this.controlPlaneService.listLivePilotReadinessRecords();
+  }
+
+  @Post('paper-order-plans/:id/prepare-broker-order-command')
+  prepareBrokerOrderCommand(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() request: PrepareBrokerOrderCommandRequest = {},
+  ): Promise<BrokerOrderCommand> {
+    return this.controlPlaneService.prepareBrokerOrderCommandFromPaperPlan(
+      id,
+      request,
+      this.getBrokerAdapterStatus(),
+    );
+  }
+
+  @Post('broker-order-commands/emergency-dry-run')
+  runBrokerEmergencyCommandDryRun(
+    @Body() request: RunBrokerEmergencyCommandRequest,
+  ): Promise<BrokerOrderCommand> {
+    return this.controlPlaneService.runBrokerEmergencyCommandDryRun(
+      request,
+      this.getBrokerAdapterStatus(),
+    );
+  }
+
+  @Get('broker-order-commands')
+  listBrokerOrderCommands(): Promise<BrokerOrderCommand[]> {
+    return this.controlPlaneService.listBrokerOrderCommands();
   }
 
   @Get('broker-adapter/status')

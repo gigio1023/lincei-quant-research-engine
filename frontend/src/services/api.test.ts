@@ -853,6 +853,90 @@ describe("API Service", () => {
       expect(result).toEqual(mockRecords);
     });
 
+    it("should_prepare_broker_order_command_from_paper_plan", async () => {
+      const request = {
+        livePilotReadinessId: "live-pilot-readiness-1",
+        idempotencyKey: "broker-command-1",
+        notes: ["review before broker write implementation"],
+      };
+      const mockCommand = {
+        id: "broker-order-command-1",
+        paperOrderPlanId: "paper-plan-1",
+        commandType: "submit_order_plan",
+        status: "blocked",
+        mode: "dry_run",
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      };
+
+      mockPost.mockResolvedValue({ data: mockCommand });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.prepareBrokerOrderCommand(
+        "paper-plan-1",
+        request,
+      );
+
+      expect(mockPost).toHaveBeenCalledWith(
+        "/control-plane/paper-order-plans/paper-plan-1/prepare-broker-order-command",
+        request,
+      );
+      expect(result).toEqual(mockCommand);
+    });
+
+    it("should_run_broker_emergency_command_dry_run", async () => {
+      const request = {
+        commandType: "cancel_open_orders" as const,
+        livePilotReadinessId: "live-pilot-readiness-1",
+        idempotencyKey: "cancel-dry-run-1",
+        reason: "Operator wants to verify emergency controls.",
+        notes: ["no broker endpoint called"],
+      };
+      const mockCommand = {
+        id: "broker-order-command-2",
+        commandType: "cancel_open_orders",
+        status: "blocked",
+        mode: "dry_run",
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      };
+
+      mockPost.mockResolvedValue({ data: mockCommand });
+
+      const { controlPlaneApi } = await import("./api");
+      const result =
+        await controlPlaneApi.runBrokerEmergencyCommandDryRun(request);
+
+      expect(mockPost).toHaveBeenCalledWith(
+        "/control-plane/broker-order-commands/emergency-dry-run",
+        request,
+      );
+      expect(result).toEqual(mockCommand);
+    });
+
+    it("should_get_broker_order_commands", async () => {
+      const mockCommands = [
+        {
+          id: "broker-order-command-1",
+          commandType: "submit_order_plan",
+          status: "blocked",
+          mode: "dry_run",
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+        },
+      ];
+
+      mockGet.mockResolvedValue({ data: mockCommands });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.getBrokerOrderCommands();
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/control-plane/broker-order-commands",
+      );
+      expect(result).toEqual(mockCommands);
+    });
+
     it("should_get_broker_adapter_status", async () => {
       const mockStatus = {
         provider: "toss",

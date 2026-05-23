@@ -591,6 +591,95 @@ export interface AssessLivePilotReadinessRequest {
   notes?: string[];
 }
 
+export type BrokerOrderCommandType =
+  | "submit_order_plan"
+  | "cancel_open_orders"
+  | "flatten_positions";
+
+export type BrokerOrderCommandStatus = "blocked" | "dry_run_planned";
+
+export interface BrokerOrderCommandReadinessSnapshot {
+  livePilotReadinessId?: number | string;
+  livePilotReady: boolean;
+  brokerSchemaVerified: boolean;
+  brokerSandboxVerified: boolean;
+  brokerReadOnlyReady: boolean;
+  brokerFillPollingReady: boolean;
+  brokerCancelReady: boolean;
+  brokerFlattenReady: boolean;
+  openOrderPollingReady: boolean;
+  signedPaperApprovalReady: boolean;
+  orderEndpointImplemented: false;
+  brokerWriteEnabled: false;
+  dryRunOnly: true;
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+  blockers: string[];
+}
+
+export interface BrokerOrderIntent {
+  brokerOrderIntentId: string;
+  sourcePaperOrderId?: string;
+  proposalOrderIndex?: number;
+  symbol: string;
+  side: OrderSide;
+  orderType: OrderType;
+  requestedNotional: number;
+  requestedQuantity?: number;
+  requestedPrice?: number;
+  status: "blocked";
+  blockedReason: string;
+}
+
+export interface BrokerEmergencyAction {
+  actionId: string;
+  actionType: "cancel_open_orders" | "flatten_positions";
+  status: "blocked";
+  blockedReason: string;
+}
+
+export interface BrokerOrderCommand {
+  id: number | string;
+  idempotencyKey?: string;
+  provider: BrokerAdapterProvider;
+  commandType: BrokerOrderCommandType;
+  status: BrokerOrderCommandStatus;
+  mode: "dry_run";
+  sourceType: "paper_order_plan" | "emergency";
+  proposalId?: number | string;
+  paperOrderPlanId?: number | string;
+  orderPlanApprovalId?: number | string;
+  livePilotReadinessId?: number | string;
+  checkedAt: string;
+  commandHash: string;
+  readinessSnapshot: BrokerOrderCommandReadinessSnapshot;
+  orderIntents: BrokerOrderIntent[];
+  emergencyActions: BrokerEmergencyAction[];
+  blockedReasons: string[];
+  notes: string[];
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PrepareBrokerOrderCommandRequest {
+  livePilotReadinessId?: number | string;
+  idempotencyKey?: string;
+  notes?: string[];
+}
+
+export interface RunBrokerEmergencyCommandRequest {
+  commandType: Extract<
+    BrokerOrderCommandType,
+    "cancel_open_orders" | "flatten_positions"
+  >;
+  livePilotReadinessId?: number | string;
+  idempotencyKey?: string;
+  reason: string;
+  notes?: string[];
+}
+
 export interface AssessFundingReadinessRequest {
   expectedDepositAmount: number;
   currency?: string;
@@ -833,6 +922,7 @@ export interface ControlPlaneStatus {
   actionStatus: ControlPlaneActionStatus;
   fundingReadiness?: FundingReadinessRecord;
   livePilotReadiness?: LivePilotReadinessRecord;
+  brokerOrderCommand?: BrokerOrderCommand;
   readiness: ControlPlaneReadinessItem[];
   blockers: string[];
 }

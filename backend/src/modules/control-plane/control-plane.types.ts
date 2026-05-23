@@ -3,6 +3,10 @@ import {
   BrokerSnapshotProvider,
 } from '../../entities/broker-snapshot.entity';
 import { BrokerFill } from '../../entities/broker-fill.entity';
+import {
+  BrokerOrderCommand,
+  BrokerOrderCommandType,
+} from '../../entities/broker-order-command.entity';
 import { FundingReadinessRecord } from '../../entities/funding-readiness-record.entity';
 import { LivePilotReadinessRecord } from '../../entities/live-pilot-readiness-record.entity';
 import { ExecutionControlStateValue } from '../../entities/execution-control-state.entity';
@@ -284,6 +288,23 @@ export interface AssessLivePilotReadinessRequest {
   notes?: string[];
 }
 
+export interface PrepareBrokerOrderCommandRequest {
+  livePilotReadinessId?: number;
+  idempotencyKey?: string;
+  notes?: string[];
+}
+
+export interface RunBrokerEmergencyCommandRequest {
+  commandType: Extract<
+    BrokerOrderCommandType,
+    'cancel_open_orders' | 'flatten_positions'
+  >;
+  livePilotReadinessId?: number;
+  idempotencyKey?: string;
+  reason: string;
+  notes?: string[];
+}
+
 export type BrokerAdapterProvider = 'toss' | 'manual' | 'simulated';
 
 export type BrokerAdapterCapabilityStatus =
@@ -494,6 +515,7 @@ export interface ControlPlaneStatus {
   actionStatus: ControlPlaneActionStatus;
   fundingReadiness?: FundingReadinessRecord;
   livePilotReadiness?: LivePilotReadinessRecord;
+  brokerOrderCommand?: BrokerOrderCommand;
   readiness: Array<{
     key: string;
     ready: boolean;

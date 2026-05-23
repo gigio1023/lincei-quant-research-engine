@@ -3,6 +3,7 @@ import { ActionAuditTimelinePanel } from "./control-plane-dashboard/ActionAuditT
 import { AutonomousRunLedger } from "./control-plane-dashboard/AutonomousRunLedger";
 import { AutonomousActionStatusPanel } from "./control-plane-dashboard/AutonomousActionStatusPanel";
 import { BrokerWriteReadinessPanel } from "./control-plane-dashboard/BrokerWriteReadinessPanel";
+import { BrokerOrderCommandPanel } from "./control-plane-dashboard/BrokerOrderCommandPanel";
 import { BrokerSnapshotPanel } from "./control-plane-dashboard/BrokerSnapshotPanel";
 import { CurrentCycleEvidencePanel } from "./control-plane-dashboard/CurrentCycleEvidencePanel";
 import { DashboardHeader } from "./control-plane-dashboard/DashboardHeader";
@@ -52,6 +53,7 @@ const ControlPlaneDashboard = () => {
               <PaperExecutionPanel model={model} />
               <FundingReadinessPanel model={model} />
               <BrokerWriteReadinessPanel model={model} />
+              <BrokerOrderCommandPanel model={model} />
               <BrokerSnapshotPanel model={model} />
             </div>
             <RightRail model={model} />
