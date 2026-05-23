@@ -577,6 +577,22 @@ all broker/live execution flags remain `false`.
       "brokerExecutionEnabled": false,
       "liveTradingEnabled": false
     },
+    "emergencyControls": {
+      "runtimeKillSwitchReady": true,
+      "brokerCancelReady": false,
+      "brokerFlattenReady": false,
+      "openOrderPollingReady": false,
+      "brokerWriteEnabled": false,
+      "dryRunOnly": true,
+      "blockers": [
+        "Broker write access is disabled.",
+        "Broker open-order polling is not implemented.",
+        "Broker cancel/replace endpoint is not implemented.",
+        "Broker flatten-position order path is not implemented.",
+        "Emergency broker action reconciliation is not implemented."
+      ],
+      "detail": "Runtime stop can halt autonomous advancement, but broker-order cancel/flatten emergency controls are not implemented."
+    },
     "capabilities": [
       {
         "key": "credentials",
@@ -596,7 +612,7 @@ all broker/live execution flags remain `false`.
       {
         "key": "killSwitch",
         "status": "blocked",
-        "detail": "Runtime stop exists for autonomous advancement; broker-order cancel/flatten controls are not implemented."
+        "detail": "Runtime stop can halt autonomous advancement, but broker-order cancel/flatten emergency controls are not implemented."
       }
     ],
     "blockers": ["credentials: Toss Open API credentials are missing."],

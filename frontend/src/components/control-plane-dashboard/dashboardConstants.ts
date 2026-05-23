@@ -68,6 +68,7 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
       "Broker write access is disabled",
       "Production credential custody is not wired",
       "Broker fill polling is not automated or verified with a live provider",
+      "Broker-order emergency cancel/flatten controls are not implemented",
     ],
     detail:
       "Live trading gate is disabled until broker write access, credential custody, fill polling, reconciliation, and broker-order emergency controls are verified.",

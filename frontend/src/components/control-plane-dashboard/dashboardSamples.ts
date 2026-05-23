@@ -310,6 +310,24 @@ export const DOCUMENTED_BROKER_ADAPTER_STATUS: BrokerAdapterStatus = {
     brokerExecutionEnabled: false,
     liveTradingEnabled: false,
   },
+  emergencyControls: {
+    runtimeKillSwitchReady: true,
+    brokerCancelReady: false,
+    brokerFlattenReady: false,
+    openOrderPollingReady: false,
+    brokerWriteEnabled: false,
+    dryRunOnly: true,
+    checkedAt: "2026-05-22T09:00:00.000Z",
+    blockers: [
+      "Broker write access is disabled.",
+      "Broker open-order polling is not implemented.",
+      "Broker cancel/replace endpoint is not implemented.",
+      "Broker flatten-position order path is not implemented.",
+      "Emergency broker action reconciliation is not implemented.",
+    ],
+    detail:
+      "Runtime stop can halt autonomous advancement, but broker-order cancel/flatten emergency controls are not implemented.",
+  },
   capabilities: [
     {
       key: "credentials",
@@ -377,7 +395,7 @@ export const DOCUMENTED_BROKER_ADAPTER_STATUS: BrokerAdapterStatus = {
       key: "killSwitch",
       status: "blocked",
       detail:
-        "Runtime stop exists for autonomous advancement; broker-order cancel/flatten controls are not implemented.",
+        "Runtime stop can halt autonomous advancement, but broker-order cancel/flatten emergency controls are not implemented.",
     },
   ],
   blockers: [

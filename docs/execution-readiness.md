@@ -21,7 +21,7 @@ After the initial control-plane work, the repo can run deterministic research, r
 - Runtime kill switch endpoint that appends a durable halted execution-control event and stops future autonomous advancement without consuming schedule cycles.
 - Explicit disabled live-trading gate with blockers for order endpoints, broker write access, credential custody, fill polling, reconciliation, and broker-order emergency controls.
 - Manual broker read-only snapshot/fill evidence ledgers and paper-account reconciliation.
-- Provider-neutral broker adapter readiness contract for Toss credentials, credential custody, schema, sandbox, read-only, and order capability gates.
+- Provider-neutral broker adapter readiness contract for Toss credentials, credential custody, schema, sandbox, read-only, order capability gates, and broker emergency-control blockers.
 - Durable signed paper order-plan approval ledger.
 - Schedule-scoped standing paper authorization that can create and consume per-proposal signed paper approvals for paper-only schedules when the budget explicitly allows it, the schedule pins imported asset/benchmark market bars, dataset freshness passes, and the stored budget hash still matches. In `reducing` mode the same authorization can only approve deterministic SELL-only recovery proposals derived from internal paper-account projection evidence.
 - Env-gated autonomous run schedule worker and dashboard worker status.

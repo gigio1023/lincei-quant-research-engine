@@ -353,6 +353,7 @@ export class ControlPlaneService {
       'Broker write access is disabled',
       'Production credential custody is not wired',
       'Broker fill polling is not automated or verified with a live provider',
+      'Broker-order emergency cancel/flatten controls are not implemented',
     ];
 
     return {

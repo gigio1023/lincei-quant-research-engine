@@ -2461,6 +2461,7 @@ describe('ControlPlaneService', () => {
         blockers: expect.arrayContaining([
           'Live order endpoint is not implemented',
           'Broker write access is disabled',
+          'Broker-order emergency cancel/flatten controls are not implemented',
         ]),
       }),
     );

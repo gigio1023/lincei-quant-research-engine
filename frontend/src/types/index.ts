@@ -577,9 +577,22 @@ export interface BrokerAdapterStatus {
   sandboxVerified: boolean;
   lastVerifiedAt?: string;
   readOnlyPoll: BrokerAdapterReadOnlyPollStatus;
+  emergencyControls: BrokerEmergencyControlStatus;
   capabilities: BrokerAdapterCapability[];
   blockers: string[];
   brokerExecutionEnabled: false;
+}
+
+export interface BrokerEmergencyControlStatus {
+  runtimeKillSwitchReady: true;
+  brokerCancelReady: false;
+  brokerFlattenReady: false;
+  openOrderPollingReady: false;
+  brokerWriteEnabled: false;
+  dryRunOnly: true;
+  checkedAt: string;
+  blockers: string[];
+  detail: string;
 }
 
 export interface BrokerReadOnlyPollResponse {

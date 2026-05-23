@@ -119,6 +119,60 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
             <div className="mt-3 rounded-md border border-[#2b3139] bg-[#151a21] p-2 text-xs">
               <div className="flex items-center justify-between gap-3">
                 <span className="font-bold uppercase text-[#707a8a]">
+                  {t("Emergency controls")}
+                </span>
+                <span className="font-mono font-bold text-[#f6465d]">
+                  {t("dry run only")}
+                </span>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {[
+                  [
+                    "runtime stop",
+                    adapter.emergencyControls.runtimeKillSwitchReady
+                      ? "ready"
+                      : "blocked",
+                  ],
+                  [
+                    "cancel orders",
+                    adapter.emergencyControls.brokerCancelReady
+                      ? "ready"
+                      : "blocked",
+                  ],
+                  [
+                    "flatten positions",
+                    adapter.emergencyControls.brokerFlattenReady
+                      ? "ready"
+                      : "blocked",
+                  ],
+                  [
+                    "open order poll",
+                    adapter.emergencyControls.openOrderPollingReady
+                      ? "ready"
+                      : "blocked",
+                  ],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <div className="font-bold uppercase text-[#707a8a]">
+                      {t(String(label))}
+                    </div>
+                    <div
+                      className={`mt-1 font-mono font-bold ${
+                        value === "ready" ? "text-[#0ecb81]" : "text-[#f6465d]"
+                      }`}
+                    >
+                      {t(String(value))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 text-[#929aa5]">
+                {t(adapter.emergencyControls.detail)}
+              </div>
+            </div>
+            <div className="mt-3 rounded-md border border-[#2b3139] bg-[#151a21] p-2 text-xs">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-bold uppercase text-[#707a8a]">
                   {t("Read-only polling")}
                 </span>
                 <span

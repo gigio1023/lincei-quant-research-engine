@@ -3,6 +3,7 @@ import {
   BrokerAdapterCapability,
   BrokerCredentialCustodyMode,
   BrokerCredentialCustodyStatus,
+  BrokerEmergencyControlStatus,
   BrokerAdapterProvider,
   BrokerAdapterStatus,
 } from './control-plane.types';
@@ -40,6 +41,7 @@ export class BrokerAdapterReadinessService {
       ? this.maskCredentialRef(process.env.TOSS_OPEN_API_CLIENT_ID)
       : 'missing';
     const credentialCustody = this.getCredentialCustodyStatus(configured);
+    const emergencyControls = this.getEmergencyControlStatus();
 
     const capabilities: BrokerAdapterCapability[] = [
       {
@@ -125,8 +127,7 @@ export class BrokerAdapterReadinessService {
       {
         key: 'killSwitch',
         status: 'blocked',
-        detail:
-          'Runtime stop exists for autonomous advancement; broker-order cancel/flatten controls are not implemented.',
+        detail: emergencyControls.detail,
       },
     ];
 
@@ -189,6 +190,7 @@ export class BrokerAdapterReadinessService {
         brokerExecutionEnabled: false,
         liveTradingEnabled: false,
       },
+      emergencyControls,
       capabilities,
       blockers: capabilities
         .filter((capability) =>
@@ -196,6 +198,29 @@ export class BrokerAdapterReadinessService {
         )
         .map((capability) => `${capability.key}: ${capability.detail}`),
       brokerExecutionEnabled: false,
+    };
+  }
+
+  private getEmergencyControlStatus(): BrokerEmergencyControlStatus {
+    const blockers = [
+      'Broker write access is disabled.',
+      'Broker open-order polling is not implemented.',
+      'Broker cancel/replace endpoint is not implemented.',
+      'Broker flatten-position order path is not implemented.',
+      'Emergency broker action reconciliation is not implemented.',
+    ];
+
+    return {
+      runtimeKillSwitchReady: true,
+      brokerCancelReady: false,
+      brokerFlattenReady: false,
+      openOrderPollingReady: false,
+      brokerWriteEnabled: false,
+      dryRunOnly: true,
+      checkedAt: new Date().toISOString(),
+      blockers,
+      detail:
+        'Runtime stop can halt autonomous advancement, but broker-order cancel/flatten emergency controls are not implemented.',
     };
   }
 

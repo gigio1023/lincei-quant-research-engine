@@ -881,6 +881,24 @@ const mockBrokerAdapterStatus = {
     brokerExecutionEnabled: false,
     liveTradingEnabled: false,
   },
+  emergencyControls: {
+    runtimeKillSwitchReady: true,
+    brokerCancelReady: false,
+    brokerFlattenReady: false,
+    openOrderPollingReady: false,
+    brokerWriteEnabled: false,
+    dryRunOnly: true,
+    checkedAt: "2026-05-22T09:00:00.000Z",
+    blockers: [
+      "Broker write access is disabled.",
+      "Broker open-order polling is not implemented.",
+      "Broker cancel/replace endpoint is not implemented.",
+      "Broker flatten-position order path is not implemented.",
+      "Emergency broker action reconciliation is not implemented.",
+    ],
+    detail:
+      "Runtime stop can halt autonomous advancement, but broker-order cancel/flatten emergency controls are not implemented.",
+  },
   capabilities: [
     {
       key: "credentials",
@@ -1257,6 +1275,10 @@ describe("ControlPlaneDashboard", () => {
       screen.getByText("toss / oauth2_client_credentials"),
     ).toBeInTheDocument();
     expect(screen.getByText("Read-only polling")).toBeInTheDocument();
+    expect(screen.getByText("Emergency controls")).toBeInTheDocument();
+    expect(screen.getByText("runtime stop")).toBeInTheDocument();
+    expect(screen.getByText("cancel orders")).toBeInTheDocument();
+    expect(screen.getByText("flatten positions")).toBeInTheDocument();
     expect(screen.getByText("Fill polling")).toBeInTheDocument();
     expect(screen.getByText("last fill poll")).toBeInTheDocument();
     expect(screen.getByText("fill reconcile")).toBeInTheDocument();

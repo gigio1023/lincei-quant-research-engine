@@ -52,6 +52,12 @@ const KOREAN_COPY: Record<string, string> = {
     "킬 스위치 작동에 실패했습니다. 추가 자동화 전에 컨트롤 플레인 API를 확인하세요.",
   "Runtime stop, not broker cancel.":
     "런타임 정지이며 브로커 주문 취소가 아닙니다.",
+  "Emergency controls": "긴급 제어",
+  "dry run only": "드라이런 전용",
+  "runtime stop": "런타임 정지",
+  "cancel orders": "주문 취소",
+  "flatten positions": "포지션 청산",
+  "open order poll": "미체결 주문 조회",
   "Dashboard emergency stop": "대시보드 긴급 정지",
   armed: "준비됨",
   tripped: "작동됨",
@@ -194,6 +200,8 @@ const KOREAN_COPY: Record<string, string> = {
   "No production kill switch runtime": "프로덕션 킬 스위치 런타임 없음",
   "Runtime stop exists for autonomous advancement; broker-order cancel/flatten controls are not implemented.":
     "자율 진행을 멈추는 런타임 정지는 있지만 브로커 주문 취소/청산 제어는 아직 구현되지 않았습니다.",
+  "Runtime stop can halt autonomous advancement, but broker-order cancel/flatten emergency controls are not implemented.":
+    "런타임 정지는 자율 진행을 멈출 수 있지만 브로커 주문 취소/청산 긴급 제어는 아직 구현되지 않았습니다.",
   "killSwitch: Broker-order cancel/flatten controls are not implemented.":
     "killSwitch: 브로커 주문 취소/청산 제어가 아직 구현되지 않았습니다.",
 

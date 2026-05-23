@@ -58,6 +58,20 @@ describe('BrokerAdapterReadinessService', () => {
           brokerExecutionEnabled: false,
           liveTradingEnabled: false,
         }),
+        emergencyControls: expect.objectContaining({
+          runtimeKillSwitchReady: true,
+          brokerCancelReady: false,
+          brokerFlattenReady: false,
+          openOrderPollingReady: false,
+          brokerWriteEnabled: false,
+          dryRunOnly: true,
+          blockers: expect.arrayContaining([
+            'Broker write access is disabled.',
+            'Broker open-order polling is not implemented.',
+            'Broker cancel/replace endpoint is not implemented.',
+            'Broker flatten-position order path is not implemented.',
+          ]),
+        }),
       }),
     );
     expect(status.blockers).toEqual(
@@ -66,6 +80,7 @@ describe('BrokerAdapterReadinessService', () => {
         expect.stringContaining('credentialCustody'),
         expect.stringContaining('openApiSchema'),
         expect.stringContaining('orderPlacement'),
+        expect.stringContaining('killSwitch'),
       ]),
     );
   });
