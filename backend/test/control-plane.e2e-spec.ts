@@ -1163,6 +1163,188 @@ describe('ControlPlane research provenance (e2e)', () => {
     ]);
   });
 
+  it('auto-approves a reducing paper schedule into a filled SELL-only recovery plan', async () => {
+    const budgetResponse = await request(app.getHttpServer())
+      .post('/control-plane/budgets')
+      .send({
+        name: 'Auto recovery paper schedule e2e budget',
+        totalBudget: 10_000_000,
+        mode: 'paper',
+        policy: {
+          allowPaperAutoApproval: true,
+          maxDataAgeMinutes: 1440,
+        },
+      })
+      .expect(201);
+
+    const seededAccountResponse = await request(app.getHttpServer())
+      .post('/control-plane/paper-account/seed')
+      .send({
+        budgetEnvelopeId: budgetResponse.body.id,
+        cash: 8_000_000,
+        positions: [
+          {
+            symbol: '005930',
+            assetClass: 'domestic_stock',
+            marketValue: 1_500_000,
+            weightPct: 15,
+            quantity: 30,
+            averagePrice: 50_000,
+            costBasis: 1_500_000,
+            realizedPnl: 0,
+          },
+        ],
+        actor: 'e2e-operator',
+        reason: 'Seed before recovery paper schedule automation.',
+        idempotencyKey: 'e2e-auto-recovery-paper-seed-1',
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post(
+        `/control-plane/paper-account/${seededAccountResponse.body.id}/promote`,
+      )
+      .send({
+        actor: 'e2e-operator',
+        reason: 'Promote before recovery paper schedule automation.',
+        idempotencyKey: 'e2e-auto-recovery-paper-promote-1',
+      })
+      .expect(201);
+
+    const datasetId = `auto-recovery-schedule-e2e-bars-${budgetResponse.body.id}`;
+    const now = Date.now();
+    const timestamps = Array.from({ length: 6 }, (_, index) =>
+      new Date(now - (6 - index) * 60_000).toISOString(),
+    );
+    await request(app.getHttpServer())
+      .post('/control-plane/market-data/bars/import')
+      .send({
+        datasetId,
+        symbol: '005930',
+        bars: timestamps.map((timestamp, index) => ({
+          timestamp,
+          availabilityTimestamp: timestamp,
+          open: 100 + index,
+          high: 102 + index,
+          low: 99 + index,
+          close: 100 + index * 3,
+        })),
+      })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post('/control-plane/market-data/bars/import')
+      .send({
+        datasetId,
+        symbol: 'KOSPI200',
+        bars: timestamps.map((timestamp, index) => ({
+          timestamp,
+          availabilityTimestamp: timestamp,
+          open: 100 + index,
+          high: 101 + index,
+          low: 99 + index,
+          close: 100 + index,
+        })),
+      })
+      .expect(201);
+
+    const scheduleResponse = await request(app.getHttpServer())
+      .post('/control-plane/run-schedules')
+      .send({
+        budgetEnvelopeId: budgetResponse.body.id,
+        objective: 'Auto-reduce paper exposure under standing approval',
+        cadenceMinutes: 30,
+        nextRunAt: new Date(Date.now() - 60_000).toISOString(),
+        mode: 'paper',
+        attemptPaperExecution: true,
+        autoPaperApprovalEnabled: true,
+        autoPaperApprover: 'system:paper-recovery-auto-approval',
+        autoPaperApprovalReason: 'Standing paper recovery schedule approval.',
+        researchDatasetId: datasetId,
+        researchSymbol: '005930',
+        researchBenchmark: 'KOSPI200',
+        researchMaxDataAgeMinutes: 1440,
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/control-plane/execution-control')
+      .send({
+        state: 'reducing',
+        actor: 'e2e-operator',
+        reason: 'Auto-reduce simulated exposure.',
+      })
+      .expect(201);
+
+    const tickResponse = await request(app.getHttpServer())
+      .post(`/control-plane/run-schedules/${scheduleResponse.body.id}/tick`)
+      .send({
+        leaseOwner: 'e2e-auto-recovery-scheduler',
+      })
+      .expect(201);
+
+    expect(tickResponse.body).toEqual(
+      expect.objectContaining({
+        status: 'paper_ready',
+        currentStage: 'recovery_paper_execution_recorded',
+        scheduleId: scheduleResponse.body.id,
+      }),
+    );
+
+    const proposalsResponse = await request(app.getHttpServer())
+      .get('/control-plane/proposals')
+      .expect(200);
+    const recoveryProposal = proposalsResponse.body.find(
+      (item: { id: number }) => item.id === tickResponse.body.proposalId,
+    );
+    expect(recoveryProposal).toEqual(
+      expect.objectContaining({
+        ruleId: 'paper-account-recovery-sell-only-v1',
+        brokerExecutionEnabled: false,
+      }),
+    );
+    expect(recoveryProposal.orders).toEqual([
+      expect.objectContaining({
+        symbol: '005930',
+        side: 'SELL',
+        targetPositionPct: 0,
+      }),
+    ]);
+
+    const approvalsResponse = await request(app.getHttpServer())
+      .get('/control-plane/order-plan-approvals')
+      .expect(200);
+    const approval = approvalsResponse.body.find(
+      (item: { approvedByRunId?: number }) =>
+        item.approvedByRunId === tickResponse.body.id,
+    );
+    expect(approval).toEqual(
+      expect.objectContaining({
+        approvalSource: 'recovery_auto',
+        approvedByScheduleId: scheduleResponse.body.id,
+        status: 'consumed',
+        approver: 'system:paper-recovery-auto-approval',
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+
+    const paperPlansResponse = await request(app.getHttpServer())
+      .get('/control-plane/paper-order-plans')
+      .expect(200);
+    const paperPlan = paperPlansResponse.body.find(
+      (item: { id: number }) => item.id === tickResponse.body.paperOrderPlanId,
+    );
+    expect(paperPlan).toEqual(
+      expect.objectContaining({
+        orderPlanApprovalId: approval.id,
+        status: 'filled',
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+    expect(paperPlan.orders[0].side).toBe('SELL');
+  });
+
   it('reports broker adapter readiness without exposing credentials or live access', async () => {
     const response = await request(app.getHttpServer())
       .get('/control-plane/broker-adapter/status')

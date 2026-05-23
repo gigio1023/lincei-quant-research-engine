@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AutonomousRunLedger } from "./control-plane-dashboard/AutonomousRunLedger";
 import { AutonomousActionStatusPanel } from "./control-plane-dashboard/AutonomousActionStatusPanel";
 import { BrokerSnapshotPanel } from "./control-plane-dashboard/BrokerSnapshotPanel";
+import { CurrentCycleEvidencePanel } from "./control-plane-dashboard/CurrentCycleEvidencePanel";
 import { DashboardHeader } from "./control-plane-dashboard/DashboardHeader";
 import {
   DashboardLanguage,
@@ -24,6 +25,7 @@ const ControlPlaneDashboard = () => {
         <div className="mx-auto max-w-[1440px] space-y-4">
           <DashboardHeader model={model} />
           <AutonomousActionStatusPanel model={model} />
+          <CurrentCycleEvidencePanel model={model} />
           <WorkflowActionRail model={model} />
           <AutonomousRunLedger model={model} />
           <section className="grid gap-4 xl:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)_minmax(0,0.72fr)]">

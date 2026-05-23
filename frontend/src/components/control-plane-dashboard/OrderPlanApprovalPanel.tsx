@@ -52,7 +52,8 @@ export const OrderPlanApprovalPanel = ({
             <div className="flex flex-wrap justify-end gap-2">
               <span
                 className={
-                  approvalSource === "paper_auto"
+                  approvalSource === "paper_auto" ||
+                  approvalSource === "recovery_auto"
                     ? "rounded-md border border-[#fcd535]/30 bg-[#fcd535]/10 px-2 py-1 text-[11px] font-bold uppercase text-[#fcd535]"
                     : "rounded-md border border-[#2b3139] bg-[#181a20] px-2 py-1 text-[11px] font-bold uppercase text-[#eaecef]"
                 }
@@ -60,7 +61,9 @@ export const OrderPlanApprovalPanel = ({
                 {t(
                   approvalSource === "paper_auto"
                     ? "paper auto approval"
-                    : "human approval",
+                    : approvalSource === "recovery_auto"
+                      ? "recovery auto approval"
+                      : "human approval",
                 )}
               </span>
               <span

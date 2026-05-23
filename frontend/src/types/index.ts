@@ -376,7 +376,7 @@ export interface OrderPlanApprovalSnapshot {
   proposalId: number;
   riskEvaluationId: number;
   mode: "paper";
-  approvalSource?: "human" | "paper_auto";
+  approvalSource?: "human" | "paper_auto" | "recovery_auto";
   approvedByRunId?: number | string;
   approvedByScheduleId?: number | string;
   autoApprovalPolicyRef?: string;
@@ -404,7 +404,7 @@ export interface OrderPlanApproval {
   riskEvaluationId: number | string;
   idempotencyKey: string;
   mode: "paper";
-  approvalSource?: "human" | "paper_auto";
+  approvalSource?: "human" | "paper_auto" | "recovery_auto";
   approvedByRunId?: number | string;
   approvedByScheduleId?: number | string;
   autoApprovalPolicyRef?: string;

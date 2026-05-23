@@ -40,6 +40,10 @@ import {
   DOCUMENTED_RUN_SCHEDULE_WORKER_STATUS,
   DOCUMENTED_STATUS,
 } from "./dashboardConstants";
+import {
+  buildCurrentCycleEvidence,
+  CurrentCycleEvidence,
+} from "./currentCycleEvidence";
 
 export interface WorkflowStage {
   key: string;
@@ -76,6 +80,7 @@ export interface DashboardModel {
   latestReconciledPlan?: PaperOrderPlan;
   latestRun?: AutonomousRun;
   latestRunSchedule?: AutonomousRunSchedule;
+  currentCycleEvidence: CurrentCycleEvidence;
   workflowStages: WorkflowStage[];
   recentPaperLedgerChanges: PaperLedgerChange[];
   paperExecutionReadiness: ControlPlaneReadinessItem;
@@ -1065,6 +1070,18 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     ),
     latestRun: sortByUpdatedAtDesc(visibleRuns)[0],
     latestRunSchedule: sortByUpdatedAtDesc(visibleRunSchedules)[0],
+    currentCycleEvidence: buildCurrentCycleEvidence({
+      runs: visibleRuns,
+      schedules: visibleRunSchedules,
+      researchRuns:
+        researchRuns ?? (loadingResearchRuns ? [] : DOCUMENTED_RESEARCH_RUNS),
+      proposals: visibleProposals,
+      riskEvaluations: visibleRiskEvaluations,
+      approvals: visibleOrderPlanApprovals,
+      paperPlans: visiblePaperOrderPlans,
+      paperAccount,
+      workerStatus: visibleRunScheduleWorkerStatus,
+    }),
     workflowStages: buildWorkflowStages({
       budgets: visibleBudgets,
       researchRuns:

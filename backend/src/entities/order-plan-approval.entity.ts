@@ -17,7 +17,7 @@ export interface OrderPlanApprovalSnapshot {
   proposalId: number;
   riskEvaluationId: number;
   mode: 'paper';
-  approvalSource?: 'human' | 'paper_auto';
+  approvalSource?: 'human' | 'paper_auto' | 'recovery_auto';
   approvedByRunId?: number;
   approvedByScheduleId?: number;
   autoApprovalPolicyRef?: string;
@@ -66,7 +66,7 @@ export class OrderPlanApproval {
   mode: 'paper';
 
   @Column({ default: 'human' })
-  approvalSource: 'human' | 'paper_auto';
+  approvalSource: 'human' | 'paper_auto' | 'recovery_auto';
 
   @Column({ nullable: true })
   approvedByRunId?: number;

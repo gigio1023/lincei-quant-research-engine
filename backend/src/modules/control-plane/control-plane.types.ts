@@ -142,7 +142,7 @@ export interface CreateOrderPlanApprovalRequest {
   expectedPaperAccountEventHash: string;
   signerKeyRef?: string;
   expiresAt?: string;
-  approvalSource?: 'human' | 'paper_auto';
+  approvalSource?: 'human' | 'paper_auto' | 'recovery_auto';
   approvedByRunId?: number;
   approvedByScheduleId?: number;
   autoApprovalPolicyRef?: string;

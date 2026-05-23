@@ -2613,6 +2613,141 @@ describe('ControlPlaneService', () => {
     expect(advanced.nextAction).toContain('recovery');
   });
 
+  it('auto-approves and executes a reducing paper schedule into a SELL-only recovery plan', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Reducing standing paper auto budget',
+      totalBudget: 10_000_000,
+      mode: 'paper',
+      policy: { allowPaperAutoApproval: true },
+    });
+    const account = await service.seedPaperAccount({
+      budgetEnvelopeId: budget.id,
+      cash: 8_000_000,
+      positions: [
+        {
+          symbol: '005930',
+          assetClass: 'domestic_stock',
+          marketValue: 1_500_000,
+          weightPct: 15,
+          quantity: 30,
+          averagePrice: 50_000,
+          costBasis: 1_500_000,
+          realizedPnl: 0,
+        },
+      ],
+      actor: 'operator',
+      reason: 'Seed account before reducing auto schedule.',
+      idempotencyKey: 'reducing-auto-schedule-seed',
+    });
+    await service.promotePaperAccount(account.id, {
+      actor: 'operator',
+      reason: 'Promote account before reducing auto schedule.',
+      idempotencyKey: 'reducing-auto-schedule-promote',
+      expectedEventHash: paperAccountEvents[0].eventHash,
+    });
+    const datasetId = 'reducing-auto-paper-schedule-bars';
+    const dates = [
+      '2026-05-18',
+      '2026-05-19',
+      '2026-05-20',
+      '2026-05-21',
+      '2026-05-22',
+      '2026-05-23',
+    ];
+    await service.importMarketDataBars({
+      datasetId,
+      symbol: '005930',
+      bars: dates.map((date, index) => ({
+        timestamp: `${date}T00:00:00.000Z`,
+        availabilityTimestamp: `${date}T00:00:00.000Z`,
+        open: 100 + index,
+        high: 102 + index,
+        low: 99 + index,
+        close: 100 + index * 3,
+      })),
+    });
+    await service.importMarketDataBars({
+      datasetId,
+      symbol: 'KOSPI200',
+      bars: dates.map((date, index) => ({
+        timestamp: `${date}T00:00:00.000Z`,
+        availabilityTimestamp: `${date}T00:00:00.000Z`,
+        open: 100 + index,
+        high: 101 + index,
+        low: 99 + index,
+        close: 100 + index,
+      })),
+    });
+    const schedule = await service.createRunSchedule({
+      budgetEnvelopeId: budget.id,
+      objective: 'Automatically reduce paper exposure under standing approval',
+      mode: 'paper',
+      cadenceMinutes: 30,
+      nextRunAt: '2026-05-23T00:00:00.000Z',
+      attemptPaperExecution: true,
+      autoPaperApprovalEnabled: true,
+      autoPaperApprover: 'system:paper-recovery-auto-approval',
+      autoPaperApprovalReason: 'Standing paper recovery schedule approval.',
+      researchDatasetId: datasetId,
+      researchSymbol: '005930',
+      researchBenchmark: 'KOSPI200',
+      researchMaxDataAgeMinutes: 60,
+    });
+    await service.updateExecutionControlState({
+      state: 'reducing',
+      actor: 'operator',
+      reason: 'Reduce simulated exposure automatically.',
+    });
+
+    const advanced = await service.tickRunSchedule(schedule.id, {
+      leaseOwner: 'unit-test-reducing-scheduler',
+    });
+
+    expect(advanced.status).toBe('paper_ready');
+    expect(advanced.currentStage).toBe('recovery_paper_execution_recorded');
+    expect(researchRuns[0]).toEqual(
+      expect.objectContaining({ strategyFamily: 'paper_recovery' }),
+    );
+    expect(proposals[0]).toEqual(
+      expect.objectContaining({
+        ruleId: 'paper-account-recovery-sell-only-v1',
+        brokerExecutionEnabled: false,
+      }),
+    );
+    expect(proposals[0].orders).toEqual([
+      expect.objectContaining({
+        symbol: '005930',
+        side: 'SELL',
+        targetPositionPct: 0,
+      }),
+    ]);
+    expect(orderPlanApprovals).toHaveLength(1);
+    expect(orderPlanApprovals[0]).toEqual(
+      expect.objectContaining({
+        proposalId: advanced.proposalId,
+        approvalSource: 'recovery_auto',
+        approvedByRunId: advanced.id,
+        approvedByScheduleId: schedule.id,
+        status: 'consumed',
+        approver: 'system:paper-recovery-auto-approval',
+        reason: 'Standing paper recovery schedule approval.',
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+    expect(paperOrderPlans).toHaveLength(1);
+    expect(paperOrderPlans[0]).toEqual(
+      expect.objectContaining({
+        proposalId: advanced.proposalId,
+        orderPlanApprovalId: orderPlanApprovals[0].id,
+        status: 'filled',
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+    expect(paperAccountEvents).toHaveLength(3);
+  });
+
   it('auto-approves and executes a paper schedule with standing authorization', async () => {
     const budget = await service.createBudgetEnvelope({
       name: 'Standing paper auto budget',

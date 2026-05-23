@@ -171,11 +171,13 @@ const mockResearchRuns = [
     advanceEligible: true,
     datasetRefs: [
       {
-        id: "krx-daily-bars",
-        source: "sample",
+        id: "api-daily-bars",
+        source: "manual",
         windowStart: "2025-01-01",
         windowEnd: "2026-05-21",
-        availabilityTimestamp: "2026-05-21T23:50:00.000Z",
+        availabilityTimestamp: "2026-05-22T08:55:00.000Z",
+        marketDataTimestamp: "2026-05-22T08:55:00.000Z",
+        universe: ["005930", "KOSPI200"],
       },
     ],
     featureRefs: ["return_60d", "volatility_20d"],
@@ -1073,13 +1075,24 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("Live proposals")).toBeInTheDocument();
     expect(screen.getByText("Live risk evaluations")).toBeInTheDocument();
     expect(screen.getByText("Automation Action Ledger")).toBeInTheDocument();
+    expect(screen.getByText("Current Cycle Evidence")).toBeInTheDocument();
+    expect(screen.getByText("Research Data")).toBeInTheDocument();
+    expect(screen.getByText("Decision Chain")).toBeInTheDocument();
+    expect(screen.getByText("Paper Result")).toBeInTheDocument();
     expect(screen.getByText("Live autonomous runs")).toBeInTheDocument();
     expect(screen.getByText("Live run schedules")).toBeInTheDocument();
     expect(screen.getByText("Live schedule worker")).toBeInTheDocument();
     expect(screen.getByText("Worker Idle")).toBeInTheDocument();
     expect(screen.getByText("test-worker")).toBeInTheDocument();
     expect(screen.getAllByText("schedule-api-1").length).toBeGreaterThan(0);
-    expect(screen.getByText("api-daily-bars")).toBeInTheDocument();
+    expect(screen.getAllByText("api-daily-bars").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("fresh").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("paper_auto / consumed").length).toBeGreaterThan(
+      0,
+    );
+    expect(
+      screen.getAllByText("sha256:auto-policy-api").length,
+    ).toBeGreaterThan(0);
     expect(screen.getAllByText("KOSPI200").length).toBeGreaterThan(0);
     expect(screen.getByText("1440m")).toBeInTheDocument();
     expect(screen.getAllByText("run-api-1").length).toBeGreaterThan(0);
@@ -1147,7 +1160,9 @@ describe("ControlPlaneDashboard", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByText("paper auto approval")).toBeInTheDocument();
-    expect(screen.getByText("sha256:auto-policy-api")).toBeInTheDocument();
+    expect(
+      screen.getAllByText("sha256:auto-policy-api").length,
+    ).toBeGreaterThan(0);
     expect(screen.getByText("Paper fills")).toBeInTheDocument();
     expect(screen.getByText("Reconciliation")).toBeInTheDocument();
     expect(screen.getByText("Plan hash: sha256:plan-api")).toBeInTheDocument();

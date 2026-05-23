@@ -1451,7 +1451,7 @@ export class ControlPlaneService {
   async getExecutionControlState(): Promise<ExecutionControlState> {
     const latest = await this.executionControlRepository.findOne({
       where: {},
-      order: { createdAt: 'DESC' },
+      order: { createdAt: 'DESC', id: 'DESC' },
     });
 
     if (latest) {
@@ -2325,7 +2325,7 @@ export class ControlPlaneService {
       paperAccountId: number;
       paperAccountEventHash: string;
       signerKeyRef: string;
-      approvalSource?: 'human' | 'paper_auto';
+      approvalSource?: 'human' | 'paper_auto' | 'recovery_auto';
       approvedByRunId?: number;
       approvedByScheduleId?: number;
       autoApprovalPolicyRef?: string;
@@ -5384,12 +5384,7 @@ export class ControlPlaneService {
       return null;
     }
 
-    if (
-      !schedule.researchDatasetId ||
-      !schedule.researchSymbol ||
-      !schedule.researchBenchmark ||
-      !proposal.researchRunId
-    ) {
+    if (!proposal.researchRunId) {
       return null;
     }
 
@@ -5397,22 +5392,28 @@ export class ControlPlaneService {
       where: { id: proposal.researchRunId },
     });
     const datasetRef = researchRun?.datasetRefs[0];
+    const isPinnedScheduleResearch =
+      Boolean(schedule.researchDatasetId) &&
+      Boolean(schedule.researchSymbol) &&
+      Boolean(schedule.researchBenchmark) &&
+      datasetRef?.id === schedule.researchDatasetId &&
+      datasetRef.universe?.[0] === schedule.researchSymbol &&
+      datasetRef.universe?.[1] === schedule.researchBenchmark;
+    const isPaperRecoveryProposal =
+      await this.isPaperRecoveryAutoApprovalCandidate(proposal, researchRun);
 
-    if (
-      !researchRun ||
-      datasetRef?.id !== schedule.researchDatasetId ||
-      datasetRef.universe?.[0] !== schedule.researchSymbol ||
-      datasetRef.universe?.[1] !== schedule.researchBenchmark
-    ) {
+    if (!isPinnedScheduleResearch && !isPaperRecoveryProposal) {
       return null;
     }
 
-    await this.assertScheduleResearchDatasetReady({
-      researchDatasetId: schedule.researchDatasetId,
-      researchSymbol: schedule.researchSymbol,
-      researchBenchmark: schedule.researchBenchmark,
-      researchMaxDataAgeMinutes: schedule.researchMaxDataAgeMinutes ?? null,
-    });
+    if (isPinnedScheduleResearch) {
+      await this.assertScheduleResearchDatasetReady({
+        researchDatasetId: schedule.researchDatasetId!,
+        researchSymbol: schedule.researchSymbol!,
+        researchBenchmark: schedule.researchBenchmark!,
+        researchMaxDataAgeMinutes: schedule.researchMaxDataAgeMinutes ?? null,
+      });
+    }
 
     const paperAccount = await this.findPaperAccountForProposal(proposal);
 
@@ -5429,16 +5430,24 @@ export class ControlPlaneService {
     }
 
     return this.createOrderPlanApproval(proposal.id, {
-      approver: schedule.autoPaperApprover ?? 'system:paper-auto-approval',
+      approver:
+        schedule.autoPaperApprover ??
+        (isPaperRecoveryProposal
+          ? 'system:paper-recovery-auto-approval'
+          : 'system:paper-auto-approval'),
       reason:
         schedule.autoPaperApprovalReason ??
-        'Standing schedule authorization for paper-only autonomous execution. Broker and live trading remain disabled.',
-      idempotencyKey: `auto-paper-approval:schedule:${schedule.id}:cycle:${run.cycleKey ?? run.id}:proposal:${proposal.id}`,
+        (isPaperRecoveryProposal
+          ? 'Standing schedule authorization for paper-only recovery execution. Broker and live trading remain disabled.'
+          : 'Standing schedule authorization for paper-only autonomous execution. Broker and live trading remain disabled.'),
+      idempotencyKey: `${isPaperRecoveryProposal ? 'auto-paper-recovery-approval' : 'auto-paper-approval'}:schedule:${schedule.id}:cycle:${run.cycleKey ?? run.id}:proposal:${proposal.id}`,
       expectedPaperAccountEventHash: latestPaperAccountEvent.eventHash,
       signerKeyRef:
         schedule.autoPaperApprovalSignerKeyRef ??
-        'local-paper-auto-approval-key-v1',
-      approvalSource: 'paper_auto',
+        (isPaperRecoveryProposal
+          ? 'local-paper-recovery-auto-approval-key-v1'
+          : 'local-paper-auto-approval-key-v1'),
+      approvalSource: isPaperRecoveryProposal ? 'recovery_auto' : 'paper_auto',
       approvedByRunId: run.id,
       approvedByScheduleId: schedule.id,
       autoApprovalPolicyRef: schedule.autoPaperApprovalBudgetHash,
@@ -5456,6 +5465,54 @@ export class ControlPlaneService {
       brokerExecutionEnabled: budget.brokerExecutionEnabled,
       liveTradingEnabled: budget.liveTradingEnabled,
     });
+  }
+
+  private async isPaperRecoveryAutoApprovalCandidate(
+    proposal: InvestmentProposal,
+    researchRun?: ResearchRun | null,
+  ): Promise<boolean> {
+    if (
+      proposal.ruleId !== 'paper-account-recovery-sell-only-v1' ||
+      researchRun?.strategyFamily !== 'paper_recovery' ||
+      !proposal.orders.length ||
+      proposal.brokerExecutionEnabled
+    ) {
+      return false;
+    }
+
+    const executionControl = await this.getExecutionControlState();
+
+    if (executionControl.state !== 'reducing') {
+      return false;
+    }
+
+    const datasetRef = researchRun.datasetRefs[0];
+    const marketDataTimestamp = this.parseRequiredDate(
+      datasetRef?.marketDataTimestamp,
+    );
+    const availabilityTimestamp = this.parseRequiredDate(
+      datasetRef?.availabilityTimestamp,
+    );
+
+    if (
+      datasetRef?.provider !== 'internal_control_plane' ||
+      datasetRef.source !== 'paper_account_projection' ||
+      !datasetRef.id.startsWith('paper-account:') ||
+      !marketDataTimestamp ||
+      !availabilityTimestamp ||
+      marketDataTimestamp.getTime() > Date.now() ||
+      availabilityTimestamp.getTime() > Date.now()
+    ) {
+      return false;
+    }
+
+    return proposal.orders.every(
+      (order) =>
+        order.side === 'SELL' &&
+        order.orderType === 'MARKET' &&
+        order.notional > 0 &&
+        order.targetPositionPct === 0,
+    );
   }
 
   private appendRunTimeline(
