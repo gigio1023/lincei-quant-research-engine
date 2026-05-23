@@ -91,7 +91,7 @@ export class BrokerAdapterReadinessService {
         key: 'orderPlacement',
         status: 'blocked',
         detail:
-          'Live order placement is intentionally blocked until read-only reconciliation, sandbox parity, approval custody, and kill switch runtime exist.',
+          'Live order placement is intentionally blocked until read-only reconciliation, sandbox parity, approval custody, and broker-order emergency controls exist.',
       },
       {
         key: 'orderCancelReplace',
@@ -126,7 +126,7 @@ export class BrokerAdapterReadinessService {
         key: 'killSwitch',
         status: 'blocked',
         detail:
-          'Production kill switch runtime is not implemented for broker orders.',
+          'Runtime stop exists for autonomous advancement; broker-order cancel/flatten controls are not implemented.',
       },
     ];
 

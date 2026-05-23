@@ -41,6 +41,7 @@ export const AutonomousActionStatusPanel = ({
     blocked: "border-[#f6465d] text-[#f6465d]",
   }[status.verdict];
   const approval = model.latestOrderPlanApproval;
+  const killSwitch = model.controlStatus.killSwitch;
 
   return (
     <section
@@ -56,18 +57,61 @@ export const AutonomousActionStatusPanel = ({
             {t("checked")} {formatDateTime(status.checkedAt)}
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-md border border-[#f6465d]/40 bg-[#f6465d]/10 px-3 py-2 text-xs font-bold text-[#f6465d]">
-            {t("brokerExecutionEnabled")}: {t("false")}
+            {t("Broker execution")}: {t("false")}
           </span>
           <span className="rounded-md border border-[#f6465d]/40 bg-[#f6465d]/10 px-3 py-2 text-xs font-bold text-[#f6465d]">
-            {t("liveTradingEnabled")}: {t("false")}
+            {t("Live trading")}: {t("false")}
           </span>
           <span
             className={`w-fit rounded-md border px-3 py-2 text-xs font-bold uppercase ${verdictClass}`}
           >
             {t(status.verdict)}
           </span>
+          <button
+            type="button"
+            onClick={model.tripKillSwitch}
+            disabled={killSwitch.tripped || model.runningKillSwitchTrip}
+            className="min-h-9 rounded-md border border-[#f6465d] bg-[#f6465d] px-3 py-2 text-xs font-bold uppercase text-white transition hover:bg-[#d8384d] disabled:cursor-not-allowed disabled:border-[#2b3139] disabled:bg-[#1e2329] disabled:text-[#707a8a]"
+          >
+            {killSwitch.tripped
+              ? t("Kill switch tripped")
+              : model.runningKillSwitchTrip
+                ? t("Stopping...")
+                : t("Emergency stop")}
+          </button>
+        </div>
+      </div>
+
+      <div className="grid gap-3 border-b border-[#2b3139] p-4 md:grid-cols-[1fr_2fr]">
+        <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
+          <div className="text-[11px] font-bold uppercase text-[#707a8a]">
+            {t("Kill switch")}
+          </div>
+          <div
+            className={`mt-2 font-mono text-sm font-bold ${
+              killSwitch.tripped ? "text-[#f6465d]" : "text-[#0ecb81]"
+            }`}
+          >
+            {killSwitch.tripped ? t("tripped") : t("armed")}
+          </div>
+          <div className="mt-1 text-xs text-[#929aa5]">
+            {killSwitch.lastActor} / {formatDateTime(killSwitch.lastChangedAt)}
+          </div>
+        </div>
+        <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
+          <div className="text-[11px] font-bold uppercase text-[#707a8a]">
+            {t("Kill switch detail")}
+          </div>
+          <div className="mt-2 text-sm font-semibold text-[#eaecef]">
+            {t(killSwitch.detail)}
+          </div>
+          {model.errors.killSwitch && (
+            <div className="mt-2 text-xs font-bold text-[#f6465d]">
+              {t(model.errors.killSwitch)}
+            </div>
+          )}
         </div>
       </div>
 

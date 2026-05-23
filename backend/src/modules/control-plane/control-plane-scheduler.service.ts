@@ -177,7 +177,10 @@ export class ControlPlaneSchedulerService {
           ? error.message
           : 'Autonomous schedule worker tick failed';
 
-      if (message.includes('already leased')) {
+      if (
+        message.includes('already leased') ||
+        message.includes('schedule tick was not consumed')
+      ) {
         return {
           scheduleId: schedule.id,
           status: 'skipped',

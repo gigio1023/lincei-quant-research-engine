@@ -125,6 +125,7 @@ export interface DashboardModel {
     brokerAdapter: string | null;
     orderPlanApprovals: string | null;
     marketDataIngestion: string | null;
+    killSwitch: string | null;
     baselineResearch: string | null;
     recoveryProposal: string | null;
   };
@@ -149,11 +150,13 @@ export interface DashboardModel {
   recoveryProposalSuccess: string | null;
   runningBaselineResearch: boolean;
   runningRecoveryProposal: boolean;
+  runningKillSwitchTrip: boolean;
   advancingRun: boolean;
   tickingSchedule: boolean;
   readinessReadyCount: number;
   runBaselineResearch: () => Promise<void>;
   runRecoveryProposal: () => Promise<void>;
+  tripKillSwitch: () => Promise<void>;
   advanceLatestRun: () => Promise<void>;
   tickLatestSchedule: () => Promise<void>;
 }
@@ -451,6 +454,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   >(null);
   const [runningBaselineResearch, setRunningBaselineResearch] = useState(false);
   const [runningRecoveryProposal, setRunningRecoveryProposal] = useState(false);
+  const [runningKillSwitchTrip, setRunningKillSwitchTrip] = useState(false);
   const [advancingRun, setAdvancingRun] = useState(false);
   const [tickingSchedule, setTickingSchedule] = useState(false);
   const [baselineResearchError, setBaselineResearchError] = useState<
@@ -459,6 +463,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const [recoveryProposalError, setRecoveryProposalError] = useState<
     string | null
   >(null);
+  const [killSwitchError, setKillSwitchError] = useState<string | null>(null);
   const [baselineResearchSuccess, setBaselineResearchSuccess] = useState<
     string | null
   >(null);
@@ -873,6 +878,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       refreshedOrderPlanApprovals,
       refreshedMarketDataIngestionStatus,
       refreshedMarketDataIngestionRuns,
+      refreshedExecutionControl,
       refreshedRiskGateStatus,
       refreshedControlPlaneStatus,
     ] = await Promise.allSettled([
@@ -890,6 +896,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       controlPlaneApi.getOrderPlanApprovals(),
       controlPlaneApi.getMarketDataIngestionStatus(),
       controlPlaneApi.getMarketDataIngestionRuns(),
+      controlPlaneApi.getExecutionControl(),
       riskGateApi.getStatus(),
       controlPlaneApi.getStatus(),
     ]);
@@ -1013,6 +1020,10 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       );
     }
 
+    if (refreshedExecutionControl.status === "fulfilled") {
+      setExecutionControl(refreshedExecutionControl.value);
+    }
+
     if (refreshedRiskGateStatus.status === "fulfilled") {
       setRiskGateStatus(refreshedRiskGateStatus.value);
     }
@@ -1092,6 +1103,25 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       );
     } finally {
       setTickingSchedule(false);
+    }
+  };
+
+  const tripKillSwitch = async () => {
+    setRunningKillSwitchTrip(true);
+    setKillSwitchError(null);
+
+    try {
+      await controlPlaneApi.tripKillSwitch({
+        actor: "dashboard-operator",
+        reason: "Dashboard emergency stop",
+      });
+      await refreshAutomationLedgers();
+    } catch {
+      setKillSwitchError(
+        "Kill switch trip failed. Verify the control-plane API before any further automation.",
+      );
+    } finally {
+      setRunningKillSwitchTrip(false);
     }
   };
 
@@ -1271,6 +1301,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       brokerAdapter: brokerAdapterError,
       orderPlanApprovals: orderPlanApprovalsError,
       marketDataIngestion: marketDataIngestionError,
+      killSwitch: killSwitchError,
       baselineResearch: baselineResearchError,
       recoveryProposal: recoveryProposalError,
     },
@@ -1295,12 +1326,14 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     recoveryProposalSuccess,
     runningBaselineResearch,
     runningRecoveryProposal,
+    runningKillSwitchTrip,
     advancingRun,
     tickingSchedule,
     readinessReadyCount: controlStatus.readiness.filter((item) => item.ready)
       .length,
     runBaselineResearch,
     runRecoveryProposal,
+    tripKillSwitch,
     advanceLatestRun,
     tickLatestSchedule,
   };

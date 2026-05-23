@@ -34,6 +34,7 @@ import {
   RunScheduleWorkerStatus,
   RiskGateStatus,
   TickAutonomousRunScheduleRequest,
+  TripKillSwitchRequest,
 } from "../types";
 
 const env = (
@@ -155,6 +156,18 @@ export const controlPlaneApi = {
 
   getExecutionControl: async (): Promise<ExecutionControlState> => {
     const response = await api.get("/control-plane/execution-control");
+    return response.data;
+  },
+
+  getKillSwitchStatus: async (): Promise<ControlPlaneStatus["killSwitch"]> => {
+    const response = await api.get("/control-plane/kill-switch/status");
+    return response.data;
+  },
+
+  tripKillSwitch: async (
+    request: TripKillSwitchRequest,
+  ): Promise<ControlPlaneStatus["killSwitch"]> => {
+    const response = await api.post("/control-plane/kill-switch/trip", request);
     return response.data;
   },
 

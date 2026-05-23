@@ -227,9 +227,10 @@ Current paper slice:
 - `GET /control-plane/paper-account` exposes only an active promoted paper account;
 - `POST /control-plane/paper-order-plans/:id/reconcile` reconciles expected paper cash and positions against account ledger entries for that plan;
 - `GET/POST /control-plane/execution-control` stores a minimal execution-control state (`active`, `paused`, `reducing`, `halted`) and paper execution blocks when the state forbids new exposure;
+- `GET /control-plane/kill-switch/status` and `POST /control-plane/kill-switch/trip` expose a durable runtime stop that halts autonomous advancement and paper execution without consuming schedule cycles;
 - broker and live execution flags remain `false`.
 
-This is a paper simulator ledger, not broker-grade execution readiness. Broker-grade paper readiness still requires production-grade signing custody, database-level account balance locks, scheduled broker read-only polling, and reconciliation against external account truth.
+This is a paper simulator ledger, not broker-grade execution readiness. Broker-grade paper readiness still requires production-grade signing custody, database-level account balance locks, scheduled broker read-only polling, broker-order emergency cancel/flatten controls, and reconciliation against external account truth.
 
 ### 6. Broker Adapter
 
@@ -452,7 +453,8 @@ Current status:
 - paper reservation holds now persist to a dedicated `paper_reservation_holds` database ledger before fill simulation, and readiness checks subtract `reserved` rows before falling back to legacy plan snapshots;
 - durable paper account state now carries simulated cash, equity, exposure, positions, and applied plan ids across paper cycles;
 - minimal execution-control state and halted/paused/reducing gate exists;
-- control-plane status now exposes an explicit disabled live-trading gate with blockers for order endpoints, broker write access, credential custody, kill switch, fill polling, and reconciliation;
+- runtime kill switch now exposes a durable dashboard/API stop that halts autonomous advancement and schedule consumption, but it does not cancel or flatten broker orders;
+- control-plane status now exposes an explicit disabled live-trading gate with blockers for order endpoints, broker write access, credential custody, fill polling, reconciliation, and broker-order emergency controls;
 - control-plane status now exposes a top-level action summary that ties latest autonomous run, paper evidence, broker snapshot/fill evidence, current blocker, and next safe action together;
 - frontend dashboard shows paper account state, execution-control state, latest paper plans, fills, reconciliation notes, hashes, the top-level action summary, and broker/live disabled guardrails;
 - still missing production signing custody, database-level account balance locks around plan creation/readiness reservation, and scheduled broker-backed reconciliation.
@@ -492,7 +494,7 @@ Only after a separate design review:
 - tiny budget cap;
 - long-only liquid stocks or ETFs;
 - explicit human approval;
-- immediate kill switch;
+- immediate broker-order cancel/flatten kill switch;
 - daily reconciliation;
 - rollback plan.
 

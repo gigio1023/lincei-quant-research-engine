@@ -180,11 +180,13 @@ all broker/live execution flags remain `false`.
 
 #### `GET /control-plane/status`
 
-- **Description**: Returns system readiness, blockers, and confirms broker execution is disabled. The response includes a `liveTradingGate` object that stays disabled until order endpoints, broker write access, production credential custody, kill-switch runtime, fill polling, and broker reconciliation are all implemented and verified.
+- **Description**: Returns system readiness, blockers, and confirms broker execution is disabled. The response includes a `killSwitch` object for the runtime stop state and a `liveTradingGate` object that stays disabled until order endpoints, broker write access, production credential custody, fill polling, broker reconciliation, and broker-order emergency controls are implemented and verified.
 - **Response Notes**:
   - `brokerExecutionEnabled` is always `false`;
   - `liveTradingReady` is always `false`;
   - `liveTradingGate.mode` is `disabled`;
+  - `killSwitch.tripped` is `true` when execution control is `halted`;
+  - `killSwitch.runtimeReady` only means autonomous advancement can be halted; it does not cancel or flatten broker orders;
   - `actionStatus` summarizes the latest autonomous run, paper evidence, broker snapshot evidence, broker fill evidence, current blocker, and next safe action for the one-page dashboard;
   - `liveTradingGate.blockers` lists the missing production controls that must be cleared before any real-money order path can be considered.
 
@@ -386,6 +388,34 @@ all broker/live execution flags remain `false`.
   }
   ```
 
+#### `GET /control-plane/kill-switch/status`
+
+- **Description**: Returns the current runtime kill-switch state derived from execution control. This is an autonomous-runtime stop, not a broker order cancel/flatten endpoint.
+
+#### `POST /control-plane/kill-switch/trip`
+
+- **Description**: Appends a durable `halted` execution-control event and prevents future autonomous advancement or paper execution until an operator explicitly changes execution control. It does not place broker orders, cancel broker orders, or liquidate positions.
+- **Example Request**:
+  ```json
+  {
+    "actor": "dashboard-operator",
+    "reason": "Dashboard emergency stop"
+  }
+  ```
+- **Example Response**:
+  ```json
+  {
+    "armed": true,
+    "tripped": true,
+    "runtimeReady": true,
+    "executionControlState": "halted",
+    "lastActor": "dashboard-operator",
+    "lastReason": "Kill switch trip: Dashboard emergency stop",
+    "brokerExecutionEnabled": false,
+    "liveTradingEnabled": false
+  }
+  ```
+
 #### `GET /control-plane/paper-account`
 
 - **Description**: Returns the latest active local paper account state after explicit seed and promotion. This is read-only and does not create an account. It returns `404` until an operator has seeded and promoted a paper account.
@@ -561,7 +591,12 @@ all broker/live execution flags remain `false`.
       {
         "key": "orderPlacement",
         "status": "blocked",
-        "detail": "Live order placement is intentionally blocked until read-only reconciliation, sandbox parity, approval custody, and kill switch runtime exist."
+        "detail": "Live order placement is intentionally blocked until read-only reconciliation, sandbox parity, approval custody, and broker-order emergency controls exist."
+      },
+      {
+        "key": "killSwitch",
+        "status": "blocked",
+        "detail": "Runtime stop exists for autonomous advancement; broker-order cancel/flatten controls are not implemented."
       }
     ],
     "blockers": ["credentials: Toss Open API credentials are missing."],

@@ -61,17 +61,30 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
     checkedAt: "2026-05-22T09:00:00.000Z",
     orderEndpointImplemented: false,
     brokerWriteEnabled: false,
-    killSwitchReady: false,
+    killSwitchReady: true,
     credentialCustodyRequired: true,
     blockers: [
       "Live order endpoint is not implemented",
       "Broker write access is disabled",
       "Production credential custody is not wired",
-      "Production kill switch runtime is not ready",
       "Broker fill polling is not automated or verified with a live provider",
     ],
     detail:
-      "Live trading gate is disabled until broker write access, credential custody, kill switch, fill polling, and reconciliation are verified.",
+      "Live trading gate is disabled until broker write access, credential custody, fill polling, reconciliation, and broker-order emergency controls are verified.",
+  },
+  killSwitch: {
+    armed: true,
+    tripped: false,
+    runtimeReady: true,
+    executionControlState: "active",
+    lastEventId: "execution-control-docs-active",
+    lastActor: "system",
+    lastReason:
+      "Documented paper simulation state. No broker order path is enabled.",
+    lastChangedAt: "2026-05-22T09:00:00.000Z",
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+    detail: "Kill switch is armed; execution control is active.",
   },
   actionStatus: {
     checkedAt: "2026-05-22T09:00:00.000Z",
@@ -174,6 +187,11 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
       detail: "Execution control state defaults to active",
     },
     {
+      key: "killSwitchRuntimeReady",
+      ready: true,
+      detail: "Documented kill switch can halt autonomous advancement.",
+    },
+    {
       key: "signedOrderPlanApprovalReady",
       ready: true,
       detail: "Documented signed order-plan approval sample is available",
@@ -204,14 +222,13 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
       key: "liveTradingReady",
       ready: false,
       detail:
-        "Live trading gate is disabled until broker write access, credential custody, kill switch, and live-provider fill polling are verified.",
+        "Live trading gate is disabled until broker write access, credential custody, fill polling, reconciliation, and broker-order emergency controls are verified.",
     },
   ],
   blockers: [
     "No verified Toss read-only adapter schema or credentials",
     "No production signed order-plan workflow",
     "No production-verified broker polling loop",
-    "No production kill switch runtime",
   ],
 };
 
@@ -386,6 +403,6 @@ export const CONTROL_PLANE_STAGES: ControlPlaneStage[] = [
     title: "Tiny live pilot",
     status: "blocked",
     description:
-      "Separate design review, tiny budget cap, explicit approval, and immediate kill switch.",
+      "Separate design review, tiny budget cap, explicit approval, and immediate broker-order kill switch.",
   },
 ];

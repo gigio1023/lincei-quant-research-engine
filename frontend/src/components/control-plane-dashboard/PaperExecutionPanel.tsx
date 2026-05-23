@@ -31,10 +31,10 @@ export const PaperExecutionPanel = ({ model }: PaperExecutionPanelProps) => {
             {model.paperExecutionReadiness.ready ? t("Started") : t("Blocked")}
           </span>
           <span className="rounded-md border border-[#f6465d]/30 bg-[#f6465d]/10 px-2 py-1 text-[11px] font-bold uppercase text-[#f6465d]">
-            {t("brokerExecutionEnabled")}: {t("false")}
+            {t("Broker execution")}: {t("false")}
           </span>
           <span className="rounded-md border border-[#f6465d]/30 bg-[#f6465d]/10 px-2 py-1 text-[11px] font-bold uppercase text-[#f6465d]">
-            {t("liveTradingEnabled")}: {t("false")}
+            {t("Live trading")}: {t("false")}
           </span>
         </div>
       </div>

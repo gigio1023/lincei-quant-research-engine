@@ -1387,4 +1387,44 @@ describe('ControlPlane research provenance (e2e)', () => {
       .send({})
       .expect(400);
   });
+
+  it('exposes and trips the runtime kill switch without broker access', async () => {
+    const initialStatus = await request(app.getHttpServer())
+      .get('/control-plane/kill-switch/status')
+      .expect(200);
+
+    expect(initialStatus.body).toEqual(
+      expect.objectContaining({
+        armed: true,
+        runtimeReady: true,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+
+    const trippedStatus = await request(app.getHttpServer())
+      .post('/control-plane/kill-switch/trip')
+      .send({
+        actor: 'e2e-operator',
+        reason: 'Emergency stop drill',
+      })
+      .expect(201);
+
+    expect(trippedStatus.body).toEqual(
+      expect.objectContaining({
+        armed: true,
+        tripped: true,
+        executionControlState: 'halted',
+        lastActor: 'e2e-operator',
+        lastReason: 'Kill switch trip: Emergency stop drill',
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+
+    const executionControl = await request(app.getHttpServer())
+      .get('/control-plane/execution-control')
+      .expect(200);
+    expect(executionControl.body.state).toBe('halted');
+  });
 });

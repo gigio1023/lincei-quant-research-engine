@@ -42,6 +42,7 @@ import {
   ImportBrokerFillRequest,
   ImportBrokerSnapshotRequest,
   ImportMarketDataBarsRequest,
+  KillSwitchStatus,
   MarketDataIngestionPollRequest,
   MarketDataIngestionPollResponse,
   MarketDataIngestionStatus,
@@ -57,6 +58,7 @@ import {
   RunScheduleWorkerStatus,
   SeedPaperAccountRequest,
   TickAutonomousRunScheduleRequest,
+  TripKillSwitchRequest,
   UpdateExecutionControlRequest,
 } from './control-plane.types';
 
@@ -222,6 +224,18 @@ export class ControlPlaneController {
     @Body() request: UpdateExecutionControlRequest,
   ): Promise<ExecutionControlState> {
     return this.controlPlaneService.updateExecutionControlState(request);
+  }
+
+  @Get('kill-switch/status')
+  getKillSwitchStatus(): Promise<KillSwitchStatus> {
+    return this.controlPlaneService.getKillSwitchStatus();
+  }
+
+  @Post('kill-switch/trip')
+  tripKillSwitch(
+    @Body() request: TripKillSwitchRequest,
+  ): Promise<KillSwitchStatus> {
+    return this.controlPlaneService.tripKillSwitch(request);
   }
 
   @Post('proposals/:id/paper-execute')

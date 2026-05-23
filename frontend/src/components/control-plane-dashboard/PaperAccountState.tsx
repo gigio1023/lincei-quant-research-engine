@@ -73,6 +73,8 @@ const RecoveryProposalAction = ({ model }: PaperAccountStateProps) => {
     !account ||
     account.status !== "active" ||
     !hasLongPosition ||
+    model.controlStatus.killSwitch.tripped ||
+    model.visibleExecutionControl.state === "halted" ||
     model.runningRecoveryProposal;
 
   return (

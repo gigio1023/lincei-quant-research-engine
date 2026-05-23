@@ -59,13 +59,71 @@ describe('ControlPlaneService', () => {
         ),
       );
     }),
-    findOne: jest.fn(async ({ where }: { where: Partial<T> }) => {
-      return (
-        items.find((item) =>
+    findOne: jest.fn(
+      async (options: {
+        where: Partial<T>;
+        order?: Partial<Record<keyof T, 'ASC' | 'DESC'>>;
+      }) => {
+        const { where, order } = options;
+        const matches = items.filter((item) =>
           Object.entries(where).every(([key, value]) => item[key] === value),
-        ) ?? null
-      );
-    }),
+        );
+        const orderEntries = Object.entries(order ?? {}) as Array<
+          [keyof T, 'ASC' | 'DESC']
+        >;
+
+        if (orderEntries.length > 0) {
+          matches.sort((left, right) => {
+            for (const [key, direction] of orderEntries) {
+              const leftValue = left[key];
+              const rightValue = right[key];
+              const leftComparable =
+                leftValue instanceof Date
+                  ? leftValue.getTime()
+                  : typeof leftValue === 'number' ||
+                      typeof leftValue === 'string'
+                    ? leftValue
+                    : leftValue === undefined || leftValue === null
+                      ? undefined
+                      : String(leftValue);
+              const rightComparable =
+                rightValue instanceof Date
+                  ? rightValue.getTime()
+                  : typeof rightValue === 'number' ||
+                      typeof rightValue === 'string'
+                    ? rightValue
+                    : rightValue === undefined || rightValue === null
+                      ? undefined
+                      : String(rightValue);
+
+              if (leftComparable === rightComparable) {
+                continue;
+              }
+
+              if (leftComparable === undefined) {
+                return direction === 'ASC' ? -1 : 1;
+              }
+
+              if (rightComparable === undefined) {
+                return direction === 'ASC' ? 1 : -1;
+              }
+
+              return leftComparable > rightComparable
+                ? direction === 'ASC'
+                  ? 1
+                  : -1
+                : direction === 'ASC'
+                  ? -1
+                  : 1;
+            }
+
+            return 0;
+          });
+        }
+
+        return matches[0] ?? null;
+      },
+    ),
     update: jest.fn(
       async (criteria: Partial<T> | Partial<T>[], value: Partial<T>) => {
         const criteriaList = Array.isArray(criteria) ? criteria : [criteria];
@@ -2398,7 +2456,7 @@ describe('ControlPlaneService', () => {
         mode: 'disabled',
         orderEndpointImplemented: false,
         brokerWriteEnabled: false,
-        killSwitchReady: false,
+        killSwitchReady: true,
         credentialCustodyRequired: true,
         blockers: expect.arrayContaining([
           'Live order endpoint is not implemented',
@@ -2447,11 +2505,52 @@ describe('ControlPlaneService', () => {
           ready: true,
         }),
         expect.objectContaining({
+          key: 'killSwitchRuntimeReady',
+          ready: true,
+        }),
+        expect.objectContaining({
           key: 'liveTradingReady',
           ready: false,
         }),
       ]),
     );
+  });
+
+  it('trips a durable kill switch into halted execution control', async () => {
+    const statusBefore = await service.getKillSwitchStatus();
+
+    expect(statusBefore).toEqual(
+      expect.objectContaining({
+        armed: true,
+        tripped: false,
+        runtimeReady: true,
+        executionControlState: 'active',
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+
+    const tripped = await service.tripKillSwitch({
+      actor: 'risk-operator',
+      reason: 'Unexpected broker evidence mismatch',
+    });
+
+    expect(tripped).toEqual(
+      expect.objectContaining({
+        armed: true,
+        tripped: true,
+        runtimeReady: true,
+        executionControlState: 'halted',
+        lastActor: 'risk-operator',
+        lastReason: 'Kill switch trip: Unexpected broker evidence mismatch',
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+
+    const executionControl = await service.getExecutionControlState();
+    expect(executionControl.state).toBe('halted');
+    expect(executionControl.actor).toBe('risk-operator');
   });
 
   it('promotes broker fill mismatches to the action status blocker', async () => {
@@ -2598,6 +2697,34 @@ describe('ControlPlaneService', () => {
     expect(researchRuns).toHaveLength(0);
     expect(proposals).toHaveLength(0);
     expect(paperOrderPlans).toHaveLength(0);
+  });
+
+  it('rejects schedule ticks without consuming the cycle when the kill switch is halted', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Halted schedule budget',
+      totalBudget: 10_000_000,
+    });
+    const schedule = await service.createRunSchedule({
+      budgetEnvelopeId: budget.id,
+      objective: 'Do not consume while halted',
+      cadenceMinutes: 30,
+      nextRunAt: '2026-05-23T00:00:00.000Z',
+    });
+    const originalNextRunAt = schedule.nextRunAt.toISOString();
+
+    await service.tripKillSwitch({
+      actor: 'operator',
+      reason: 'Stop scheduled automation',
+    });
+
+    await expect(service.tickRunSchedule(schedule.id)).rejects.toThrow(
+      'schedule tick was not consumed',
+    );
+
+    expect(runs).toHaveLength(0);
+    expect(researchRuns).toHaveLength(0);
+    expect(schedule.nextRunAt.toISOString()).toBe(originalNextRunAt);
+    expect(schedule.lastTickAt).toBeUndefined();
   });
 
   it('advances a reducing autonomous run into a SELL-only recovery proposal', async () => {

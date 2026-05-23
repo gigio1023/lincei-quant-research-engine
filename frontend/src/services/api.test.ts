@@ -127,10 +127,24 @@ describe("API Service", () => {
           checkedAt: "2026-05-22T09:00:00.000Z",
           orderEndpointImplemented: false,
           brokerWriteEnabled: false,
-          killSwitchReady: false,
+          killSwitchReady: true,
           credentialCustodyRequired: true,
           blockers: ["Live order endpoint is not implemented"],
           detail: "Live trading gate is disabled.",
+        },
+        killSwitch: {
+          armed: true,
+          tripped: false,
+          runtimeReady: true,
+          executionControlState: "active",
+          lastEventId: "execution-control-api-test",
+          lastActor: "system",
+          lastReason:
+            "Default execution-control state for paper simulation only.",
+          lastChangedAt: "2026-05-22T09:00:00.000Z",
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+          detail: "Kill switch is armed; execution control is active.",
         },
         readiness: [
           {
@@ -318,6 +332,49 @@ describe("API Service", () => {
       });
       expect(importResult).toEqual(mockResponse);
       expect(barsResult).toEqual(mockResponse.bars);
+    });
+
+    it("should_get_and_trip_kill_switch", async () => {
+      const mockStatus = {
+        armed: true,
+        tripped: false,
+        runtimeReady: true,
+        executionControlState: "active",
+        lastEventId: "execution-control-api-test",
+        lastActor: "system",
+        lastReason:
+          "Default execution-control state for paper simulation only.",
+        lastChangedAt: "2026-05-22T09:00:00.000Z",
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+        detail: "Kill switch is armed; execution control is active.",
+      };
+      const mockTripped = {
+        ...mockStatus,
+        tripped: true,
+        executionControlState: "halted",
+        lastActor: "dashboard-operator",
+        lastReason: "Kill switch trip: Dashboard emergency stop",
+      };
+      const request = {
+        actor: "dashboard-operator",
+        reason: "Dashboard emergency stop",
+      };
+
+      mockGet.mockResolvedValueOnce({ data: mockStatus });
+      mockPost.mockResolvedValueOnce({ data: mockTripped });
+
+      const { controlPlaneApi } = await import("./api");
+      const status = await controlPlaneApi.getKillSwitchStatus();
+      const tripped = await controlPlaneApi.tripKillSwitch(request);
+
+      expect(mockGet).toHaveBeenCalledWith("/control-plane/kill-switch/status");
+      expect(mockPost).toHaveBeenCalledWith(
+        "/control-plane/kill-switch/trip",
+        request,
+      );
+      expect(status).toEqual(mockStatus);
+      expect(tripped).toEqual(mockTripped);
     });
 
     it("should_get_market_data_ingestion_status_and_runs", async () => {

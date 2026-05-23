@@ -38,6 +38,7 @@ vi.mock("../services/api", () => ({
     tickRunSchedule: vi.fn(),
     runBaselineResearch: vi.fn(),
     runRecoveryProposal: vi.fn(),
+    tripKillSwitch: vi.fn(),
   },
 }));
 
@@ -74,10 +75,23 @@ const mockControlPlaneStatus = {
     checkedAt: "2026-05-22T09:00:00.000Z",
     orderEndpointImplemented: false,
     brokerWriteEnabled: false,
-    killSwitchReady: false,
+    killSwitchReady: true,
     credentialCustodyRequired: true,
     blockers: ["Live order endpoint is not implemented"],
     detail: "Live trading gate is disabled.",
+  },
+  killSwitch: {
+    armed: true,
+    tripped: false,
+    runtimeReady: true,
+    executionControlState: "active",
+    lastEventId: "execution-control-api-1",
+    lastActor: "system",
+    lastReason: "Default execution-control state for paper simulation only.",
+    lastChangedAt: "2026-05-22T09:00:00.000Z",
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+    detail: "Kill switch is armed; execution control is active.",
   },
   actionStatus: {
     checkedAt: "2026-05-22T09:08:00.000Z",
@@ -1067,6 +1081,13 @@ describe("ControlPlaneDashboard", () => {
     vi.mocked(controlPlaneApi.advanceRun).mockResolvedValue(
       mockAutonomousRuns[0],
     );
+    vi.mocked(controlPlaneApi.tripKillSwitch).mockResolvedValue({
+      ...mockControlPlaneStatus.killSwitch,
+      tripped: true,
+      executionControlState: "halted",
+      lastActor: "dashboard-operator",
+      lastReason: "Kill switch trip: Dashboard emergency stop",
+    });
   });
 
   it("should_render_read_only_control_plane_status", async () => {
@@ -1076,8 +1097,8 @@ describe("ControlPlaneDashboard", () => {
       screen.getByRole("heading", { name: "Control Plane Dashboard" }),
     ).toBeInTheDocument();
     expect(screen.getByText("No live trading")).toBeInTheDocument();
-    expect(screen.getByText("brokerExecutionEnabled")).toBeInTheDocument();
-    expect(screen.getByText("liveGate")).toBeInTheDocument();
+    expect(screen.getByText("Broker execution")).toBeInTheDocument();
+    expect(screen.getByText("Live gate")).toBeInTheDocument();
     expect(screen.getAllByText("disabled").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("false").length).toBeGreaterThanOrEqual(1);
 
@@ -1088,6 +1109,11 @@ describe("ControlPlaneDashboard", () => {
       screen.getByRole("region", { name: "Action Status" }),
     );
     expect(actionStatus.getByText("Latest system action")).toBeInTheDocument();
+    expect(actionStatus.getByText("Kill switch")).toBeInTheDocument();
+    expect(actionStatus.getByText("armed")).toBeInTheDocument();
+    expect(
+      actionStatus.getByRole("button", { name: "Emergency stop" }),
+    ).toBeInTheDocument();
     expect(actionStatus.getByText("broker_fill / matched")).toBeInTheDocument();
     expect(
       actionStatus.getByText("Broker fill matched paper fill evidence."),
@@ -1119,7 +1145,9 @@ describe("ControlPlaneDashboard", () => {
         "Continue monitoring; live trading remains disabled.",
       ),
     ).toBeInTheDocument();
-    expect(actionStatus.queryByRole("button")).not.toBeInTheDocument();
+    expect(
+      actionStatus.queryByRole("button", { name: "Paper execute" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("Autonomous Action Chain")).toBeInTheDocument();
     expect(screen.getByText("Live budgets")).toBeInTheDocument();
     expect(screen.getByText("Live proposals")).toBeInTheDocument();
@@ -1265,7 +1293,7 @@ describe("ControlPlaneDashboard", () => {
       ).length,
     ).toBeGreaterThan(0);
     expect(
-      screen.getAllByText("brokerExecutionEnabled: false").length,
+      screen.getAllByText("Broker execution: false").length,
     ).toBeGreaterThanOrEqual(1);
     expect(
       screen.queryByRole("button", {
@@ -1280,6 +1308,7 @@ describe("ControlPlaneDashboard", () => {
     expect(
       screen.getByRole("heading", { name: "Control Plane Dashboard" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("Dashboard language")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "EN" })).toHaveAttribute(
       "aria-pressed",
       "true",
@@ -1294,6 +1323,7 @@ describe("ControlPlaneDashboard", () => {
       screen.getByRole("heading", { name: "컨트롤 플레인 대시보드" }),
     ).toBeInTheDocument();
     expect(screen.getByText("실거래 차단")).toBeInTheDocument();
+    expect(screen.getByText("대시보드 언어")).toBeInTheDocument();
     expect(
       screen.getByRole("region", { name: "행동 상태" }),
     ).toBeInTheDocument();
@@ -1307,6 +1337,25 @@ describe("ControlPlaneDashboard", () => {
     expect(
       screen.getByRole("heading", { name: "Control Plane Dashboard" }),
     ).toBeInTheDocument();
+  });
+
+  it("should_trip_the_runtime_kill_switch_from_the_action_panel", async () => {
+    render(<ControlPlaneDashboard />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Emergency stop" }),
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Emergency stop" }));
+
+    await waitFor(() => {
+      expect(controlPlaneApi.tripKillSwitch).toHaveBeenCalledWith({
+        actor: "dashboard-operator",
+        reason: "Dashboard emergency stop",
+      });
+    });
   });
 
   it("should_show_documented_fallback_when_status_api_fails", async () => {

@@ -9,6 +9,9 @@ const KOREAN_COPY: Record<string, string> = {
   "Control Plane Dashboard": "컨트롤 플레인 대시보드",
   "One-page operating surface for autonomous research, deterministic risk, paper account state, broker read-only evidence, blockers, and next safe action. Broker and live order paths remain disabled.":
     "자율 리서치, 결정적 리스크, 모의 계정 상태, 브로커 읽기 전용 증거, 차단 항목, 다음 안전 행동을 한 화면에서 확인합니다. 브로커와 실거래 주문 경로는 계속 비활성화됩니다.",
+  "Broker execution": "브로커 실행",
+  "Live trading": "실거래",
+  "Live gate": "실거래 게이트",
   brokerExecutionEnabled: "브로커 실행",
   liveTradingEnabled: "실거래",
   liveGate: "실거래 게이트",
@@ -38,6 +41,20 @@ const KOREAN_COPY: Record<string, string> = {
   quantity: "수량",
   notional: "명목금액",
   "Dashboard language": "대시보드 언어",
+  "Kill switch": "킬 스위치",
+  "Kill switch detail": "킬 스위치 상세",
+  "Emergency stop": "긴급 정지",
+  "Stopping...": "정지 중...",
+  "Kill switch tripped": "킬 스위치 작동됨",
+  "Kill switch is armed; execution control is active.":
+    "킬 스위치가 준비되어 있고 실행 제어는 활성 상태입니다.",
+  "Kill switch trip failed. Verify the control-plane API before any further automation.":
+    "킬 스위치 작동에 실패했습니다. 추가 자동화 전에 컨트롤 플레인 API를 확인하세요.",
+  "Runtime stop, not broker cancel.":
+    "런타임 정지이며 브로커 주문 취소가 아닙니다.",
+  "Dashboard emergency stop": "대시보드 긴급 정지",
+  armed: "준비됨",
+  tripped: "작동됨",
   "Market ingestion": "시장 데이터 수집",
   universe: "유니버스",
   "last ingestion": "최근 수집",
@@ -166,6 +183,8 @@ const KOREAN_COPY: Record<string, string> = {
     "브로커 쓰기 권한, 자격 증명 보관, 킬 스위치, 실공급자 체결 폴링이 검증될 때까지 실거래 게이트는 비활성입니다.",
   "Live trading gate is disabled until broker write access, credential custody, kill switch, fill polling, and reconciliation are verified.":
     "브로커 쓰기 권한, 자격 증명 보관, 킬 스위치, 체결 폴링, 대사가 검증될 때까지 실거래 게이트는 비활성입니다.",
+  "Live trading gate is disabled until broker write access, credential custody, fill polling, reconciliation, and broker-order emergency controls are verified.":
+    "브로커 쓰기 권한, 자격 증명 보관, 체결 폴링, 대사, 브로커 주문 긴급 제어가 검증될 때까지 실거래 게이트는 비활성입니다.",
   "No verified Toss read-only adapter schema or credentials":
     "검증된 Toss 읽기 전용 어댑터 스키마 또는 자격 증명 없음",
   "No production signed order-plan workflow":
@@ -173,6 +192,10 @@ const KOREAN_COPY: Record<string, string> = {
   "No production-verified broker polling loop":
     "프로덕션 검증 브로커 폴링 루프 없음",
   "No production kill switch runtime": "프로덕션 킬 스위치 런타임 없음",
+  "Runtime stop exists for autonomous advancement; broker-order cancel/flatten controls are not implemented.":
+    "자율 진행을 멈추는 런타임 정지는 있지만 브로커 주문 취소/청산 제어는 아직 구현되지 않았습니다.",
+  "killSwitch: Broker-order cancel/flatten controls are not implemented.":
+    "killSwitch: 브로커 주문 취소/청산 제어가 아직 구현되지 않았습니다.",
 
   "Automation Action Ledger": "자동화 행동 원장",
   "Live broker off": "실브로커 꺼짐",
@@ -402,7 +425,6 @@ const KOREAN_COPY: Record<string, string> = {
   "Proposal contract": "제안 계약",
   "Paper execution": "모의 실행",
   "Signed approvals": "서명 승인",
-  "Live trading": "실거래",
   "Phase 0": "0단계",
   "Phase 1": "1단계",
   "Phase 2": "2단계",
@@ -438,6 +460,8 @@ const KOREAN_COPY: Record<string, string> = {
     "호출 가능한 주문 엔드포인트 없이 수동 읽기 전용 브로커 스냅샷과 모의 계정 대사.",
   "Separate design review, tiny budget cap, explicit approval, and immediate kill switch.":
     "별도 설계 리뷰, 소액 예산 한도, 명시 승인, 즉시 킬 스위치.",
+  "Separate design review, tiny budget cap, explicit approval, and immediate broker-order kill switch.":
+    "별도 설계 리뷰, 소액 예산 한도, 명시 승인, 즉시 브로커 주문 킬 스위치.",
 
   "Signed Order Approval": "서명된 주문 승인",
   "Durable approval record required before paper fills.":

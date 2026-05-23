@@ -1,5 +1,4 @@
 import { DashboardModel } from "./useControlPlaneDashboard";
-import { EXAMPLE_REQUEST } from "./dashboardConstants";
 import { formatBoolean } from "./dashboardFormat";
 import { DashboardLanguage, useDashboardLanguage } from "./dashboardLanguage";
 
@@ -11,15 +10,21 @@ export const DashboardHeader = ({ model }: DashboardHeaderProps) => {
   const { language, setLanguage, t } = useDashboardLanguage();
   const summaryStats = [
     [
-      "brokerExecutionEnabled",
+      "Broker execution",
       t(formatBoolean(model.status.brokerExecutionEnabled)),
       "text-[#f6465d]",
     ],
-    ["liveGate", t(model.controlStatus.liveTradingGate.mode), "text-[#f6465d]"],
     [
-      "Intent",
-      EXAMPLE_REQUEST.executionIntent ?? "evaluate_only",
-      "text-white",
+      "Live gate",
+      t(model.controlStatus.liveTradingGate.mode),
+      "text-[#f6465d]",
+    ],
+    [
+      "Kill switch",
+      t(model.controlStatus.killSwitch.tripped ? "tripped" : "armed"),
+      model.controlStatus.killSwitch.tripped
+        ? "text-[#f6465d]"
+        : "text-[#0ecb81]",
     ],
     ["Blockers", String(model.controlStatus.blockers.length), "text-[#fcd535]"],
   ];
@@ -90,25 +95,30 @@ const LanguageToggle = ({
   setLanguage: (language: DashboardLanguage) => void;
   label: string;
 }) => (
-  <div
-    aria-label={label}
-    className="inline-flex rounded-md border border-[#2b3139] bg-[#0b0e11] p-0.5"
-    role="group"
-  >
-    {(["en", "ko"] as const).map((option) => (
-      <button
-        key={option}
-        type="button"
-        aria-pressed={language === option}
-        onClick={() => setLanguage(option)}
-        className={`h-7 rounded px-2.5 text-[11px] font-bold uppercase transition ${
-          language === option
-            ? "bg-[#fcd535] text-[#181a20]"
-            : "text-[#929aa5] hover:bg-[#1e2329] hover:text-white"
-        }`}
-      >
-        {option === "en" ? "EN" : "KR"}
-      </button>
-    ))}
+  <div className="inline-flex items-center gap-2">
+    <span className="text-[11px] font-bold uppercase text-[#707a8a]">
+      {label}
+    </span>
+    <div
+      aria-label={label}
+      className="inline-flex rounded-md border border-[#2b3139] bg-[#0b0e11] p-0.5"
+      role="group"
+    >
+      {(["en", "ko"] as const).map((option) => (
+        <button
+          key={option}
+          type="button"
+          aria-pressed={language === option}
+          onClick={() => setLanguage(option)}
+          className={`h-7 rounded px-2.5 text-[11px] font-bold uppercase transition ${
+            language === option
+              ? "bg-[#fcd535] text-[#181a20]"
+              : "text-[#929aa5] hover:bg-[#1e2329] hover:text-white"
+          }`}
+        >
+          {option === "en" ? "EN" : "KR"}
+        </button>
+      ))}
+    </div>
   </div>
 );

@@ -74,6 +74,7 @@ import {
   ImportBrokerFillRequest,
   ImportBrokerSnapshotRequest,
   ImportMarketDataBarsRequest,
+  KillSwitchStatus,
   MarketDataBarsImportResponse,
   PaperExecuteProposalRequest,
   PromotePaperAccountRequest,
@@ -85,6 +86,7 @@ import {
   RunRecoveryProposalResponse,
   SeedPaperAccountRequest,
   TickAutonomousRunScheduleRequest,
+  TripKillSwitchRequest,
   UpdateExecutionControlRequest,
 } from './control-plane.types';
 
@@ -191,7 +193,8 @@ export class ControlPlaneService {
       this.brokerSnapshotRepository.find(),
       this.brokerFillRepository.find(),
     ]);
-    const liveTradingGate = this.buildLiveTradingGateStatus();
+    const killSwitch = this.buildKillSwitchStatus(executionControlState);
+    const liveTradingGate = this.buildLiveTradingGateStatus(killSwitch);
     const actionStatus = buildControlPlaneActionStatus({
       checkedAt: new Date().toISOString(),
       executionControlState,
@@ -205,6 +208,7 @@ export class ControlPlaneService {
       brokerExecutionEnabled: false,
       liveTradingReady: false,
       liveTradingGate,
+      killSwitch,
       actionStatus,
       readiness: [
         {
@@ -247,7 +251,7 @@ export class ControlPlaneService {
         {
           key: 'paperExecutionReady',
           ready: false,
-          detail: `Paper simulator ledger registered with ${paperOrderPlanCount} paper order plans; broker-grade readiness is blocked by production signing custody, production-verified broker polling, and kill switch runtime`,
+          detail: `Paper simulator ledger registered with ${paperOrderPlanCount} paper order plans; broker-grade readiness is blocked by production signing custody and production-verified broker polling`,
         },
         {
           key: 'paperSimulationLedgerReady',
@@ -274,6 +278,11 @@ export class ControlPlaneService {
           key: 'executionControlReady',
           ready: true,
           detail: `Execution control state is ${executionControlState.state}`,
+        },
+        {
+          key: 'killSwitchRuntimeReady',
+          ready: true,
+          detail: killSwitch.detail,
         },
         {
           key: 'brokerReadOnlyReady',
@@ -307,18 +316,42 @@ export class ControlPlaneService {
         'No verified Toss read-only adapter schema or credentials',
         'No production signed order-plan workflow',
         'No production-verified broker polling loop',
-        'No production kill switch runtime',
         ...liveTradingGate.blockers,
       ],
     };
   }
 
-  private buildLiveTradingGateStatus(): ControlPlaneStatus['liveTradingGate'] {
+  private buildKillSwitchStatus(
+    executionControlState: ExecutionControlState,
+  ): KillSwitchStatus {
+    const tripped = executionControlState.state === 'halted';
+
+    return {
+      armed: true,
+      tripped,
+      runtimeReady: true,
+      executionControlState: executionControlState.state,
+      lastEventId: executionControlState.id,
+      lastActor: executionControlState.actor,
+      lastReason: executionControlState.reason,
+      lastChangedAt:
+        executionControlState.createdAt?.toISOString?.() ??
+        new Date().toISOString(),
+      brokerExecutionEnabled: false,
+      liveTradingEnabled: false,
+      detail: tripped
+        ? `Kill switch is tripped by ${executionControlState.actor}: ${executionControlState.reason}`
+        : `Kill switch is armed; execution control is ${executionControlState.state}.`,
+    };
+  }
+
+  private buildLiveTradingGateStatus(
+    killSwitch: KillSwitchStatus,
+  ): ControlPlaneStatus['liveTradingGate'] {
     const blockers = [
       'Live order endpoint is not implemented',
       'Broker write access is disabled',
       'Production credential custody is not wired',
-      'Production kill switch runtime is not ready',
       'Broker fill polling is not automated or verified with a live provider',
     ];
 
@@ -328,7 +361,7 @@ export class ControlPlaneService {
       checkedAt: new Date().toISOString(),
       orderEndpointImplemented: false,
       brokerWriteEnabled: false,
-      killSwitchReady: false,
+      killSwitchReady: killSwitch.runtimeReady,
       credentialCustodyRequired: true,
       blockers,
       detail: `Live trading gate is disabled: ${blockers.join('; ')}.`,
@@ -1477,6 +1510,28 @@ export class ControlPlaneService {
         reason: request.reason,
       }),
     );
+  }
+
+  async getKillSwitchStatus(): Promise<KillSwitchStatus> {
+    return this.buildKillSwitchStatus(await this.getExecutionControlState());
+  }
+
+  async tripKillSwitch(
+    request: TripKillSwitchRequest,
+  ): Promise<KillSwitchStatus> {
+    if (!request.reason?.trim()) {
+      throw new BadRequestException('Kill switch trip requires a reason');
+    }
+
+    const state = await this.executionControlRepository.save(
+      this.executionControlRepository.create({
+        state: 'halted',
+        actor: request.actor?.trim() || 'human:kill-switch',
+        reason: `Kill switch trip: ${request.reason.trim()}`,
+      }),
+    );
+
+    return this.buildKillSwitchStatus(state);
   }
 
   async paperExecuteProposal(
@@ -4615,6 +4670,16 @@ export class ControlPlaneService {
 
     if (schedule.nextRunAt.getTime() > now.getTime() && !force) {
       throw new BadRequestException('Autonomous schedule is not due yet');
+    }
+
+    const executionControl = await this.getExecutionControlState();
+    if (
+      executionControl.state === 'paused' ||
+      executionControl.state === 'halted'
+    ) {
+      throw new BadRequestException(
+        `Execution control is ${executionControl.state}; schedule tick was not consumed`,
+      );
     }
 
     const leaseTtlSeconds = request.leaseTtlSeconds ?? 120;

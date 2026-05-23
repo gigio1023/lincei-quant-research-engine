@@ -363,6 +363,25 @@ export interface UpdateExecutionControlRequest {
   reason: string;
 }
 
+export interface TripKillSwitchRequest {
+  actor?: string;
+  reason: string;
+}
+
+export interface KillSwitchStatus {
+  armed: true;
+  tripped: boolean;
+  runtimeReady: true;
+  executionControlState: ExecutionControlStateValue;
+  lastEventId?: number;
+  lastActor: string;
+  lastReason: string;
+  lastChangedAt: string;
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+  detail: string;
+}
+
 export interface CreateAutonomousRunScheduleRequest {
   budgetEnvelopeId: number;
   objective: string;
@@ -436,6 +455,7 @@ export interface ControlPlaneStatus {
   brokerExecutionEnabled: false;
   liveTradingReady: false;
   liveTradingGate: LiveTradingGateStatus;
+  killSwitch: KillSwitchStatus;
   actionStatus: ControlPlaneActionStatus;
   readiness: Array<{
     key: string;
@@ -451,7 +471,7 @@ export interface LiveTradingGateStatus {
   checkedAt: string;
   orderEndpointImplemented: false;
   brokerWriteEnabled: false;
-  killSwitchReady: false;
+  killSwitchReady: boolean;
   credentialCustodyRequired: true;
   blockers: string[];
   detail: string;

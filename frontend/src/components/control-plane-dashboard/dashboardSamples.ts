@@ -354,7 +354,7 @@ export const DOCUMENTED_BROKER_ADAPTER_STATUS: BrokerAdapterStatus = {
       key: "orderPlacement",
       status: "blocked",
       detail:
-        "Live order placement is intentionally blocked until read-only reconciliation, sandbox parity, approval custody, and kill switch runtime exist.",
+        "Live order placement is intentionally blocked until read-only reconciliation, sandbox parity, approval custody, and broker-order emergency controls exist.",
     },
     {
       key: "orderCancelReplace",
@@ -377,7 +377,7 @@ export const DOCUMENTED_BROKER_ADAPTER_STATUS: BrokerAdapterStatus = {
       key: "killSwitch",
       status: "blocked",
       detail:
-        "Production kill switch runtime is not implemented for broker orders.",
+        "Runtime stop exists for autonomous advancement; broker-order cancel/flatten controls are not implemented.",
     },
   ],
   blockers: [
@@ -386,7 +386,7 @@ export const DOCUMENTED_BROKER_ADAPTER_STATUS: BrokerAdapterStatus = {
     "openApiSchema: Exact Toss OpenAPI schema is not verified.",
     "paperOrSandbox: No Toss sandbox or paper environment is verified.",
     "orderPlacement: Live order placement is intentionally blocked.",
-    "killSwitch: Production kill switch runtime is not implemented for broker orders.",
+    "killSwitch: Broker-order cancel/flatten controls are not implemented.",
   ],
   brokerExecutionEnabled: false,
 };

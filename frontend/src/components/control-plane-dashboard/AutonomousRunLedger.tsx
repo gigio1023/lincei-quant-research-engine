@@ -43,6 +43,9 @@ export const AutonomousRunLedger = ({ model }: AutonomousRunLedgerProps) => {
   const run = model.latestRun;
   const schedule = model.latestRunSchedule;
   const worker = model.visibleRunScheduleWorkerStatus;
+  const advancementBlocked =
+    model.controlStatus.killSwitch.tripped ||
+    ["paused", "halted"].includes(model.visibleExecutionControl.state);
   const workerNow = new Date(worker.currentTime).getTime();
   const dueScheduleCount = model.visibleRunSchedules.filter(
     (item) => item.enabled && new Date(item.nextRunAt).getTime() <= workerNow,
@@ -92,6 +95,7 @@ export const AutonomousRunLedger = ({ model }: AutonomousRunLedgerProps) => {
             onClick={model.tickLatestSchedule}
             disabled={
               !schedule ||
+              advancementBlocked ||
               model.loading.runSchedules ||
               model.tickingSchedule ||
               model.sources.runSchedules !== "Live run schedules"
@@ -105,6 +109,7 @@ export const AutonomousRunLedger = ({ model }: AutonomousRunLedgerProps) => {
             onClick={model.advanceLatestRun}
             disabled={
               !run ||
+              advancementBlocked ||
               model.loading.runs ||
               model.advancingRun ||
               model.sources.runs !== "Live autonomous runs"
@@ -130,6 +135,11 @@ export const AutonomousRunLedger = ({ model }: AutonomousRunLedgerProps) => {
         {model.errors.runScheduleWorker && (
           <div className="mb-3 rounded-lg border border-[#f0b90b]/30 bg-[#f0b90b]/10 p-3 text-xs font-semibold text-[#fcd535]">
             {model.errors.runScheduleWorker}
+          </div>
+        )}
+        {advancementBlocked && (
+          <div className="mb-3 rounded-lg border border-[#f6465d]/30 bg-[#f6465d]/10 p-3 text-xs font-semibold text-[#f6465d]">
+            {t("Runtime stop, not broker cancel.")}
           </div>
         )}
 

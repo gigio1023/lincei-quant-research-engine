@@ -696,6 +696,7 @@ export interface ControlPlaneStatus {
   brokerExecutionEnabled: false;
   liveTradingReady: false;
   liveTradingGate: LiveTradingGateStatus;
+  killSwitch: KillSwitchStatus;
   actionStatus: ControlPlaneActionStatus;
   readiness: ControlPlaneReadinessItem[];
   blockers: string[];
@@ -748,10 +749,29 @@ export interface LiveTradingGateStatus {
   checkedAt: string;
   orderEndpointImplemented: false;
   brokerWriteEnabled: false;
-  killSwitchReady: false;
+  killSwitchReady: boolean;
   credentialCustodyRequired: true;
   blockers: string[];
   detail: string;
+}
+
+export interface KillSwitchStatus {
+  armed: true;
+  tripped: boolean;
+  runtimeReady: true;
+  executionControlState: ExecutionControlState["state"];
+  lastEventId?: number | string;
+  lastActor: string;
+  lastReason: string;
+  lastChangedAt: string;
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+  detail: string;
+}
+
+export interface TripKillSwitchRequest {
+  actor?: string;
+  reason: string;
 }
 
 export type BudgetEnvelopeStatus = "draft" | "active" | "paused" | "archived";
