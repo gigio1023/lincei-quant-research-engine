@@ -28,6 +28,9 @@ import { MockBrokerAdapter } from './broker/mock-broker.adapter';
 import { TossWriteBrokerAdapter } from './broker/toss-write-broker.adapter';
 import { V1PilotOrchestratorService } from './v1-pilot-orchestrator.service';
 import { V1PilotController } from './v1-pilot.controller';
+import { MlModelRegistryService } from './ml/ml-model-registry.service';
+import { MlPythonRunner } from './ml/ml-python.runner';
+import { MlBaselineInferenceService } from './ml/ml-baseline-inference.service';
 
 @Module({
   imports: [
@@ -49,6 +52,9 @@ import { V1PilotController } from './v1-pilot.controller';
   providers: [
     FeatureSnapshotService,
     NumericAlphaService,
+    MlModelRegistryService,
+    MlPythonRunner,
+    MlBaselineInferenceService,
     LlmAlphaService,
     MetaAlphaService,
     LeanLocalSimulatorService,

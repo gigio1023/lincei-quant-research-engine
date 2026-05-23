@@ -382,6 +382,7 @@ export const controlPlaneApi = {
   },
 };
 
+/** V1 live-pilot observability — read-only; execution stays in CLI/scripts. */
 export const v1PilotApi = {
   getStatus: async (): Promise<{
     leanRun: { runId: string; status: string } | null;

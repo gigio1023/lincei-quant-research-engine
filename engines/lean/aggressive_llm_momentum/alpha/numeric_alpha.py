@@ -1,7 +1,14 @@
-"""Reproducible numeric momentum features — fast path without LLM network calls."""
+"""
+Numeric alpha for LEAN backtests.
+
+Prefers NestJS-exported LightGBM scores (ml_predictions.json). Falls back to
+in-algorithm rank features only when that file is missing (degraded replay).
+"""
 
 from __future__ import annotations
 
+import json
+import os
 from typing import TYPE_CHECKING
 
 from AlgorithmImports import *
@@ -123,10 +130,29 @@ class LinceiNumericAlphaModel(AlphaModel):
         drawdowns = (closes / rolling_max) - 1.0
         return float(drawdowns.min())
 
+    def _load_ml_scores(self) -> dict[str, float]:
+        path = os.path.join("input", "ml_predictions.json")
+        if not os.path.exists(path):
+            return {}
+        with open(path, encoding="utf-8") as handle:
+            payload = json.load(handle)
+        return {
+            item["symbol"]: float(item["score"])
+            for item in payload.get("predictions", [])
+            if "symbol" in item and "score" in item
+        }
+
     def _score_universe(
         self,
         feature_rows: list[tuple[Symbol, dict[str, float]]],
     ) -> dict[Symbol, float]:
+        ml_scores = self._load_ml_scores()
+        if ml_scores:
+            return {
+                symbol: ml_scores.get(str(symbol.Value), 0.5)
+                for symbol, _ in feature_rows
+            }
+
         rank_inputs = {
             "return_63d": [row[1]["return_63d"] for row in feature_rows],
             "return_126d": [row[1]["return_126d"] for row in feature_rows],

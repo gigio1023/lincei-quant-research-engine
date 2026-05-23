@@ -22,6 +22,11 @@ frontend/build/
 # V1 pilot generated artifacts
 artifacts/
 engines/lean/aggressive_llm_momentum/input/meta_decisions.json
+engines/lean/aggressive_llm_momentum/input/ml_predictions.json
+artifacts/model-registry/
+.venv-ml/
+**/__pycache__/
+*.pyc
 backend/tmp-test-lean-runs/
 
 # Coverage reports

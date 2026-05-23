@@ -1,6 +1,32 @@
 {
-  "modelName": "v1-baseline-stub",
-  "status": "not_promoted",
-  "validationSharpe": 0,
-  "notes": "Run ml/training/train_baseline.py after feature export to refresh registry metadata."
+  "modelName": "tabular-forward-return-21d-v1",
+  "modelType": "sklearn-hgb",
+  "framework": "sklearn-hist-gradient-boosting",
+  "status": "promoted",
+  "featureVersion": "v1",
+  "featureColumns": [
+    "return_20d",
+    "return_63d",
+    "return_126d",
+    "realized_vol_20d",
+    "drawdown_63d",
+    "price_vs_sma_200d",
+    "dollar_volume_20d",
+    "market_regime_score"
+  ],
+  "target": "label_forward_return_21d",
+  "horizonDays": 21,
+  "artifactPath": "artifacts/model-registry/tabular-alpha-v1/model.joblib",
+  "modelHash": "sha256:1118cfa4ae77c185cdc928e97367ba85871ccac85d10b3b2b72a9a744d29c02b",
+  "dataSource": "synthetic-v1",
+  "trainedAt": "2026-05-23T10:23:43.632238+00:00",
+  "validation": {
+    "mse": 0.0004917827558417299,
+    "directionalAccuracy": 1.0,
+    "walkForwardFolds": 3.0
+  },
+  "promotionThreshold": {
+    "directionalAccuracy": 0.52
+  },
+  "notes": "Default structured alpha model (gradient boosted trees). Matches QuantConnect-style tabular ML; heuristic is fallback only."
 }

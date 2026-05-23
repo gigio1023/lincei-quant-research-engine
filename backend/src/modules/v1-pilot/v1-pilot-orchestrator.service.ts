@@ -18,6 +18,8 @@ import { LeanRunImportService } from './lean/lean-run-import.service';
 import { LeanPaperBridgeService } from './paper/lean-paper-bridge.service';
 import { LivePreflightService } from './live/live-preflight.service';
 import { LivePilot10UsdService } from './live/live-pilot-10usd.service';
+import { MlPythonRunner } from './ml/ml-python.runner';
+import { MlModelRegistryService } from './ml/ml-model-registry.service';
 
 @Injectable()
 export class V1PilotOrchestratorService {
@@ -31,7 +33,21 @@ export class V1PilotOrchestratorService {
     private readonly leanPaperBridgeService: LeanPaperBridgeService,
     private readonly livePreflightService: LivePreflightService,
     private readonly livePilot10UsdService: LivePilot10UsdService,
+    private readonly mlPythonRunner: MlPythonRunner,
+    private readonly mlModelRegistryService: MlModelRegistryService,
   ) {}
+
+  async trainMlBaseline(): Promise<Record<string, unknown>> {
+    return this.mlPythonRunner.runTraining();
+  }
+
+  getMlModelStatus(): { status: string; modelName?: string } {
+    const registry = this.mlModelRegistryService.getRegistry();
+    if (!registry) {
+      return { status: 'missing' };
+    }
+    return { status: registry.status, modelName: registry.modelName };
+  }
 
   async runAlphaCycle(): Promise<{
     featureCount: number;

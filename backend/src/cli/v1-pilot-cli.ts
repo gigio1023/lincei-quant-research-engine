@@ -29,6 +29,11 @@ async function bootstrap(): Promise<void> {
         console.log(JSON.stringify({ runId: imported.runId, status: imported.status }, null, 2));
         break;
       }
+      case 'train-ml-baseline': {
+        const result = await orchestrator.trainMlBaseline();
+        console.log(JSON.stringify(result, null, 2));
+        break;
+      }
       case 'run-alpha-cycle': {
         const result = await orchestrator.runAlphaCycle();
         console.log(JSON.stringify(result, null, 2));

@@ -1,65 +1,70 @@
 /**
- * Fast-path numeric alpha (no network). Used for backtest replay and de-risking when LLM is unavailable.
+ * Structured (non-LLM) alpha: promoted LightGBM regressor by default, heuristic fallback only when ML is unavailable.
  */
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AlphaDecision } from '../../../entities/alpha-decision.entity';
 import { AlphaDecisionContract, FeatureSnapshotContract } from '../contracts/v1-pilot.contracts';
 import { validateAlphaDecision } from '../contracts/v1-pilot.validators';
 import { hashObject } from '../../../shared/hash.util';
+import { MlBaselineInferenceService } from '../ml/ml-baseline-inference.service';
+import { MlPrediction } from '../ml/ml-model-registry.types';
+import { scoreSnapshotHeuristic } from './heuristic-numeric.scorer';
+
+const UP_THRESHOLD = 0.65;
+const FLAT_THRESHOLD = 0.35;
 
 @Injectable()
 export class NumericAlphaService {
+  private readonly logger = new Logger(NumericAlphaService.name);
+
   constructor(
     @InjectRepository(AlphaDecision)
     private readonly alphaRepository: Repository<AlphaDecision>,
+    private readonly mlInference: MlBaselineInferenceService,
   ) {}
 
   async buildDecisions(
     snapshots: FeatureSnapshotContract[],
   ): Promise<AlphaDecisionContract[]> {
-    const ranked = snapshots
-      .map((snapshot) => ({
-        snapshot,
-        score: this.scoreSnapshot(snapshot),
-      }))
-      .sort((left, right) => right.score - left.score);
+    const mlPredictions = this.mlInference.predict(snapshots);
+    if (mlPredictions.length > 0) {
+      return this.buildFromMl(snapshots, mlPredictions);
+    }
+    this.logger.warn(
+      'No promoted LightGBM model or inference failed; using heuristic fallback (degraded mode).',
+    );
+    return this.buildFromHeuristic(snapshots);
+  }
 
+  private async buildFromMl(
+    snapshots: FeatureSnapshotContract[],
+    predictions: MlPrediction[],
+  ): Promise<AlphaDecisionContract[]> {
+    const predictionBySymbol = new Map(predictions.map((item) => [item.symbol, item]));
     const decisions: AlphaDecisionContract[] = [];
-    ranked.forEach((entry, index) => {
-      const direction =
-        entry.score >= 0.65 ? 'up' : entry.score <= 0.35 ? 'flat' : 'flat';
-      const confidence = Math.min(
-        1,
-        Math.max(0.2, Math.abs(entry.score - 0.5) * 2),
-      );
-      const decision: AlphaDecisionContract = {
-        id: `numeric-${entry.snapshot.symbol}-${entry.snapshot.asOf.slice(0, 10)}`,
-        source: 'numeric',
-        symbol: entry.snapshot.symbol,
-        asOf: entry.snapshot.asOf,
-        horizonDays: 21,
+
+    snapshots.forEach((snapshot) => {
+      const prediction = predictionBySymbol.get(snapshot.symbol);
+      if (!prediction) {
+        return;
+      }
+      const score = prediction.score;
+      const direction = score >= UP_THRESHOLD ? 'up' : score <= FLAT_THRESHOLD ? 'flat' : 'flat';
+      const confidence = Math.min(1, Math.max(0.2, Math.abs(score - 0.5) * 2));
+      const decision = this.buildDecision({
+        snapshot,
+        score,
         direction,
-        expectedReturnBps: Number(((entry.score - 0.5) * 400).toFixed(2)),
         confidence,
-        conviction: confidence > 0.7 ? 'high' : confidence > 0.5 ? 'medium' : 'low',
-        maxPositionPct: direction === 'up' ? 0.35 : 0,
-        featureSnapshotHash: entry.snapshot.inputHash,
-        sourceModels: ['LinceiNumericAlphaModel'],
-        evidenceRefs: entry.snapshot.sourceRefs,
+        sourceModels: ['tabular-forward-return-21d-v1'],
         thesis:
           direction === 'up'
-            ? `Numeric momentum score ${entry.score.toFixed(3)} supports long exposure.`
+            ? `LightGBM 21d forward-return score ${score.toFixed(3)} (raw ${prediction.rawScore.toFixed(4)}).`
             : undefined,
-        counterThesis:
-          direction === 'up'
-            ? 'Trend reversal or liquidity shock could invalidate the signal.'
-            : undefined,
-        abstainReason: direction === 'flat' ? 'Numeric score in neutral band.' : undefined,
-        inputHash: entry.snapshot.inputHash,
-        outputHash: hashObject({ symbol: entry.snapshot.symbol, score: entry.score, index }),
-      };
+        outputExtra: { rawScore: prediction.rawScore, expectedReturnBps: prediction.expectedReturnBps },
+      });
       if (direction !== 'flat') {
         validateAlphaDecision(decision);
       }
@@ -67,25 +72,81 @@ export class NumericAlphaService {
       void this.alphaRepository.save(this.alphaRepository.create(decision));
     });
 
+    return decisions.sort((left, right) => right.confidence - left.confidence);
+  }
+
+  private async buildFromHeuristic(
+    snapshots: FeatureSnapshotContract[],
+  ): Promise<AlphaDecisionContract[]> {
+    const ranked = snapshots
+      .map((snapshot) => ({
+        snapshot,
+        score: scoreSnapshotHeuristic(snapshot),
+      }))
+      .sort((left, right) => right.score - left.score);
+
+    const decisions: AlphaDecisionContract[] = [];
+    ranked.forEach((entry) => {
+      const direction =
+        entry.score >= UP_THRESHOLD ? 'up' : entry.score <= FLAT_THRESHOLD ? 'flat' : 'flat';
+      const confidence = Math.min(1, Math.max(0.2, Math.abs(entry.score - 0.5) * 2));
+      const decision = this.buildDecision({
+        snapshot: entry.snapshot,
+        score: entry.score,
+        direction,
+        confidence,
+        sourceModels: ['heuristic-fallback-v1'],
+        thesis:
+          direction === 'up'
+            ? `Heuristic momentum score ${entry.score.toFixed(3)} (ML unavailable).`
+            : undefined,
+        outputExtra: { degraded: true },
+      });
+      if (direction !== 'flat') {
+        validateAlphaDecision(decision);
+      }
+      decisions.push(decision);
+      void this.alphaRepository.save(this.alphaRepository.create(decision));
+    });
     return decisions;
   }
 
-  private scoreSnapshot(snapshot: FeatureSnapshotContract): number {
-    const features = snapshot.features;
-    const return63 = Number(features.return_63d ?? 0);
-    const return126 = Number(features.return_126d ?? 0);
-    const vol = Number(features.realized_vol_20d ?? 0.2);
-    const drawdown = Number(features.drawdown_63d ?? 0);
-    const trend = Number(features.price_vs_sma_200d ?? 1) > 1 ? 0.08 : -0.04;
-    const liquidity =
-      Number(features.dollar_volume_20d ?? 0) < 500_000 ? -0.08 : 0.04;
-    const raw =
-      return63 * 0.35 +
-      return126 * 0.25 +
-      trend +
-      liquidity -
-      vol * 0.2 +
-      drawdown * 0.15;
-    return Math.min(1, Math.max(0, 0.5 + raw));
+  private buildDecision(input: {
+    snapshot: FeatureSnapshotContract;
+    score: number;
+    direction: AlphaDecisionContract['direction'];
+    confidence: number;
+    sourceModels: string[];
+    thesis?: string;
+    outputExtra: Record<string, unknown>;
+  }): AlphaDecisionContract {
+    return {
+      id: `numeric-${input.snapshot.symbol}-${input.snapshot.asOf.slice(0, 10)}`,
+      source: 'numeric',
+      symbol: input.snapshot.symbol,
+      asOf: input.snapshot.asOf,
+      horizonDays: 21,
+      direction: input.direction,
+      expectedReturnBps: Number(((input.score - 0.5) * 400).toFixed(2)),
+      confidence: input.confidence,
+      conviction: input.confidence > 0.7 ? 'high' : input.confidence > 0.5 ? 'medium' : 'low',
+      maxPositionPct: input.direction === 'up' ? 0.35 : 0,
+      featureSnapshotHash: input.snapshot.inputHash,
+      sourceModels: input.sourceModels,
+      evidenceRefs: [...input.snapshot.sourceRefs, 'ml/registry/model_registry.json'],
+      thesis: input.thesis,
+      counterThesis:
+        input.direction === 'up'
+          ? 'Model or regime shift can invalidate the forward-return estimate.'
+          : undefined,
+      abstainReason: input.direction === 'flat' ? 'Score in neutral band.' : undefined,
+      inputHash: input.snapshot.inputHash,
+      outputHash: hashObject({
+        symbol: input.snapshot.symbol,
+        score: input.score,
+        sourceModels: input.sourceModels,
+        ...input.outputExtra,
+      }),
+    };
   }
 }

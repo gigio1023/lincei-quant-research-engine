@@ -66,6 +66,7 @@ This repository follows practices aligned with [Google's code review guidance](h
 
 ### Finance-specific (V1 live pilot)
 
+- Structured (non-LLM) alpha defaults to a **promoted gradient-boosted tabular model** (LightGBM when available, else sklearn `HistGradientBoostingRegressor`). Heuristic scoring is degraded fallback only.
 - State maximum notional caps and "blocked beats ready" wherever live or broker write paths are implemented.
 - Never document secrets, keys, or raw account identifiers in comments; refer to "credential env" or "hashed ref" instead.
 - When mock or simulator paths exist, comment that they prove plumbing only and must not be described as production broker readiness.
