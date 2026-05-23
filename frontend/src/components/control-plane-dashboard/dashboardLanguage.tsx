@@ -78,6 +78,7 @@ const KOREAN_COPY: Record<string, string> = {
   partial: "부분",
   disabled: "비활성",
   enabled: "활성",
+  reducing: "축소 중",
   off: "꺼짐",
   open: "미해결",
   verified: "검증됨",
@@ -176,6 +177,15 @@ const KOREAN_COPY: Record<string, string> = {
   Timeline: "타임라인",
   "Continue monitoring; live trading remains disabled.":
     "계속 모니터링하세요. 실거래는 비활성 상태입니다.",
+  "Generate SELL-only recovery proposal": "매도 전용 회수 제안 생성",
+  "Evaluate recovery proposal risk": "회수 제안 리스크 평가",
+  "Wait for signed recovery paper approval before execution":
+    "실행 전에 서명된 회수 모의 승인 대기",
+  "Review recovery risk decision before paper execution":
+    "모의 실행 전에 회수 리스크 판단 검토",
+  "Reconcile recovery paper order plan and broker read-only snapshot":
+    "회수 모의 주문 계획과 브로커 읽기 전용 스냅샷 대사",
+  "Execution control is reducing": "실행 제어가 축소 상태입니다",
 
   "System Readiness Matrix": "시스템 준비 매트릭스",
   "gates ready": "게이트 준비",

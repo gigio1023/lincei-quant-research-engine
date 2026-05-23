@@ -4637,6 +4637,11 @@ export class ControlPlaneService {
       }
 
       run.budgetEnvelopeId = budget.id;
+
+      if (executionControl.state === 'reducing') {
+        return this.advanceReducingRun(run, budget, request);
+      }
+
       run.status = 'researching';
       run.currentStage = 'research_running';
       run.lastAction = `Selected budget envelope ${budget.id}`;
@@ -4767,6 +4772,89 @@ export class ControlPlaneService {
       this.appendRunTimeline(run, 'failed', run.error);
       return this.runRepository.save(run);
     }
+  }
+
+  private async advanceReducingRun(
+    run: AutonomousRun,
+    budget: BudgetEnvelope,
+    request: AdvanceAutonomousRunRequest,
+  ): Promise<AutonomousRun> {
+    run.status = 'researching';
+    run.currentStage = 'recovery_research_running';
+    run.lastAction = 'Execution control is reducing';
+    run.nextAction = 'Generate SELL-only recovery proposal';
+    this.appendRunTimeline(
+      run,
+      'researching',
+      `Execution control is reducing; selected budget ${budget.name} (${budget.currency} ${budget.totalBudget}).`,
+    );
+    await this.runRepository.save(run);
+
+    const recovery = await this.runRecoveryProposal({
+      budgetEnvelopeId: budget.id,
+      objective: run.objective,
+    });
+
+    run.researchRunId = recovery.researchRun.id;
+    this.appendRunTimeline(
+      run,
+      'researching',
+      `Recovery research run ${recovery.researchRun.id} generated from active paper positions.`,
+    );
+
+    run.proposalId = recovery.proposal.id;
+    run.status = 'proposed';
+    run.currentStage = 'recovery_proposal_generated';
+    run.lastAction = `Generated recovery proposal ${recovery.proposal.id}`;
+    run.nextAction = 'Evaluate recovery proposal risk';
+    this.appendRunTimeline(
+      run,
+      'proposed',
+      `Recovery proposal ${recovery.proposal.id} generated with ${recovery.proposal.orders.length} SELL order(s).`,
+    );
+    await this.runRepository.save(run);
+
+    run.riskEvaluationId = recovery.riskEvaluation.id;
+    run.status = 'risk_checked';
+    run.currentStage = 'recovery_risk_evaluated';
+    run.lastAction = `Recovery risk evaluation ${recovery.riskEvaluation.id} returned ${recovery.riskEvaluation.decision}`;
+    run.nextAction =
+      recovery.riskEvaluation.decision === 'ALLOW'
+        ? 'Wait for signed recovery paper approval before execution'
+        : 'Review recovery risk decision before paper execution';
+    this.appendRunTimeline(
+      run,
+      'risk_checked',
+      `Recovery risk evaluation ${recovery.riskEvaluation.id} returned ${recovery.riskEvaluation.decision}.`,
+    );
+
+    const paperPlan =
+      request.attemptPaperExecution === false
+        ? null
+        : await this.tryPaperExecutionForRun(recovery.proposal);
+
+    if (paperPlan) {
+      run.paperOrderPlanId = paperPlan.id;
+      run.status =
+        paperPlan.status === 'blocked' ? 'risk_checked' : 'paper_ready';
+      run.currentStage =
+        paperPlan.status === 'blocked'
+          ? 'recovery_paper_execution_blocked'
+          : 'recovery_paper_execution_recorded';
+      run.lastAction = `Recovery paper order plan ${paperPlan.id} ${paperPlan.status}`;
+      run.nextAction =
+        paperPlan.status === 'blocked'
+          ? paperPlan.blockedReasons.join('; ')
+          : 'Reconcile recovery paper order plan and broker read-only snapshot';
+      this.appendRunTimeline(
+        run,
+        run.status,
+        `Recovery paper order plan ${paperPlan.id} ${paperPlan.status}.`,
+      );
+    }
+
+    run.error = undefined;
+    return this.runRepository.save(run);
   }
 
   private async findBudgetForRun(

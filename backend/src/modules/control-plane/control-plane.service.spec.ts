@@ -2394,6 +2394,81 @@ describe('ControlPlaneService', () => {
     expect(paperOrderPlans).toHaveLength(0);
   });
 
+  it('advances a reducing autonomous run into a SELL-only recovery proposal', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Reducing autonomous budget',
+      totalBudget: 10_000_000,
+    });
+    const account = await service.seedPaperAccount({
+      budgetEnvelopeId: budget.id,
+      cash: 8_000_000,
+      positions: [
+        {
+          symbol: '005930',
+          assetClass: 'domestic_stock',
+          marketValue: 1_500_000,
+          weightPct: 15,
+          quantity: 30,
+          averagePrice: 50_000,
+          costBasis: 1_500_000,
+          realizedPnl: 0,
+        },
+      ],
+      actor: 'operator',
+      reason: 'Seed account before reducing automation.',
+      idempotencyKey: 'reducing-autonomous-seed',
+    });
+    await service.promotePaperAccount(account.id, {
+      actor: 'operator',
+      reason: 'Promote account before reducing automation.',
+      idempotencyKey: 'reducing-autonomous-promote',
+      expectedEventHash: paperAccountEvents[0].eventHash,
+    });
+    await service.updateExecutionControlState({
+      state: 'reducing',
+      actor: 'operator',
+      reason: 'Reduce simulated exposure.',
+    });
+    const run = await service.createRun({
+      objective: 'Automatically reduce paper exposure',
+      budgetEnvelopeId: budget.id,
+    });
+
+    const advanced = await service.advanceRun(run.id, {
+      attemptPaperExecution: false,
+    });
+
+    expect(advanced.status).toBe('risk_checked');
+    expect(advanced.currentStage).toBe('recovery_risk_evaluated');
+    expect(advanced.researchRunId).toBe(researchRuns[0].id);
+    expect(advanced.proposalId).toBe(proposals[0].id);
+    expect(advanced.riskEvaluationId).toBe(evaluations[0].id);
+    expect(researchRuns[0]).toEqual(
+      expect.objectContaining({
+        strategyFamily: 'paper_recovery',
+      }),
+    );
+    expect(proposals[0]).toEqual(
+      expect.objectContaining({
+        ruleId: 'paper-account-recovery-sell-only-v1',
+        brokerExecutionEnabled: false,
+      }),
+    );
+    expect(proposals[0].orders).toEqual([
+      expect.objectContaining({
+        symbol: '005930',
+        side: 'SELL',
+        notional: 1_000_000,
+        targetPositionPct: 0,
+      }),
+    ]);
+    expect(paperOrderPlans).toHaveLength(0);
+    expect(advanced.timeline.map((event) => event.stage)).toEqual(
+      expect.arrayContaining(['researching', 'proposed', 'risk_checked']),
+    );
+    expect(advanced.nextAction).toContain('recovery');
+  });
+
   it('continues an approved autonomous run into one paper plan', async () => {
     const budget = await service.createBudgetEnvelope({
       name: 'Paper autonomous budget',

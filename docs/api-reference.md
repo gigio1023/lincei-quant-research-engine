@@ -321,7 +321,8 @@ all broker/live execution flags remain `false`.
   - zero and negative paper positions are ignored;
   - repeated calls for the same paper-account projection, budget, max position count, and max order notional replay the existing recovery research run/proposal/risk evaluation through a `paper-recovery-state:*` evidence ref;
   - a paper-mode budget will usually return `REVIEW` until a signed order-plan approval is created through `POST /control-plane/proposals/:id/order-plan-approvals`;
-  - a changed paper-account projection after paper execution produces a new recovery state and can create the next reducing proposal.
+  - a changed paper-account projection after paper execution produces a new recovery state and can create the next reducing proposal;
+  - autonomous run advancement uses this same recovery path when execution control is `reducing`, instead of generating a new BUY allocation proposal.
 
 #### `POST /control-plane/proposals`
 
@@ -744,7 +745,7 @@ all broker/live execution flags remain `false`.
 
 #### `POST /control-plane/runs/:id/advance`
 
-- **Description**: Advances one autonomous run through the safe control-plane path. It can run deterministic baseline research, generate a budget-capped proposal, evaluate risk, and, only when an active paper account plus signed approval already exist, consume the approval into one paper order plan. It never enables broker execution or live trading.
+- **Description**: Advances one autonomous run through the safe control-plane path. It can run deterministic baseline research, generate a budget-capped proposal, evaluate risk, and, only when an active paper account plus signed approval already exist, consume the approval into one paper order plan. When execution control is `reducing`, it generates a deterministic SELL-only recovery proposal from active paper positions instead of a fresh BUY allocation proposal. It never enables broker execution or live trading.
 - **Example Request**:
   ```json
   {

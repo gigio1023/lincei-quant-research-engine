@@ -280,6 +280,7 @@ Current recovery implementation:
 - the risk gate allows reducing SELL orders even when the current long position is already above the single-position limit, while still denying oversized or non-reducing SELL attempts;
 - recovery proposal generation computes a deterministic `paper-recovery-state:*` evidence ref from the paper-account projection, budget, max position count, and max order notional, then replays the existing research run/proposal/risk evaluation for duplicate requests;
 - the dashboard exposes this as "Create sell-only recovery", clearly separate from paper execution;
+- autonomous run advancement also enters this SELL-only recovery path when execution control is `reducing`, so scheduled automation stops generating new BUY proposals and instead creates a recovery research run/proposal/risk evaluation from active paper positions;
 - recovery proposal generation never submits paper fills, never creates signed approval, never calls broker APIs, and keeps all broker/live flags disabled.
 
 ## Reference Projects Policy
@@ -434,6 +435,7 @@ Current status:
 - durable signed paper order-plan approval ledger exists;
 - idempotent paper-execute endpoint exists;
 - idempotent SELL-only recovery proposal replay exists for unchanged paper-account projections;
+- autonomous runs in `reducing` execution-control state generate SELL-only recovery proposals instead of fresh BUY allocation proposals;
 - paper fill, cash ledger, position ledger, and local reconciliation snapshots exist;
 - paper position accounting now records quantity, average price, cost basis, unrealized PnL, and realized PnL in simulated fills, position ledger entries, account positions, and dashboard position rows;
 - paper execution readiness now records reservation evidence for required cash, reserved cash, available cash, required sells, reserved sells, and available sell notional by symbol before fill simulation;
