@@ -72,7 +72,7 @@ Required before real-money use:
 2. fetch and review the OpenAPI schema;
 3. generate a typed client in an isolated broker adapter package;
 4. verify the current read-only account, holdings, and fill mappers against real Toss responses;
-5. implement paper execution or a local simulator with the same order-plan interface;
+5. verify Toss paper/sandbox parity against the locked local paper order-plan interface;
 6. move broker credentials behind an external secret reference and add production signing custody for durable approval records and idempotency keys;
 7. add reconciliation and kill-switch tests;
 8. only then consider a tiny live pilot.

@@ -117,6 +117,7 @@ export interface PaperReadinessSnapshot {
   approvalPaperAccountEventHash?: string;
   currentPaperAccountEventHash?: string;
   paperAccountEventSequence?: number;
+  paperAccountLockVersion?: number;
   killSwitchArmed: boolean;
   killSwitchTripped: boolean;
   cashSufficient: boolean;
@@ -144,6 +145,7 @@ export interface PaperReservationHold {
   holdHash: string;
   paperAccountEventHashAtHold?: string;
   paperAccountEventSequenceAtHold?: number;
+  accountLockVersionAtHold?: number;
   approvalCustodyVerifiedAtHold?: boolean;
   notes: string[];
 }

@@ -555,6 +555,7 @@ describe('ControlPlaneService', () => {
         approvalPaperAccountEventHash: paperAccountEvents[1].eventHash,
         currentPaperAccountEventHash: paperAccountEvents[1].eventHash,
         paperAccountEventSequence: 2,
+        paperAccountLockVersion: 0,
         cashSufficient: true,
         noDuplicatePlan: true,
       }),
@@ -571,6 +572,7 @@ describe('ControlPlaneService', () => {
         holdHash: expect.stringMatching(/^sha256:/),
         paperAccountEventHashAtHold: paperAccountEvents[1].eventHash,
         paperAccountEventSequenceAtHold: 2,
+        accountLockVersionAtHold: 0,
         approvalCustodyVerifiedAtHold: true,
         consumedAt: '2026-05-23T00:00:00.000Z',
       }),
@@ -642,6 +644,13 @@ describe('ControlPlaneService', () => {
     expect(plan.reconciliation.status).toBe('pending');
     expect(plan.reconciliation.cashMatched).toBe(false);
     expect(plan.reconciliation.expectedCash).toBe(9_499_250);
+    expect(paperAccounts[0]).toEqual(
+      expect.objectContaining({
+        lockVersion: 1,
+        latestEventHash: paperAccountEvents[2].eventHash,
+        latestEventSequence: 3,
+      }),
+    );
     expect(plan.killSwitchSnapshot).toEqual(
       expect.objectContaining({
         armed: true,
@@ -1052,6 +1061,112 @@ describe('ControlPlaneService', () => {
     expect(orderPlanApprovals[0].status).toBe('active');
     expect(paperAccounts[0].cash).toBe(10_000_000);
     expect(paperAccountEvents).toHaveLength(3);
+  });
+
+  it('blocks paper account apply when the account lock version advances after readiness checks', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Pre-apply lock budget',
+      totalBudget: 10_000_000,
+    });
+    const seededAccount = await service.seedPaperAccount({
+      budgetEnvelopeId: budget.id,
+      cash: 10_000_000,
+      actor: 'unit-test-operator',
+      reason: 'Seed paper account before lock guard test.',
+      idempotencyKey: 'seed-pre-apply-lock-account',
+    });
+    await service.promotePaperAccount(seededAccount.id, {
+      actor: 'unit-test-operator',
+      reason: 'Promote paper account before lock guard test.',
+      idempotencyKey: 'promote-pre-apply-lock-account',
+      expectedEventHash: paperAccountEvents[0].eventHash,
+    });
+    const researchRun = await service.runBaselineResearch({
+      budgetEnvelopeId: budget.id,
+    });
+    const proposal = await service.createProposal({
+      budgetEnvelopeId: budget.id,
+      researchRunId: researchRun.id,
+      strategyId: 'pre-apply-lock-v1',
+      ruleId: 'account-lock-final-check',
+      generatedAt: '2026-05-22T23:59:00.000Z',
+      marketDataTimestamp: '2026-05-22T23:55:00.000Z',
+      portfolioSnapshot: {
+        currency: 'KRW',
+        equity: 10_000_000,
+        cash: 10_000_000,
+        grossExposurePct: 0,
+      },
+      orders: [
+        {
+          symbol: '005930',
+          assetClass: 'domestic_stock',
+          side: 'BUY',
+          orderType: 'MARKET',
+          notional: 500_000,
+          targetPositionPct: 5,
+        },
+      ],
+    });
+    const approval = await service.createOrderPlanApproval(proposal.id, {
+      idempotencyKey: 'pre-apply-account-lock-plan',
+      approver: 'unit-test-operator',
+      reason: 'Approve before the final account lock check.',
+      expectedPaperAccountEventHash: paperAccountEvents[1].eventHash,
+    });
+    const originalGetLatestPaperAccountEvent = (
+      service as unknown as {
+        getLatestPaperAccountEvent: (
+          paperAccountId: number,
+        ) => Promise<PaperAccountEvent | null>;
+      }
+    ).getLatestPaperAccountEvent.bind(service);
+    let latestEventLookupCount = 0;
+    jest
+      .spyOn(
+        service as unknown as {
+          getLatestPaperAccountEvent: (
+            paperAccountId: number,
+          ) => Promise<PaperAccountEvent | null>;
+        },
+        'getLatestPaperAccountEvent',
+      )
+      .mockImplementation(async (paperAccountId: number) => {
+        latestEventLookupCount += 1;
+        if (latestEventLookupCount === 2) {
+          paperAccounts[0].lockVersion += 1;
+        }
+
+        return originalGetLatestPaperAccountEvent(paperAccountId);
+      });
+
+    const plan = await service.paperExecuteProposal(proposal.id, {
+      idempotencyKey: 'pre-apply-account-lock-plan',
+      orderPlanApprovalId: approval.id,
+    });
+
+    expect(plan.status).toBe('blocked');
+    expect(plan.blockedReasons).toContain(
+      'Paper account lock version changed before account apply',
+    );
+    expect(plan.fills).toHaveLength(0);
+    expect(plan.cashLedger).toHaveLength(0);
+    expect(plan.positionLedger).toHaveLength(0);
+    expect(plan.endingCash).toBe(10_000_000);
+    expect(plan.reservationHold).toEqual(
+      expect.objectContaining({
+        status: 'released',
+        releasedAt: '2026-05-23T00:00:00.000Z',
+      }),
+    );
+    expect(paperReservationHolds[0]).toEqual(
+      expect.objectContaining({
+        status: 'released',
+        paperOrderPlanId: plan.id,
+      }),
+    );
+    expect(orderPlanApprovals[0].status).toBe('active');
+    expect(paperAccountEvents).toHaveLength(2);
   });
 
   it('blocks and rolls back paper account apply when account event append fails inside transaction', async () => {
@@ -2492,6 +2607,12 @@ describe('ControlPlaneService', () => {
         expect.objectContaining({
           key: 'paperReservationHoldLedgerReady',
           ready: true,
+        }),
+        expect.objectContaining({
+          key: 'paperAccountReservationLockReady',
+          ready: false,
+          detail:
+            'Paper account lock readiness requires a TypeORM DataSource transaction boundary',
         }),
         expect.objectContaining({
           key: 'paperAccountEventLedgerReady',

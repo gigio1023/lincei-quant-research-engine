@@ -106,6 +106,9 @@ const PaperPlanCard = ({ plan }: { plan: PaperPlan }) => {
               {t("Hold")}: {t(plan.reservationHold.status)} /{" "}
               {formatCurrency(plan.reservationHold.cashAmount)} /{" "}
               {plan.reservationHold.holdHash}
+              {plan.reservationHold.accountLockVersionAtHold !== undefined
+                ? ` / ${t("lock")} ${plan.reservationHold.accountLockVersionAtHold}`
+                : ""}
             </div>
           )}
           <div>
@@ -128,6 +131,9 @@ const PaperPlanCard = ({ plan }: { plan: PaperPlan }) => {
             {plan.readinessSnapshot.accountEventFresh ? t("fresh") : t("stale")}
             {plan.readinessSnapshot.paperAccountEventSequence
               ? ` / seq ${plan.readinessSnapshot.paperAccountEventSequence}`
+              : ""}
+            {plan.readinessSnapshot.paperAccountLockVersion !== undefined
+              ? ` / ${t("lock")} ${plan.readinessSnapshot.paperAccountLockVersion}`
               : ""}
           </div>
           <div>

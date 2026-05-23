@@ -221,6 +221,12 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
       detail: "Documented database paper reservation hold ledger is available",
     },
     {
+      key: "paperAccountReservationLockReady",
+      ready: true,
+      detail:
+        "Paper account apply uses optimistic database lock-version claims inside the final apply transaction",
+    },
+    {
       key: "paperAccountReady",
       ready: false,
       detail: "No durable paper account records yet",

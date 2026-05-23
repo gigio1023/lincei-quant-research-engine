@@ -154,6 +154,12 @@ const mockControlPlaneStatus = {
       detail:
         "Deterministic paper order-plan, fill, and reconciliation ledger is registered",
     },
+    {
+      key: "paperAccountReservationLockReady",
+      ready: true,
+      detail:
+        "Paper account apply uses optimistic database lock-version claims inside the final apply transaction",
+    },
   ],
   blockers: ["No production signed order-plan workflow"],
 };

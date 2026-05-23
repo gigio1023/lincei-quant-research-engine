@@ -221,8 +221,8 @@ Current paper slice:
 - approval creation requires the caller to provide `expectedPaperAccountEventHash`, and creation fails if the paper account event chain has advanced;
 - `POST /control-plane/proposals/:id/paper-execute` returns the same plan for the same idempotency key and has a database uniqueness guard for the proposal/idempotency pair;
 - paper execution requires an active order-plan approval that matches the proposal, paper-mode risk evaluation, and idempotency key;
-- paper execution checks approval payload hash/signature evidence, binds the approval to the current promoted paper account, blocks stale paper account event hashes, and rechecks the event chain immediately before applying simulated fills to the durable paper account;
-- the final paper apply commit runs inside a database transaction when `DataSource` is available, covering plan state, reservation hold consumption/release, paper account projection, paper account event append, approval consumption, and proposal audit update; if the account-event append or any commit step fails, the plan is blocked and the reservation hold is released instead of leaving a partially applied account;
+- paper execution checks approval payload hash/signature evidence, binds the approval to the current promoted paper account, blocks stale paper account event hashes, records the paper account lock version, and rechecks the event chain and lock version immediately before applying simulated fills to the durable paper account;
+- the final paper apply commit runs inside a database transaction when `DataSource` is available, atomically claims the next paper-account lock version before account mutation, and covers plan state, reservation hold consumption/release, paper account projection, paper account event append, approval consumption, and proposal audit update; if the account-event append, lock claim, or any commit step fails, the plan is blocked and the reservation hold is released instead of leaving a partially applied account;
 - `POST /control-plane/paper-account/seed`, `POST /control-plane/paper-account/:id/promote`, and `GET /control-plane/paper-account/events` expose the explicit account lifecycle and append-only paper account event chain;
 - `GET /control-plane/paper-account` exposes only an active promoted paper account;
 - `POST /control-plane/paper-order-plans/:id/reconcile` reconciles expected paper cash and positions against account ledger entries for that plan;
@@ -231,7 +231,7 @@ Current paper slice:
 - `GET /control-plane/action-timeline` exposes a unified operator audit feed across control, schedule, market-data, research, proposal, risk, approval, paper, and broker evidence so the dashboard can show what the autonomous system did and why it stopped;
 - broker and live execution flags remain `false`.
 
-This is a paper simulator ledger, not broker-grade execution readiness. Broker-grade paper readiness still requires production-grade signing custody, database-level account balance locks, scheduled broker read-only polling, broker-order emergency cancel/flatten controls, and reconciliation against external account truth.
+This is a paper simulator ledger, not broker-grade execution readiness. Broker-grade paper readiness still requires production-grade signing custody, full transaction-scoped reservation creation/readiness recompute isolation, scheduled broker read-only polling, broker-order emergency cancel/flatten controls, and reconciliation against external account truth.
 
 ### 6. Broker Adapter
 
@@ -521,7 +521,7 @@ Blocking items:
 - verified broker-backed reconciliation with real Toss schema/client responses;
 - explicit paper account seed/promote workflow exists, but production custody and operator policy still need hardening;
 - schedule leases and an env-gated in-process worker for autonomous runs exist with due/not-due checks, TTL validation, owner-checked release, overlap guard, and cycle keys; distributed DB lock audit, scheduler deployment policy, and auth boundary still need hardening;
-- transaction isolation plus database-enforced reservation lock isolation;
+- full transaction isolation around reservation creation/readiness recompute; final paper account apply now has optimistic account lock-version protection, but reservation creation still needs to move into the same DB critical section;
 - operational monitoring;
 - legal and terms review;
 - explicit live-trading gate.

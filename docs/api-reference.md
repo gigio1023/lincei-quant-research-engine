@@ -188,6 +188,7 @@ all broker/live execution flags remain `false`.
   - `killSwitch.tripped` is `true` when execution control is `halted`;
   - `killSwitch.runtimeReady` only means autonomous advancement can be halted; it does not cancel or flatten broker orders;
   - `actionStatus` summarizes the latest autonomous run, paper evidence, broker snapshot evidence, broker fill evidence, current blocker, and next safe action for the one-page dashboard;
+  - `paperAccountReservationLockReady` reports whether final paper account apply can use a TypeORM transaction boundary and optimistic account lock-version claim; it does not prove full broker-grade reservation custody;
   - `liveTradingGate.blockers` lists the missing production controls that must be cleared before any real-money order path can be considered.
 
 #### `GET /control-plane/action-timeline`
@@ -701,11 +702,12 @@ all broker/live execution flags remain `false`.
   - without an active matching signed approval it remains blocked for review;
   - `status` is `filled`, `blocked`, `reconciled`, or `reconciliation_failed` for the current implementation;
   - each plan stores `orderPlanApprovalId`, `proposalHash`, `riskRequestHash`, `planHash`, `readinessSnapshot`, immutable paper order ids, fill events, cash ledger rows, position ledger rows, portfolio before/after snapshots, reconciliation state, and kill-switch snapshot;
-  - `readinessSnapshot` includes reservation evidence and custody evidence: required cash, reserved cash, available cash, required sells, reserved sells, available sell notional by symbol, approval custody status, approval paper account event hash, current paper account event hash, and current account event sequence;
+  - `readinessSnapshot` includes reservation evidence and custody evidence: required cash, reserved cash, available cash, required sells, reserved sells, available sell notional by symbol, approval custody status, approval paper account event hash, current paper account event hash, current account event sequence, and paper account lock version;
   - readiness checks subtract `paper_reservation_holds` rows with `status === "reserved"` before falling back to legacy open paper plans or `reservationHold.status === "reserved"` snapshots;
-  - filled paper plans include a durable `reservationHold` snapshot with hold id, status, cash amount, sell notional by symbol, hold hash, approval-custody-at-hold evidence, account event hash/sequence at hold, and consumption timestamp;
+  - filled paper plans include a durable `reservationHold` snapshot with hold id, status, cash amount, sell notional by symbol, hold hash, approval-custody-at-hold evidence, account event hash/sequence at hold, account lock version at hold, and consumption timestamp;
   - non-blocked paper plans create a database reservation-hold record before fill simulation and mark it consumed after the local paper plan is filled;
-  - immediately before applying simulated fills to the durable paper account, the service rechecks that the latest account event still matches the readiness snapshot; if it changed, the plan is blocked, fills/ledgers are cleared, and the reservation hold is released instead of consuming the approval;
+  - immediately before applying simulated fills to the durable paper account, the service rechecks that the latest account event and account lock version still match the readiness snapshot; if either changed, the plan is blocked, fills/ledgers are cleared, and the reservation hold is released instead of consuming the approval;
+  - before final account mutation, the service atomically claims the next paper-account lock version; if another writer claimed it first, the plan is blocked and the reservation hold is released;
   - the final paper apply commit uses a database transaction when available, covering plan persistence, reservation-hold consumption or release, paper account projection update, append-only account event creation, approval consumption, and proposal audit update;
   - if the transaction fails, including account-event append failure, the service blocks the plan and releases the reservation hold rather than leaving a partially applied paper account;
   - fill and position-ledger rows include simulator quantity, average-price, cost-basis, and realized-PnL evidence;

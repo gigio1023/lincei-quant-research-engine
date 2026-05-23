@@ -51,6 +51,15 @@ export class PaperAccount {
   @Column('json')
   appliedPlanIds: number[];
 
+  @Column({ default: 0 })
+  lockVersion: number;
+
+  @Column({ nullable: true })
+  latestEventHash?: string;
+
+  @Column({ default: 0 })
+  latestEventSequence: number;
+
   @Column({ nullable: true })
   lastAppliedPlanId?: number;
 

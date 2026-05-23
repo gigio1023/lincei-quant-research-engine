@@ -13,6 +13,7 @@ import {
 
 @Entity('paper_reservation_holds')
 @Index(['paperAccountId', 'status'])
+@Index(['paperAccountId', 'proposalId', 'idempotencyKey'], { unique: true })
 @Index(['holdId'], { unique: true })
 export class PaperReservationHoldRecord {
   @PrimaryGeneratedColumn()
@@ -56,6 +57,15 @@ export class PaperReservationHoldRecord {
 
   @Column('json')
   availableSellNotionalBySymbolAtHold: Record<string, number>;
+
+  @Column({ nullable: true })
+  paperAccountEventHashAtHold?: string;
+
+  @Column({ nullable: true })
+  paperAccountEventSequenceAtHold?: number;
+
+  @Column({ nullable: true })
+  accountLockVersionAtHold?: number;
 
   @Column()
   holdHash: string;

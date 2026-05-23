@@ -268,6 +268,13 @@ export class ControlPlaneService {
           detail: `${paperReservationHoldCount} database paper reservation hold records`,
         },
         {
+          key: 'paperAccountReservationLockReady',
+          ready: Boolean(this.dataSource),
+          detail: this.dataSource
+            ? 'Paper account apply uses optimistic database lock-version claims inside the final apply transaction'
+            : 'Paper account lock readiness requires a TypeORM DataSource transaction boundary',
+        },
+        {
           key: 'paperAccountReady',
           ready: paperAccountCount > 0,
           detail: `${paperAccountCount} durable paper account records`,
@@ -922,12 +929,14 @@ export class ControlPlaneService {
         cashLedger: [],
         positionLedger: [],
         appliedPlanIds: [],
+        lockVersion: 0,
+        latestEventSequence: 0,
         brokerExecutionEnabled: false,
         liveTradingEnabled: false,
       }),
     );
 
-    await this.appendPaperAccountEvent({
+    await this.appendPaperAccountEventAndUpdateAccount({
       input: {
         paperAccount,
         eventType: 'explicit_seed',
@@ -1023,7 +1032,7 @@ export class ControlPlaneService {
 
     paperAccount.status = 'active';
     const saved = await this.paperAccountRepository.save(paperAccount);
-    await this.appendPaperAccountEvent({
+    await this.appendPaperAccountEventAndUpdateAccount({
       input: {
         paperAccount: saved,
         eventType: 'account_promoted',
@@ -1724,6 +1733,7 @@ export class ControlPlaneService {
       approvalPaperAccountEventHash: orderPlanApproval?.paperAccountEventHash,
       currentPaperAccountEventHash: currentPaperAccountEvent?.eventHash,
       paperAccountEventSequence: currentPaperAccountEvent?.sequence,
+      paperAccountLockVersion: paperAccount?.lockVersion ?? 0,
       killSwitchArmed: true,
       killSwitchTripped: executionControlState.state !== 'active',
       cashSufficient,
@@ -1942,6 +1952,27 @@ export class ControlPlaneService {
       return repositories.paperOrderPlanRepository.save(plan);
     }
 
+    const lockClaimed = await this.claimPaperAccountApplyLock(
+      plan,
+      accountForApply,
+      repositories.paperAccountRepository,
+    );
+
+    if (!lockClaimed) {
+      const reason = 'Paper account lock version changed before account apply';
+      this.blockPaperOrderPlanBeforeApply(plan, submittedAt, reason);
+      if (plan.reservationHold) {
+        await this.releasePaperReservationHoldRecord(
+          plan.reservationHold.holdId,
+          plan,
+          submittedAt,
+          reason,
+          repositories.paperReservationHoldRepository,
+        );
+      }
+      return repositories.paperOrderPlanRepository.save(plan);
+    }
+
     this.consumePaperReservationHold(plan, submittedAt);
     if (plan.reservationHold) {
       await this.consumePaperReservationHoldRecord(
@@ -2016,7 +2047,40 @@ export class ControlPlaneService {
       return 'Paper account event changed before account apply';
     }
 
+    const expectedLockVersion = plan.readinessSnapshot.paperAccountLockVersion;
+    if (
+      expectedLockVersion !== undefined &&
+      (paperAccount.lockVersion ?? 0) !== expectedLockVersion
+    ) {
+      return 'Paper account lock version changed before account apply';
+    }
+
     return null;
+  }
+
+  private async claimPaperAccountApplyLock(
+    plan: PaperOrderPlan,
+    paperAccount: PaperAccount,
+    paperAccountRepository: Repository<PaperAccount>,
+  ): Promise<boolean> {
+    const expectedLockVersion = plan.readinessSnapshot.paperAccountLockVersion;
+
+    if (expectedLockVersion === undefined) {
+      return false;
+    }
+
+    const nextLockVersion = expectedLockVersion + 1;
+    const result = await paperAccountRepository.update(
+      { id: paperAccount.id, lockVersion: expectedLockVersion },
+      { lockVersion: nextLockVersion },
+    );
+
+    if (result.affected !== 1) {
+      return false;
+    }
+
+    paperAccount.lockVersion = nextLockVersion;
+    return true;
   }
 
   private blockPaperOrderPlanBeforeApply(
@@ -2072,6 +2136,7 @@ export class ControlPlaneService {
         readinessSnapshot.availableSellNotionalBySymbol,
       paperAccountEventHash: readinessSnapshot.currentPaperAccountEventHash,
       paperAccountEventSequence: readinessSnapshot.paperAccountEventSequence,
+      accountLockVersion: readinessSnapshot.paperAccountLockVersion,
       approvalCustodyVerified: readinessSnapshot.approvalCustodyVerified,
     };
     const holdHash = this.hashObject(holdHashInput);
@@ -2091,6 +2156,7 @@ export class ControlPlaneService {
         readinessSnapshot.currentPaperAccountEventHash,
       paperAccountEventSequenceAtHold:
         readinessSnapshot.paperAccountEventSequence,
+      accountLockVersionAtHold: readinessSnapshot.paperAccountLockVersion,
       approvalCustodyVerifiedAtHold: readinessSnapshot.approvalCustodyVerified,
       notes: [
         'Reservation hold is local paper evidence only.',
@@ -2144,6 +2210,9 @@ export class ControlPlaneService {
       availableCashAtHold: hold.availableCashAtHold,
       availableSellNotionalBySymbolAtHold:
         hold.availableSellNotionalBySymbolAtHold,
+      paperAccountEventHashAtHold: hold.paperAccountEventHashAtHold,
+      paperAccountEventSequenceAtHold: hold.paperAccountEventSequenceAtHold,
+      accountLockVersionAtHold: hold.accountLockVersionAtHold,
       holdHash: hold.holdHash,
       holdSnapshot: hold,
       notes: [
@@ -2609,7 +2678,7 @@ export class ControlPlaneService {
     paperAccount.lastAppliedPlanId = plan.id;
 
     const saved = await repositories.paperAccountRepository.save(paperAccount);
-    await this.appendPaperAccountEvent({
+    await this.appendPaperAccountEventAndUpdateAccount({
       input: {
         paperAccount: saved,
         eventType: 'paper_order_plan',
@@ -2633,6 +2702,7 @@ export class ControlPlaneService {
         positionsBefore,
         positionsAfter: saved.positions,
       },
+      paperAccountRepository: repositories.paperAccountRepository,
       paperAccountEventRepository: repositories.paperAccountEventRepository,
     });
 
@@ -2751,6 +2821,28 @@ export class ControlPlaneService {
         `Idempotency key ${event.idempotencyKey} was already used with a different request`,
       );
     }
+  }
+
+  private async appendPaperAccountEventAndUpdateAccount({
+    input,
+    paperAccountRepository = this.paperAccountRepository,
+    paperAccountEventRepository = this.paperAccountEventRepository,
+  }: {
+    input: Parameters<
+      ControlPlaneService['appendPaperAccountEvent']
+    >[0]['input'];
+    paperAccountRepository?: Repository<PaperAccount>;
+    paperAccountEventRepository?: Repository<PaperAccountEvent>;
+  }): Promise<PaperAccountEvent> {
+    const event = await this.appendPaperAccountEvent({
+      input,
+      paperAccountEventRepository,
+    });
+    input.paperAccount.latestEventHash = event.eventHash;
+    input.paperAccount.latestEventSequence = event.sequence;
+    await paperAccountRepository.save(input.paperAccount);
+
+    return event;
   }
 
   private async getLatestPaperAccountEvent(
