@@ -6,6 +6,8 @@ Not ready for real money.
 
 After the initial control-plane work, the repo can run deterministic research, risk, and paper-simulation slices. It still cannot take a cash deposit, connect a broker account, place real orders, monitor real fills, or recover positions end to end.
 
+The most important blocker is now strategic, not cosmetic: the executable investment engine is missing. The next readiness step is to integrate LEAN/QuantConnect as a first-class runtime, then connect LLM alpha decisions, portfolio construction, risk, and paper/live execution around that runtime.
+
 ## Runnable Now
 
 - Backend report service, if environment variables are configured.
@@ -33,6 +35,12 @@ After the initial control-plane work, the repo can run deterministic research, r
 
 ## Not Runnable Yet
 
+- LEAN workspace as a first-class repo runtime;
+- `lean backtest` orchestration and result ingestion;
+- QuantConnect MCP/API workflow;
+- production `AlphaModel`, `PortfolioConstructionModel`, `RiskManagementModel`, and `ExecutionModel`;
+- LLM Alpha Committee producing typed decisions for LEAN;
+- meta-alpha conversion from numeric/LLM decisions to LEAN `Insight` objects;
 - live broker account connection;
 - Toss API client;
 - broker-backed paper trading;
@@ -61,15 +69,16 @@ After the initial control-plane work, the repo can run deterministic research, r
 
 ## Practical Next Step
 
-Build toward this order:
+Build toward this order instead of adding more peripheral UI first:
 
-1. proposal schema and audit storage;
-2. external market/news ingestion for reproducible research runs;
-3. add production approval custody and keep schema migrations enforced in deployment;
-4. verified Toss read-only adapter and scheduled snapshot/fill polling;
-5. Toss paper/sandbox adapter if available;
-6. expand the dry-run broker order command ledger into provider-specific sandbox/paper write custody plus cancel/flatten/open-order polling;
-7. tiny live pilot behind explicit approval and hard budget caps.
+1. create the LEAN workspace and `aggressive_llm_momentum` algorithm;
+2. add local `lean backtest` orchestration and ingest result artifacts;
+3. implement numeric alpha and aggressive portfolio construction in LEAN;
+4. implement LLM Alpha Committee typed decisions and meta-alpha adapter;
+5. connect LEAN paper output to existing paper execution ledgers;
+6. add model training and registry for numeric/meta alpha;
+7. add verified broker write adapter with cancel/flatten/open-order polling;
+8. run tiny live pilot behind explicit approval and hard budget caps.
 
 ## Toss-Specific Readiness
 

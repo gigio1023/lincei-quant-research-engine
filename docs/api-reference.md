@@ -1,6 +1,6 @@
 # API Reference
 
-This document provides a detailed reference for the Auto Investment Helper REST API.
+This document provides a detailed reference for the existing REST API. The project direction is now the LEAN/QuantConnect + LLM autonomous alpha system described in [SPEC.md](../SPEC.md). New LEAN, alpha, training, and broker-write APIs should be added here only after their contracts are implemented.
 
 ## Base URL
 

@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This document explains how to deploy the Auto Investment Helper using Docker and GitHub Actions.
+This document explains how to deploy the current Docker/GitHub Actions stack. The target product is now the LEAN/QuantConnect + LLM autonomous alpha system described in [SPEC.md](../SPEC.md), so future deployment work must add LEAN runtime, model artifacts, broker credential custody, and scheduler separation.
 
 ## Requirements
 

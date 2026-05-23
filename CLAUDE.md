@@ -7,6 +7,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **All code comments and technical documentation should be in English**
 - **Maintain consistency with English-only technical communication**
 
+## Core Direction
+- The project is being redesigned as a LEAN/QuantConnect + LLM autonomous alpha system. The core loop is data -> alpha -> LEAN backtest/insight -> portfolio target -> risk -> execution -> reconciliation.
+- When choosing implementation work, prioritize the core alpha/execution loop over surrounding UI, report, or ledger polish.
+- Inferring implicit requirements from the user's goal is encouraged, but inferred work must directly advance the core loop or remove a blocker.
+- A dashboard or report surface is secondary if the LEAN/QuantConnect runtime, alpha model, portfolio construction, risk/execution path, broker adapter, or reconciliation loop is missing.
+
 ## Security & Quality Standards
 - **Always run `npm audit fix --force` to fix vulnerabilities**
 - **Execute all CI tests locally before committing**

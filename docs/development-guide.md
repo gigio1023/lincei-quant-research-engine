@@ -1,10 +1,21 @@
 # Development Guide
 
-This guide provides all the necessary information for developing the Auto Investment Helper, from architecture to deployment.
+This guide covers the existing NestJS + React application. The project direction has changed: the core product is now a LEAN/QuantConnect + LLM autonomous alpha system, not only an investment report generator.
+
+Use these documents for the current implementation direction:
+
+- [Project Architecture](project-architecture.md)
+- [LEAN and QuantConnect Engine](lean-quantconnect-engine.md)
+- [Alpha Model Design](alpha-model-design.md)
+- [LLM Alpha Committee](llm-alpha-committee.md)
+- [Model Training Plan](model-training-plan.md)
+- [Implementation Roadmap](implementation-roadmap.md)
+
+When choosing what to build next, prioritize the executable alpha/backtest/portfolio/risk/execution loop over surrounding UI or report surfaces.
 
 ## 1. System Architecture
 
-The system consists of a NestJS backend, a React frontend, and several external services for data and AI.
+The existing system consists of a NestJS backend, a React frontend, and several external services for data and AI.
 
 ```mermaid
 graph TD
@@ -229,4 +240,4 @@ Workspace settings (`.vscode/settings.json`):
 - **Port Conflicts**: Use `lsof -i :<port>` and `kill -9 <PID>` to free ports
 - **API Key Errors**: Ensure `GEMINI_API_KEY` in `backend/.env` is correct
 - **Database Issues**: Delete `backend/data/investment.db` to reset schema
-- **Docker Issues**: Run `docker-compose down` and `docker system prune` to clean up 
+- **Docker Issues**: Run `docker-compose down` and `docker system prune` to clean up

@@ -1,8 +1,31 @@
-# Auto Investment Helper
+# Lincei Quant Research Engine
 
-AI-powered investment analysis and report generation service for value investors.
+Autonomous alpha system for aggressive personal capital growth.
+
+The project is being redesigned around a real executable core:
+
+- LEAN / QuantConnect for strategy, backtest, paper, and live runtime semantics;
+- LLM Alpha Committee for research, event interpretation, and alpha judgment;
+- deterministic portfolio construction, risk, broker, and ledger boundaries;
+- a control plane and dashboard that observe and control the engine rather than replacing it.
+
+The current repo still contains the original investment report app and a growing control-plane foundation. The critical next step is integrating the LEAN/QuantConnect execution engine.
+
+## Current Project Docs
+
+- System spec: [SPEC.md](SPEC.md)
+- Architecture: [docs/project-architecture.md](docs/project-architecture.md)
+- LEAN / QuantConnect engine plan: [docs/lean-quantconnect-engine.md](docs/lean-quantconnect-engine.md)
+- Alpha model design: [docs/alpha-model-design.md](docs/alpha-model-design.md)
+- LLM Alpha Committee: [docs/llm-alpha-committee.md](docs/llm-alpha-committee.md)
+- Latency and execution paths: [docs/latency-and-execution-paths.md](docs/latency-and-execution-paths.md)
+- Model training plan: [docs/model-training-plan.md](docs/model-training-plan.md)
+- Implementation roadmap: [docs/implementation-roadmap.md](docs/implementation-roadmap.md)
+- Research references: [docs/research-references.md](docs/research-references.md)
 
 ## System Architecture
+
+The diagram below describes the legacy report app. The target architecture is documented in [docs/project-architecture.md](docs/project-architecture.md).
 
 ```mermaid
 graph TD
