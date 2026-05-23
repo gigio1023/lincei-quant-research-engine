@@ -540,6 +540,12 @@ describe('ControlPlane research provenance (e2e)', () => {
         `/control-plane/proposals/${proposalResponse.body.id}/evaluate-risk`,
       )
       .expect(201);
+    const preApprovalEventsResponse = await request(app.getHttpServer())
+      .get('/control-plane/paper-account/events')
+      .expect(200);
+    const preApprovalEvent = preApprovalEventsResponse.body.find(
+      (event) => event.paperAccountId === seededAccountResponse.body.id,
+    );
 
     const approvalResponse = await request(app.getHttpServer())
       .post(
@@ -549,6 +555,7 @@ describe('ControlPlane research provenance (e2e)', () => {
         idempotencyKey: 'e2e-paper-plan-1',
         approver: 'e2e-operator',
         reason: 'Approve paper execution evidence.',
+        expectedPaperAccountEventHash: preApprovalEvent.eventHash,
       })
       .expect(201);
 
@@ -880,6 +887,12 @@ describe('ControlPlane research provenance (e2e)', () => {
     expect(recoveryResponse.body.proposal.evidenceRefs).toEqual(
       expect.arrayContaining([expect.stringMatching(/^paper-recovery-state:/)]),
     );
+    const preApprovalEventsResponse = await request(app.getHttpServer())
+      .get('/control-plane/paper-account/events')
+      .expect(200);
+    const preApprovalEvent = preApprovalEventsResponse.body.find(
+      (event) => event.paperAccountId === seededAccountResponse.body.id,
+    );
 
     const approvalResponse = await request(app.getHttpServer())
       .post(
@@ -889,6 +902,7 @@ describe('ControlPlane research provenance (e2e)', () => {
         idempotencyKey: 'e2e-recovery-paper-plan-1',
         approver: 'e2e-operator',
         reason: 'Approve SELL-only recovery plan.',
+        expectedPaperAccountEventHash: preApprovalEvent.eventHash,
       })
       .expect(201);
     const paperResponse = await request(app.getHttpServer())

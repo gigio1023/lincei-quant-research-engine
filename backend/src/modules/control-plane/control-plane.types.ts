@@ -139,6 +139,8 @@ export interface CreateOrderPlanApprovalRequest {
   reason: string;
   idempotencyKey?: string;
   expectedRiskEvaluationId?: number;
+  expectedPaperAccountEventHash: string;
+  signerKeyRef?: string;
   expiresAt?: string;
 }
 

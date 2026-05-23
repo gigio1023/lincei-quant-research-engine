@@ -514,9 +514,64 @@ export class ControlPlaneService {
         'Order-plan approval requires an explicitly promoted paper account',
       );
     }
-    const paperPortfolio = this.buildPaperAccountPortfolio(paperAccount);
+    const latestPaperAccountEvent = await this.getLatestPaperAccountEvent(
+      paperAccount.id,
+    );
+
+    if (!latestPaperAccountEvent) {
+      throw new BadRequestException(
+        'Order-plan approval requires paper account event custody evidence',
+      );
+    }
+
+    if (!request.expectedPaperAccountEventHash) {
+      throw new BadRequestException(
+        'Order-plan approval requires expectedPaperAccountEventHash',
+      );
+    }
+
     const idempotencyKey =
       request.idempotencyKey ?? `paper:proposal:${proposal.id}:approved`;
+    const expiresAt = request.expiresAt ? new Date(request.expiresAt) : null;
+    const signerKeyRef = request.signerKeyRef ?? 'local-paper-approval-key-v1';
+
+    if (expiresAt && Number.isNaN(expiresAt.getTime())) {
+      throw new BadRequestException('Order-plan approval expiresAt is invalid');
+    }
+
+    if (expiresAt && expiresAt.getTime() <= Date.now()) {
+      throw new BadRequestException('Order-plan approval cannot be expired');
+    }
+
+    const existingApproval = await this.findOrderPlanApprovalByIdempotencyKey(
+      proposal.id,
+      idempotencyKey,
+    );
+
+    if (existingApproval) {
+      this.assertOrderPlanApprovalReplay(existingApproval, {
+        approver: request.approver,
+        reason: request.reason,
+        expiresAt: expiresAt?.toISOString(),
+        expectedRiskEvaluationId: request.expectedRiskEvaluationId,
+        paperAccountId: paperAccount.id,
+        paperAccountEventHash: request.expectedPaperAccountEventHash,
+        signerKeyRef,
+      });
+
+      return existingApproval;
+    }
+
+    if (
+      request.expectedPaperAccountEventHash !==
+      latestPaperAccountEvent.eventHash
+    ) {
+      throw new BadRequestException(
+        'Expected paper account event hash does not match current account event',
+      );
+    }
+
+    const paperPortfolio = this.buildPaperAccountPortfolio(paperAccount);
     const approvalRef = `approval:${proposal.id}:${idempotencyKey}:${request.approver}`;
     const latestEvaluation = await this.evaluateProposalForPaperExecution(
       proposal,
@@ -540,20 +595,10 @@ export class ControlPlaneService {
       );
     }
 
-    const expiresAt = request.expiresAt ? new Date(request.expiresAt) : null;
-
-    if (expiresAt && Number.isNaN(expiresAt.getTime())) {
-      throw new BadRequestException('Order-plan approval expiresAt is invalid');
-    }
-
-    if (expiresAt && expiresAt.getTime() <= Date.now()) {
-      throw new BadRequestException('Order-plan approval cannot be expired');
-    }
-
     const proposalHash = this.hashProposal(proposal);
     const riskRequestHash = this.hashObject(latestEvaluation.requestSnapshot);
     const approvedAt = new Date();
-    const approvalSnapshot = {
+    const canonicalPayload = {
       proposalId: proposal.id,
       riskEvaluationId: latestEvaluation.id,
       mode: 'paper' as const,
@@ -561,10 +606,25 @@ export class ControlPlaneService {
       reason: request.reason,
       idempotencyKey,
       approvedOrderCount: latestEvaluation.responseSnapshot.approvedOrderCount,
-      approvedAt: approvedAt.toISOString(),
       expiresAt: expiresAt?.toISOString(),
       proposalHash,
       riskRequestHash,
+      paperAccountId: paperAccount.id,
+      paperAccountEventHash: latestPaperAccountEvent.eventHash,
+      paperAccountEventSequence: latestPaperAccountEvent.sequence,
+      custodyMode: 'local_hash_signature' as const,
+      signerKeyRef,
+    };
+    const canonicalPayloadHash = this.hashObject(canonicalPayload);
+    const signature = this.hashObject({
+      signerKeyRef,
+      canonicalPayloadHash,
+    });
+    const approvalSnapshot = {
+      ...canonicalPayload,
+      approvedAt: approvedAt.toISOString(),
+      canonicalPayloadHash,
+      signature,
     };
     const approvalHash = this.hashObject(approvalSnapshot);
 
@@ -580,6 +640,13 @@ export class ControlPlaneService {
         status: 'active',
         proposalHash,
         riskRequestHash,
+        paperAccountId: paperAccount.id,
+        paperAccountEventHash: latestPaperAccountEvent.eventHash,
+        paperAccountEventSequence: latestPaperAccountEvent.sequence,
+        custodyMode: 'local_hash_signature',
+        signerKeyRef,
+        canonicalPayloadHash,
+        signature,
         approvalHash,
         approvalSnapshot,
         approvedAt,
@@ -1396,6 +1463,9 @@ export class ControlPlaneService {
           order: { updatedAt: 'DESC' },
         });
     const paperAccount = await this.findPaperAccountForProposal(proposal);
+    const currentPaperAccountEvent = paperAccount
+      ? await this.getLatestPaperAccountEvent(paperAccount.id)
+      : null;
     const paperPortfolioBefore = paperAccount
       ? this.buildPaperAccountPortfolio(paperAccount)
       : this.buildSeedPaperPortfolioForProposal(proposal, budget);
@@ -1477,6 +1547,18 @@ export class ControlPlaneService {
         (reservationSnapshot.availableSellNotionalBySymbol[symbol] ?? 0) >=
         requiredNotional,
     );
+    const approvalCustodyReasons = orderPlanApproval
+      ? this.getOrderPlanApprovalCustodyBlockedReasons(orderPlanApproval)
+      : [];
+    const approvalCustodyVerified =
+      Boolean(orderPlanApproval) && approvalCustodyReasons.length === 0;
+    const accountEventFresh = Boolean(
+      orderPlanApproval &&
+        currentPaperAccountEvent &&
+        orderPlanApproval.paperAccountId === paperAccount?.id &&
+        orderPlanApproval.paperAccountEventHash ===
+          currentPaperAccountEvent.eventHash,
+    );
     const readinessSnapshot: PaperReadinessSnapshot = {
       budgetActive: budget?.status === 'active',
       latestRiskAllow: latestEvaluation?.decision === 'ALLOW',
@@ -1485,6 +1567,11 @@ export class ControlPlaneService {
       brokerExecutionDisabled: true,
       liveTradingDisabled: true,
       explicitPaperAccountActive: Boolean(paperAccount),
+      approvalCustodyVerified,
+      accountEventFresh,
+      approvalPaperAccountEventHash: orderPlanApproval?.paperAccountEventHash,
+      currentPaperAccountEventHash: currentPaperAccountEvent?.eventHash,
+      paperAccountEventSequence: currentPaperAccountEvent?.sequence,
       killSwitchArmed: true,
       killSwitchTripped: executionControlState.state !== 'active',
       cashSufficient,
@@ -1500,6 +1587,9 @@ export class ControlPlaneService {
       readinessSnapshot,
       executionControlState: executionControlState.state,
       proposal,
+      paperAccount,
+      currentPaperAccountEvent,
+      approvalCustodyReasons,
     });
     const reservationHold =
       blockedReasons.length === 0
@@ -1627,6 +1717,9 @@ export class ControlPlaneService {
       availableCashAtHold: readinessSnapshot.availableCash,
       availableSellNotionalBySymbolAtHold:
         readinessSnapshot.availableSellNotionalBySymbol,
+      paperAccountEventHash: readinessSnapshot.currentPaperAccountEventHash,
+      paperAccountEventSequence: readinessSnapshot.paperAccountEventSequence,
+      approvalCustodyVerified: readinessSnapshot.approvalCustodyVerified,
     };
     const holdHash = this.hashObject(holdHashInput);
 
@@ -1641,6 +1734,11 @@ export class ControlPlaneService {
       availableSellNotionalBySymbolAtHold:
         readinessSnapshot.availableSellNotionalBySymbol,
       holdHash,
+      paperAccountEventHashAtHold:
+        readinessSnapshot.currentPaperAccountEventHash,
+      paperAccountEventSequenceAtHold:
+        readinessSnapshot.paperAccountEventSequence,
+      approvalCustodyVerifiedAtHold: readinessSnapshot.approvalCustodyVerified,
       notes: [
         'Reservation hold is local paper evidence only.',
         'No broker cash or broker position was reserved.',
@@ -1932,6 +2030,53 @@ export class ControlPlaneService {
             approval.idempotencyKey === request.idempotencyKey),
       ) ?? null
     );
+  }
+
+  private async findOrderPlanApprovalByIdempotencyKey(
+    proposalId: number,
+    idempotencyKey: string,
+  ): Promise<OrderPlanApproval | null> {
+    const approvals = await this.orderPlanApprovalRepository.find({
+      order: { updatedAt: 'DESC' },
+    });
+
+    return (
+      approvals.find(
+        (approval) =>
+          approval.proposalId === proposalId &&
+          approval.idempotencyKey === idempotencyKey,
+      ) ?? null
+    );
+  }
+
+  private assertOrderPlanApprovalReplay(
+    approval: OrderPlanApproval,
+    expected: {
+      approver: string;
+      reason: string;
+      expiresAt?: string;
+      expectedRiskEvaluationId?: number;
+      paperAccountId: number;
+      paperAccountEventHash: string;
+      signerKeyRef: string;
+    },
+  ): void {
+    const snapshot = approval.approvalSnapshot;
+    const mismatched =
+      approval.approver !== expected.approver ||
+      approval.reason !== expected.reason ||
+      snapshot.expiresAt !== expected.expiresAt ||
+      approval.paperAccountId !== expected.paperAccountId ||
+      approval.paperAccountEventHash !== expected.paperAccountEventHash ||
+      approval.signerKeyRef !== expected.signerKeyRef ||
+      (expected.expectedRiskEvaluationId !== undefined &&
+        approval.riskEvaluationId !== expected.expectedRiskEvaluationId);
+
+    if (mismatched) {
+      throw new BadRequestException(
+        `Approval idempotency key ${approval.idempotencyKey} was already used with a different signed payload`,
+      );
+    }
   }
 
   private async evaluateProposalForPaperExecution(
@@ -2592,6 +2737,9 @@ export class ControlPlaneService {
     readinessSnapshot: PaperReadinessSnapshot;
     executionControlState: ExecutionControlStateValue;
     proposal: InvestmentProposal;
+    paperAccount: PaperAccount | null;
+    currentPaperAccountEvent: PaperAccountEvent | null;
+    approvalCustodyReasons: string[];
   }): string[] {
     const reasons: string[] = [];
     const {
@@ -2602,6 +2750,9 @@ export class ControlPlaneService {
       readinessSnapshot,
       executionControlState,
       proposal,
+      paperAccount,
+      currentPaperAccountEvent,
+      approvalCustodyReasons,
     } = input;
 
     if (!readinessSnapshot.budgetActive) {
@@ -2662,6 +2813,29 @@ export class ControlPlaneService {
       if (latestEvaluation?.id !== orderPlanApproval.riskEvaluationId) {
         reasons.push('Signed order-plan approval risk evaluation mismatch');
       }
+
+      reasons.push(...approvalCustodyReasons);
+
+      if (!paperAccount) {
+        reasons.push(
+          'Signed order-plan approval cannot bind to a paper account',
+        );
+      } else if (orderPlanApproval.paperAccountId !== paperAccount.id) {
+        reasons.push('Signed order-plan approval paper account mismatch');
+      }
+
+      if (!currentPaperAccountEvent) {
+        reasons.push(
+          'Signed order-plan approval requires current account event evidence',
+        );
+      } else if (
+        orderPlanApproval.paperAccountEventHash !==
+        currentPaperAccountEvent.eventHash
+      ) {
+        reasons.push(
+          'Signed order-plan approval paper account event hash is stale',
+        );
+      }
     }
 
     if (!readinessSnapshot.cashSufficient) {
@@ -2688,6 +2862,67 @@ export class ControlPlaneService {
       proposal.orders.some((order) => order.side !== 'SELL')
     ) {
       reasons.push('Execution control reducing state only permits SELL orders');
+    }
+
+    return reasons;
+  }
+
+  private getOrderPlanApprovalCustodyBlockedReasons(
+    approval: OrderPlanApproval,
+  ): string[] {
+    const reasons: string[] = [];
+
+    if (!approval.canonicalPayloadHash) {
+      reasons.push('Signed order-plan approval lacks custody payload hash');
+    }
+
+    if (!approval.signature) {
+      reasons.push('Signed order-plan approval lacks custody signature');
+    }
+
+    if (!approval.approvalSnapshot) {
+      reasons.push('Signed order-plan approval lacks custody snapshot');
+      return reasons;
+    }
+
+    const snapshot = approval.approvalSnapshot;
+    const canonicalPayload = {
+      proposalId: snapshot.proposalId,
+      riskEvaluationId: snapshot.riskEvaluationId,
+      mode: snapshot.mode,
+      approver: snapshot.approver,
+      reason: snapshot.reason,
+      idempotencyKey: snapshot.idempotencyKey,
+      approvedOrderCount: snapshot.approvedOrderCount,
+      expiresAt: snapshot.expiresAt,
+      proposalHash: snapshot.proposalHash,
+      riskRequestHash: snapshot.riskRequestHash,
+      paperAccountId: snapshot.paperAccountId,
+      paperAccountEventHash: snapshot.paperAccountEventHash,
+      paperAccountEventSequence: snapshot.paperAccountEventSequence,
+      custodyMode: snapshot.custodyMode,
+      signerKeyRef: snapshot.signerKeyRef,
+    };
+    const canonicalPayloadHash = this.hashObject(canonicalPayload);
+
+    if (
+      approval.canonicalPayloadHash &&
+      approval.canonicalPayloadHash !== canonicalPayloadHash
+    ) {
+      reasons.push('Signed order-plan approval custody payload hash mismatch');
+    }
+
+    const signature = this.hashObject({
+      signerKeyRef: approval.signerKeyRef,
+      canonicalPayloadHash: approval.canonicalPayloadHash,
+    });
+
+    if (approval.signature && approval.signature !== signature) {
+      reasons.push('Signed order-plan approval custody signature mismatch');
+    }
+
+    if (approval.approvalHash !== this.hashObject(snapshot)) {
+      reasons.push('Signed order-plan approval hash mismatch');
     }
 
     return reasons;

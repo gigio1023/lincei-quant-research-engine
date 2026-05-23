@@ -34,6 +34,11 @@ export interface PaperReadinessSnapshot {
   brokerExecutionDisabled: boolean;
   liveTradingDisabled: boolean;
   explicitPaperAccountActive: boolean;
+  approvalCustodyVerified: boolean;
+  accountEventFresh: boolean;
+  approvalPaperAccountEventHash?: string;
+  currentPaperAccountEventHash?: string;
+  paperAccountEventSequence?: number;
   killSwitchArmed: boolean;
   killSwitchTripped: boolean;
   cashSufficient: boolean;
@@ -59,6 +64,9 @@ export interface PaperReservationHold {
   availableCashAtHold: number;
   availableSellNotionalBySymbolAtHold: Record<string, number>;
   holdHash: string;
+  paperAccountEventHashAtHold?: string;
+  paperAccountEventSequenceAtHold?: number;
+  approvalCustodyVerifiedAtHold?: boolean;
   notes: string[];
 }
 

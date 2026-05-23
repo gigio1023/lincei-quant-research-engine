@@ -58,6 +58,9 @@ export const OrderPlanApprovalPanel = ({
               ["idempotency", approval.idempotencyKey],
               ["riskEvaluation", approval.riskEvaluationId],
               ["proposalHash", approval.proposalHash],
+              ["payloadHash", approval.canonicalPayloadHash],
+              ["signerKey", approval.signerKeyRef],
+              ["accountEvent", approval.paperAccountEventHash],
               ["approvalHash", approval.approvalHash],
               ["approvedAt", formatDateTime(approval.approvedAt)],
             ].map(([label, value]) => (

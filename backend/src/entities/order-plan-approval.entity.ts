@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -24,8 +25,22 @@ export interface OrderPlanApprovalSnapshot {
   expiresAt?: string;
   proposalHash: string;
   riskRequestHash: string;
+  paperAccountId: number;
+  paperAccountEventHash: string;
+  paperAccountEventSequence: number;
+  custodyMode: 'local_hash_signature';
+  signerKeyRef: string;
+  canonicalPayloadHash: string;
+  signature: string;
 }
 
+@Index(
+  'IDX_order_plan_approval_proposal_idempotency',
+  ['proposalId', 'idempotencyKey'],
+  {
+    unique: true,
+  },
+)
 @Entity('order_plan_approvals')
 export class OrderPlanApproval {
   @PrimaryGeneratedColumn()
@@ -60,6 +75,27 @@ export class OrderPlanApproval {
 
   @Column()
   riskRequestHash: string;
+
+  @Column()
+  paperAccountId: number;
+
+  @Column()
+  paperAccountEventHash: string;
+
+  @Column()
+  paperAccountEventSequence: number;
+
+  @Column({ default: 'local_hash_signature' })
+  custodyMode: 'local_hash_signature';
+
+  @Column({ default: 'local-paper-approval-key-v1' })
+  signerKeyRef: string;
+
+  @Column()
+  canonicalPayloadHash: string;
+
+  @Column()
+  signature: string;
 
   @Column()
   approvalHash: string;

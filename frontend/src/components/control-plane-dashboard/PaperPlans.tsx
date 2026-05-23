@@ -99,6 +99,17 @@ const PaperPlanCard = ({ plan }: { plan: PaperPlan }) => (
           {" / reserved "}
           {formatCurrency(plan.readinessSnapshot.reservedCash ?? 0)}
         </div>
+        <div>
+          Custody:{" "}
+          {plan.readinessSnapshot.approvalCustodyVerified
+            ? "verified"
+            : "blocked"}
+          {" / account event "}
+          {plan.readinessSnapshot.accountEventFresh ? "fresh" : "stale"}
+          {plan.readinessSnapshot.paperAccountEventSequence
+            ? ` / seq ${plan.readinessSnapshot.paperAccountEventSequence}`
+            : ""}
+        </div>
       </div>
     </div>
 

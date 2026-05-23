@@ -111,6 +111,11 @@ export interface PaperReadinessSnapshot {
   brokerExecutionDisabled: boolean;
   liveTradingDisabled: boolean;
   explicitPaperAccountActive: boolean;
+  approvalCustodyVerified: boolean;
+  accountEventFresh: boolean;
+  approvalPaperAccountEventHash?: string;
+  currentPaperAccountEventHash?: string;
+  paperAccountEventSequence?: number;
   killSwitchArmed: boolean;
   killSwitchTripped: boolean;
   cashSufficient: boolean;
@@ -136,6 +141,9 @@ export interface PaperReservationHold {
   availableCashAtHold: number;
   availableSellNotionalBySymbolAtHold: Record<string, number>;
   holdHash: string;
+  paperAccountEventHashAtHold?: string;
+  paperAccountEventSequenceAtHold?: number;
+  approvalCustodyVerifiedAtHold?: boolean;
   notes: string[];
 }
 
@@ -375,6 +383,13 @@ export interface OrderPlanApprovalSnapshot {
   expiresAt?: string;
   proposalHash: string;
   riskRequestHash: string;
+  paperAccountId: number;
+  paperAccountEventHash: string;
+  paperAccountEventSequence: number;
+  custodyMode: "local_hash_signature";
+  signerKeyRef: string;
+  canonicalPayloadHash: string;
+  signature: string;
 }
 
 export interface OrderPlanApproval {
@@ -389,6 +404,13 @@ export interface OrderPlanApproval {
   status: OrderPlanApprovalStatus;
   proposalHash: string;
   riskRequestHash: string;
+  paperAccountId: number | string;
+  paperAccountEventHash: string;
+  paperAccountEventSequence: number;
+  custodyMode: "local_hash_signature";
+  signerKeyRef: string;
+  canonicalPayloadHash: string;
+  signature: string;
   approvalHash: string;
   approvalSnapshot: OrderPlanApprovalSnapshot;
   approvedAt: string;

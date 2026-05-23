@@ -424,7 +424,49 @@ describe('ControlPlaneService', () => {
       idempotencyKey: 'paper-test-1',
       approver: 'unit-test-operator',
       reason: 'Approve the first paper execution cycle.',
+      expectedPaperAccountEventHash: paperAccountEvents[1].eventHash,
     });
+    const replayedApproval = await service.createOrderPlanApproval(
+      proposal.id,
+      {
+        idempotencyKey: 'paper-test-1',
+        approver: 'unit-test-operator',
+        reason: 'Approve the first paper execution cycle.',
+        expectedPaperAccountEventHash: paperAccountEvents[1].eventHash,
+      },
+    );
+
+    expect(replayedApproval.id).toBe(approval.id);
+    expect(approval).toEqual(
+      expect.objectContaining({
+        paperAccountId: seededAccount.id,
+        paperAccountEventHash: paperAccountEvents[1].eventHash,
+        paperAccountEventSequence: 2,
+        custodyMode: 'local_hash_signature',
+        signerKeyRef: 'local-paper-approval-key-v1',
+        canonicalPayloadHash: expect.stringMatching(/^sha256:/),
+        signature: expect.stringMatching(/^sha256:/),
+      }),
+    );
+    expect(approval.approvalSnapshot).toEqual(
+      expect.objectContaining({
+        paperAccountId: seededAccount.id,
+        paperAccountEventHash: paperAccountEvents[1].eventHash,
+        paperAccountEventSequence: 2,
+        custodyMode: 'local_hash_signature',
+        signerKeyRef: 'local-paper-approval-key-v1',
+        canonicalPayloadHash: approval.canonicalPayloadHash,
+        signature: approval.signature,
+      }),
+    );
+    await expect(
+      service.createOrderPlanApproval(proposal.id, {
+        idempotencyKey: 'paper-test-1',
+        approver: 'unit-test-operator',
+        reason: 'Changed approval reason.',
+        expectedPaperAccountEventHash: paperAccountEvents[1].eventHash,
+      }),
+    ).rejects.toThrow('was already used with a different signed payload');
     const plan = await service.paperExecuteProposal(proposal.id, {
       idempotencyKey: 'paper-test-1',
       orderPlanApprovalId: approval.id,
@@ -443,6 +485,11 @@ describe('ControlPlaneService', () => {
         riskMatchesProposal: true,
         brokerExecutionDisabled: true,
         liveTradingDisabled: true,
+        approvalCustodyVerified: true,
+        accountEventFresh: true,
+        approvalPaperAccountEventHash: paperAccountEvents[1].eventHash,
+        currentPaperAccountEventHash: paperAccountEvents[1].eventHash,
+        paperAccountEventSequence: 2,
         cashSufficient: true,
         noDuplicatePlan: true,
       }),
@@ -457,6 +504,9 @@ describe('ControlPlaneService', () => {
         cashAmount: 500_750,
         availableCashAtHold: 10_000_000,
         holdHash: expect.stringMatching(/^sha256:/),
+        paperAccountEventHashAtHold: paperAccountEvents[1].eventHash,
+        paperAccountEventSequenceAtHold: 2,
+        approvalCustodyVerifiedAtHold: true,
         consumedAt: '2026-05-23T00:00:00.000Z',
       }),
     );
@@ -542,6 +592,8 @@ describe('ControlPlaneService', () => {
       expect.objectContaining({
         status: 'consumed',
         consumedByPaperOrderPlanId: plan.id,
+        canonicalPayloadHash: approval.canonicalPayloadHash,
+        signature: approval.signature,
         brokerExecutionEnabled: false,
         liveTradingEnabled: false,
       }),
@@ -643,6 +695,7 @@ describe('ControlPlaneService', () => {
         idempotencyKey: 'paper-test-2',
         approver: 'unit-test-operator',
         reason: 'Approve the second paper execution cycle.',
+        expectedPaperAccountEventHash: paperAccountEvents[2].eventHash,
       },
     );
     const secondPlan = await service.paperExecuteProposal(secondProposal.id, {
@@ -690,6 +743,117 @@ describe('ControlPlaneService', () => {
         }),
       ]),
     );
+  });
+
+  it('blocks paper execution when the signed approval account event is stale', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Stale approval budget',
+      totalBudget: 10_000_000,
+    });
+    const seededAccount = await service.seedPaperAccount({
+      budgetEnvelopeId: budget.id,
+      cash: 10_000_000,
+      actor: 'unit-test-operator',
+      reason: 'Seed paper account before stale approval test.',
+      idempotencyKey: 'seed-stale-approval-account',
+    });
+    await service.promotePaperAccount(seededAccount.id, {
+      actor: 'unit-test-operator',
+      reason: 'Promote paper account before stale approval test.',
+      idempotencyKey: 'promote-stale-approval-account',
+      expectedEventHash: paperAccountEvents[0].eventHash,
+    });
+    const researchRun = await service.runBaselineResearch({
+      budgetEnvelopeId: budget.id,
+    });
+    const proposal = await service.createProposal({
+      budgetEnvelopeId: budget.id,
+      researchRunId: researchRun.id,
+      strategyId: 'stale-approval-v1',
+      ruleId: 'account-event-freshness',
+      generatedAt: '2026-05-22T23:59:00.000Z',
+      marketDataTimestamp: '2026-05-22T23:55:00.000Z',
+      portfolioSnapshot: {
+        currency: 'KRW',
+        equity: 10_000_000,
+        cash: 10_000_000,
+        grossExposurePct: 0,
+      },
+      orders: [
+        {
+          symbol: '005930',
+          assetClass: 'domestic_stock',
+          side: 'BUY',
+          orderType: 'MARKET',
+          notional: 500_000,
+          targetPositionPct: 5,
+        },
+      ],
+    });
+    const approval = await service.createOrderPlanApproval(proposal.id, {
+      idempotencyKey: 'stale-account-event-plan',
+      approver: 'unit-test-operator',
+      reason: 'Approve before an account event advances.',
+      expectedPaperAccountEventHash: paperAccountEvents[1].eventHash,
+    });
+    const previousEvent = paperAccountEvents[1];
+    const advancedEventHash = 'sha256:advanced-account-event';
+    paperAccountEvents.push({
+      ...previousEvent,
+      id: 3,
+      eventType: 'reconciliation',
+      idempotencyKey: 'advance-account-event-after-approval',
+      actor: 'unit-test-operator',
+      reason: 'Account event advanced after approval.',
+      sequence: 3,
+      previousEventHash: previousEvent.eventHash,
+      requestHash: 'sha256:advanced-account-request',
+      eventHash: advancedEventHash,
+      eventSnapshot: {
+        ...previousEvent.eventSnapshot,
+        eventType: 'reconciliation',
+        idempotencyKey: 'advance-account-event-after-approval',
+        actor: 'unit-test-operator',
+        reason: 'Account event advanced after approval.',
+        sequence: 3,
+        previousEventHash: previousEvent.eventHash,
+        requestHash: 'sha256:advanced-account-request',
+        recordedAt: '2026-05-23T00:00:00.000Z',
+      },
+      createdAt: new Date('2026-05-23T00:00:01.000Z'),
+    } as PaperAccountEvent);
+    const replayedApproval = await service.createOrderPlanApproval(
+      proposal.id,
+      {
+        idempotencyKey: 'stale-account-event-plan',
+        approver: 'unit-test-operator',
+        reason: 'Approve before an account event advances.',
+        expectedPaperAccountEventHash: previousEvent.eventHash,
+      },
+    );
+
+    const plan = await service.paperExecuteProposal(proposal.id, {
+      idempotencyKey: 'stale-account-event-plan',
+      orderPlanApprovalId: approval.id,
+    });
+
+    expect(replayedApproval.id).toBe(approval.id);
+    expect(plan.status).toBe('blocked');
+    expect(plan.fills).toHaveLength(0);
+    expect(plan.blockedReasons).toContain(
+      'Signed order-plan approval paper account event hash is stale',
+    );
+    expect(plan.readinessSnapshot).toEqual(
+      expect.objectContaining({
+        approvalCustodyVerified: true,
+        accountEventFresh: false,
+        approvalPaperAccountEventHash: paperAccountEvents[1].eventHash,
+        currentPaperAccountEventHash: advancedEventHash,
+        paperAccountEventSequence: 3,
+      }),
+    );
+    expect(orderPlanApprovals[0].status).toBe('active');
+    expect(paperAccounts[0].cash).toBe(10_000_000);
   });
 
   it('generates a SELL-only recovery proposal from active paper positions', async () => {
@@ -774,6 +938,7 @@ describe('ControlPlaneService', () => {
         idempotencyKey: 'paper-recovery-approval',
         approver: 'unit-test-operator',
         reason: 'Approve SELL-only recovery simulation.',
+        expectedPaperAccountEventHash: paperAccountEvents[1].eventHash,
       },
     );
     const plan = await service.paperExecuteProposal(recovery.proposal.id, {
@@ -1228,6 +1393,7 @@ describe('ControlPlaneService', () => {
       idempotencyKey: 'reservation-paper-plan',
       approver: 'unit-test-operator',
       reason: 'Approve reservation check plan.',
+      expectedPaperAccountEventHash: paperAccountEvents[1].eventHash,
     });
     paperOrderPlans.push({
       id: 99,
@@ -1330,6 +1496,7 @@ describe('ControlPlaneService', () => {
       idempotencyKey: 'reserved-hold-paper-plan',
       approver: 'unit-test-operator',
       reason: 'Approve reserved hold check plan.',
+      expectedPaperAccountEventHash: paperAccountEvents[1].eventHash,
     });
     const orphanedHold = {
       holdId: 'paper-reservation:orphaned-reserved-hold',
@@ -1961,6 +2128,7 @@ describe('ControlPlaneService', () => {
         approver: 'operator',
         reason: 'Approve autonomous paper order plan.',
         idempotencyKey: 'autonomous-paper-approval',
+        expectedPaperAccountEventHash: paperAccountEvents[1].eventHash,
       },
     );
 
