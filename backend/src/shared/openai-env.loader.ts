@@ -1,3 +1,9 @@
+/**
+ * Loads OpenAI credentials from an external env file (never committed) and rejects OpenRouter routing.
+ *
+ * Invariant: V1 LLM alpha must not silently fall back to forbidden providers; misconfiguration fails fast
+ * at load time rather than at runtime inside a trading cycle.
+ */
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -55,6 +61,7 @@ export function loadOpenAiEnv(
 }
 
 export function assertOpenAiEnvAllowed(env: NodeJS.ProcessEnv): void {
+  // Fail closed: OpenRouter is explicitly out of scope for V1 (see docs/v1-live-pilot-spec/05-environment-and-secrets.md).
   if ((env.LLM_PROVIDER ?? '').toLowerCase() === 'openrouter') {
     throw new Error('LLM_PROVIDER=openrouter is forbidden for V1 live pilot.');
   }

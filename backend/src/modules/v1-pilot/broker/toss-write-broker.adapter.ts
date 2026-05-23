@@ -1,3 +1,7 @@
+/**
+ * Placeholder for Toss write paths. Every method fails closed until order/cancel/fill schemas are verified.
+ * Prevents accidental live submission while read-only Toss integration matures.
+ */
 import { Injectable } from '@nestjs/common';
 import { ExecutionIntentContract } from '../contracts/v1-pilot.contracts';
 import {

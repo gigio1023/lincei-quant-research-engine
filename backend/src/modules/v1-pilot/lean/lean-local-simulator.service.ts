@@ -1,3 +1,7 @@
+/**
+ * Produces LEAN-shaped artifacts when Lean CLI is unavailable. Proves ingest/paper wiring only;
+ * must not be treated as strategy validation equivalent to a real Lean backtest.
+ */
 import { createHash, randomUUID } from 'crypto';
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, resolve } from 'path';

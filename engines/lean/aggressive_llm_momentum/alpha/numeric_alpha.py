@@ -1,4 +1,4 @@
-"""Numeric momentum alpha model for aggressive_llm_momentum V1."""
+"""Reproducible numeric momentum features — fast path without LLM network calls."""
 
 from __future__ import annotations
 

@@ -1,3 +1,7 @@
+/**
+ * Capped $10 live pilot behind --confirm-real-money and preflight.ready.
+ * Uses mock adapter until Toss write schema flags pass; records whether a real broker order was sent.
+ */
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -33,6 +37,7 @@ export class LivePilot10UsdService {
     confirmRealMoney: boolean;
     idempotencyKey?: string;
   }): Promise<{ submitted: boolean; intentId: string; blockers: string[] }> {
+    // Explicit operator intent required so automated scripts cannot submit live orders by accident.
     if (!options.confirmRealMoney) {
       throw new BadRequestException(
         'Refusing live pilot without --confirm-real-money flag.',
@@ -90,6 +95,7 @@ export class LivePilot10UsdService {
       };
     }
 
+    // Real Toss adapter only after explicit schema + write flags; otherwise mock proves plumbing only.
     const adapter =
       process.env.TOSS_ORDER_SCHEMA_VERIFIED === 'true' &&
       process.env.BROKER_WRITE_ENABLED === 'true'

@@ -1,3 +1,7 @@
+/**
+ * V1 autonomous live-pilot module: alpha generation, LEAN ingest, paper bridge, broker adapters, live gates.
+ * Kept separate from ControlPlaneModule to preserve the LEAN/LLM/broker credential boundaries in the spec.
+ */
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AlphaDecision } from '../../entities/alpha-decision.entity';

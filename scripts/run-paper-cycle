@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Bridges latest LEAN targets into control-plane paper execution ledgers.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT/backend"

@@ -1,3 +1,6 @@
+/**
+ * Fast-path numeric alpha (no network). Used for backtest replay and de-risking when LLM is unavailable.
+ */
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

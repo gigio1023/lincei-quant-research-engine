@@ -1,3 +1,4 @@
+/** Cross-boundary DTOs for V1 pilot — see docs/v1-live-pilot-spec/04-contracts-and-schemas.md */
 export type FeatureTimeframe = 'daily' | 'hourly' | 'minute';
 
 export interface FeatureSnapshotContract {

@@ -1,4 +1,8 @@
-"""Meta alpha model combining numeric scores with external meta_decisions.json."""
+"""Meta alpha: numeric score + precomputed LLM committee output (meta_decisions.json).
+
+Weights match docs/v1-live-pilot-spec/06-lean-alpha-implementation.md. V1 does not short;
+conflict handling reduces conviction when numeric and LLM disagree.
+"""
 
 from __future__ import annotations
 

@@ -1,3 +1,7 @@
+/**
+ * Fail-closed gate before any live notional. "Unknown" broker or schema state is treated as blocked,
+ * per docs/v1-live-pilot-spec/07-broker-and-live-pilot.md — never optimistically ready.
+ */
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

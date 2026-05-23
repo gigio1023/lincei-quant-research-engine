@@ -1,3 +1,7 @@
+/**
+ * Idempotent import of artifacts/lean-runs into SQLite. Missing files fail import to avoid
+ * paper/live cycles running on partial evidence.
+ */
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { existsSync, readFileSync } from 'fs';

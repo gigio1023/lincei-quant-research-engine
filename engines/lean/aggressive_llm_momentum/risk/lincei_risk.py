@@ -1,4 +1,4 @@
-"""Risk management model for aggressive_llm_momentum V1."""
+"""Risk model: stale data, drawdown, vol spike, and exposure caps cut targets before execution."""
 
 from __future__ import annotations
 

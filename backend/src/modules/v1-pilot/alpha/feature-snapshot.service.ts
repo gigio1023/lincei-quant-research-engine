@@ -1,3 +1,7 @@
+/**
+ * Builds deterministic feature snapshots from ingested bars (or synthetic fallbacks).
+ * Stale snapshots are rejected downstream so live exposure cannot rely on expired inputs.
+ */
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';

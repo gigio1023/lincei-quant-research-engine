@@ -1,3 +1,7 @@
+/**
+ * Headless entrypoint for ./scripts/* — boots Nest without HTTP and runs one V1 command.
+ * Exit code 2 from live-preflight / live-pilot means blocked by policy (not a crash).
+ */
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
 import { V1PilotOrchestratorService } from '../modules/v1-pilot/v1-pilot-orchestrator.service';

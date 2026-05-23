@@ -1,3 +1,4 @@
+/** Schema and policy guards at module boundaries — reject early before persistence or broker I/O. */
 import { BadRequestException } from '@nestjs/common';
 import {
   AlphaDecisionContract,
@@ -27,6 +28,7 @@ export function validateFeatureSnapshot(snapshot: FeatureSnapshotContract): void
     throw new BadRequestException('Feature snapshot asOf precedes data availability.');
   }
 
+  // Live pilot must not act on features older than policy window (fail closed on stale data).
   if (Date.now() - availability > MAX_FEATURE_AGE_MS) {
     throw new BadRequestException('Feature snapshot is stale for live pilot policy.');
   }

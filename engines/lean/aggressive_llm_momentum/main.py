@@ -1,4 +1,8 @@
-"""Aggressive LLM momentum V1 algorithm using LEAN Algorithm Framework."""
+"""Aggressive LLM momentum V1 — LEAN Algorithm Framework entrypoint.
+
+OpenAI is intentionally not called here; meta decisions are read from JSON produced by the
+NestJS alpha cycle so backtests remain deterministic and network-free.
+"""
 
 from __future__ import annotations
 

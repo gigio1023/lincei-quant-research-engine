@@ -24,9 +24,60 @@ These rules apply to the whole repository unless a narrower `AGENTS.md` override
 
 ## Comments
 
-- Add comments that explain intent, invariants, risk controls, or non-obvious domain rules.
-- Do not add comments that merely repeat the code.
-- For finance, execution, risk, broker, ledger, or reconciliation logic, include comments for the safety invariant being protected and the failure mode the code is avoiding.
+This repository follows practices aligned with [Google's code review guidance](https://google.github.io/eng-practices/review/reviewer/looking-for.html) and Meta/Facebook-style reviewable changes: comments and commit messages should explain **why**, not restate **what** the code already says. If code needs a "what" comment, prefer renaming or simplifying the code first.
+
+### Default rule
+
+- Write comments in **English**.
+- Every comment must earn its place: if deleting the comment loses no information a reader cannot get from names and structure, remove it.
+- Prefer clear names, small functions, and typed contracts over inline narration.
+
+### What to comment (required in this repo)
+
+| Situation | What to write |
+|-----------|----------------|
+| **Money-moving paths** (broker, paper/live execution, reconciliation, live pilot) | The safety invariant, fail-closed default, and the failure mode being prevented (e.g. duplicate submit, stale features, cap bypass). |
+| **Boundary crossings** (LEAN ↔ NestJS, LLM ↔ broker, script ↔ CLI) | Why the boundary exists and what must *not* happen across it (no OpenAI in LEAN backtest, no credentials in LLM/frontend/logs). |
+| **Policy gates** (preflight, kill switch, schema verification flags) | Why the gate exists and what "unknown" means (always blocked). |
+| **Non-obvious algorithms** (meta-alpha weights, numeric scoring, idempotency replay) | Brief intent and replay/idempotency expectations—not a line-by-line walkthrough. |
+| **Workarounds and constraints** | Link to spec section or ticket; include `TODO(name):` only when follow-up is real. |
+
+### What not to comment
+
+- Obvious control flow (`// increment i`, `// return result`).
+- Getters, DTO field lists, or imports.
+- Test files, unless a test encodes a subtle regression contract (one line above the `it` block is enough).
+- Generated or mechanical code (migrations, lockfiles).
+- Closing braces, section banners with no new information, or ASCII art separators.
+
+### Format
+
+- **TypeScript/JavaScript**: Use `/** ... */` for file/module intent and public service methods; use `//` sparingly for single-line invariants inside hot paths.
+- **Python (LEAN)**: Module docstring at top; class docstring for Framework models explaining role in the V1 loop.
+- **Shell scripts**: One header block: purpose, delegation target, and exit-code meaning.
+- Do not box comments with asterisk frames (Google styleguide).
+- Keep comments up to date: delete comments that contradict the code or describe removed behavior.
+
+### Documentation vs comments
+
+- **Comments**: In-code reasoning for maintainers at the point of use.
+- **Docs** (`docs/`, `SPEC.md`, module READMEs): Contracts, runbooks, acceptance criteria, and operator commands.
+- **JSDoc on public APIs**: Purpose, preconditions, and side effects when the method is called from scripts, other modules, or HTTP—not parameter renames.
+
+### Finance-specific (V1 live pilot)
+
+- State maximum notional caps and "blocked beats ready" wherever live or broker write paths are implemented.
+- Never document secrets, keys, or raw account identifiers in comments; refer to "credential env" or "hashed ref" instead.
+- When mock or simulator paths exist, comment that they prove plumbing only and must not be described as production broker readiness.
+
+### Review checklist
+
+Before merging comment-heavy changes:
+
+1. Could any comment be replaced by a better name or a 5-line helper?
+2. Do safety comments name the invariant and failure mode?
+3. Are there any Korean or stale comments left in touched files?
+4. Would a new engineer understand **why** the branch fails closed without reading the spec?
 
 ## Documentation
 

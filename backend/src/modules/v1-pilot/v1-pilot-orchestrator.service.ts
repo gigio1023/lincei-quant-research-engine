@@ -1,3 +1,10 @@
+/**
+ * Coordinates the V1 vertical slice invoked by repo scripts and the v1-pilot CLI.
+ *
+ * Order of operations matches docs/v1-live-pilot-spec: alpha → LEAN backtest/import →
+ * paper bridge → live preflight → optional $10 pilot. LEAN CLI is preferred; the local
+ * simulator exists so CI and dev machines without Docker/Lean can still prove artifact flow.
+ */
 import { Injectable } from '@nestjs/common';
 import { execSync } from 'child_process';
 import { existsSync, writeFileSync, mkdirSync, readdirSync } from 'fs';
@@ -51,6 +58,7 @@ export class V1PilotOrchestratorService {
 
     const repoRoot = resolve(process.cwd(), '..');
     const leanCli = process.env.LEAN_CLI_PATH ?? 'lean';
+    // Prefer real Lean CLI for deterministic strategy semantics; simulator is not a substitute for production sign-off.
     try {
       execSync(`${leanCli} backtest "${projectName}"`, {
         cwd: join(repoRoot, 'engines/lean'),

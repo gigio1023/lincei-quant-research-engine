@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Idempotent import of LEAN artifacts into Nest (arg: run id or "latest").
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TARGET="${1:-latest}"

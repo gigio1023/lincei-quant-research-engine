@@ -1,3 +1,4 @@
+/** Persisted LEAN backtest/import run with artifact paths and content hashes for replay audits. */
 import {
   Column,
   CreateDateColumn,

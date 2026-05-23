@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Feature snapshots → numeric → OpenAI committee → meta alpha (exports meta_decisions.json).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT/backend"

@@ -1,3 +1,7 @@
+/**
+ * OpenAI committee outside LEAN so backtests stay reproducible and broker credentials never enter prompts.
+ * Missing or invalid API config skips LLM gracefully; committee failure must not abort the numeric/meta path.
+ */
 import { Injectable, Logger } from '@nestjs/common';
 import OpenAI from 'openai';
 import { InjectRepository } from '@nestjs/typeorm';

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Runs LEAN backtest or local simulator fallback; writes artifacts/lean-runs/<runId>/.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROJECT="${1:-aggressive_llm_momentum}"

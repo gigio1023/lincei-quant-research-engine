@@ -1,3 +1,4 @@
+/** Append-only preflight / pilot outcomes so operators can see blocked vs ready history. */
 import {
   Column,
   CreateDateColumn,

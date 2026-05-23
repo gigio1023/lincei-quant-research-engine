@@ -1,3 +1,7 @@
+/**
+ * Provider-neutral broker boundary. Implementations must not accept arbitrary payloads from LLM output;
+ * only validated ExecutionIntent records from the control plane may be submitted.
+ */
 import { ExecutionIntentContract } from '../contracts/v1-pilot.contracts';
 
 export type BrokerSnapshotView = {

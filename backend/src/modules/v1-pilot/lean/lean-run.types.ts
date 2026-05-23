@@ -1,3 +1,4 @@
+/** Artifact shapes shared by simulator, importer, and paper bridge — kept aligned with docs/v1-live-pilot-spec/04-contracts-and-schemas.md */
 export type LeanRunStatus = 'passed' | 'failed';
 
 export type LeanRunResult = {

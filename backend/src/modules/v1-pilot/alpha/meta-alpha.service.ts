@@ -1,3 +1,7 @@
+/**
+ * Combines numeric and LLM scores into meta decisions and writes meta_decisions.json for LEAN replay.
+ * Conflict rules intentionally reduce live max position when numeric and LLM disagree.
+ */
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -48,6 +52,7 @@ export class MetaAlphaService {
       let direction: 'up' | 'down' | 'flat' = finalScore >= 0.65 ? 'up' : 'flat';
       let maxPositionPct = direction === 'up' ? 0.35 : 0;
 
+      // Spec conflict rules: dampen size when committees disagree or risk reviewer is elevated.
       if (numericDecision?.direction === 'up' && llmEvent?.direction === 'flat') {
         maxPositionPct = Math.min(maxPositionPct, 0.175);
       }

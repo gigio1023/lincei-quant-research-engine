@@ -1,3 +1,4 @@
+/** Read-only V1 pilot status for operators — does not trigger execution. */
 import { useEffect, useState } from "react";
 import { v1PilotApi } from "../../services/api";
 

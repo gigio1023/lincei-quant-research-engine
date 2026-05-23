@@ -1,5 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
+/** V1 pilot ledgers: LEAN runs, alpha decisions, targets, execution intents, preflight history. */
 export class AddV1PilotTables1764201600000 implements MigrationInterface {
   name = 'AddV1PilotTables1764201600000';
 

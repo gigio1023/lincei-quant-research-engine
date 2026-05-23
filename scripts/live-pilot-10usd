@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Requires --confirm-real-money and preflight.ready; max $10 notional per V1 policy.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT/backend"

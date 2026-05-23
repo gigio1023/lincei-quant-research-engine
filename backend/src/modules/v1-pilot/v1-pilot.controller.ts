@@ -1,3 +1,4 @@
+/** Thin HTTP surface for dashboard observability; scripts use v1-pilot-cli instead. */
 import { Controller, Get, Post } from '@nestjs/common';
 import { V1PilotOrchestratorService } from './v1-pilot-orchestrator.service';
 import { LeanRunImportService } from './lean/lean-run-import.service';

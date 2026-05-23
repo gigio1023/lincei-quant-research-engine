@@ -1,3 +1,7 @@
+/**
+ * Maps latest LEAN portfolio targets into the existing control-plane proposal → risk → paper path.
+ * Reuses human-grade ledgers instead of a parallel paper executor so reconciliation stays unified.
+ */
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -114,6 +118,7 @@ export class LeanPaperBridgeService {
     });
 
     await this.controlPlaneService.evaluateProposal(proposal.id);
+    // listPaperAccountEvents returns newest-first; approval must pin the latest event hash to prevent TOCTOU races.
     const paperEvents = await this.controlPlaneService.listPaperAccountEvents();
     const latestEvent = paperEvents[0];
     const approval = await this.controlPlaneService.createOrderPlanApproval(

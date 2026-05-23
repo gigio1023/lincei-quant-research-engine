@@ -1,3 +1,4 @@
+/** Signed intent to execute against paper or live broker — live rows enforce USD notional caps in validators. */
 import {
   Column,
   CreateDateColumn,
