@@ -3664,7 +3664,7 @@ export class ControlPlaneService {
     return Number(value.toFixed(8));
   }
 
-  private hashObject(value: unknown): string {
+  hashObject(value: unknown): string {
     return `sha256:${createHash('sha256')
       .update(this.stableStringify(value))
       .digest('hex')}`;
@@ -3730,7 +3730,7 @@ export class ControlPlaneService {
         new Date(right.timestamp).getTime(),
     );
     const existing = await this.marketDataBarRepository.find({
-      where: { datasetId, symbol },
+      where: { datasetId, symbol, timeframe },
     });
     const existingByTimestamp = new Map(
       existing.map((bar) => [bar.timestamp, bar]),

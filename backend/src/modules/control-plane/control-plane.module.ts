@@ -8,6 +8,7 @@ import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
 import { MarketDataBar } from '../../entities/market-data-bar.entity';
+import { MarketDataIngestionRun } from '../../entities/market-data-ingestion-run.entity';
 import { OrderPlanApproval } from '../../entities/order-plan-approval.entity';
 import { PaperAccountEvent } from '../../entities/paper-account-event.entity';
 import { RiskEvaluation } from '../../entities/risk-evaluation.entity';
@@ -20,6 +21,10 @@ import { BrokerAdapterReadinessService } from './broker-adapter-readiness.servic
 import { ControlPlaneSchedulerService } from './control-plane-scheduler.service';
 import { ControlPlaneController } from './control-plane.controller';
 import { ControlPlaneService } from './control-plane.service';
+import { MarketDataIngestionSchedulerService } from './market-data-ingestion-scheduler.service';
+import { MarketDataIngestionService } from './market-data-ingestion.service';
+import { MARKET_DATA_PROVIDER } from './market-data-provider.types';
+import { StooqMarketDataService } from './stooq-market-data.service';
 import { TossReadOnlyBrokerService } from './toss-read-only-broker.service';
 
 @Module({
@@ -33,6 +38,7 @@ import { TossReadOnlyBrokerService } from './toss-read-only-broker.service';
       ExecutionControlState,
       InvestmentProposal,
       MarketDataBar,
+      MarketDataIngestionRun,
       OrderPlanApproval,
       PaperAccountEvent,
       RiskEvaluation,
@@ -48,12 +54,21 @@ import { TossReadOnlyBrokerService } from './toss-read-only-broker.service';
     BrokerAdapterReadinessService,
     ControlPlaneService,
     ControlPlaneSchedulerService,
+    MarketDataIngestionSchedulerService,
+    MarketDataIngestionService,
+    StooqMarketDataService,
+    {
+      provide: MARKET_DATA_PROVIDER,
+      useExisting: StooqMarketDataService,
+    },
     TossReadOnlyBrokerService,
   ],
   exports: [
     BrokerAdapterReadinessService,
     ControlPlaneService,
     ControlPlaneSchedulerService,
+    MarketDataIngestionSchedulerService,
+    MarketDataIngestionService,
     TossReadOnlyBrokerService,
   ],
 })

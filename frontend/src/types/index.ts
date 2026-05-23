@@ -1094,6 +1094,74 @@ export interface MarketDataBarsImportResponse {
   liveTradingEnabled: false;
 }
 
+export interface MarketDataIngestionStatus {
+  enabled: boolean;
+  provider: string;
+  datasetId: string;
+  symbols: string[];
+  benchmark: string;
+  timeframe: string;
+  currency: string;
+  lookbackDays: number;
+  cron: string;
+  running: boolean;
+  lastAttemptAt?: string;
+  lastPollAt?: string;
+  lastRunId?: number | string;
+  lastError?: string;
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+}
+
+export interface MarketDataIngestionRun {
+  id: number | string;
+  trigger: string;
+  status: "skipped" | "running" | "succeeded" | "partial" | "failed";
+  provider: string;
+  datasetId: string;
+  symbols: string[];
+  timeframe: string;
+  currency: string;
+  windowStart: string;
+  windowEnd: string;
+  requestHash: string;
+  imported: number;
+  replaced: number;
+  latestAvailabilityTimestamp?: string;
+  importedSymbols: string[];
+  failedSymbols: string[];
+  blockedReasons: string[];
+  error?: string;
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MarketDataIngestionPollRequest {
+  force?: boolean;
+  datasetId?: string;
+  provider?: string;
+  symbols?: string[];
+  benchmark?: string;
+  timeframe?: string;
+  currency?: string;
+  windowStart?: string;
+  windowEnd?: string;
+}
+
+export interface MarketDataIngestionPollResponse {
+  run: MarketDataIngestionRun;
+  status: MarketDataIngestionRun["status"];
+  imported: number;
+  replaced: number;
+  importedSymbols: string[];
+  failedSymbols: string[];
+  blockedReasons: string[];
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+}
+
 export interface RunRecoveryProposalRequest {
   paperAccountId?: number;
   budgetEnvelopeId?: number;

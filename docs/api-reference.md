@@ -289,6 +289,32 @@ all broker/live execution flags remain `false`.
 
 - **Description**: Lists imported market bars. Optional query params: `datasetId`, `symbol`.
 
+#### `GET /control-plane/market-data/ingestion/status`
+
+- **Description**: Returns the disabled-by-default external market-data ingestion worker config and latest in-memory poll state. This reports provider, dataset, symbols, benchmark, timeframe, lookback, cron, and hard-coded broker/live execution flags.
+
+#### `POST /control-plane/market-data/ingestion/poll`
+
+- **Description**: Manually runs the configured market-data ingestion poll. By default this skips when `MARKET_DATA_INGESTION_ENABLED` is not `true`. Passing `"force": true` allows an operator dry-run, but imported bars still only write the research market-data ledger and never call broker or live order paths.
+- **Example Request**:
+  ```json
+  {
+    "force": true,
+    "datasetId": "scheduled-daily-bars",
+    "provider": "stooq",
+    "symbols": ["005930"],
+    "benchmark": "KOSPI200",
+    "timeframe": "1d",
+    "currency": "KRW",
+    "windowStart": "2026-05-01T00:00:00.000Z",
+    "windowEnd": "2026-05-23T00:00:00.000Z"
+  }
+  ```
+
+#### `GET /control-plane/market-data/ingestion-runs`
+
+- **Description**: Lists durable market-data ingestion run records ordered by latest update, including imported/replaced counts, imported/failed symbols, blocked reasons, request hash, and broker/live execution flags.
+
 #### `POST /control-plane/research-runs/run-baseline`
 
 - **Description**: Runs the deterministic baseline backtest and stores the resulting research run. By default it uses built-in local sample bars. If `datasetId`, `symbol`, and `benchmark` are provided, it uses imported timestamp-aligned bars from `/control-plane/market-data/bars/import`. This is a dry-run research action; it does not read broker data and does not place orders.

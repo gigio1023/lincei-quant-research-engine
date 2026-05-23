@@ -15,6 +15,7 @@ import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
 import { MarketDataBar } from '../../entities/market-data-bar.entity';
+import { MarketDataIngestionRun } from '../../entities/market-data-ingestion-run.entity';
 import { OrderPlanApproval } from '../../entities/order-plan-approval.entity';
 import { PaperAccountEvent } from '../../entities/paper-account-event.entity';
 import { PaperAccount } from '../../entities/paper-account.entity';
@@ -24,6 +25,8 @@ import { RiskEvaluation } from '../../entities/risk-evaluation.entity';
 import { BrokerAdapterReadinessService } from './broker-adapter-readiness.service';
 import { ControlPlaneSchedulerService } from './control-plane-scheduler.service';
 import { ControlPlaneService } from './control-plane.service';
+import { MarketDataIngestionSchedulerService } from './market-data-ingestion-scheduler.service';
+import { MarketDataIngestionService } from './market-data-ingestion.service';
 import { TossReadOnlyBrokerService } from './toss-read-only-broker.service';
 import {
   AdvanceAutonomousRunRequest,
@@ -39,6 +42,9 @@ import {
   ImportBrokerFillRequest,
   ImportBrokerSnapshotRequest,
   ImportMarketDataBarsRequest,
+  MarketDataIngestionPollRequest,
+  MarketDataIngestionPollResponse,
+  MarketDataIngestionStatus,
   MarketDataBarsImportResponse,
   PaperExecuteProposalRequest,
   PromotePaperAccountRequest,
@@ -61,6 +67,8 @@ export class ControlPlaneController {
     private readonly controlPlaneSchedulerService: ControlPlaneSchedulerService,
     private readonly brokerAdapterReadinessService: BrokerAdapterReadinessService,
     private readonly tossReadOnlyBrokerService: TossReadOnlyBrokerService,
+    private readonly marketDataIngestionService: MarketDataIngestionService,
+    private readonly marketDataIngestionSchedulerService: MarketDataIngestionSchedulerService,
   ) {}
 
   @Get('status')
@@ -269,6 +277,23 @@ export class ControlPlaneController {
     @Query('symbol') symbol?: string,
   ): Promise<MarketDataBar[]> {
     return this.controlPlaneService.listMarketDataBars(datasetId, symbol);
+  }
+
+  @Get('market-data/ingestion/status')
+  getMarketDataIngestionStatus(): MarketDataIngestionStatus {
+    return this.marketDataIngestionSchedulerService.getWorkerStatus();
+  }
+
+  @Post('market-data/ingestion/poll')
+  pollMarketDataIngestion(
+    @Body() request: MarketDataIngestionPollRequest = {},
+  ): Promise<MarketDataIngestionPollResponse> {
+    return this.marketDataIngestionService.poll(request, 'manual');
+  }
+
+  @Get('market-data/ingestion-runs')
+  listMarketDataIngestionRuns(): Promise<MarketDataIngestionRun[]> {
+    return this.marketDataIngestionService.listRuns();
   }
 
   @Post('research-runs/run-baseline')

@@ -2,6 +2,8 @@ import {
   ControlPlaneStage,
   ControlPlaneStatus,
   ExecutionControlState,
+  MarketDataIngestionRun,
+  MarketDataIngestionStatus,
   RunBaselineResearchRequest,
   RiskGateRequest,
   RiskGateResponse,
@@ -212,6 +214,47 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
     "No production kill switch runtime",
   ],
 };
+
+export const DOCUMENTED_MARKET_DATA_INGESTION_STATUS: MarketDataIngestionStatus =
+  {
+    enabled: false,
+    provider: "stooq",
+    datasetId: "scheduled-daily-bars",
+    symbols: ["005930"],
+    benchmark: "KOSPI200",
+    timeframe: "1d",
+    currency: "KRW",
+    lookbackDays: 30,
+    cron: "*/30 * * * *",
+    running: false,
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+  };
+
+export const DOCUMENTED_MARKET_DATA_INGESTION_RUNS: MarketDataIngestionRun[] = [
+  {
+    id: "market-data-ingestion-docs-1",
+    trigger: "manual",
+    status: "skipped",
+    provider: "stooq",
+    datasetId: "scheduled-daily-bars",
+    symbols: ["005930", "KOSPI200"],
+    timeframe: "1d",
+    currency: "KRW",
+    windowStart: "2026-04-23T00:00:00.000Z",
+    windowEnd: "2026-05-23T00:00:00.000Z",
+    requestHash: "sha256:documented-market-data-ingestion",
+    imported: 0,
+    replaced: 0,
+    importedSymbols: [],
+    failedSymbols: [],
+    blockedReasons: ["Market data ingestion is disabled by default"],
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+    createdAt: "2026-05-23T00:00:00.000Z",
+    updatedAt: "2026-05-23T00:00:00.000Z",
+  },
+];
 
 export const DOCUMENTED_EXECUTION_CONTROL: ExecutionControlState = {
   id: "execution-control-docs-active",

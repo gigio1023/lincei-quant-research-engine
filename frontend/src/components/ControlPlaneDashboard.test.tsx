@@ -32,6 +32,8 @@ vi.mock("../services/api", () => ({
     getRuns: vi.fn(),
     getRunSchedules: vi.fn(),
     getRunScheduleWorkerStatus: vi.fn(),
+    getMarketDataIngestionStatus: vi.fn(),
+    getMarketDataIngestionRuns: vi.fn(),
     advanceRun: vi.fn(),
     tickRunSchedule: vi.fn(),
     runBaselineResearch: vi.fn(),
@@ -955,9 +957,51 @@ const mockOrderPlanApprovals = [
   },
 ];
 
+const mockMarketDataIngestionStatus = {
+  enabled: false,
+  provider: "stooq",
+  datasetId: "scheduled-daily-bars",
+  symbols: ["005930"],
+  benchmark: "KOSPI200",
+  timeframe: "1d",
+  currency: "KRW",
+  lookbackDays: 30,
+  cron: "*/30 * * * *",
+  running: false,
+  lastRunId: "market-data-ingestion-api-1",
+  brokerExecutionEnabled: false,
+  liveTradingEnabled: false,
+};
+
+const mockMarketDataIngestionRuns = [
+  {
+    id: "market-data-ingestion-api-1",
+    trigger: "manual",
+    status: "skipped",
+    provider: "stooq",
+    datasetId: "scheduled-daily-bars",
+    symbols: ["005930", "KOSPI200"],
+    timeframe: "1d",
+    currency: "KRW",
+    windowStart: "2026-04-23T00:00:00.000Z",
+    windowEnd: "2026-05-23T00:00:00.000Z",
+    requestHash: "sha256:market-data-ingestion-api",
+    imported: 0,
+    replaced: 0,
+    importedSymbols: [],
+    failedSymbols: [],
+    blockedReasons: ["Market data ingestion is disabled"],
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+    createdAt: "2026-05-23T00:00:00.000Z",
+    updatedAt: "2026-05-23T00:00:00.000Z",
+  },
+];
+
 describe("ControlPlaneDashboard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
     vi.mocked(riskGateApi.getStatus).mockResolvedValue(mockRiskGateStatus);
     vi.mocked(controlPlaneApi.getStatus).mockResolvedValue(
       mockControlPlaneStatus,
@@ -1000,6 +1044,12 @@ describe("ControlPlaneDashboard", () => {
     );
     vi.mocked(controlPlaneApi.getOrderPlanApprovals).mockResolvedValue(
       mockOrderPlanApprovals,
+    );
+    vi.mocked(controlPlaneApi.getMarketDataIngestionStatus).mockResolvedValue(
+      mockMarketDataIngestionStatus,
+    );
+    vi.mocked(controlPlaneApi.getMarketDataIngestionRuns).mockResolvedValue(
+      mockMarketDataIngestionRuns,
     );
     vi.mocked(controlPlaneApi.runBaselineResearch).mockResolvedValue(
       mockBaselineResearchRun,
@@ -1079,6 +1129,8 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("Research Data")).toBeInTheDocument();
     expect(screen.getByText("Decision Chain")).toBeInTheDocument();
     expect(screen.getByText("Paper Result")).toBeInTheDocument();
+    expect(screen.getByText("Market ingestion")).toBeInTheDocument();
+    expect(screen.getByText("stooq / 1d")).toBeInTheDocument();
     expect(screen.getByText("Live autonomous runs")).toBeInTheDocument();
     expect(screen.getByText("Live run schedules")).toBeInTheDocument();
     expect(screen.getByText("Live schedule worker")).toBeInTheDocument();

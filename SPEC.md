@@ -119,6 +119,8 @@ Only a research run with `status: proposal_ready` and `advanceEligible: true` ca
 
 The first automated research slice is `POST /control-plane/research-runs/run-baseline`. It runs a deterministic momentum baseline, computes benchmark-aware backtest metrics, hashes the artifact snapshot, and stores a proposal-ready research run when all provenance gates pass. By default it uses local sample bars for manual dry-run research only; when `datasetId`, `symbol`, and `benchmark` are provided it uses imported, timestamp-aligned market bars from the durable market-data ledger. Scheduled paper automation must use pinned imported market bars and must not rely on built-in sample bars. It is a bootstrap runner, not validated alpha.
 
+The first external data slice is the disabled-by-default market-data ingestion worker. `GET /control-plane/market-data/ingestion/status`, `POST /control-plane/market-data/ingestion/poll`, and `GET /control-plane/market-data/ingestion-runs` expose a provider-neutral ingestion loop backed initially by Stooq daily CSV bars. Each poll writes only `market_data_bars` and `market_data_ingestion_runs`, records provider/source/request-hash evidence, imports configured symbols plus benchmark, and hard-sets broker/live execution flags to `false`. The dashboard must show this worker beside the current autonomous cycle so paper schedules can be tied back to actual imported data freshness.
+
 Model training is optional, not the default. The first implementation should use deterministic baselines and simple factor/ranking strategies. A trained model can be introduced only when it produces a signal that is evaluated like any other proposal.
 
 Allowed first model categories:

@@ -14,6 +14,10 @@ import {
   InvestmentProposal,
   MarketDataBar,
   MarketDataBarsImportResponse,
+  MarketDataIngestionPollRequest,
+  MarketDataIngestionPollResponse,
+  MarketDataIngestionRun,
+  MarketDataIngestionStatus,
   OrderPlanApproval,
   PaperAccount,
   PaperAccountEvent,
@@ -103,6 +107,29 @@ export const controlPlaneApi = {
     const response = await api.get("/control-plane/market-data/bars", {
       params,
     });
+    return response.data;
+  },
+
+  getMarketDataIngestionStatus:
+    async (): Promise<MarketDataIngestionStatus> => {
+      const response = await api.get(
+        "/control-plane/market-data/ingestion/status",
+      );
+      return response.data;
+    },
+
+  pollMarketDataIngestion: async (
+    request: MarketDataIngestionPollRequest = {},
+  ): Promise<MarketDataIngestionPollResponse> => {
+    const response = await api.post(
+      "/control-plane/market-data/ingestion/poll",
+      request,
+    );
+    return response.data;
+  },
+
+  getMarketDataIngestionRuns: async (): Promise<MarketDataIngestionRun[]> => {
+    const response = await api.get("/control-plane/market-data/ingestion-runs");
     return response.data;
   },
 

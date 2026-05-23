@@ -10,6 +10,7 @@ import { BudgetEnvelope } from '../src/entities/budget-envelope.entity';
 import { ExecutionControlState } from '../src/entities/execution-control-state.entity';
 import { InvestmentProposal } from '../src/entities/investment-proposal.entity';
 import { MarketDataBar } from '../src/entities/market-data-bar.entity';
+import { MarketDataIngestionRun } from '../src/entities/market-data-ingestion-run.entity';
 import { OrderPlanApproval } from '../src/entities/order-plan-approval.entity';
 import { PaperAccountEvent } from '../src/entities/paper-account-event.entity';
 import { PaperAccount } from '../src/entities/paper-account.entity';
@@ -37,6 +38,7 @@ describe('ControlPlane research provenance (e2e)', () => {
             ExecutionControlState,
             InvestmentProposal,
             MarketDataBar,
+            MarketDataIngestionRun,
             OrderPlanApproval,
             PaperAccountEvent,
             PaperAccount,

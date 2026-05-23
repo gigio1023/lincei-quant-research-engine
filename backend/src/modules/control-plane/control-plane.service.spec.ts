@@ -40,6 +40,11 @@ describe('ControlPlaneService', () => {
       if (!value.id) {
         value.id = items.length + 1;
         items.push(value);
+      } else {
+        const existingIndex = items.findIndex((item) => item.id === value.id);
+        if (existingIndex >= 0) {
+          items[existingIndex] = value;
+        }
       }
       return value;
     }),
@@ -2045,6 +2050,63 @@ describe('ControlPlaneService', () => {
         brokerExecutionEnabled: false,
         liveTradingEnabled: false,
       }),
+    );
+  });
+
+  it('replaces imported market bars by dataset, symbol, timeframe, and timestamp', async () => {
+    await service.importMarketDataBars({
+      datasetId: 'multi-timeframe-bars',
+      provider: 'manual',
+      symbol: '005930',
+      timeframe: '1d',
+      bars: [
+        {
+          timestamp: '2026-05-18T00:00:00.000Z',
+          open: 75_000,
+          high: 76_000,
+          low: 74_500,
+          close: 75_500,
+        },
+      ],
+    });
+    await service.importMarketDataBars({
+      datasetId: 'multi-timeframe-bars',
+      provider: 'manual',
+      symbol: '005930',
+      timeframe: '1h',
+      bars: [
+        {
+          timestamp: '2026-05-18T00:00:00.000Z',
+          open: 75_100,
+          high: 75_300,
+          low: 75_000,
+          close: 75_200,
+        },
+      ],
+    });
+
+    const response = await service.importMarketDataBars({
+      datasetId: 'multi-timeframe-bars',
+      provider: 'manual',
+      symbol: '005930',
+      timeframe: '1d',
+      bars: [
+        {
+          timestamp: '2026-05-18T00:00:00.000Z',
+          open: 76_000,
+          high: 77_000,
+          low: 75_800,
+          close: 76_500,
+        },
+      ],
+    });
+
+    expect(response.replaced).toBe(1);
+    expect(marketDataBars).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ timeframe: '1d', close: 76_500 }),
+        expect.objectContaining({ timeframe: '1h', close: 75_200 }),
+      ]),
     );
   });
 

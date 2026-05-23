@@ -38,6 +38,21 @@ const KOREAN_COPY: Record<string, string> = {
   quantity: "수량",
   notional: "명목금액",
   "Dashboard language": "대시보드 언어",
+  "Market ingestion": "시장 데이터 수집",
+  universe: "유니버스",
+  "last ingestion": "최근 수집",
+  bars: "봉",
+  succeeded: "성공",
+  skipped: "건너뜀",
+  failed: "실패",
+  "Market-data ingestion API is unavailable. Showing documented disabled worker sample.":
+    "시장 데이터 수집 API를 사용할 수 없어 문서화된 비활성 워커 샘플을 표시합니다.",
+  "Market-data ingestion run API is unavailable. Showing documented disabled worker sample.":
+    "시장 데이터 수집 실행 API를 사용할 수 없어 문서화된 비활성 워커 샘플을 표시합니다.",
+  "Market-data ingestion status refresh failed after automation action.":
+    "자동화 작업 후 시장 데이터 수집 상태 새로고침에 실패했습니다.",
+  "Market-data ingestion run refresh failed after automation action.":
+    "자동화 작업 후 시장 데이터 수집 실행 새로고침에 실패했습니다.",
   "Paper auto": "모의 자동승인",
   dataset: "데이터셋",
   symbol: "심볼",

@@ -14,6 +14,7 @@ import type {
   MarketDataBar,
   MarketDataProvider,
 } from '../../entities/market-data-bar.entity';
+import type { MarketDataIngestionRun } from '../../entities/market-data-ingestion-run.entity';
 import type { ResearchRun } from '../../entities/research-run.entity';
 import type { RiskEvaluation } from '../../entities/risk-evaluation.entity';
 import {
@@ -110,6 +111,49 @@ export interface MarketDataBarsImportResponse {
   imported: number;
   replaced: number;
   bars: MarketDataBar[];
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+}
+
+export interface MarketDataIngestionPollRequest {
+  force?: boolean;
+  datasetId?: string;
+  provider?: MarketDataProvider;
+  symbols?: string[];
+  benchmark?: string;
+  timeframe?: string;
+  currency?: string;
+  windowStart?: string;
+  windowEnd?: string;
+}
+
+export interface MarketDataIngestionStatus {
+  enabled: boolean;
+  provider: MarketDataProvider;
+  datasetId: string;
+  symbols: string[];
+  benchmark: string;
+  timeframe: string;
+  currency: string;
+  lookbackDays: number;
+  cron: string;
+  running: boolean;
+  lastAttemptAt?: string;
+  lastPollAt?: string;
+  lastRunId?: number;
+  lastError?: string;
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+}
+
+export interface MarketDataIngestionPollResponse {
+  run: MarketDataIngestionRun;
+  status: MarketDataIngestionRun['status'];
+  imported: number;
+  replaced: number;
+  importedSymbols: string[];
+  failedSymbols: string[];
+  blockedReasons: string[];
   brokerExecutionEnabled: false;
   liveTradingEnabled: false;
 }

@@ -22,6 +22,8 @@ export const CurrentCycleEvidencePanel = ({
 }: CurrentCycleEvidencePanelProps) => {
   const { t } = useDashboardLanguage();
   const cycle = model.currentCycleEvidence;
+  const ingestion = model.visibleMarketDataIngestionStatus;
+  const latestIngestionRun = model.visibleMarketDataIngestionRuns[0];
   const items = [
     {
       label: "Cycle",
@@ -121,6 +123,42 @@ export const CurrentCycleEvidencePanel = ({
           {cycle.worker}
         </div>
       </div>
+
+      <div className="mt-3 grid gap-2 text-xs text-[#929aa5] md:grid-cols-[1.15fr_1fr_1fr]">
+        <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
+          <span className="font-bold uppercase text-[#707a8a]">
+            {t("Market ingestion")}
+          </span>{" "}
+          <span
+            className={ingestion.enabled ? "text-[#0ecb81]" : "text-[#f6465d]"}
+          >
+            {t(ingestion.enabled ? "enabled" : "disabled")}
+          </span>
+          <span className="ml-2 font-mono text-[#eaecef]">
+            {ingestion.provider} / {ingestion.timeframe}
+          </span>
+        </div>
+        <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
+          <span className="font-bold uppercase text-[#707a8a]">
+            {t("universe")}
+          </span>{" "}
+          {ingestion.symbols.join(" / ") || t("missing")} /{" "}
+          {ingestion.benchmark || t("missing")}
+        </div>
+        <div className="rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3">
+          <span className="font-bold uppercase text-[#707a8a]">
+            {t("last ingestion")}
+          </span>{" "}
+          {latestIngestionRun
+            ? `${t(latestIngestionRun.status)} / ${latestIngestionRun.imported} ${t("bars")}`
+            : t("missing")}
+        </div>
+      </div>
+      {model.errors.marketDataIngestion && (
+        <div className="mt-3 rounded-lg border border-[#f0b90b]/30 bg-[#f0b90b]/10 p-3 text-xs font-semibold text-[#fcd535]">
+          {t(model.errors.marketDataIngestion)}
+        </div>
+      )}
     </section>
   );
 };

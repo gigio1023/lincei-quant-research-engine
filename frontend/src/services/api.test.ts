@@ -320,6 +320,81 @@ describe("API Service", () => {
       expect(barsResult).toEqual(mockResponse.bars);
     });
 
+    it("should_get_market_data_ingestion_status_and_runs", async () => {
+      const mockStatus = {
+        enabled: false,
+        provider: "stooq",
+        datasetId: "scheduled-daily-bars",
+        symbols: ["005930"],
+        benchmark: "KOSPI200",
+        timeframe: "1d",
+        currency: "KRW",
+        lookbackDays: 30,
+        cron: "*/30 * * * *",
+        running: false,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      };
+      const mockRuns = [
+        {
+          id: "market-data-ingestion-1",
+          trigger: "manual",
+          status: "skipped",
+          provider: "stooq",
+          datasetId: "scheduled-daily-bars",
+          symbols: ["005930", "KOSPI200"],
+          timeframe: "1d",
+          currency: "KRW",
+          windowStart: "2026-04-23T00:00:00.000Z",
+          windowEnd: "2026-05-23T00:00:00.000Z",
+          requestHash: "sha256:market-data-ingestion",
+          imported: 0,
+          replaced: 0,
+          importedSymbols: [],
+          failedSymbols: [],
+          blockedReasons: ["Market data ingestion is disabled"],
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+          createdAt: "2026-05-23T00:00:00.000Z",
+          updatedAt: "2026-05-23T00:00:00.000Z",
+        },
+      ];
+      const mockPollResponse = {
+        run: mockRuns[0],
+        status: "skipped",
+        imported: 0,
+        replaced: 0,
+        importedSymbols: [],
+        failedSymbols: [],
+        blockedReasons: ["Market data ingestion is disabled"],
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      };
+
+      mockGet.mockResolvedValueOnce({ data: mockStatus });
+      mockGet.mockResolvedValueOnce({ data: mockRuns });
+      mockPost.mockResolvedValueOnce({ data: mockPollResponse });
+
+      const { controlPlaneApi } = await import("./api");
+      const status = await controlPlaneApi.getMarketDataIngestionStatus();
+      const runs = await controlPlaneApi.getMarketDataIngestionRuns();
+      const poll = await controlPlaneApi.pollMarketDataIngestion();
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/control-plane/market-data/ingestion/status",
+      );
+      expect(mockGet).toHaveBeenCalledWith(
+        "/control-plane/market-data/ingestion-runs",
+      );
+      expect(mockPost).toHaveBeenCalledWith(
+        "/control-plane/market-data/ingestion/poll",
+        {},
+      );
+      expect(status).toEqual(mockStatus);
+      expect(runs).toEqual(mockRuns);
+      expect(poll).toEqual(mockPollResponse);
+    });
+
     it("should_get_proposals", async () => {
       const mockProposals = [
         {

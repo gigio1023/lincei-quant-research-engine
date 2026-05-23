@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AutonomousRunLedger } from "./control-plane-dashboard/AutonomousRunLedger";
 import { AutonomousActionStatusPanel } from "./control-plane-dashboard/AutonomousActionStatusPanel";
 import { BrokerSnapshotPanel } from "./control-plane-dashboard/BrokerSnapshotPanel";
@@ -16,8 +16,21 @@ import { WorkflowActionRail } from "./control-plane-dashboard/WorkflowActionRail
 import { useControlPlaneDashboard } from "./control-plane-dashboard/useControlPlaneDashboard";
 
 const ControlPlaneDashboard = () => {
-  const [language, setLanguage] = useState<DashboardLanguage>("en");
+  const [language, setLanguage] = useState<DashboardLanguage>(() => {
+    if (typeof window === "undefined") {
+      return "en";
+    }
+
+    return window.localStorage.getItem("control-plane-dashboard-language") ===
+      "ko"
+      ? "ko"
+      : "en";
+  });
   const model = useControlPlaneDashboard();
+
+  useEffect(() => {
+    window.localStorage.setItem("control-plane-dashboard-language", language);
+  }, [language]);
 
   return (
     <DashboardLanguageProvider language={language} setLanguage={setLanguage}>

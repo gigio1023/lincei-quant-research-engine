@@ -11,6 +11,8 @@ import {
   ControlPlaneStatus,
   ExecutionControlState,
   InvestmentProposal,
+  MarketDataIngestionRun,
+  MarketDataIngestionStatus,
   OrderPlanApproval,
   PaperAccount,
   PaperAccountEvent,
@@ -32,6 +34,8 @@ import {
   DOCUMENTED_CONTROL_PLANE_STATUS,
   DOCUMENTED_EXECUTION_CONTROL,
   DOCUMENTED_INVESTMENT_PROPOSALS,
+  DOCUMENTED_MARKET_DATA_INGESTION_RUNS,
+  DOCUMENTED_MARKET_DATA_INGESTION_STATUS,
   DOCUMENTED_ORDER_PLAN_APPROVALS,
   DOCUMENTED_PAPER_ACCOUNT_EVENTS,
   DOCUMENTED_PAPER_ORDER_PLANS,
@@ -72,6 +76,8 @@ export interface DashboardModel {
   visibleBrokerFills: BrokerFill[];
   visibleBrokerAdapterStatus: BrokerAdapterStatus;
   visibleOrderPlanApprovals: OrderPlanApproval[];
+  visibleMarketDataIngestionStatus: MarketDataIngestionStatus;
+  visibleMarketDataIngestionRuns: MarketDataIngestionRun[];
   visibleExecutionControl: ExecutionControlState;
   latestPaperOrderPlans: PaperOrderPlan[];
   latestBrokerSnapshot?: BrokerSnapshot;
@@ -100,6 +106,7 @@ export interface DashboardModel {
     brokerFills: string;
     brokerAdapter: string;
     orderPlanApprovals: string;
+    marketDataIngestion: string;
   };
   errors: {
     status: string | null;
@@ -117,6 +124,7 @@ export interface DashboardModel {
     brokerFills: string | null;
     brokerAdapter: string | null;
     orderPlanApprovals: string | null;
+    marketDataIngestion: string | null;
     baselineResearch: string | null;
     recoveryProposal: string | null;
   };
@@ -135,6 +143,7 @@ export interface DashboardModel {
     brokerFills: boolean;
     brokerAdapter: boolean;
     orderPlanApprovals: boolean;
+    marketDataIngestion: boolean;
   };
   baselineResearchSuccess: string | null;
   recoveryProposalSuccess: string | null;
@@ -377,6 +386,11 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const [orderPlanApprovals, setOrderPlanApprovals] = useState<
     OrderPlanApproval[] | null
   >(null);
+  const [marketDataIngestionStatus, setMarketDataIngestionStatus] =
+    useState<MarketDataIngestionStatus | null>(null);
+  const [marketDataIngestionRuns, setMarketDataIngestionRuns] = useState<
+    MarketDataIngestionRun[] | null
+  >(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
   const [loadingBudgets, setLoadingBudgets] = useState(true);
   const [loadingResearchRuns, setLoadingResearchRuns] = useState(true);
@@ -394,6 +408,8 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const [loadingBrokerFills, setLoadingBrokerFills] = useState(true);
   const [loadingBrokerAdapter, setLoadingBrokerAdapter] = useState(true);
   const [loadingOrderPlanApprovals, setLoadingOrderPlanApprovals] =
+    useState(true);
+  const [loadingMarketDataIngestion, setLoadingMarketDataIngestion] =
     useState(true);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [budgetsError, setBudgetsError] = useState<string | null>(null);
@@ -428,6 +444,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     null,
   );
   const [orderPlanApprovalsError, setOrderPlanApprovalsError] = useState<
+    string | null
+  >(null);
+  const [marketDataIngestionError, setMarketDataIngestionError] = useState<
     string | null
   >(null);
   const [runningBaselineResearch, setRunningBaselineResearch] = useState(false);
@@ -470,6 +489,8 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           brokerFillsStatus,
           brokerAdapterStatus,
           orderPlanApprovalsStatus,
+          marketDataIngestionStatusResult,
+          marketDataIngestionRunsStatus,
         ] = await Promise.allSettled([
           riskGateApi.getStatus(),
           controlPlaneApi.getStatus(),
@@ -488,6 +509,8 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           controlPlaneApi.getBrokerFills(),
           controlPlaneApi.getBrokerAdapterStatus(),
           controlPlaneApi.getOrderPlanApprovals(),
+          controlPlaneApi.getMarketDataIngestionStatus(),
+          controlPlaneApi.getMarketDataIngestionRuns(),
         ]);
 
         if (ignore) {
@@ -616,6 +639,21 @@ export const useControlPlaneDashboard = (): DashboardModel => {
             "Order-plan approval API is unavailable. Showing documented approval sample.",
           );
         }
+        if (marketDataIngestionStatusResult.status === "fulfilled") {
+          setMarketDataIngestionStatus(marketDataIngestionStatusResult.value);
+          setMarketDataIngestionError(null);
+        } else {
+          setMarketDataIngestionError(
+            "Market-data ingestion API is unavailable. Showing documented disabled worker sample.",
+          );
+        }
+        if (marketDataIngestionRunsStatus.status === "fulfilled") {
+          setMarketDataIngestionRuns(marketDataIngestionRunsStatus.value);
+        } else {
+          setMarketDataIngestionError(
+            "Market-data ingestion run API is unavailable. Showing documented disabled worker sample.",
+          );
+        }
 
         setStatusError(
           riskStatus.status === "rejected" ||
@@ -665,6 +703,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           setOrderPlanApprovalsError(
             "Order-plan approval API is unavailable. Showing documented approval sample.",
           );
+          setMarketDataIngestionError(
+            "Market-data ingestion API is unavailable. Showing documented disabled worker sample.",
+          );
           setPaperAccountError(
             "No live paper account state was returned. A filled paper execution must create one before account values are shown.",
           );
@@ -686,6 +727,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           setLoadingBrokerFills(false);
           setLoadingBrokerAdapter(false);
           setLoadingOrderPlanApprovals(false);
+          setLoadingMarketDataIngestion(false);
         }
       }
     };
@@ -723,6 +765,11 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const visibleOrderPlanApprovals =
     orderPlanApprovals ??
     (loadingOrderPlanApprovals ? [] : DOCUMENTED_ORDER_PLAN_APPROVALS);
+  const visibleMarketDataIngestionStatus =
+    marketDataIngestionStatus ?? DOCUMENTED_MARKET_DATA_INGESTION_STATUS;
+  const visibleMarketDataIngestionRuns =
+    marketDataIngestionRuns ??
+    (loadingMarketDataIngestion ? [] : DOCUMENTED_MARKET_DATA_INGESTION_RUNS);
   const visiblePaperAccountEvents =
     paperAccountEvents ??
     (loadingPaperAccountEvents ? [] : DOCUMENTED_PAPER_ACCOUNT_EVENTS);
@@ -824,6 +871,8 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       refreshedBrokerFills,
       refreshedBrokerAdapterStatus,
       refreshedOrderPlanApprovals,
+      refreshedMarketDataIngestionStatus,
+      refreshedMarketDataIngestionRuns,
       refreshedRiskGateStatus,
       refreshedControlPlaneStatus,
     ] = await Promise.allSettled([
@@ -839,6 +888,8 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       controlPlaneApi.getBrokerFills(),
       controlPlaneApi.getBrokerAdapterStatus(),
       controlPlaneApi.getOrderPlanApprovals(),
+      controlPlaneApi.getMarketDataIngestionStatus(),
+      controlPlaneApi.getMarketDataIngestionRuns(),
       riskGateApi.getStatus(),
       controlPlaneApi.getStatus(),
     ]);
@@ -945,6 +996,23 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       );
     }
 
+    if (refreshedMarketDataIngestionStatus.status === "fulfilled") {
+      setMarketDataIngestionStatus(refreshedMarketDataIngestionStatus.value);
+      setMarketDataIngestionError(null);
+    } else {
+      setMarketDataIngestionError(
+        "Market-data ingestion status refresh failed after automation action.",
+      );
+    }
+
+    if (refreshedMarketDataIngestionRuns.status === "fulfilled") {
+      setMarketDataIngestionRuns(refreshedMarketDataIngestionRuns.value);
+    } else {
+      setMarketDataIngestionError(
+        "Market-data ingestion run refresh failed after automation action.",
+      );
+    }
+
     if (refreshedRiskGateStatus.status === "fulfilled") {
       setRiskGateStatus(refreshedRiskGateStatus.value);
     }
@@ -1045,6 +1113,8 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     visibleBrokerFills,
     visibleBrokerAdapterStatus,
     visibleOrderPlanApprovals,
+    visibleMarketDataIngestionStatus,
+    visibleMarketDataIngestionRuns,
     visibleExecutionControl: executionControl ?? DOCUMENTED_EXECUTION_CONTROL,
     latestPaperOrderPlans: sortByUpdatedAtDesc(visiblePaperOrderPlans).slice(
       0,
@@ -1178,6 +1248,11 @@ export const useControlPlaneDashboard = (): DashboardModel => {
         : loadingOrderPlanApprovals
           ? "Loading signed approvals"
           : "Documented approval sample",
+      marketDataIngestion: marketDataIngestionStatus
+        ? "Live market-data ingestion"
+        : loadingMarketDataIngestion
+          ? "Loading market-data ingestion"
+          : "Documented ingestion sample",
     },
     errors: {
       status: statusError,
@@ -1195,6 +1270,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       brokerFills: brokerFillsError,
       brokerAdapter: brokerAdapterError,
       orderPlanApprovals: orderPlanApprovalsError,
+      marketDataIngestion: marketDataIngestionError,
       baselineResearch: baselineResearchError,
       recoveryProposal: recoveryProposalError,
     },
@@ -1213,6 +1289,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       brokerFills: loadingBrokerFills,
       brokerAdapter: loadingBrokerAdapter,
       orderPlanApprovals: loadingOrderPlanApprovals,
+      marketDataIngestion: loadingMarketDataIngestion,
     },
     baselineResearchSuccess,
     recoveryProposalSuccess,
