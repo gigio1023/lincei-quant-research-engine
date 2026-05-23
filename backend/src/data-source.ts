@@ -28,6 +28,13 @@ import { AddFundingReadinessRecords1763846400000 } from './migrations/1763846400
 import { AddLivePilotReadinessRecords1763932800000 } from './migrations/1763932800000-AddLivePilotReadinessRecords';
 import { AddBrokerOrderCommands1764019200000 } from './migrations/1764019200000-AddBrokerOrderCommands';
 import { AddBrokerOrderStatusRecords1764105600000 } from './migrations/1764105600000-AddBrokerOrderStatusRecords';
+import { AddV1PilotTables1764201600000 } from './migrations/1764201600000-AddV1PilotTables';
+import { LeanRun } from './entities/lean-run.entity';
+import { FeatureSnapshot } from './entities/feature-snapshot.entity';
+import { AlphaDecision } from './entities/alpha-decision.entity';
+import { PortfolioTargetSnapshot } from './entities/portfolio-target-snapshot.entity';
+import { ExecutionIntent } from './entities/execution-intent.entity';
+import { LivePilotStatusRecord } from './entities/live-pilot-status.entity';
 
 config();
 
@@ -54,6 +61,12 @@ export const databaseEntities = [
   PaperAccount,
   PaperOrderPlan,
   PaperReservationHoldRecord,
+  LeanRun,
+  FeatureSnapshot,
+  AlphaDecision,
+  PortfolioTargetSnapshot,
+  ExecutionIntent,
+  LivePilotStatusRecord,
 ];
 
 export const databaseMigrations = [
@@ -62,6 +75,7 @@ export const databaseMigrations = [
   AddLivePilotReadinessRecords1763932800000,
   AddBrokerOrderCommands1764019200000,
   AddBrokerOrderStatusRecords1764105600000,
+  AddV1PilotTables1764201600000,
 ];
 
 const AppDataSource = new DataSource({

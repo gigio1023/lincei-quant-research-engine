@@ -1,0 +1,6 @@
+{
+  "modelName": "v1-baseline-stub",
+  "status": "not_promoted",
+  "validationSharpe": 0,
+  "notes": "Run ml/training/train_baseline.py after feature export to refresh registry metadata."
+}

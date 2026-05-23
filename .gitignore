@@ -19,6 +19,11 @@ backend/data/*.sqlite3
 backend/dist/
 frontend/build/
 
+# V1 pilot generated artifacts
+artifacts/
+engines/lean/aggressive_llm_momentum/input/meta_decisions.json
+backend/tmp-test-lean-runs/
+
 # Coverage reports
 coverage/
 frontend/coverage/

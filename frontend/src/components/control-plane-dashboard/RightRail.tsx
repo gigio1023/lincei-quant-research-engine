@@ -9,6 +9,7 @@ import {
 } from "./dashboardFormat";
 import { useDashboardLanguage } from "./dashboardLanguage";
 import { DashboardModel } from "./useControlPlaneDashboard";
+import { V1PilotPanel } from "./V1PilotPanel";
 
 interface RightRailProps {
   model: DashboardModel;
@@ -16,6 +17,7 @@ interface RightRailProps {
 
 export const RightRail = ({ model }: RightRailProps) => (
   <aside className="min-w-0 space-y-4">
+    <V1PilotPanel />
     <RiskPolicyCard model={model} />
     <OrderPlanApprovalPanel model={model} />
     <LatestRiskEvaluationCard model={model} />

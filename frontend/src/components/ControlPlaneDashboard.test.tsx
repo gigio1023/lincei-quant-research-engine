@@ -45,6 +45,15 @@ vi.mock("../services/api", () => ({
     runRecoveryProposal: vi.fn(),
     tripKillSwitch: vi.fn(),
   },
+  v1PilotApi: {
+    getStatus: vi.fn(() =>
+      Promise.resolve({
+        leanRun: null,
+        preflight: { status: "blocked", blockers: ["Test preflight blocked."] },
+      }),
+    ),
+    listLeanRuns: vi.fn(() => Promise.resolve([])),
+  },
 }));
 
 import { controlPlaneApi } from "../services/api";

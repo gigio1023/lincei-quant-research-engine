@@ -69,6 +69,7 @@ flowchart LR
 
 Detailed implementation guidance is split across focused documents:
 
+- [V1 Autonomous Live Pilot Working Spec](docs/v1-live-pilot-spec/README.md): current dated implementation spec for the all-at-once LEAN + OpenAI alpha + paper execution + 10 USD live-pilot build. Implementation agents must read the linked sub-documents before editing code.
 - [Project Architecture](docs/project-architecture.md): target architecture, module ownership, and data flow.
 - [LEAN and QuantConnect Engine](docs/lean-quantconnect-engine.md): how LEAN, Lean CLI, and QuantConnect MCP fit into this repo.
 - [Alpha Model Design](docs/alpha-model-design.md): numeric alpha, LLM alpha, meta alpha, outputs, and validation.

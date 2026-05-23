@@ -382,4 +382,19 @@ export const controlPlaneApi = {
   },
 };
 
+export const v1PilotApi = {
+  getStatus: async (): Promise<{
+    leanRun: { runId: string; status: string } | null;
+    preflight: { status: string; blockers: string[] };
+  }> => {
+    const response = await api.get("/v1-pilot/status");
+    return response.data;
+  },
+
+  listLeanRuns: async (): Promise<Array<{ runId: string; status: string }>> => {
+    const response = await api.get("/v1-pilot/lean-runs");
+    return response.data;
+  },
+};
+
 export default api;

@@ -241,6 +241,15 @@ vi.mock("./services/api", () => ({
     advanceRun: vi.fn(),
     tickRunSchedule: vi.fn(),
   },
+  v1PilotApi: {
+    getStatus: vi.fn(() =>
+      Promise.resolve({
+        leanRun: null,
+        preflight: { status: "blocked", blockers: ["Test preflight blocked."] },
+      }),
+    ),
+    listLeanRuns: vi.fn(() => Promise.resolve([])),
+  },
 }));
 
 describe("App", () => {

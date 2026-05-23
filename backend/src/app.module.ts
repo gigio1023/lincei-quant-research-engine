@@ -9,6 +9,7 @@ import { NewsModule } from './modules/news/news.module';
 import { LlmModule } from './modules/llm/llm.module';
 import { RiskGateModule } from './modules/risk-gate/risk-gate.module';
 import { ControlPlaneModule } from './modules/control-plane/control-plane.module';
+import { V1PilotModule } from './modules/v1-pilot/v1-pilot.module';
 import { databaseEntities, databaseMigrations } from './data-source';
 
 @Module({
@@ -38,6 +39,7 @@ import { databaseEntities, databaseMigrations } from './data-source';
     LlmModule,
     RiskGateModule,
     ControlPlaneModule,
+    V1PilotModule,
   ],
   controllers: [AppController],
   providers: [AppService],
