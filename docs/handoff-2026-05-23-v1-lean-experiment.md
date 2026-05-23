@@ -202,4 +202,5 @@ CI may need Bun lockfile and workflow updates verified on next PR.
 
 - `docs/v1-live-pilot-spec/` — product spec (may assume happier path than reality)
 - `docs/full-lean-backtest-setup.md` — operator setup
-- `docs/review-prompt-gpt55-lean-ml-backtest.md` — review checklist
+- `docs/review-prompt-v1-lean-experiment-handoff.md` — copy-paste prompt for external AI review
+- `docs/review-prompt-gpt55-lean-ml-backtest.md` — earlier GPT-focused review checklist (optional)
