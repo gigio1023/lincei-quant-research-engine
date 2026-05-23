@@ -2,6 +2,7 @@ import { AutonomousRun } from '../../entities/autonomous-run.entity';
 import { AutonomousRunSchedule } from '../../entities/autonomous-run-schedule.entity';
 import { BrokerFill } from '../../entities/broker-fill.entity';
 import { BrokerOrderCommand } from '../../entities/broker-order-command.entity';
+import { BrokerOrderStatusRecord } from '../../entities/broker-order-status.entity';
 import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
@@ -24,6 +25,7 @@ describe('ControlPlaneService', () => {
   let budgets: BudgetEnvelope[];
   let brokerFills: BrokerFill[];
   let brokerOrderCommands: BrokerOrderCommand[];
+  let brokerOrderStatuses: BrokerOrderStatusRecord[];
   let brokerSnapshots: BrokerSnapshot[];
   let fundingReadinessRecords: FundingReadinessRecord[];
   let livePilotReadinessRecords: LivePilotReadinessRecord[];
@@ -234,6 +236,7 @@ describe('ControlPlaneService', () => {
     budgets = [];
     brokerFills = [];
     brokerOrderCommands = [];
+    brokerOrderStatuses = [];
     brokerSnapshots = [];
     fundingReadinessRecords = [];
     livePilotReadinessRecords = [];
@@ -253,6 +256,7 @@ describe('ControlPlaneService', () => {
       makeRepository(budgets) as any,
       makeRepository(brokerFills) as any,
       makeRepository(brokerOrderCommands) as any,
+      makeRepository(brokerOrderStatuses) as any,
       makeRepository(brokerSnapshots) as any,
       makeRepository(fundingReadinessRecords) as any,
       makeRepository(livePilotReadinessRecords) as any,
@@ -2047,6 +2051,120 @@ describe('ControlPlaneService', () => {
         makeBlockedBrokerAdapterStatus() as any,
       ),
     ).rejects.toThrow('Broker order command cannot include orderPayload');
+  });
+
+  it('imports read-only broker order lifecycle evidence without broker writes', async () => {
+    paperOrderPlans.push({
+      id: 43,
+      proposalId: 8,
+      orderPlanApprovalId: 12,
+      planHash: 'sha256:paper-plan-43',
+      status: 'filled',
+      mode: 'paper',
+      orders: [
+        {
+          paperOrderId: 'paper-order:43:0',
+          proposalOrderIndex: 0,
+          symbol: '005930',
+          side: 'BUY',
+          orderType: 'MARKET',
+          requestedNotional: 100_000,
+          requestedQuantity: 2,
+          requestedPrice: 50_000,
+          marketDataTimestamp: '2026-05-22T23:55:00.000Z',
+          feeModelRef: 'fixed-10bps-paper-fee-v1',
+          slippageModelRef: 'fixed-5bps-paper-slippage-v1',
+          sourceOrder: {
+            symbol: '005930',
+            assetClass: 'domestic_stock',
+            side: 'BUY',
+            orderType: 'MARKET',
+            notional: 100_000,
+          },
+        },
+      ],
+      brokerExecutionEnabled: false,
+      liveTradingEnabled: false,
+    } as any);
+    const command = await service.prepareBrokerOrderCommandFromPaperPlan(
+      43,
+      { idempotencyKey: 'broker-command-43' },
+      makeBlockedBrokerAdapterStatus() as any,
+    );
+
+    const status = await service.importBrokerOrderStatus({
+      provider: 'manual',
+      brokerOrderRefHash: 'sha256:broker-order-open',
+      brokerOrderCommandId: command.id,
+      brokerOrderIntentId: 'broker-intent:43:0',
+      externalStatus: 'open',
+      symbol: '005930',
+      side: 'BUY',
+      orderType: 'MARKET',
+      requestedQuantity: 2,
+      remainingQuantity: 2,
+      requestedNotional: 100_000,
+      asOf: '2026-05-22T23:59:00.000Z',
+    });
+    const replayed = await service.importBrokerOrderStatus({
+      provider: 'manual',
+      brokerOrderRefHash: 'sha256:broker-order-open',
+      externalStatus: 'open',
+      symbol: '005930',
+      side: 'BUY',
+      orderType: 'MARKET',
+      asOf: '2026-05-22T23:59:00.000Z',
+    });
+
+    expect(replayed.id).toBe(status.id);
+    expect(status).toEqual(
+      expect.objectContaining({
+        externalStatus: 'open',
+        status: 'mismatch',
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+    expect(status.reconciliation).toEqual(
+      expect.objectContaining({
+        status: 'mismatch',
+        brokerOrderCommandId: command.id,
+        brokerOrderIntentId: 'broker-intent:43:0',
+        paperOrderPlanId: 43,
+        symbolMatched: true,
+        sideMatched: true,
+        orderTypeMatched: true,
+        commandDryRunOnly: true,
+      }),
+    );
+    expect(await service.listBrokerOrderStatuses()).toHaveLength(1);
+    expect(await service.listOpenBrokerOrderStatuses()).toHaveLength(1);
+
+    const emergency = await service.runBrokerEmergencyCommandDryRun(
+      {
+        commandType: 'cancel_open_orders',
+        reason: 'Operator drills cancel with open order evidence.',
+      },
+      makeBlockedBrokerAdapterStatus() as any,
+    );
+
+    expect(emergency.emergencyActions[0]).toEqual(
+      expect.objectContaining({
+        targetOpenOrderCount: 1,
+        targetBrokerOrderRefHashes: ['sha256:broker-order-open'],
+      }),
+    );
+
+    await expect(
+      service.importBrokerOrderStatus({
+        brokerOrderRefHash: 'raw-order-id',
+        externalStatus: 'open',
+        symbol: '005930',
+        side: 'BUY',
+        orderType: 'MARKET',
+        accountRef: 'raw-account',
+      } as any),
+    ).rejects.toThrow('Broker order status cannot include accountRef');
   });
 
   it('rejects broker snapshot imports that include credentials or order intent', async () => {

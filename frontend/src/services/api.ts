@@ -6,6 +6,7 @@ import {
   BrokerAdapterStatus,
   BrokerFill,
   BrokerOrderCommand,
+  BrokerOrderStatusRecord,
   BrokerReadOnlyPollResponse,
   BrokerSnapshot,
   BudgetEnvelope,
@@ -14,6 +15,7 @@ import {
   ExecutionControlState,
   FundingReadinessRecord,
   ImportMarketDataBarsRequest,
+  ImportBrokerOrderStatusRequest,
   InvestmentProposal,
   LivePilotReadinessRecord,
   MarketDataBar,
@@ -253,6 +255,26 @@ export const controlPlaneApi = {
 
   getBrokerOrderCommands: async (): Promise<BrokerOrderCommand[]> => {
     const response = await api.get("/control-plane/broker-order-commands");
+    return response.data;
+  },
+
+  importBrokerOrderStatus: async (
+    request: ImportBrokerOrderStatusRequest,
+  ): Promise<BrokerOrderStatusRecord> => {
+    const response = await api.post(
+      "/control-plane/broker-order-statuses/import-read-only",
+      request,
+    );
+    return response.data;
+  },
+
+  getBrokerOrderStatuses: async (): Promise<BrokerOrderStatusRecord[]> => {
+    const response = await api.get("/control-plane/broker-order-statuses");
+    return response.data;
+  },
+
+  getOpenBrokerOrderStatuses: async (): Promise<BrokerOrderStatusRecord[]> => {
+    const response = await api.get("/control-plane/broker-order-statuses/open");
     return response.data;
   },
 

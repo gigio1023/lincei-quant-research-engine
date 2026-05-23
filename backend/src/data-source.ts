@@ -5,6 +5,7 @@ import { AutonomousRun } from './entities/autonomous-run.entity';
 import { AutonomousRunSchedule } from './entities/autonomous-run-schedule.entity';
 import { BrokerFill } from './entities/broker-fill.entity';
 import { BrokerOrderCommand } from './entities/broker-order-command.entity';
+import { BrokerOrderStatusRecord } from './entities/broker-order-status.entity';
 import { BrokerSnapshot } from './entities/broker-snapshot.entity';
 import { BudgetEnvelope } from './entities/budget-envelope.entity';
 import { ExecutionControlState } from './entities/execution-control-state.entity';
@@ -26,6 +27,7 @@ import { AddPaperLockReservationIndexes1763760000000 } from './migrations/176376
 import { AddFundingReadinessRecords1763846400000 } from './migrations/1763846400000-AddFundingReadinessRecords';
 import { AddLivePilotReadinessRecords1763932800000 } from './migrations/1763932800000-AddLivePilotReadinessRecords';
 import { AddBrokerOrderCommands1764019200000 } from './migrations/1764019200000-AddBrokerOrderCommands';
+import { AddBrokerOrderStatusRecords1764105600000 } from './migrations/1764105600000-AddBrokerOrderStatusRecords';
 
 config();
 
@@ -34,6 +36,7 @@ export const databaseEntities = [
   NewsSource,
   BrokerFill,
   BrokerOrderCommand,
+  BrokerOrderStatusRecord,
   OrderPlanApproval,
   PaperAccountEvent,
   BudgetEnvelope,
@@ -58,6 +61,7 @@ export const databaseMigrations = [
   AddFundingReadinessRecords1763846400000,
   AddLivePilotReadinessRecords1763932800000,
   AddBrokerOrderCommands1764019200000,
+  AddBrokerOrderStatusRecords1764105600000,
 ];
 
 const AppDataSource = new DataSource({

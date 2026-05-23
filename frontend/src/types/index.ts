@@ -636,6 +636,8 @@ export interface BrokerEmergencyAction {
   actionType: "cancel_open_orders" | "flatten_positions";
   status: "blocked";
   blockedReason: string;
+  targetOpenOrderCount?: number;
+  targetBrokerOrderRefHashes?: string[];
 }
 
 export interface BrokerOrderCommand {
@@ -677,6 +679,103 @@ export interface RunBrokerEmergencyCommandRequest {
   livePilotReadinessId?: number | string;
   idempotencyKey?: string;
   reason: string;
+  notes?: string[];
+}
+
+export type BrokerOrderExternalStatus =
+  | "submitted"
+  | "accepted"
+  | "open"
+  | "partially_filled"
+  | "filled"
+  | "pending_cancel"
+  | "cancelled"
+  | "rejected"
+  | "expired"
+  | "unknown";
+
+export type BrokerOrderStatusRecordStatus =
+  | "imported"
+  | "matched"
+  | "mismatch"
+  | "unlinked";
+
+export interface BrokerOrderStatusReconciliation {
+  status: "not_checked" | "matched" | "mismatch" | "unlinked";
+  checkedAt?: string;
+  brokerOrderCommandId?: number | string;
+  brokerOrderIntentId?: string;
+  paperOrderPlanId?: number | string;
+  sourcePaperOrderId?: string;
+  symbolMatched: boolean;
+  sideMatched: boolean;
+  orderTypeMatched: boolean;
+  notionalWithinPlan: boolean;
+  quantityWithinPlan: boolean;
+  commandDryRunOnly: boolean;
+  brokerExternalStatus: BrokerOrderExternalStatus;
+  expectedSymbol?: string;
+  expectedSide?: OrderSide;
+  expectedOrderType?: OrderType;
+  expectedNotional?: number;
+  expectedQuantity?: number;
+  notionalDiff?: number;
+  quantityDiff?: number;
+  notes: string[];
+}
+
+export interface BrokerOrderStatusRecord {
+  id: number | string;
+  provider: BrokerAdapterProvider;
+  sourceRef?: string;
+  accountRefHash?: string;
+  brokerOrderRefHash: string;
+  brokerOrderCommandId?: number | string;
+  brokerOrderIntentId?: string;
+  paperOrderPlanId?: number | string;
+  status: BrokerOrderStatusRecordStatus;
+  externalStatus: BrokerOrderExternalStatus;
+  symbol: string;
+  side: OrderSide;
+  orderType: OrderType;
+  requestedQuantity?: number;
+  filledQuantity?: number;
+  remainingQuantity?: number;
+  requestedNotional?: number;
+  averageFillPrice?: number;
+  limitPrice?: number;
+  currency: string;
+  submittedAt?: string;
+  asOf: string;
+  reconciliation: BrokerOrderStatusReconciliation;
+  notes: string[];
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ImportBrokerOrderStatusRequest {
+  provider?: BrokerAdapterProvider;
+  sourceRef?: string;
+  accountRefHash?: string;
+  brokerOrderRefHash: string;
+  brokerOrderCommandId?: number | string;
+  brokerOrderIntentId?: string;
+  paperOrderPlanId?: number | string;
+  externalStatus: BrokerOrderExternalStatus;
+  symbol: string;
+  side: OrderSide;
+  orderType: OrderType;
+  requestedQuantity?: number;
+  filledQuantity?: number;
+  remainingQuantity?: number;
+  requestedNotional?: number;
+  averageFillPrice?: number;
+  limitPrice?: number;
+  currency?: string;
+  submittedAt?: string;
+  asOf?: string;
   notes?: string[];
 }
 
@@ -923,6 +1022,7 @@ export interface ControlPlaneStatus {
   fundingReadiness?: FundingReadinessRecord;
   livePilotReadiness?: LivePilotReadinessRecord;
   brokerOrderCommand?: BrokerOrderCommand;
+  brokerOrderStatus?: BrokerOrderStatusRecord;
   readiness: ControlPlaneReadinessItem[];
   blockers: string[];
 }

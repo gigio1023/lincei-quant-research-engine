@@ -4,6 +4,7 @@ import { AutonomousRunSchedule } from '../../entities/autonomous-run-schedule.en
 import { AutonomousRun } from '../../entities/autonomous-run.entity';
 import { BrokerFill } from '../../entities/broker-fill.entity';
 import { BrokerOrderCommand } from '../../entities/broker-order-command.entity';
+import { BrokerOrderStatusRecord } from '../../entities/broker-order-status.entity';
 import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
@@ -37,6 +38,7 @@ import { TossReadOnlyBrokerService } from './toss-read-only-broker.service';
       AutonomousRunSchedule,
       BrokerFill,
       BrokerOrderCommand,
+      BrokerOrderStatusRecord,
       BrokerSnapshot,
       BudgetEnvelope,
       ExecutionControlState,

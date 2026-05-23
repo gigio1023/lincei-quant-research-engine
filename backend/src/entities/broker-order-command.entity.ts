@@ -56,6 +56,8 @@ export interface BrokerEmergencyAction {
   actionType: 'cancel_open_orders' | 'flatten_positions';
   status: 'blocked';
   blockedReason: string;
+  targetOpenOrderCount?: number;
+  targetBrokerOrderRefHashes?: string[];
 }
 
 @Entity('broker_order_commands')

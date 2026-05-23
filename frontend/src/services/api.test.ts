@@ -937,6 +937,80 @@ describe("API Service", () => {
       expect(result).toEqual(mockCommands);
     });
 
+    it("should_import_broker_order_status", async () => {
+      const request = {
+        provider: "manual" as const,
+        brokerOrderRefHash: "sha256:broker-order-open",
+        externalStatus: "open" as const,
+        symbol: "005930",
+        side: "BUY" as const,
+        orderType: "MARKET" as const,
+        requestedNotional: 140000,
+      };
+      const mockStatus = {
+        id: "broker-order-status-1",
+        brokerOrderRefHash: "sha256:broker-order-open",
+        externalStatus: "open",
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      };
+
+      mockPost.mockResolvedValue({ data: mockStatus });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.importBrokerOrderStatus(request);
+
+      expect(mockPost).toHaveBeenCalledWith(
+        "/control-plane/broker-order-statuses/import-read-only",
+        request,
+      );
+      expect(result).toEqual(mockStatus);
+    });
+
+    it("should_get_broker_order_statuses", async () => {
+      const mockStatuses = [
+        {
+          id: "broker-order-status-1",
+          brokerOrderRefHash: "sha256:broker-order-open",
+          externalStatus: "open",
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+        },
+      ];
+
+      mockGet.mockResolvedValue({ data: mockStatuses });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.getBrokerOrderStatuses();
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/control-plane/broker-order-statuses",
+      );
+      expect(result).toEqual(mockStatuses);
+    });
+
+    it("should_get_open_broker_order_statuses", async () => {
+      const mockStatuses = [
+        {
+          id: "broker-order-status-1",
+          brokerOrderRefHash: "sha256:broker-order-open",
+          externalStatus: "open",
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+        },
+      ];
+
+      mockGet.mockResolvedValue({ data: mockStatuses });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.getOpenBrokerOrderStatuses();
+
+      expect(mockGet).toHaveBeenCalledWith(
+        "/control-plane/broker-order-statuses/open",
+      );
+      expect(result).toEqual(mockStatuses);
+    });
+
     it("should_get_broker_adapter_status", async () => {
       const mockStatus = {
         provider: "toss",

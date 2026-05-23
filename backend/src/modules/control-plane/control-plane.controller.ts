@@ -11,6 +11,7 @@ import { AutonomousRun } from '../../entities/autonomous-run.entity';
 import { AutonomousRunSchedule } from '../../entities/autonomous-run-schedule.entity';
 import { BrokerFill } from '../../entities/broker-fill.entity';
 import { BrokerOrderCommand } from '../../entities/broker-order-command.entity';
+import { BrokerOrderStatusRecord } from '../../entities/broker-order-status.entity';
 import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
@@ -46,6 +47,7 @@ import {
   CreateOrderPlanApprovalRequest,
   CreateResearchRunRequest,
   ImportBrokerFillRequest,
+  ImportBrokerOrderStatusRequest,
   ImportBrokerSnapshotRequest,
   ImportMarketDataBarsRequest,
   KillSwitchStatus,
@@ -266,6 +268,23 @@ export class ControlPlaneController {
   @Get('broker-order-commands')
   listBrokerOrderCommands(): Promise<BrokerOrderCommand[]> {
     return this.controlPlaneService.listBrokerOrderCommands();
+  }
+
+  @Post('broker-order-statuses/import-read-only')
+  importBrokerOrderStatus(
+    @Body() request: ImportBrokerOrderStatusRequest,
+  ): Promise<BrokerOrderStatusRecord> {
+    return this.controlPlaneService.importBrokerOrderStatus(request);
+  }
+
+  @Get('broker-order-statuses')
+  listBrokerOrderStatuses(): Promise<BrokerOrderStatusRecord[]> {
+    return this.controlPlaneService.listBrokerOrderStatuses();
+  }
+
+  @Get('broker-order-statuses/open')
+  listOpenBrokerOrderStatuses(): Promise<BrokerOrderStatusRecord[]> {
+    return this.controlPlaneService.listOpenBrokerOrderStatuses();
   }
 
   @Get('broker-adapter/status')

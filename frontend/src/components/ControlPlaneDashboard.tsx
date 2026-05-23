@@ -4,6 +4,7 @@ import { AutonomousRunLedger } from "./control-plane-dashboard/AutonomousRunLedg
 import { AutonomousActionStatusPanel } from "./control-plane-dashboard/AutonomousActionStatusPanel";
 import { BrokerWriteReadinessPanel } from "./control-plane-dashboard/BrokerWriteReadinessPanel";
 import { BrokerOrderCommandPanel } from "./control-plane-dashboard/BrokerOrderCommandPanel";
+import { BrokerOrderLifecyclePanel } from "./control-plane-dashboard/BrokerOrderLifecyclePanel";
 import { BrokerSnapshotPanel } from "./control-plane-dashboard/BrokerSnapshotPanel";
 import { CurrentCycleEvidencePanel } from "./control-plane-dashboard/CurrentCycleEvidencePanel";
 import { DashboardHeader } from "./control-plane-dashboard/DashboardHeader";
@@ -54,6 +55,7 @@ const ControlPlaneDashboard = () => {
               <FundingReadinessPanel model={model} />
               <BrokerWriteReadinessPanel model={model} />
               <BrokerOrderCommandPanel model={model} />
+              <BrokerOrderLifecyclePanel model={model} />
               <BrokerSnapshotPanel model={model} />
             </div>
             <RightRail model={model} />

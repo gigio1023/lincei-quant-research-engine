@@ -6,6 +6,7 @@ import {
   BrokerAdapterStatus,
   BrokerFill,
   BrokerOrderCommand,
+  BrokerOrderStatusRecord,
   BrokerSnapshot,
   BudgetEnvelope,
   ControlPlaneAuditEvent,
@@ -35,6 +36,7 @@ import {
   DOCUMENTED_BROKER_ADAPTER_STATUS,
   DOCUMENTED_BROKER_FILLS,
   DOCUMENTED_BROKER_ORDER_COMMANDS,
+  DOCUMENTED_BROKER_ORDER_STATUSES,
   DOCUMENTED_BROKER_SNAPSHOTS,
   DOCUMENTED_BUDGET_ENVELOPES,
   DOCUMENTED_CONTROL_PLANE_STATUS,
@@ -84,6 +86,7 @@ export interface DashboardModel {
   visibleFundingReadiness: FundingReadinessRecord[];
   visibleLivePilotReadiness: LivePilotReadinessRecord[];
   visibleBrokerOrderCommands: BrokerOrderCommand[];
+  visibleBrokerOrderStatuses: BrokerOrderStatusRecord[];
   visibleBrokerFills: BrokerFill[];
   visibleBrokerAdapterStatus: BrokerAdapterStatus;
   visibleOrderPlanApprovals: OrderPlanApproval[];
@@ -96,6 +99,7 @@ export interface DashboardModel {
   latestFundingReadiness?: FundingReadinessRecord;
   latestLivePilotReadiness?: LivePilotReadinessRecord;
   latestBrokerOrderCommand?: BrokerOrderCommand;
+  latestBrokerOrderStatus?: BrokerOrderStatusRecord;
   latestBrokerFill?: BrokerFill;
   latestOrderPlanApproval?: OrderPlanApproval;
   latestReconciledPlan?: PaperOrderPlan;
@@ -121,6 +125,7 @@ export interface DashboardModel {
     fundingReadiness: string;
     livePilotReadiness: string;
     brokerOrderCommands: string;
+    brokerOrderStatuses: string;
     brokerFills: string;
     brokerAdapter: string;
     orderPlanApprovals: string;
@@ -143,6 +148,7 @@ export interface DashboardModel {
     fundingReadiness: string | null;
     livePilotReadiness: string | null;
     brokerOrderCommands: string | null;
+    brokerOrderStatuses: string | null;
     brokerFills: string | null;
     brokerAdapter: string | null;
     orderPlanApprovals: string | null;
@@ -167,6 +173,7 @@ export interface DashboardModel {
     fundingReadiness: boolean;
     livePilotReadiness: boolean;
     brokerOrderCommands: boolean;
+    brokerOrderStatuses: boolean;
     brokerFills: boolean;
     brokerAdapter: boolean;
     orderPlanApprovals: boolean;
@@ -419,6 +426,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const [brokerOrderCommands, setBrokerOrderCommands] = useState<
     BrokerOrderCommand[] | null
   >(null);
+  const [brokerOrderStatuses, setBrokerOrderStatuses] = useState<
+    BrokerOrderStatusRecord[] | null
+  >(null);
   const [brokerFills, setBrokerFills] = useState<BrokerFill[] | null>(null);
   const [brokerAdapterStatus, setBrokerAdapterStatus] =
     useState<BrokerAdapterStatus | null>(null);
@@ -451,6 +461,8 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const [loadingLivePilotReadiness, setLoadingLivePilotReadiness] =
     useState(true);
   const [loadingBrokerOrderCommands, setLoadingBrokerOrderCommands] =
+    useState(true);
+  const [loadingBrokerOrderStatuses, setLoadingBrokerOrderStatuses] =
     useState(true);
   const [loadingBrokerFills, setLoadingBrokerFills] = useState(true);
   const [loadingBrokerAdapter, setLoadingBrokerAdapter] = useState(true);
@@ -494,6 +506,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     string | null
   >(null);
   const [brokerOrderCommandsError, setBrokerOrderCommandsError] = useState<
+    string | null
+  >(null);
+  const [brokerOrderStatusesError, setBrokerOrderStatusesError] = useState<
     string | null
   >(null);
   const [brokerFillsError, setBrokerFillsError] = useState<string | null>(null);
@@ -551,6 +566,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           fundingReadinessStatus,
           livePilotReadinessStatus,
           brokerOrderCommandsStatus,
+          brokerOrderStatusesStatus,
           brokerFillsStatus,
           brokerAdapterStatus,
           orderPlanApprovalsStatus,
@@ -575,6 +591,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           controlPlaneApi.getFundingReadinessRecords(),
           controlPlaneApi.getLivePilotReadinessRecords(),
           controlPlaneApi.getBrokerOrderCommands(),
+          controlPlaneApi.getBrokerOrderStatuses(),
           controlPlaneApi.getBrokerFills(),
           controlPlaneApi.getBrokerAdapterStatus(),
           controlPlaneApi.getOrderPlanApprovals(),
@@ -709,6 +726,14 @@ export const useControlPlaneDashboard = (): DashboardModel => {
             "Broker order command API is unavailable. Showing documented broker command sample.",
           );
         }
+        if (brokerOrderStatusesStatus.status === "fulfilled") {
+          setBrokerOrderStatuses(brokerOrderStatusesStatus.value);
+          setBrokerOrderStatusesError(null);
+        } else {
+          setBrokerOrderStatusesError(
+            "Broker order status API is unavailable. Showing documented broker lifecycle sample.",
+          );
+        }
         if (brokerFillsStatus.status === "fulfilled") {
           setBrokerFills(brokerFillsStatus.value);
           setBrokerFillsError(null);
@@ -805,6 +830,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           setBrokerOrderCommandsError(
             "Broker order command API is unavailable. Showing documented broker command sample.",
           );
+          setBrokerOrderStatusesError(
+            "Broker order status API is unavailable. Showing documented broker lifecycle sample.",
+          );
           setBrokerFillsError(
             "Broker fill API is unavailable. Showing documented read-only fill sample.",
           );
@@ -841,6 +869,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           setLoadingFundingReadiness(false);
           setLoadingLivePilotReadiness(false);
           setLoadingBrokerOrderCommands(false);
+          setLoadingBrokerOrderStatuses(false);
           setLoadingBrokerFills(false);
           setLoadingBrokerAdapter(false);
           setLoadingOrderPlanApprovals(false);
@@ -885,6 +914,9 @@ export const useControlPlaneDashboard = (): DashboardModel => {
   const visibleBrokerOrderCommands =
     brokerOrderCommands ??
     (loadingBrokerOrderCommands ? [] : DOCUMENTED_BROKER_ORDER_COMMANDS);
+  const visibleBrokerOrderStatuses =
+    brokerOrderStatuses ??
+    (loadingBrokerOrderStatuses ? [] : DOCUMENTED_BROKER_ORDER_STATUSES);
   const visibleBrokerFills =
     brokerFills ?? (loadingBrokerFills ? [] : DOCUMENTED_BROKER_FILLS);
   const visibleBrokerAdapterStatus =
@@ -1000,6 +1032,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       refreshedFundingReadiness,
       refreshedLivePilotReadiness,
       refreshedBrokerOrderCommands,
+      refreshedBrokerOrderStatuses,
       refreshedBrokerFills,
       refreshedBrokerAdapterStatus,
       refreshedOrderPlanApprovals,
@@ -1022,6 +1055,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       controlPlaneApi.getFundingReadinessRecords(),
       controlPlaneApi.getLivePilotReadinessRecords(),
       controlPlaneApi.getBrokerOrderCommands(),
+      controlPlaneApi.getBrokerOrderStatuses(),
       controlPlaneApi.getBrokerFills(),
       controlPlaneApi.getBrokerAdapterStatus(),
       controlPlaneApi.getOrderPlanApprovals(),
@@ -1141,6 +1175,15 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     } else {
       setBrokerOrderCommandsError(
         "Broker order command refresh failed after automation action.",
+      );
+    }
+
+    if (refreshedBrokerOrderStatuses.status === "fulfilled") {
+      setBrokerOrderStatuses(refreshedBrokerOrderStatuses.value);
+      setBrokerOrderStatusesError(null);
+    } else {
+      setBrokerOrderStatusesError(
+        "Broker order status refresh failed after automation action.",
       );
     }
 
@@ -1311,6 +1354,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
     visibleFundingReadiness,
     visibleLivePilotReadiness,
     visibleBrokerOrderCommands,
+    visibleBrokerOrderStatuses,
     visibleBrokerFills,
     visibleBrokerAdapterStatus,
     visibleOrderPlanApprovals,
@@ -1341,6 +1385,11 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       (leftCommand, rightCommand) =>
         new Date(rightCommand.checkedAt).getTime() -
         new Date(leftCommand.checkedAt).getTime(),
+    )[0],
+    latestBrokerOrderStatus: [...visibleBrokerOrderStatuses].sort(
+      (leftStatus, rightStatus) =>
+        new Date(rightStatus.asOf).getTime() -
+        new Date(leftStatus.asOf).getTime(),
     )[0],
     latestBrokerFill: [...visibleBrokerFills].sort(
       (leftFill, rightFill) =>
@@ -1465,6 +1514,11 @@ export const useControlPlaneDashboard = (): DashboardModel => {
         : loadingBrokerOrderCommands
           ? "Loading broker order commands"
           : "Documented broker command sample",
+      brokerOrderStatuses: brokerOrderStatuses
+        ? "API broker order statuses"
+        : loadingBrokerOrderStatuses
+          ? "Loading broker order statuses"
+          : "Documented broker lifecycle sample",
       brokerFills: brokerFills
         ? "API broker fills"
         : loadingBrokerFills
@@ -1507,6 +1561,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       fundingReadiness: fundingReadinessError,
       livePilotReadiness: livePilotReadinessError,
       brokerOrderCommands: brokerOrderCommandsError,
+      brokerOrderStatuses: brokerOrderStatusesError,
       brokerFills: brokerFillsError,
       brokerAdapter: brokerAdapterError,
       orderPlanApprovals: orderPlanApprovalsError,
@@ -1531,6 +1586,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       fundingReadiness: loadingFundingReadiness,
       livePilotReadiness: loadingLivePilotReadiness,
       brokerOrderCommands: loadingBrokerOrderCommands,
+      brokerOrderStatuses: loadingBrokerOrderStatuses,
       brokerFills: loadingBrokerFills,
       brokerAdapter: loadingBrokerAdapter,
       orderPlanApprovals: loadingOrderPlanApprovals,

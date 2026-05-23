@@ -7,6 +7,10 @@ import {
   BrokerOrderCommand,
   BrokerOrderCommandType,
 } from '../../entities/broker-order-command.entity';
+import {
+  BrokerOrderExternalStatus,
+  BrokerOrderStatusRecord,
+} from '../../entities/broker-order-status.entity';
 import { FundingReadinessRecord } from '../../entities/funding-readiness-record.entity';
 import { LivePilotReadinessRecord } from '../../entities/live-pilot-readiness-record.entity';
 import { ExecutionControlStateValue } from '../../entities/execution-control-state.entity';
@@ -305,6 +309,30 @@ export interface RunBrokerEmergencyCommandRequest {
   notes?: string[];
 }
 
+export interface ImportBrokerOrderStatusRequest {
+  provider?: BrokerSnapshotProvider;
+  sourceRef?: string;
+  accountRefHash?: string;
+  brokerOrderRefHash: string;
+  brokerOrderCommandId?: number;
+  brokerOrderIntentId?: string;
+  paperOrderPlanId?: number;
+  externalStatus: BrokerOrderExternalStatus;
+  symbol: string;
+  side: ProposedOrder['side'];
+  orderType: ProposedOrder['orderType'];
+  requestedQuantity?: number;
+  filledQuantity?: number;
+  remainingQuantity?: number;
+  requestedNotional?: number;
+  averageFillPrice?: number;
+  limitPrice?: number;
+  currency?: string;
+  submittedAt?: string;
+  asOf?: string;
+  notes?: string[];
+}
+
 export type BrokerAdapterProvider = 'toss' | 'manual' | 'simulated';
 
 export type BrokerAdapterCapabilityStatus =
@@ -516,6 +544,7 @@ export interface ControlPlaneStatus {
   fundingReadiness?: FundingReadinessRecord;
   livePilotReadiness?: LivePilotReadinessRecord;
   brokerOrderCommand?: BrokerOrderCommand;
+  brokerOrderStatus?: BrokerOrderStatusRecord;
   readiness: Array<{
     key: string;
     ready: boolean;

@@ -120,6 +120,7 @@ vi.mock("./services/api", () => ({
     getFundingReadinessRecords: vi.fn(() => Promise.resolve([])),
     getLivePilotReadinessRecords: vi.fn(() => Promise.resolve([])),
     getBrokerOrderCommands: vi.fn(() => Promise.resolve([])),
+    getBrokerOrderStatuses: vi.fn(() => Promise.resolve([])),
     getBrokerFills: vi.fn(() => Promise.resolve([])),
     reconcileBrokerFill: vi.fn(() => Promise.resolve({})),
     pollBrokerReadOnlyFills: vi.fn(() =>

@@ -20,7 +20,7 @@ The repository already has useful control-plane foundations:
 - market-data bar import and ingestion records;
 - paper account, paper order plan, approval, reservation, and reconciliation ledgers;
 - execution-control and kill-switch state;
-- broker read-only evidence and broker command dry-run ledgers;
+- broker read-only evidence, broker order lifecycle evidence, and broker command dry-run ledgers;
 - React operational dashboard.
 
 The critical missing piece is the actual investment execution brain:

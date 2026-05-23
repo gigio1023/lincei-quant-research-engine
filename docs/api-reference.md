@@ -593,6 +593,42 @@ all broker/live execution flags remain `false`.
 
 - **Description**: Lists blocked dry-run broker command records ordered by latest update. This endpoint is for dashboard/operator review before any broker write adapter exists.
 
+#### `POST /control-plane/broker-order-statuses/import-read-only`
+
+- **Description**: Imports read-only broker order lifecycle evidence such as submitted, open, partially filled, filled, cancelled, rejected, or unknown status. This is external broker truth evidence only. It rejects credentials, raw account/order refs, order payloads, client order ids, and callable order actions.
+- **Example Request**:
+  ```json
+  {
+    "provider": "manual",
+    "sourceRef": "manual-order-status-import-20260523",
+    "accountRefHash": "sha256:account-ref",
+    "brokerOrderRefHash": "sha256:broker-order-open",
+    "brokerOrderCommandId": 1,
+    "externalStatus": "open",
+    "symbol": "005930",
+    "side": "BUY",
+    "orderType": "MARKET",
+    "requestedQuantity": 10,
+    "filledQuantity": 0,
+    "remainingQuantity": 10,
+    "requestedNotional": 500000,
+    "asOf": "2026-05-23T09:00:00.000Z"
+  }
+  ```
+- **Response Notes**:
+  - returns a `BrokerOrderStatusRecord`;
+  - repeated `brokerOrderRefHash` imports replay the existing record;
+  - statuses linked to current dry-run broker commands are marked `mismatch`, because a dry-run command must not create a real external broker order;
+  - `brokerExecutionEnabled` and `liveTradingEnabled` are always `false`.
+
+#### `GET /control-plane/broker-order-statuses`
+
+- **Description**: Lists read-only broker order lifecycle records ordered by latest broker timestamp. This endpoint does not call broker order endpoints.
+
+#### `GET /control-plane/broker-order-statuses/open`
+
+- **Description**: Lists submitted, accepted, open, partially filled, pending cancel, and unknown broker order status records so emergency cancel dry-runs can show candidate external order refs without calling broker cancel endpoints.
+
 #### `POST /control-plane/broker-fills/import-read-only`
 
 - **Description**: Imports read-only broker fill evidence and immediately attempts to match it against existing paper fills. This is a provider-neutral ledger step for later broker fill polling. It does not call a broker, does not store raw account/order/fill refs, rejects credential/order payload fields, and cannot place, cancel, or modify orders.

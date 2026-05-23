@@ -27,6 +27,11 @@ import {
   BrokerOrderIntent,
 } from '../../entities/broker-order-command.entity';
 import {
+  BrokerOrderExternalStatus,
+  BrokerOrderStatusRecord,
+  BrokerOrderStatusReconciliation,
+} from '../../entities/broker-order-status.entity';
+import {
   BrokerSnapshot,
   BrokerSnapshotReconciliation,
 } from '../../entities/broker-snapshot.entity';
@@ -86,6 +91,7 @@ import {
   CreateOrderPlanApprovalRequest,
   CreateResearchRunRequest,
   ImportBrokerFillRequest,
+  ImportBrokerOrderStatusRequest,
   ImportBrokerSnapshotRequest,
   ImportMarketDataBarsRequest,
   KillSwitchStatus,
@@ -153,6 +159,8 @@ export class ControlPlaneService {
     private readonly brokerFillRepository: Repository<BrokerFill>,
     @InjectRepository(BrokerOrderCommand)
     private readonly brokerOrderCommandRepository: Repository<BrokerOrderCommand>,
+    @InjectRepository(BrokerOrderStatusRecord)
+    private readonly brokerOrderStatusRepository: Repository<BrokerOrderStatusRecord>,
     @InjectRepository(BrokerSnapshot)
     private readonly brokerSnapshotRepository: Repository<BrokerSnapshot>,
     @InjectRepository(FundingReadinessRecord)
@@ -213,6 +221,13 @@ export class ControlPlaneService {
         where: {},
         order: { checkedAt: 'DESC', updatedAt: 'DESC' },
       });
+    const brokerOrderStatusCount =
+      await this.brokerOrderStatusRepository.count();
+    const latestBrokerOrderStatus =
+      await this.brokerOrderStatusRepository.findOne({
+        where: {},
+        order: { asOf: 'DESC', updatedAt: 'DESC' },
+      });
     const brokerSnapshotCount = await this.brokerSnapshotRepository.count();
     const fundingReadinessCount = await this.fundingReadinessRepository.count();
     const latestFundingReadiness =
@@ -256,6 +271,7 @@ export class ControlPlaneService {
       fundingReadiness: latestFundingReadiness ?? undefined,
       livePilotReadiness: latestLivePilotReadiness ?? undefined,
       brokerOrderCommand: latestBrokerOrderCommand ?? undefined,
+      brokerOrderStatus: latestBrokerOrderStatus ?? undefined,
       readiness: [
         {
           key: 'budgetEnvelopeActive',
@@ -382,6 +398,11 @@ export class ControlPlaneService {
           detail: `${brokerOrderCommandCount} dry-run broker order command records`,
         },
         {
+          key: 'brokerOrderStatusLedgerReady',
+          ready: brokerOrderStatusCount > 0,
+          detail: `${brokerOrderStatusCount} read-only broker order status records imported`,
+        },
+        {
           key: 'livePilotReadinessLedgerReady',
           ready: livePilotReadinessCount > 0,
           detail: `${livePilotReadinessCount} live pilot readiness records`,
@@ -411,6 +432,9 @@ export class ControlPlaneService {
         ...(latestBrokerOrderCommand
           ? []
           : ['No broker order command dry-run ledger record']),
+        ...(latestBrokerOrderStatus
+          ? []
+          : ['No broker order status lifecycle evidence']),
         'No production-verified broker polling loop',
         ...schemaMigrationPolicy.blockers,
         ...liveTradingGate.blockers,
@@ -1672,16 +1696,25 @@ export class ControlPlaneService {
     });
     const blockedReason =
       baseBlockers[0] ?? 'Broker emergency dry-run command is blocked';
+    const targetOpenOrders =
+      request.commandType === 'cancel_open_orders'
+        ? await this.listOpenBrokerOrderStatuses()
+        : [];
     const emergencyActions: BrokerEmergencyAction[] = [
       {
         actionId: `broker-emergency:${request.commandType}:${checkedAt.toISOString()}`,
         actionType: request.commandType,
         status: 'blocked',
         blockedReason,
+        targetOpenOrderCount: targetOpenOrders.length,
+        targetBrokerOrderRefHashes: targetOpenOrders.map(
+          (order) => order.brokerOrderRefHash,
+        ),
       },
     ];
     const notes = [
       `Emergency dry-run reason: ${request.reason}`,
+      `Emergency dry-run open order candidates: ${targetOpenOrders.length}`,
       'Broker emergency command is dry-run evidence only. No broker cancel, replace, flatten, or order endpoint was called.',
       ...(request.notes ?? []),
     ];
@@ -1705,6 +1738,106 @@ export class ControlPlaneService {
     return this.brokerOrderCommandRepository.find({
       order: { checkedAt: 'DESC', updatedAt: 'DESC' },
     });
+  }
+
+  async importBrokerOrderStatus(
+    request: ImportBrokerOrderStatusRequest,
+  ): Promise<BrokerOrderStatusRecord> {
+    this.assertBrokerOrderStatusRequest(request);
+
+    const existing = await this.brokerOrderStatusRepository.findOne({
+      where: { brokerOrderRefHash: request.brokerOrderRefHash },
+    });
+
+    if (existing) {
+      return existing;
+    }
+
+    const asOf = request.asOf ? new Date(request.asOf) : new Date();
+    const submittedAt = request.submittedAt
+      ? new Date(request.submittedAt)
+      : undefined;
+
+    if (
+      Number.isNaN(asOf.getTime()) ||
+      (submittedAt && Number.isNaN(submittedAt.getTime()))
+    ) {
+      throw new BadRequestException(
+        'Broker order status submittedAt/asOf must be valid dates',
+      );
+    }
+
+    if (asOf.getTime() > Date.now() + 60_000) {
+      throw new BadRequestException(
+        'Broker order status asOf cannot be future',
+      );
+    }
+
+    const reconciliation =
+      await this.buildBrokerOrderStatusReconciliation(request);
+    const status =
+      reconciliation.status === 'matched'
+        ? 'matched'
+        : reconciliation.status === 'mismatch'
+          ? 'mismatch'
+          : reconciliation.status === 'unlinked'
+            ? 'unlinked'
+            : 'imported';
+
+    return this.brokerOrderStatusRepository.save(
+      this.brokerOrderStatusRepository.create({
+        provider: request.provider ?? 'manual',
+        sourceRef: request.sourceRef,
+        accountRefHash: request.accountRefHash,
+        brokerOrderRefHash: request.brokerOrderRefHash,
+        brokerOrderCommandId: reconciliation.brokerOrderCommandId,
+        brokerOrderIntentId: reconciliation.brokerOrderIntentId,
+        paperOrderPlanId: reconciliation.paperOrderPlanId,
+        status,
+        externalStatus: request.externalStatus,
+        symbol: request.symbol,
+        side: request.side,
+        orderType: request.orderType,
+        requestedQuantity: request.requestedQuantity,
+        filledQuantity: request.filledQuantity,
+        remainingQuantity: request.remainingQuantity,
+        requestedNotional: request.requestedNotional,
+        averageFillPrice: request.averageFillPrice,
+        limitPrice: request.limitPrice,
+        currency: request.currency ?? 'KRW',
+        submittedAt,
+        asOf,
+        reconciliation,
+        notes: [
+          'Broker order status is read-only lifecycle evidence. No broker order endpoint was called.',
+          ...(request.notes ?? []),
+        ],
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+  }
+
+  async listBrokerOrderStatuses(): Promise<BrokerOrderStatusRecord[]> {
+    return this.brokerOrderStatusRepository.find({
+      order: { asOf: 'DESC', updatedAt: 'DESC' },
+    });
+  }
+
+  async listOpenBrokerOrderStatuses(): Promise<BrokerOrderStatusRecord[]> {
+    const openStatuses: BrokerOrderExternalStatus[] = [
+      'submitted',
+      'accepted',
+      'open',
+      'partially_filled',
+      'pending_cancel',
+      'unknown',
+    ];
+    const records = await this.listBrokerOrderStatuses();
+
+    return records.filter((record) =>
+      openStatuses.includes(record.externalStatus),
+    );
   }
 
   async importBrokerFill(
@@ -5030,6 +5163,271 @@ export class ControlPlaneService {
     if (!request.reason?.trim()) {
       throw new BadRequestException('Broker emergency command reason required');
     }
+  }
+
+  private assertReadOnlyBrokerEvidenceRequest(
+    request: object,
+    label: string,
+  ): void {
+    const disallowedKeys = [
+      'brokerCredentials',
+      'accessToken',
+      'refreshToken',
+      'secret',
+      'clientSecret',
+      'apiKey',
+      'accountRef',
+      'accountId',
+      'brokerOrderRef',
+      'orders',
+      'order',
+      'orderPayload',
+      'clientOrderId',
+      'placeOrder',
+      'cancelOrder',
+      'modifyOrder',
+      'flattenPositions',
+    ];
+    const record = request as Record<string, unknown>;
+    const presentDisallowedKey = disallowedKeys.find(
+      (key) => record[key] !== undefined,
+    );
+
+    if (presentDisallowedKey) {
+      throw new BadRequestException(
+        `${label} cannot include ${presentDisallowedKey}`,
+      );
+    }
+  }
+
+  private async buildBrokerOrderStatusReconciliation(
+    request: ImportBrokerOrderStatusRequest,
+  ): Promise<BrokerOrderStatusReconciliation> {
+    const brokerOrderCommand =
+      await this.resolveBrokerOrderCommandForStatus(request);
+    const checkedAt = new Date().toISOString();
+
+    if (!brokerOrderCommand) {
+      return {
+        status: 'unlinked',
+        checkedAt,
+        paperOrderPlanId: request.paperOrderPlanId,
+        brokerOrderIntentId: request.brokerOrderIntentId,
+        symbolMatched: false,
+        sideMatched: false,
+        orderTypeMatched: false,
+        notionalWithinPlan: false,
+        quantityWithinPlan: false,
+        commandDryRunOnly: true,
+        brokerExternalStatus: request.externalStatus,
+        notes: [
+          'No broker order command matched this read-only broker order status.',
+        ],
+      };
+    }
+
+    const intent = this.resolveBrokerOrderIntentForStatus(
+      brokerOrderCommand,
+      request,
+    );
+
+    if (!intent) {
+      return {
+        status: 'mismatch',
+        checkedAt,
+        brokerOrderCommandId: brokerOrderCommand.id,
+        paperOrderPlanId:
+          request.paperOrderPlanId ?? brokerOrderCommand.paperOrderPlanId,
+        brokerOrderIntentId: request.brokerOrderIntentId,
+        symbolMatched: false,
+        sideMatched: false,
+        orderTypeMatched: false,
+        notionalWithinPlan: false,
+        quantityWithinPlan: false,
+        commandDryRunOnly: true,
+        brokerExternalStatus: request.externalStatus,
+        notes: [
+          'Broker order status linked to a command, but no command intent matched the imported order status.',
+          'The linked command is dry-run only, so any external broker order remains a mismatch until real broker write custody exists.',
+        ],
+      };
+    }
+
+    const symbolMatched = intent.symbol === request.symbol;
+    const sideMatched = intent.side === request.side;
+    const orderTypeMatched = intent.orderType === request.orderType;
+    const expectedNotional = intent.requestedNotional;
+    const expectedQuantity = intent.requestedQuantity;
+    const requestedNotional = request.requestedNotional ?? expectedNotional;
+    const requestedQuantity = request.requestedQuantity ?? expectedQuantity;
+    const notionalDiff =
+      request.requestedNotional !== undefined
+        ? request.requestedNotional - expectedNotional
+        : undefined;
+    const quantityDiff =
+      request.requestedQuantity !== undefined && expectedQuantity !== undefined
+        ? request.requestedQuantity - expectedQuantity
+        : undefined;
+    const notionalWithinPlan =
+      request.requestedNotional === undefined ||
+      request.requestedNotional <= expectedNotional + 0.01;
+    const quantityWithinPlan =
+      expectedQuantity === undefined ||
+      request.requestedQuantity === undefined ||
+      request.requestedQuantity <= expectedQuantity + 0.000001;
+    const shapeMatched =
+      symbolMatched &&
+      sideMatched &&
+      orderTypeMatched &&
+      notionalWithinPlan &&
+      quantityWithinPlan;
+    const commandDryRunOnly = brokerOrderCommand.mode === 'dry_run';
+
+    return {
+      status: shapeMatched && !commandDryRunOnly ? 'matched' : 'mismatch',
+      checkedAt,
+      brokerOrderCommandId: brokerOrderCommand.id,
+      brokerOrderIntentId: intent.brokerOrderIntentId,
+      paperOrderPlanId:
+        request.paperOrderPlanId ?? brokerOrderCommand.paperOrderPlanId,
+      sourcePaperOrderId: intent.sourcePaperOrderId,
+      symbolMatched,
+      sideMatched,
+      orderTypeMatched,
+      notionalWithinPlan,
+      quantityWithinPlan,
+      commandDryRunOnly,
+      brokerExternalStatus: request.externalStatus,
+      expectedSymbol: intent.symbol,
+      expectedSide: intent.side,
+      expectedOrderType: intent.orderType,
+      expectedNotional,
+      expectedQuantity,
+      notionalDiff,
+      quantityDiff,
+      notes: [
+        shapeMatched
+          ? 'Broker order status shape matches the dry-run command intent.'
+          : 'Broker order status does not match the dry-run command intent.',
+        commandDryRunOnly
+          ? 'The linked broker order command is dry-run only; no external broker order should have been created by this system.'
+          : 'The linked broker order command is eligible for broker lifecycle matching.',
+        `Imported requested notional: ${requestedNotional}`,
+        `Imported requested quantity: ${requestedQuantity ?? 'not provided'}`,
+      ],
+    };
+  }
+
+  private async resolveBrokerOrderCommandForStatus(
+    request: ImportBrokerOrderStatusRequest,
+  ): Promise<BrokerOrderCommand | null> {
+    if (request.brokerOrderCommandId) {
+      const command = await this.brokerOrderCommandRepository.findOne({
+        where: { id: request.brokerOrderCommandId },
+      });
+
+      if (!command) {
+        throw new NotFoundException(
+          `Broker order command ${request.brokerOrderCommandId} not found`,
+        );
+      }
+
+      return command;
+    }
+
+    if (request.paperOrderPlanId) {
+      return this.brokerOrderCommandRepository.findOne({
+        where: { paperOrderPlanId: request.paperOrderPlanId },
+        order: { checkedAt: 'DESC', updatedAt: 'DESC' },
+      });
+    }
+
+    return null;
+  }
+
+  private resolveBrokerOrderIntentForStatus(
+    command: BrokerOrderCommand,
+    request: ImportBrokerOrderStatusRequest,
+  ): BrokerOrderIntent | undefined {
+    if (request.brokerOrderIntentId) {
+      return command.orderIntents.find(
+        (intent) => intent.brokerOrderIntentId === request.brokerOrderIntentId,
+      );
+    }
+
+    return command.orderIntents.find(
+      (intent) =>
+        intent.symbol === request.symbol &&
+        intent.side === request.side &&
+        intent.orderType === request.orderType,
+    );
+  }
+
+  private assertBrokerOrderStatusRequest(
+    request: ImportBrokerOrderStatusRequest,
+  ): void {
+    this.assertReadOnlyBrokerEvidenceRequest(request, 'Broker order status');
+
+    const allowedStatuses: BrokerOrderExternalStatus[] = [
+      'submitted',
+      'accepted',
+      'open',
+      'partially_filled',
+      'filled',
+      'pending_cancel',
+      'cancelled',
+      'rejected',
+      'expired',
+      'unknown',
+    ];
+
+    if (!allowedStatuses.includes(request.externalStatus)) {
+      throw new BadRequestException(
+        'Broker order status externalStatus is not supported',
+      );
+    }
+
+    if (!request.brokerOrderRefHash?.startsWith('sha256:')) {
+      throw new BadRequestException(
+        'Broker order status requires brokerOrderRefHash as a sha256 hash',
+      );
+    }
+
+    if (
+      request.accountRefHash &&
+      !request.accountRefHash.startsWith('sha256:')
+    ) {
+      throw new BadRequestException(
+        'Broker order status accountRefHash must be a sha256 hash',
+      );
+    }
+
+    if (!request.symbol?.trim()) {
+      throw new BadRequestException('Broker order status symbol required');
+    }
+
+    if (request.side !== 'BUY' && request.side !== 'SELL') {
+      throw new BadRequestException('Broker order status side invalid');
+    }
+
+    if (request.orderType !== 'MARKET' && request.orderType !== 'LIMIT') {
+      throw new BadRequestException('Broker order status orderType invalid');
+    }
+
+    [
+      request.requestedQuantity,
+      request.filledQuantity,
+      request.remainingQuantity,
+      request.requestedNotional,
+      request.averageFillPrice,
+      request.limitPrice,
+    ].forEach((value) => {
+      if (value !== undefined && (!Number.isFinite(value) || value < 0)) {
+        throw new BadRequestException(
+          'Broker order status numeric fields must be non-negative finite numbers',
+        );
+      }
+    });
   }
 
   private assertReadOnlyBrokerFillRequest(

@@ -6,6 +6,7 @@ import { AutonomousRun } from '../src/entities/autonomous-run.entity';
 import { AutonomousRunSchedule } from '../src/entities/autonomous-run-schedule.entity';
 import { BrokerFill } from '../src/entities/broker-fill.entity';
 import { BrokerOrderCommand } from '../src/entities/broker-order-command.entity';
+import { BrokerOrderStatusRecord } from '../src/entities/broker-order-status.entity';
 import { BrokerSnapshot } from '../src/entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../src/entities/budget-envelope.entity';
 import { ExecutionControlState } from '../src/entities/execution-control-state.entity';
@@ -37,6 +38,7 @@ describe('ControlPlane research provenance (e2e)', () => {
             AutonomousRunSchedule,
             BrokerFill,
             BrokerOrderCommand,
+            BrokerOrderStatusRecord,
             BrokerSnapshot,
             BudgetEnvelope,
             ExecutionControlState,
@@ -739,6 +741,43 @@ describe('ControlPlane research provenance (e2e)', () => {
     expect(brokerCommandResponse.body.brokerExecutionEnabled).toBe(false);
     expect(brokerCommandResponse.body.liveTradingEnabled).toBe(false);
 
+    const brokerOrderStatusResponse = await request(app.getHttpServer())
+      .post('/control-plane/broker-order-statuses/import-read-only')
+      .send({
+        provider: 'manual',
+        brokerOrderRefHash: 'sha256:e2e-broker-order-open',
+        brokerOrderCommandId: brokerCommandResponse.body.id,
+        brokerOrderIntentId:
+          brokerCommandResponse.body.orderIntents[0].brokerOrderIntentId,
+        externalStatus: 'open',
+        symbol: '005930',
+        side: 'BUY',
+        orderType: 'MARKET',
+        requestedQuantity: 10,
+        requestedNotional: 500_000,
+        asOf: new Date(Date.now() - 60_000).toISOString(),
+      })
+      .expect(201);
+    expect(brokerOrderStatusResponse.body).toEqual(
+      expect.objectContaining({
+        externalStatus: 'open',
+        status: 'mismatch',
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+    expect(brokerOrderStatusResponse.body.reconciliation).toEqual(
+      expect.objectContaining({
+        brokerOrderCommandId: brokerCommandResponse.body.id,
+        commandDryRunOnly: true,
+      }),
+    );
+
+    const openOrderStatusesResponse = await request(app.getHttpServer())
+      .get('/control-plane/broker-order-statuses/open')
+      .expect(200);
+    expect(openOrderStatusesResponse.body).toHaveLength(1);
+
     const emergencyCommandResponse = await request(app.getHttpServer())
       .post('/control-plane/broker-order-commands/emergency-dry-run')
       .send({
@@ -752,6 +791,8 @@ describe('ControlPlane research provenance (e2e)', () => {
       expect.objectContaining({
         actionType: 'cancel_open_orders',
         status: 'blocked',
+        targetOpenOrderCount: 1,
+        targetBrokerOrderRefHashes: ['sha256:e2e-broker-order-open'],
       }),
     );
     expect(emergencyCommandResponse.body.brokerExecutionEnabled).toBe(false);
@@ -761,6 +802,11 @@ describe('ControlPlane research provenance (e2e)', () => {
       .get('/control-plane/broker-order-commands')
       .expect(200);
     expect(brokerCommandsResponse.body).toHaveLength(2);
+
+    const brokerOrderStatusesResponse = await request(app.getHttpServer())
+      .get('/control-plane/broker-order-statuses')
+      .expect(200);
+    expect(brokerOrderStatusesResponse.body).toHaveLength(1);
 
     const replayResponse = await request(app.getHttpServer())
       .post(

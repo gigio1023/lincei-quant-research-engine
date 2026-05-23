@@ -27,6 +27,7 @@ vi.mock("../services/api", () => ({
     getFundingReadinessRecords: vi.fn(),
     getLivePilotReadinessRecords: vi.fn(),
     getBrokerOrderCommands: vi.fn(),
+    getBrokerOrderStatuses: vi.fn(),
     getBrokerFills: vi.fn(),
     reconcileBrokerFill: vi.fn(),
     pollBrokerReadOnlyFills: vi.fn(),
@@ -291,6 +292,56 @@ const mockControlPlaneStatus = {
     createdAt: "2026-05-22T09:10:00.000Z",
     updatedAt: "2026-05-22T09:10:00.000Z",
   },
+  brokerOrderStatus: {
+    id: "broker-order-status-api-1",
+    provider: "manual",
+    sourceRef: "manual-order-status-import",
+    accountRefHash: "sha256:broker-account",
+    brokerOrderRefHash: "sha256:broker-order-open",
+    brokerOrderCommandId: "broker-order-command-api-1",
+    brokerOrderIntentId: "broker-intent-api-0",
+    paperOrderPlanId: "paper-plan-api-1",
+    status: "mismatch",
+    externalStatus: "open",
+    symbol: "005930",
+    side: "BUY",
+    orderType: "MARKET",
+    requestedQuantity: 2,
+    filledQuantity: 0,
+    remainingQuantity: 2,
+    requestedNotional: 140000,
+    currency: "KRW",
+    submittedAt: "2026-05-22T09:10:00.000Z",
+    asOf: "2026-05-22T09:11:00.000Z",
+    reconciliation: {
+      status: "mismatch",
+      checkedAt: "2026-05-22T09:11:00.000Z",
+      brokerOrderCommandId: "broker-order-command-api-1",
+      brokerOrderIntentId: "broker-intent-api-0",
+      paperOrderPlanId: "paper-plan-api-1",
+      sourcePaperOrderId: "paper-order-api-1",
+      symbolMatched: true,
+      sideMatched: true,
+      orderTypeMatched: true,
+      notionalWithinPlan: true,
+      quantityWithinPlan: true,
+      commandDryRunOnly: true,
+      brokerExternalStatus: "open",
+      expectedSymbol: "005930",
+      expectedSide: "BUY",
+      expectedOrderType: "MARKET",
+      expectedNotional: 140000,
+      expectedQuantity: 2,
+      notionalDiff: 0,
+      quantityDiff: 0,
+      notes: ["Dry-run command cannot be linked to real broker write."],
+    },
+    notes: ["Read-only broker order status evidence."],
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+    createdAt: "2026-05-22T09:11:00.000Z",
+    updatedAt: "2026-05-22T09:11:00.000Z",
+  },
   readiness: [
     {
       key: "riskGateReady",
@@ -352,6 +403,11 @@ const mockControlPlaneStatus = {
       key: "brokerOrderCommandLedgerReady",
       ready: true,
       detail: "1 broker order command dry-run records",
+    },
+    {
+      key: "brokerOrderStatusLedgerReady",
+      ready: true,
+      detail: "1 read-only broker order status records imported",
     },
   ],
   blockers: [
@@ -1307,6 +1363,9 @@ describe("ControlPlaneDashboard", () => {
     vi.mocked(controlPlaneApi.getBrokerOrderCommands).mockResolvedValue([
       mockControlPlaneStatus.brokerOrderCommand,
     ]);
+    vi.mocked(controlPlaneApi.getBrokerOrderStatuses).mockResolvedValue([
+      mockControlPlaneStatus.brokerOrderStatus,
+    ]);
     vi.mocked(controlPlaneApi.getBrokerFills).mockResolvedValue(
       mockBrokerFills,
     );
@@ -1540,8 +1599,14 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("submit_order_plan")).toBeInTheDocument();
     expect(screen.getByText("hash")).toBeInTheDocument();
     expect(screen.getByText("sha256:broker-command-api")).toBeInTheDocument();
-    expect(screen.getByText("005930 BUY MARKET")).toBeInTheDocument();
+    expect(screen.getAllByText("005930 BUY MARKET").length).toBeGreaterThan(0);
     expect(screen.getByText("Command blockers")).toBeInTheDocument();
+    expect(screen.getByText("Broker Order Lifecycle")).toBeInTheDocument();
+    expect(screen.getByText("API broker order statuses")).toBeInTheDocument();
+    expect(
+      screen.getAllByText("sha256:broker-order-open").length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByText("Dry-run command mismatch")).toBeInTheDocument();
     expect(
       screen.getAllByText("Live broker order endpoint is not implemented")
         .length,
@@ -1598,7 +1663,7 @@ describe("ControlPlaneDashboard", () => {
         name: /paper execute|reconcile|pause|halt/i,
       }),
     ).not.toBeInTheDocument();
-  });
+  }, 10_000);
 
   it("should_default_to_english_and_toggle_dashboard_copy_to_korean", async () => {
     render(<ControlPlaneDashboard />);
@@ -1706,6 +1771,9 @@ describe("ControlPlaneDashboard", () => {
       new Error("offline"),
     );
     vi.mocked(controlPlaneApi.getBrokerOrderCommands).mockRejectedValue(
+      new Error("offline"),
+    );
+    vi.mocked(controlPlaneApi.getBrokerOrderStatuses).mockRejectedValue(
       new Error("offline"),
     );
     vi.mocked(controlPlaneApi.getBrokerAdapterStatus).mockRejectedValue(
