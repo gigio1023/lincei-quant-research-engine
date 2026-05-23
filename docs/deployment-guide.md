@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This document explains how to deploy the Auto Investment Helper using Docker and GitHub Actions.
+This document explains how to deploy the current Docker/GitHub Actions stack. The target product is now the LEAN/QuantConnect + LLM autonomous alpha system described in [SPEC.md](../SPEC.md), so future deployment work must add LEAN runtime, model artifacts, broker credential custody, and scheduler separation.
 
 ## Requirements
 
@@ -20,6 +20,40 @@ This document explains how to deploy the Auto Investment Helper using Docker and
 
 The backend is available on port `3001`. The frontend is served on port `3000`.
 
+## Database Migration Policy
+
+Development defaults keep `TYPEORM_SYNCHRONIZE=true` so local SQLite databases can
+bootstrap quickly. Do not use that mode for broker-connected or real-money
+operation.
+
+For production-like environments:
+
+1. Set `TYPEORM_SYNCHRONIZE=false`.
+2. Set `TYPEORM_MIGRATIONS_RUN=true`.
+3. Before deployment, inspect pending migrations:
+
+   ```bash
+   cd backend
+   npm run migration:show
+   ```
+
+4. Apply migrations before enabling automation:
+
+   ```bash
+   cd backend
+   npm run migration:run
+   ```
+
+5. Check `GET /control-plane/status`. The `schemaMigrationPolicyReady` gate must
+   be `ready` before treating paper-account lock and reservation evidence as
+   production-deployable.
+
+The current explicit migration adds the paper-account lock-version/event
+evidence columns and reservation/order-plan indexes required by the paper
+critical section for databases created by prior application releases. It does
+not provide a full fresh-database baseline, broker write access, or live
+trading.
+
 ## CI/CD Pipeline
 
 The repository includes a workflow at `.github/workflows/deploy.yml`.
@@ -30,4 +64,3 @@ It runs on every push to the `main` branch and performs the following steps:
 3. Build and start Docker containers with `docker-compose up -d --build`.
 
 Make sure the self-hosted runner has permission to execute Docker commands.
-

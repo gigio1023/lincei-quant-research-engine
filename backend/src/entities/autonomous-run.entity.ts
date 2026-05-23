@@ -1,0 +1,88 @@
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Index,
+} from 'typeorm';
+
+export type AutonomousRunStatus =
+  | 'idle'
+  | 'researching'
+  | 'proposed'
+  | 'risk_checked'
+  | 'paper_ready'
+  | 'paused'
+  | 'halted'
+  | 'completed'
+  | 'failed';
+
+export interface RunTimelineEvent {
+  at: string;
+  stage: AutonomousRunStatus;
+  message: string;
+}
+
+@Index('IDX_autonomous_run_schedule_cycle', ['scheduleId', 'cycleKey'], {
+  unique: true,
+})
+@Entity('autonomous_runs')
+export class AutonomousRun {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  objective: string;
+
+  @Column({ default: 'idle' })
+  status: AutonomousRunStatus;
+
+  @Column({ default: 'budget_defined' })
+  currentStage: string;
+
+  @Column({ nullable: true })
+  budgetEnvelopeId?: number;
+
+  @Column({ nullable: true })
+  scheduleId?: number;
+
+  @Column({ nullable: true })
+  cycleKey?: string;
+
+  @Column({ nullable: true })
+  researchRunId?: number;
+
+  @Column({ nullable: true })
+  proposalId?: number;
+
+  @Column({ nullable: true })
+  riskEvaluationId?: number;
+
+  @Column({ nullable: true })
+  paperOrderPlanId?: number;
+
+  @Column('json')
+  timeline: RunTimelineEvent[];
+
+  @Column('text', { nullable: true })
+  lastAction?: string;
+
+  @Column('text', { nullable: true })
+  nextAction?: string;
+
+  @Column('text', { nullable: true })
+  error?: string;
+
+  @Column('datetime', { nullable: true })
+  startedAt?: Date;
+
+  @Column('datetime', { nullable: true })
+  completedAt?: Date;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+}

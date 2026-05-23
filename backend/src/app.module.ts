@@ -7,8 +7,9 @@ import { AppService } from './app.service';
 import { ReportsModule } from './modules/reports/reports.module';
 import { NewsModule } from './modules/news/news.module';
 import { LlmModule } from './modules/llm/llm.module';
-import { Report } from './entities/report.entity';
-import { NewsSource } from './entities/news-source.entity';
+import { RiskGateModule } from './modules/risk-gate/risk-gate.module';
+import { ControlPlaneModule } from './modules/control-plane/control-plane.module';
+import { databaseEntities, databaseMigrations } from './data-source';
 
 @Module({
   imports: [
@@ -18,10 +19,15 @@ import { NewsSource } from './entities/news-source.entity';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
-        type: 'sqlite',
+        type: 'better-sqlite3',
         database: configService.get('DATABASE_PATH', 'data/investment.db'),
-        entities: [Report, NewsSource],
-        synchronize: true,
+        entities: databaseEntities,
+        migrations: databaseMigrations,
+        migrationsTableName: 'schema_migrations',
+        migrationsRun: configService.get('TYPEORM_MIGRATIONS_RUN') === 'true',
+        migrationsTransactionMode: 'all',
+        synchronize:
+          configService.get('TYPEORM_SYNCHRONIZE', 'true') === 'true',
         autoLoadEntities: true,
       }),
       inject: [ConfigService],
@@ -30,6 +36,8 @@ import { NewsSource } from './entities/news-source.entity';
     ReportsModule,
     NewsModule,
     LlmModule,
+    RiskGateModule,
+    ControlPlaneModule,
   ],
   controllers: [AppController],
   providers: [AppService],

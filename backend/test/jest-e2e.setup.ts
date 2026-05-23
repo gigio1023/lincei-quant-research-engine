@@ -20,6 +20,7 @@ process.env.NODE_ENV = 'test';
 process.env.DATABASE_URL = ':memory:';
 process.env.GEMINI_API_KEY = 'test-gemini-key';
 process.env.OPENAI_API_KEY = 'test-openai-key';
+process.env.AUTONOMOUS_RUN_SCHEDULER_ENABLED = 'false';
 
 // Mock LLM Service to prevent actual API calls
 jest.mock('../src/modules/llm/llm.service', () => {

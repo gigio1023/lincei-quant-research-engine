@@ -37,3 +37,8 @@ Thumbs.db
 
 # AI
 .cursor/
+
+# Local reference projects
+# These are cloned under the repo for inspection only and must not be committed.
+references/projects/*
+!references/projects/README.md
