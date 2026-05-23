@@ -95,13 +95,13 @@ const LanguageToggle = ({
   setLanguage: (language: DashboardLanguage) => void;
   label: string;
 }) => (
-  <div className="inline-flex items-center gap-2">
-    <span className="text-[11px] font-bold uppercase text-[#707a8a]">
+  <div className="inline-flex items-center gap-2 rounded-lg border border-[#2b3139] bg-[#0b0e11] p-1">
+    <span className="pl-2 text-[11px] font-bold uppercase text-[#707a8a]">
       {label}
     </span>
     <div
       aria-label={label}
-      className="inline-flex rounded-md border border-[#2b3139] bg-[#0b0e11] p-0.5"
+      className="inline-flex rounded-md bg-[#181a20] p-0.5"
       role="group"
     >
       {(["en", "ko"] as const).map((option) => (
@@ -110,13 +110,13 @@ const LanguageToggle = ({
           type="button"
           aria-pressed={language === option}
           onClick={() => setLanguage(option)}
-          className={`h-7 rounded px-2.5 text-[11px] font-bold uppercase transition ${
+          className={`h-8 min-w-20 rounded px-3 text-xs font-bold transition ${
             language === option
               ? "bg-[#fcd535] text-[#181a20]"
               : "text-[#929aa5] hover:bg-[#1e2329] hover:text-white"
           }`}
         >
-          {option === "en" ? "EN" : "KR"}
+          {option === "en" ? "English" : "한국어"}
         </button>
       ))}
     </div>

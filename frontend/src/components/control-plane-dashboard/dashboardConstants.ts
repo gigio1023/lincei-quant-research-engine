@@ -224,7 +224,7 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
       key: "paperAccountReservationLockReady",
       ready: true,
       detail:
-        "Paper account apply uses optimistic database lock-version claims inside the final apply transaction",
+        "Paper account reservation readiness, hold creation, and final apply run inside a TypeORM transaction after an optimistic account lock-version claim",
     },
     {
       key: "paperAccountReady",

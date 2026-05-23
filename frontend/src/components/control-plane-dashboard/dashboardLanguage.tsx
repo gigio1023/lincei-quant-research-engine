@@ -195,8 +195,8 @@ const KOREAN_COPY: Record<string, string> = {
     "결정적 모의 주문 계획, 체결, 대사 원장 등록됨",
   "Documented database paper reservation hold ledger is available":
     "문서화된 데이터베이스 모의 예약 보류 원장 사용 가능",
-  "Paper account apply uses optimistic database lock-version claims inside the final apply transaction":
-    "최종 반영 트랜잭션 안에서 낙관적 DB 락 버전 클레임으로 모의 계정을 반영합니다.",
+  "Paper account reservation readiness, hold creation, and final apply run inside a TypeORM transaction after an optimistic account lock-version claim":
+    "낙관적 계정 락 버전 클레임 후 예약 준비 재계산, 보류 생성, 최종 반영을 TypeORM 트랜잭션 안에서 실행합니다.",
   "Paper account lock readiness requires a TypeORM DataSource transaction boundary":
     "모의 계정 락 준비에는 TypeORM DataSource 트랜잭션 경계가 필요합니다.",
   "No durable paper account records yet": "아직 영구 모의 계정 기록 없음",

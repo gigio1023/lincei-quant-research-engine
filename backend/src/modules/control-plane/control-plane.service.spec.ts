@@ -1222,9 +1222,12 @@ describe('ControlPlaneService', () => {
     });
     const transaction = jest.fn(
       async (
-        callback: (manager: {
+        isolationOrCallback:
+          | string
+          | ((manager: { getRepository: (entity: any) => any }) => unknown),
+        maybeCallback?: (manager: {
           getRepository: (entity: any) => any;
-        }) => Promise<unknown>,
+        }) => unknown,
       ) => {
         const snapshots = {
           paperAccounts: structuredClone(paperAccounts),
@@ -1278,8 +1281,13 @@ describe('ControlPlaneService', () => {
           },
         };
 
+        const callback =
+          typeof isolationOrCallback === 'function'
+            ? isolationOrCallback
+            : maybeCallback;
+
         try {
-          return await callback(manager);
+          return await callback?.(manager);
         } catch (error) {
           restore(paperAccounts, snapshots.paperAccounts);
           restore(paperAccountEvents, snapshots.paperAccountEvents);
@@ -1316,12 +1324,7 @@ describe('ControlPlaneService', () => {
         releasedAt: '2026-05-23T00:00:00.000Z',
       }),
     );
-    expect(paperReservationHolds[0]).toEqual(
-      expect.objectContaining({
-        status: 'released',
-        paperOrderPlanId: plan.id,
-      }),
-    );
+    expect(paperReservationHolds).toHaveLength(0);
     expect(orderPlanApprovals[0].status).toBe('active');
     expect(paperAccounts[0].cash).toBe(10_000_000);
     expect(paperAccounts[0].appliedPlanIds).toEqual([]);
@@ -2033,6 +2036,181 @@ describe('ControlPlaneService', () => {
     );
   });
 
+  it('recomputes paper reservations inside the account critical section', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Locked reservation budget',
+      totalBudget: 1_000_000,
+      policy: {
+        maxGrossExposurePct: 100,
+        maxSinglePositionPct: 100,
+        maxOrderNotional: 1_000_000,
+      },
+    });
+    const seededAccount = await service.seedPaperAccount({
+      budgetEnvelopeId: budget.id,
+      cash: 1_000_000,
+      positions: [],
+      actor: 'unit-test-operator',
+      reason: 'Seed account for locked reservation recompute.',
+      idempotencyKey: 'seed-locked-reservation-account',
+    });
+    await service.promotePaperAccount(seededAccount.id, {
+      actor: 'unit-test-operator',
+      reason: 'Promote account for locked reservation recompute.',
+      idempotencyKey: 'promote-locked-reservation-account',
+      expectedEventHash: paperAccountEvents[0].eventHash,
+    });
+    const researchRun = await service.runBaselineResearch({
+      budgetEnvelopeId: budget.id,
+    });
+    const proposal = await service.createProposal({
+      budgetEnvelopeId: budget.id,
+      researchRunId: researchRun.id,
+      strategyId: 'locked-reservation-v1',
+      ruleId: 'cash-locked-reservation-check',
+      generatedAt: '2026-05-22T23:59:00.000Z',
+      marketDataTimestamp: '2026-05-22T23:55:00.000Z',
+      portfolioSnapshot: {
+        currency: 'KRW',
+        equity: 1_000_000,
+        cash: 1_000_000,
+        grossExposurePct: 0,
+      },
+      orders: [
+        {
+          symbol: '005930',
+          assetClass: 'domestic_stock',
+          side: 'BUY',
+          orderType: 'MARKET',
+          notional: 800_000,
+          targetPositionPct: 80,
+        },
+      ],
+    });
+    const approval = await service.createOrderPlanApproval(proposal.id, {
+      idempotencyKey: 'locked-reservation-paper-plan',
+      approver: 'unit-test-operator',
+      reason: 'Approve locked reservation check plan.',
+      expectedPaperAccountEventHash: paperAccountEvents[1].eventHash,
+    });
+    const injectedHold = {
+      id: 99,
+      holdId: 'paper-reservation:locked-recompute-hold',
+      paperAccountId: seededAccount.id,
+      proposalId: 999,
+      status: 'reserved',
+      idempotencyKey: 'locked-recompute-hold',
+      reservedAt: new Date('2026-05-22T23:58:00.000Z'),
+      cashAmount: 300_450,
+      sellNotionalBySymbol: {},
+      availableCashAtHold: 1_000_000,
+      availableSellNotionalBySymbolAtHold: {},
+      holdHash: 'sha256-locked-recompute-hold',
+      holdSnapshot: {
+        holdId: 'paper-reservation:locked-recompute-hold',
+        status: 'reserved',
+        idempotencyKey: 'locked-recompute-hold',
+        createdAt: '2026-05-22T23:58:00.000Z',
+        cashAmount: 300_450,
+        sellNotionalBySymbol: {},
+        availableCashAtHold: 1_000_000,
+        availableSellNotionalBySymbolAtHold: {},
+        holdHash: 'sha256-locked-recompute-hold',
+        notes: ['Injected during locked readiness recompute.'],
+      },
+      notes: ['Injected during locked readiness recompute.'],
+      updatedAt: new Date('2026-05-22T23:58:00.000Z'),
+    } as PaperReservationHoldRecord;
+    let injected = false;
+    const transaction = jest.fn(
+      async (
+        isolationOrCallback:
+          | string
+          | ((manager: { getRepository: (entity: any) => any }) => unknown),
+        maybeCallback?: (manager: {
+          getRepository: (entity: any) => any;
+        }) => unknown,
+      ) => {
+        const callback =
+          typeof isolationOrCallback === 'function'
+            ? isolationOrCallback
+            : maybeCallback;
+        const manager = {
+          getRepository: (entity: any) => {
+            if (entity === PaperAccount) {
+              return makeRepository(paperAccounts);
+            }
+
+            if (entity === PaperAccountEvent) {
+              return makeRepository(paperAccountEvents);
+            }
+
+            if (entity === PaperOrderPlan) {
+              return makeRepository(paperOrderPlans);
+            }
+
+            if (entity === PaperReservationHoldRecord) {
+              const repository = makeRepository(paperReservationHolds);
+
+              return {
+                ...repository,
+                find: jest.fn(async (options?: { where?: Partial<any> }) => {
+                  if (!injected) {
+                    injected = true;
+                    paperReservationHolds.push(injectedHold);
+                  }
+
+                  return repository.find(options);
+                }),
+              };
+            }
+
+            if (entity === OrderPlanApproval) {
+              return makeRepository(orderPlanApprovals);
+            }
+
+            if (entity === InvestmentProposal) {
+              return makeRepository(proposals);
+            }
+
+            throw new Error(`Unexpected repository ${entity?.name}`);
+          },
+        };
+
+        return callback?.(manager);
+      },
+    );
+    (
+      service as unknown as {
+        dataSource: { transaction: typeof transaction };
+      }
+    ).dataSource = { transaction };
+
+    const plan = await service.paperExecuteProposal(proposal.id, {
+      idempotencyKey: 'locked-reservation-paper-plan',
+      orderPlanApprovalId: approval.id,
+    });
+
+    expect(transaction).toHaveBeenCalledWith(
+      'SERIALIZABLE',
+      expect.any(Function),
+    );
+    expect(plan.status).toBe('blocked');
+    expect(plan.blockedReasons).toContain('Paper execution cash check failed');
+    expect(plan.readinessSnapshot).toEqual(
+      expect.objectContaining({
+        requiredCash: 801_200,
+        reservedCash: 300_450,
+        availableCash: 699_550,
+        cashSufficient: false,
+        paperAccountLockVersion: 1,
+      }),
+    );
+    expect(plan.reservationHold).toBeUndefined();
+    expect(paperReservationHolds).toHaveLength(1);
+    expect(paperReservationHolds[0].holdId).toBe(injectedHold.holdId);
+  });
+
   it('blocks paper execution when execution control is halted', async () => {
     const budget = await service.createBudgetEnvelope({
       name: 'Halted budget',
@@ -2612,7 +2790,7 @@ describe('ControlPlaneService', () => {
           key: 'paperAccountReservationLockReady',
           ready: false,
           detail:
-            'Paper account lock readiness requires a TypeORM DataSource transaction boundary',
+            'Paper account reservation lock readiness requires a TypeORM DataSource transaction boundary',
         }),
         expect.objectContaining({
           key: 'paperAccountEventLedgerReady',

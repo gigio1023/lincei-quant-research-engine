@@ -158,7 +158,7 @@ const mockControlPlaneStatus = {
       key: "paperAccountReservationLockReady",
       ready: true,
       detail:
-        "Paper account apply uses optimistic database lock-version claims inside the final apply transaction",
+        "Paper account reservation readiness, hold creation, and final apply run inside a TypeORM transaction after an optimistic account lock-version claim",
     },
   ],
   blockers: ["No production signed order-plan workflow"],
@@ -1371,7 +1371,7 @@ describe("ControlPlaneDashboard", () => {
       screen.getByRole("heading", { name: "Control Plane Dashboard" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Dashboard language")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "EN" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "English" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -1379,7 +1379,7 @@ describe("ControlPlaneDashboard", () => {
       expect(screen.getByText("Live API status")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "KR" }));
+    fireEvent.click(screen.getByRole("button", { name: "한국어" }));
 
     expect(
       screen.getByRole("heading", { name: "컨트롤 플레인 대시보드" }),
@@ -1392,12 +1392,12 @@ describe("ControlPlaneDashboard", () => {
     expect(
       screen.getByRole("region", { name: "행동 감사 타임라인" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "KR" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "한국어" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "EN" }));
+    fireEvent.click(screen.getByRole("button", { name: "English" }));
 
     expect(
       screen.getByRole("heading", { name: "Control Plane Dashboard" }),

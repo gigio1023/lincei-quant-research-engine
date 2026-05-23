@@ -271,8 +271,8 @@ export class ControlPlaneService {
           key: 'paperAccountReservationLockReady',
           ready: Boolean(this.dataSource),
           detail: this.dataSource
-            ? 'Paper account apply uses optimistic database lock-version claims inside the final apply transaction'
-            : 'Paper account lock readiness requires a TypeORM DataSource transaction boundary',
+            ? 'Paper account reservation readiness, hold creation, and final apply run inside a TypeORM transaction after an optimistic account lock-version claim'
+            : 'Paper account reservation lock readiness requires a TypeORM DataSource transaction boundary',
         },
         {
           key: 'paperAccountReady',
@@ -1753,6 +1753,27 @@ export class ControlPlaneService {
       currentPaperAccountEvent,
       approvalCustodyReasons,
     });
+
+    if (
+      blockedReasons.length === 0 &&
+      paperAccount &&
+      currentPaperAccountEvent &&
+      this.dataSource
+    ) {
+      return this.paperExecuteProposalWithAccountCriticalSection({
+        proposal,
+        budget,
+        paperAccount,
+        latestEvaluation,
+        orderPlanApproval,
+        idempotencyKey,
+        submittedAt,
+        executionControlState,
+        expectedRiskEvaluationId: request.expectedRiskEvaluationId,
+        approvalCustodyReasons,
+      });
+    }
+
     const reservationHold =
       blockedReasons.length === 0
         ? this.buildPaperReservationHold(
@@ -1854,6 +1875,263 @@ export class ControlPlaneService {
     return this.paperOrderPlanRepository.find({ order: { updatedAt: 'DESC' } });
   }
 
+  private async paperExecuteProposalWithAccountCriticalSection(input: {
+    proposal: InvestmentProposal;
+    budget: BudgetEnvelope | null;
+    paperAccount: PaperAccount;
+    latestEvaluation: RiskEvaluation | null;
+    orderPlanApproval: OrderPlanApproval | null;
+    idempotencyKey: string;
+    submittedAt: Date;
+    executionControlState: ExecutionControlState;
+    expectedRiskEvaluationId?: number;
+    approvalCustodyReasons: string[];
+  }): Promise<PaperOrderPlan> {
+    let savedPlan: PaperOrderPlan | null = null;
+
+    try {
+      return await this.dataSource!.transaction(
+        'SERIALIZABLE',
+        async (manager) => {
+          const repositories = this.getPaperApplyRepositories(manager);
+          const lockClaimed = await this.claimPaperAccountVersion(
+            input.paperAccount.id,
+            input.paperAccount.lockVersion ?? 0,
+            repositories.paperAccountRepository,
+          );
+
+          if (!lockClaimed) {
+            throw new Error(
+              'Paper account lock version changed before reservation',
+            );
+          }
+
+          const lockedPaperAccount =
+            (await repositories.paperAccountRepository.findOne({
+              where: { id: input.paperAccount.id },
+            })) ?? input.paperAccount;
+          const currentPaperAccountEvent =
+            await this.getLatestPaperAccountEvent(
+              lockedPaperAccount.id,
+              repositories.paperAccountEventRepository,
+            );
+          const paperPortfolioBefore =
+            this.buildPaperAccountPortfolio(lockedPaperAccount);
+          const existingIdempotentPlan =
+            await this.findPaperOrderPlanByIdempotencyKey(
+              input.proposal.id,
+              input.idempotencyKey,
+              repositories.paperOrderPlanRepository,
+            );
+
+          if (existingIdempotentPlan) {
+            return existingIdempotentPlan;
+          }
+
+          const existingPlans = await this.findPaperOrderPlansForProposal(
+            input.proposal.id,
+            repositories.paperOrderPlanRepository,
+          );
+          const noDuplicatePlan = !existingPlans.some((plan) =>
+            [
+              'planned',
+              'simulating',
+              'partially_filled',
+              'filled',
+              'reconciled',
+            ].includes(plan.status),
+          );
+          const proposalHash = this.hashProposal(input.proposal);
+          const riskRequestHash = input.latestEvaluation
+            ? this.hashObject(input.latestEvaluation.requestSnapshot)
+            : undefined;
+          const riskMatchesProposal = input.latestEvaluation
+            ? this.riskEvaluationMatchesProposal(
+                input.latestEvaluation,
+                input.proposal,
+                paperPortfolioBefore,
+              )
+            : false;
+          const reservationSnapshot = await this.buildPaperReservationSnapshot(
+            input.proposal,
+            paperPortfolioBefore,
+            lockedPaperAccount,
+            {
+              paperReservationHoldRepository:
+                repositories.paperReservationHoldRepository,
+              paperOrderPlanRepository: repositories.paperOrderPlanRepository,
+            },
+          );
+          const cashSufficient =
+            reservationSnapshot.availableCash >=
+            reservationSnapshot.requiredCash;
+          const positionsSufficient = Object.entries(
+            reservationSnapshot.requiredSellNotionalBySymbol,
+          ).every(
+            ([symbol, requiredNotional]) =>
+              (reservationSnapshot.availableSellNotionalBySymbol[symbol] ??
+                0) >= requiredNotional,
+          );
+          const approvalCustodyVerified =
+            Boolean(input.orderPlanApproval) &&
+            input.approvalCustodyReasons.length === 0;
+          const accountEventFresh = Boolean(
+            input.orderPlanApproval &&
+              currentPaperAccountEvent &&
+              input.orderPlanApproval.paperAccountId ===
+                lockedPaperAccount.id &&
+              input.orderPlanApproval.paperAccountEventHash ===
+                currentPaperAccountEvent.eventHash,
+          );
+          const readinessSnapshot: PaperReadinessSnapshot = {
+            budgetActive: input.budget?.status === 'active',
+            latestRiskAllow: input.latestEvaluation?.decision === 'ALLOW',
+            riskMatchesProposal,
+            paperEngineEnabled: true,
+            brokerExecutionDisabled: true,
+            liveTradingDisabled: true,
+            explicitPaperAccountActive: true,
+            approvalCustodyVerified,
+            accountEventFresh,
+            approvalPaperAccountEventHash:
+              input.orderPlanApproval?.paperAccountEventHash,
+            currentPaperAccountEventHash: currentPaperAccountEvent?.eventHash,
+            paperAccountEventSequence: currentPaperAccountEvent?.sequence,
+            paperAccountLockVersion: lockedPaperAccount.lockVersion ?? 0,
+            killSwitchArmed: true,
+            killSwitchTripped: input.executionControlState.state !== 'active',
+            cashSufficient,
+            positionsSufficient,
+            noDuplicatePlan,
+            ...reservationSnapshot,
+          };
+          const blockedReasons = this.getPaperExecutionBlockedReasons({
+            latestEvaluation: input.latestEvaluation,
+            expectedRiskEvaluationId: input.expectedRiskEvaluationId,
+            orderPlanApproval: input.orderPlanApproval,
+            idempotencyKey: input.idempotencyKey,
+            readinessSnapshot,
+            executionControlState: input.executionControlState.state,
+            proposal: input.proposal,
+            paperAccount: lockedPaperAccount,
+            currentPaperAccountEvent,
+            approvalCustodyReasons: input.approvalCustodyReasons,
+          });
+          const reservationHold =
+            blockedReasons.length === 0
+              ? this.buildPaperReservationHold(
+                  input.proposal.id,
+                  input.idempotencyKey,
+                  readinessSnapshot,
+                  input.submittedAt,
+                )
+              : undefined;
+
+          if (reservationHold) {
+            await this.persistPaperReservationHoldRecord(
+              reservationHold,
+              lockedPaperAccount,
+              input.proposal,
+              input.submittedAt,
+              repositories.paperReservationHoldRepository,
+            );
+          }
+
+          const simulated = this.simulatePaperFills(
+            input.proposal,
+            paperPortfolioBefore,
+            blockedReasons,
+            input.submittedAt,
+          );
+          const planHash = this.hashObject({
+            idempotencyKey: input.idempotencyKey,
+            proposalHash,
+            riskRequestHash,
+            orderPlanApprovalHash: input.orderPlanApproval?.approvalHash,
+            readinessSnapshot,
+            orders: simulated.orders,
+            blockedReasons,
+          });
+          savedPlan = await repositories.paperOrderPlanRepository.save(
+            repositories.paperOrderPlanRepository.create({
+              proposalId: input.proposal.id,
+              researchRunId: input.proposal.researchRunId,
+              budgetEnvelopeId: input.proposal.budgetEnvelopeId,
+              paperAccountId: lockedPaperAccount.id,
+              orderPlanApprovalId: input.orderPlanApproval?.id,
+              riskEvaluationId: input.latestEvaluation?.id,
+              proposalHash,
+              riskRequestHash,
+              planHash,
+              idempotencyKey: input.idempotencyKey,
+              status: blockedReasons.length > 0 ? 'blocked' : 'filled',
+              mode: 'paper',
+              submittedAt: input.submittedAt,
+              completedAt:
+                blockedReasons.length > 0 ? input.submittedAt : undefined,
+              readinessSnapshot,
+              reservationHold,
+              orders: simulated.orders,
+              fills: simulated.fills,
+              portfolioBefore: paperPortfolioBefore,
+              portfolioAfter: simulated.portfolioAfter,
+              cashLedger: simulated.cashLedger,
+              positionLedger: simulated.positionLedger,
+              startingCash: paperPortfolioBefore.cash,
+              endingCash: simulated.endingCash,
+              startingEquity: paperPortfolioBefore.equity,
+              endingEquity: simulated.endingEquity,
+              brokerExecutionEnabled: false,
+              liveTradingEnabled: false,
+              reconciliation: simulated.reconciliation,
+              killSwitchSnapshot: {
+                armed: true,
+                tripped: input.executionControlState.state !== 'active',
+                checkedAt: input.submittedAt.toISOString(),
+                reason: `Execution control state is ${input.executionControlState.state}.`,
+              },
+              killSwitchEvent:
+                input.executionControlState.state === 'active'
+                  ? undefined
+                  : {
+                      armed: true,
+                      tripped: true,
+                      reason: `Execution control state is ${input.executionControlState.state}.`,
+                      actor: input.executionControlState.actor,
+                      timestamp: input.submittedAt.toISOString(),
+                    },
+              blockedReasons,
+            }),
+          );
+
+          if (blockedReasons.length > 0) {
+            return savedPlan;
+          }
+
+          return this.finalizePaperOrderPlanWithRepositories({
+            plan: savedPlan,
+            paperAccount: lockedPaperAccount,
+            orderPlanApproval: input.orderPlanApproval,
+            proposal: input.proposal,
+            submittedAt: input.submittedAt,
+            repositories,
+            accountLockAlreadyClaimed: true,
+          });
+        },
+      );
+    } catch (error) {
+      if (savedPlan) {
+        return this.blockPaperOrderPlanAfterApplyFailure(
+          savedPlan,
+          input.submittedAt,
+          error,
+        );
+      }
+
+      throw error;
+    }
+  }
+
   private getPaperApplyRepositories(
     manager?: EntityManager,
   ): PaperApplyRepositories {
@@ -1914,6 +2192,7 @@ export class ControlPlaneService {
     proposal: InvestmentProposal;
     submittedAt: Date;
     repositories: PaperApplyRepositories;
+    accountLockAlreadyClaimed?: boolean;
   }): Promise<PaperOrderPlan> {
     const {
       plan,
@@ -1922,6 +2201,7 @@ export class ControlPlaneService {
       proposal,
       submittedAt,
       repositories,
+      accountLockAlreadyClaimed,
     } = input;
     const accountForApply =
       (await repositories.paperAccountRepository.findOne({
@@ -1952,11 +2232,13 @@ export class ControlPlaneService {
       return repositories.paperOrderPlanRepository.save(plan);
     }
 
-    const lockClaimed = await this.claimPaperAccountApplyLock(
-      plan,
-      accountForApply,
-      repositories.paperAccountRepository,
-    );
+    const lockClaimed =
+      accountLockAlreadyClaimed ||
+      (await this.claimPaperAccountApplyLock(
+        plan,
+        accountForApply,
+        repositories.paperAccountRepository,
+      ));
 
     if (!lockClaimed) {
       const reason = 'Paper account lock version changed before account apply';
@@ -2083,6 +2365,19 @@ export class ControlPlaneService {
     return true;
   }
 
+  private async claimPaperAccountVersion(
+    paperAccountId: number,
+    expectedLockVersion: number,
+    paperAccountRepository: Repository<PaperAccount>,
+  ): Promise<boolean> {
+    const result = await paperAccountRepository.update(
+      { id: paperAccountId, lockVersion: expectedLockVersion },
+      { lockVersion: expectedLockVersion + 1 },
+    );
+
+    return result.affected === 1;
+  }
+
   private blockPaperOrderPlanBeforeApply(
     plan: PaperOrderPlan,
     blockedAt: Date,
@@ -2189,8 +2484,10 @@ export class ControlPlaneService {
     paperAccount: PaperAccount,
     proposal: InvestmentProposal,
     reservedAt: Date,
+    paperReservationHoldRepository: Repository<PaperReservationHoldRecord> = this
+      .paperReservationHoldRepository,
   ): Promise<PaperReservationHoldRecord> {
-    const existing = await this.paperReservationHoldRepository.findOne({
+    const existing = await paperReservationHoldRepository.findOne({
       where: { holdId: hold.holdId },
     });
 
@@ -2198,7 +2495,7 @@ export class ControlPlaneService {
       return existing;
     }
 
-    const record = this.paperReservationHoldRepository.create({
+    const record = paperReservationHoldRepository.create({
       holdId: hold.holdId,
       paperAccountId: paperAccount.id,
       proposalId: proposal.id,
@@ -2221,7 +2518,7 @@ export class ControlPlaneService {
       ],
     });
 
-    return this.paperReservationHoldRepository.save(record);
+    return paperReservationHoldRepository.save(record);
   }
 
   private async consumePaperReservationHoldRecord(
@@ -3008,8 +3305,10 @@ export class ControlPlaneService {
 
   private async findPaperOrderPlansForProposal(
     proposalId: number,
+    paperOrderPlanRepository: Repository<PaperOrderPlan> = this
+      .paperOrderPlanRepository,
   ): Promise<PaperOrderPlan[]> {
-    const plans = await this.paperOrderPlanRepository.find({
+    const plans = await paperOrderPlanRepository.find({
       order: { updatedAt: 'DESC' },
     });
 
@@ -3019,20 +3318,32 @@ export class ControlPlaneService {
   private async findPaperOrderPlanByIdempotencyKey(
     proposalId: number,
     idempotencyKey: string,
+    paperOrderPlanRepository: Repository<PaperOrderPlan> = this
+      .paperOrderPlanRepository,
   ): Promise<PaperOrderPlan | null> {
-    const plans = await this.findPaperOrderPlansForProposal(proposalId);
+    const plans = await this.findPaperOrderPlansForProposal(
+      proposalId,
+      paperOrderPlanRepository,
+    );
 
     return plans.find((plan) => plan.idempotencyKey === idempotencyKey) ?? null;
   }
 
   private async findOpenPaperReservations(
     paperAccountId?: number,
+    repositories: Pick<
+      PaperApplyRepositories,
+      'paperReservationHoldRepository' | 'paperOrderPlanRepository'
+    > = {
+      paperReservationHoldRepository: this.paperReservationHoldRepository,
+      paperOrderPlanRepository: this.paperOrderPlanRepository,
+    },
   ): Promise<PaperOpenReservation[]> {
     if (!paperAccountId) {
       return [];
     }
 
-    const records = await this.paperReservationHoldRepository.find({
+    const records = await repositories.paperReservationHoldRepository.find({
       order: { updatedAt: 'DESC' },
     });
     const openHoldRecords = records
@@ -3053,7 +3364,7 @@ export class ControlPlaneService {
         .map((reservation) => reservation.holdId)
         .filter((holdId): holdId is string => Boolean(holdId)),
     );
-    const plans = await this.paperOrderPlanRepository.find({
+    const plans = await repositories.paperOrderPlanRepository.find({
       order: { updatedAt: 'DESC' },
     });
     const reservingStatuses: PaperOrderPlan['status'][] = [
@@ -3128,9 +3439,14 @@ export class ControlPlaneService {
     proposal: InvestmentProposal,
     portfolio: PortfolioSnapshot,
     paperAccount: PaperAccount | null,
+    repositories?: Pick<
+      PaperApplyRepositories,
+      'paperReservationHoldRepository' | 'paperOrderPlanRepository'
+    >,
   ): Promise<PaperReservationSnapshot> {
     const openReservations = await this.findOpenPaperReservations(
       paperAccount?.id,
+      repositories,
     );
     const requiredCash = this.calculatePaperBuyRequirement(proposal.orders);
     const reservedCash = this.roundMoney(
