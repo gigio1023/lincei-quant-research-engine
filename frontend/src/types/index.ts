@@ -482,6 +482,67 @@ export interface BrokerSnapshot {
   updatedAt: string;
 }
 
+export type FundingReadinessStatus = "ready" | "blocked";
+
+export interface FundingReadinessSnapshot {
+  expectedDepositAmount: number;
+  actualBrokerCash?: number;
+  actualBrokerEquity?: number;
+  cashDiff?: number;
+  equityDiff?: number;
+  tolerance: number;
+  maxAgeMinutes: number;
+  ageMinutes?: number;
+  brokerSnapshotAsOf?: string;
+  brokerSnapshotReconciliationStatus?: string;
+  cashSufficient: boolean;
+  equitySufficient: boolean;
+  currencyMatched: boolean;
+  accountMatched: boolean;
+  snapshotFresh: boolean;
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+  blockers: string[];
+  notes: string[];
+}
+
+export interface FundingReadinessRecord {
+  id: number | string;
+  provider: BrokerSnapshotProvider;
+  idempotencyKey?: string;
+  brokerSnapshotId?: number | string;
+  accountRefHash?: string;
+  currency: string;
+  expectedDepositAmount: number;
+  actualBrokerCash?: number;
+  actualBrokerEquity?: number;
+  brokerSnapshotAsOf?: string;
+  brokerSnapshotReconciliationStatus?: string;
+  cashDiff?: number;
+  equityDiff?: number;
+  snapshotAgeMinutes?: number;
+  status: FundingReadinessStatus;
+  checkedAt: string;
+  tolerance: number;
+  maxAgeMinutes: number;
+  readinessSnapshot: FundingReadinessSnapshot;
+  blockers: string[];
+  notes: string[];
+  brokerExecutionEnabled: false;
+  liveTradingEnabled: false;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AssessFundingReadinessRequest {
+  expectedDepositAmount: number;
+  currency?: string;
+  tolerance?: number;
+  maxAgeMinutes?: number;
+  idempotencyKey?: string;
+  notes?: string[];
+}
+
 export type BrokerFillStatus = "imported" | "matched" | "mismatch";
 
 export interface BrokerFillReconciliation {
@@ -713,6 +774,7 @@ export interface ControlPlaneStatus {
   liveTradingGate: LiveTradingGateStatus;
   killSwitch: KillSwitchStatus;
   actionStatus: ControlPlaneActionStatus;
+  fundingReadiness?: FundingReadinessRecord;
   readiness: ControlPlaneReadinessItem[];
   blockers: string[];
 }

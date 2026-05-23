@@ -220,6 +220,10 @@ const KOREAN_COPY: Record<string, string> = {
     "공급자 중립 Toss 준비 계약이 브로커 차단 항목을 노출",
   "Documented broker read-only snapshot sample is available":
     "문서화된 브로커 읽기 전용 스냅샷 샘플 사용 가능",
+  "Documented funding readiness sample is available":
+    "문서화된 자금 준비 샘플 사용 가능",
+  "Latest funding readiness is ready: expected deposit matches read-only broker cash and equity":
+    "최근 자금 준비 상태가 준비됨: 예상 입금액이 읽기 전용 브로커 현금 및 자산과 일치합니다.",
   "Documented broker read-only fill sample is available":
     "문서화된 브로커 읽기 전용 체결 샘플 사용 가능",
   "Live trading gate is disabled until broker write access, credential custody, kill switch, and live-provider fill polling are verified.":
@@ -449,6 +453,27 @@ const KOREAN_COPY: Record<string, string> = {
   tolerance: "허용 오차",
   maxAgeMinutes: "최대 지연 시간",
 
+  "Funding Readiness": "자금 준비 상태",
+  "Expected deposit must match a reconciled read-only broker snapshot before automation can treat capital as usable.":
+    "자동화가 자금을 사용할 수 있다고 보기 전에 예상 입금액이 대사 완료된 읽기 전용 브로커 스냅샷과 일치해야 합니다.",
+  "Expected deposit": "예상 입금액",
+  "Broker cash": "브로커 현금",
+  "Snapshot age": "스냅샷 경과",
+  minutes: "분",
+  "broker snapshot": "브로커 스냅샷",
+  reconciliation: "대사",
+  "Funding blockers": "자금 차단 항목",
+  "expected deposit matches read-only broker truth":
+    "예상 입금액이 읽기 전용 브로커 증거와 일치합니다.",
+  "No funding readiness record has matched expected deposit to read-only broker truth":
+    "예상 입금액이 읽기 전용 브로커 증거와 일치한 자금 준비 기록이 없습니다.",
+  "Funding readiness API is unavailable. Showing documented funding sample.":
+    "자금 준비 API를 사용할 수 없어 문서화된 자금 샘플을 표시합니다.",
+  "Funding readiness refresh failed after automation action.":
+    "자동화 작업 후 자금 준비 상태 새로고침에 실패했습니다.",
+  "Funding readiness is read-only broker evidence. No order endpoint was called.":
+    "자금 준비 상태는 읽기 전용 브로커 증거입니다. 주문 엔드포인트는 호출되지 않았습니다.",
+
   "Risk Policy": "리스크 정책",
   Gross: "총액",
   Single: "단일",
@@ -566,6 +591,9 @@ const KOREAN_COPY: Record<string, string> = {
   "API broker snapshots": "API 브로커 스냅샷",
   "Loading broker snapshots": "브로커 스냅샷 로딩 중",
   "Documented broker sample": "문서화된 브로커 샘플",
+  "API funding readiness": "API 자금 준비",
+  "Loading funding readiness": "자금 준비 로딩 중",
+  "Documented funding sample": "문서화된 자금 샘플",
   "API broker fills": "API 브로커 체결",
   "Loading broker fills": "브로커 체결 로딩 중",
   "Documented broker fill sample": "문서화된 브로커 체결 샘플",

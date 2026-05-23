@@ -4,6 +4,7 @@ import { BrokerFill } from '../../entities/broker-fill.entity';
 import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
+import { FundingReadinessRecord } from '../../entities/funding-readiness-record.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
 import { MarketDataBar } from '../../entities/market-data-bar.entity';
 import { OrderPlanApproval } from '../../entities/order-plan-approval.entity';
@@ -21,6 +22,7 @@ describe('ControlPlaneService', () => {
   let budgets: BudgetEnvelope[];
   let brokerFills: BrokerFill[];
   let brokerSnapshots: BrokerSnapshot[];
+  let fundingReadinessRecords: FundingReadinessRecord[];
   let orderPlanApprovals: OrderPlanApproval[];
   let researchRuns: ResearchRun[];
   let marketDataBars: MarketDataBar[];
@@ -179,6 +181,7 @@ describe('ControlPlaneService', () => {
     budgets = [];
     brokerFills = [];
     brokerSnapshots = [];
+    fundingReadinessRecords = [];
     orderPlanApprovals = [];
     researchRuns = [];
     marketDataBars = [];
@@ -195,6 +198,7 @@ describe('ControlPlaneService', () => {
       makeRepository(budgets) as any,
       makeRepository(brokerFills) as any,
       makeRepository(brokerSnapshots) as any,
+      makeRepository(fundingReadinessRecords) as any,
       makeRepository(proposals) as any,
       makeRepository(marketDataBars) as any,
       makeRepository(orderPlanApprovals) as any,
@@ -1526,6 +1530,122 @@ describe('ControlPlaneService', () => {
     );
   });
 
+  it('records ready funding readiness from a matched broker snapshot', async () => {
+    const snapshot = await service.importBrokerSnapshot({
+      provider: 'manual',
+      accountRef: 'funding-account-ref',
+      sourceRef: 'operator-funding-import',
+      asOf: '2026-05-22T23:59:00.000Z',
+      currency: 'KRW',
+      cash: 10_000_000,
+      equity: 10_000_000,
+      positions: [],
+    });
+    snapshot.status = 'matched';
+    snapshot.reconciliation.status = 'matched';
+
+    const readiness = await service.assessFundingReadiness(snapshot.id, {
+      expectedDepositAmount: 10_000_000,
+      maxAgeMinutes: 120,
+      idempotencyKey: 'funding-ready-1',
+      notes: ['Operator confirmed funding boundary.'],
+    });
+
+    expect(readiness.status).toBe('ready');
+    expect(readiness.accountRefHash).toBe(snapshot.accountRefHash);
+    expect(readiness.brokerSnapshotId).toBe(snapshot.id);
+    expect(readiness.readinessSnapshot).toEqual(
+      expect.objectContaining({
+        expectedDepositAmount: 10_000_000,
+        actualBrokerCash: 10_000_000,
+        actualBrokerEquity: 10_000_000,
+        brokerSnapshotReconciliationStatus: 'matched',
+        cashSufficient: true,
+        equitySufficient: true,
+        currencyMatched: true,
+        accountMatched: true,
+        snapshotFresh: true,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+        blockers: [],
+      }),
+    );
+    expect(readiness.brokerExecutionEnabled).toBe(false);
+    expect(readiness.liveTradingEnabled).toBe(false);
+
+    const status = await service.getStatus();
+    expect(status.fundingReadiness).toEqual(
+      expect.objectContaining({
+        id: readiness.id,
+        status: 'ready',
+      }),
+    );
+    expect(status.readiness).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'fundingCapitalUsable',
+          ready: true,
+        }),
+      ]),
+    );
+  });
+
+  it('blocks funding readiness when broker truth does not match expected deposit', async () => {
+    const snapshot = await service.importBrokerSnapshot({
+      provider: 'manual',
+      accountRef: 'funding-account-ref',
+      sourceRef: 'operator-funding-import',
+      asOf: '2026-05-22T20:00:00.000Z',
+      currency: 'KRW',
+      cash: 7_000_000,
+      equity: 7_000_000,
+      positions: [],
+    });
+
+    const readiness = await service.assessFundingReadiness(snapshot.id, {
+      expectedDepositAmount: 10_000_000,
+      maxAgeMinutes: 60,
+      idempotencyKey: 'funding-blocked-1',
+    });
+
+    expect(readiness.status).toBe('blocked');
+    expect(readiness.blockers).toEqual(
+      expect.arrayContaining([
+        'Broker snapshot reconciliation is not matched',
+        'Broker cash is below expected deposit',
+        'Broker equity is below expected deposit',
+        'Broker snapshot is stale',
+      ]),
+    );
+    expect(readiness.readinessSnapshot.brokerExecutionEnabled).toBe(false);
+    expect(readiness.readinessSnapshot.liveTradingEnabled).toBe(false);
+  });
+
+  it('rejects funding readiness requests that include raw account refs or order intent', async () => {
+    const snapshot = await service.importBrokerSnapshot({
+      provider: 'manual',
+      accountRef: 'funding-account-ref',
+      asOf: '2026-05-22T23:59:00.000Z',
+      cash: 10_000_000,
+      equity: 10_000_000,
+      positions: [],
+    });
+
+    await expect(
+      service.assessFundingReadiness(snapshot.id, {
+        expectedDepositAmount: 10_000_000,
+        accountRef: 'raw-account-ref',
+      } as any),
+    ).rejects.toThrow('Funding readiness cannot include accountRef');
+
+    await expect(
+      service.assessFundingReadiness(snapshot.id, {
+        expectedDepositAmount: 10_000_000,
+        orders: [],
+      } as any),
+    ).rejects.toThrow('Funding readiness cannot include orders');
+  });
+
   it('rejects broker snapshot imports that include credentials or order intent', async () => {
     await expect(
       service.importBrokerSnapshot({
@@ -2807,6 +2927,16 @@ describe('ControlPlaneService', () => {
         expect.objectContaining({
           key: 'brokerSnapshotLedgerReady',
           ready: false,
+        }),
+        expect.objectContaining({
+          key: 'fundingReadinessLedgerReady',
+          ready: false,
+        }),
+        expect.objectContaining({
+          key: 'fundingCapitalUsable',
+          ready: false,
+          detail:
+            'No funding readiness record has matched expected deposit to read-only broker truth',
         }),
         expect.objectContaining({
           key: 'executionControlReady',

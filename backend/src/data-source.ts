@@ -7,6 +7,7 @@ import { BrokerFill } from './entities/broker-fill.entity';
 import { BrokerSnapshot } from './entities/broker-snapshot.entity';
 import { BudgetEnvelope } from './entities/budget-envelope.entity';
 import { ExecutionControlState } from './entities/execution-control-state.entity';
+import { FundingReadinessRecord } from './entities/funding-readiness-record.entity';
 import { InvestmentProposal } from './entities/investment-proposal.entity';
 import { MarketDataBar } from './entities/market-data-bar.entity';
 import { MarketDataIngestionRun } from './entities/market-data-ingestion-run.entity';
@@ -20,6 +21,7 @@ import { Report } from './entities/report.entity';
 import { ResearchRun } from './entities/research-run.entity';
 import { RiskEvaluation } from './entities/risk-evaluation.entity';
 import { AddPaperLockReservationIndexes1763760000000 } from './migrations/1763760000000-AddPaperLockReservationIndexes';
+import { AddFundingReadinessRecords1763846400000 } from './migrations/1763846400000-AddFundingReadinessRecords';
 
 config();
 
@@ -31,6 +33,7 @@ export const databaseEntities = [
   PaperAccountEvent,
   BudgetEnvelope,
   BrokerSnapshot,
+  FundingReadinessRecord,
   ExecutionControlState,
   InvestmentProposal,
   MarketDataBar,
@@ -44,7 +47,10 @@ export const databaseEntities = [
   PaperReservationHoldRecord,
 ];
 
-export const databaseMigrations = [AddPaperLockReservationIndexes1763760000000];
+export const databaseMigrations = [
+  AddPaperLockReservationIndexes1763760000000,
+  AddFundingReadinessRecords1763846400000,
+];
 
 const AppDataSource = new DataSource({
   type: 'better-sqlite3',

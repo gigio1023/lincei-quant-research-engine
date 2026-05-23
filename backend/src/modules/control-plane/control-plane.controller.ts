@@ -13,6 +13,7 @@ import { BrokerFill } from '../../entities/broker-fill.entity';
 import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../../entities/budget-envelope.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
+import { FundingReadinessRecord } from '../../entities/funding-readiness-record.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
 import { MarketDataBar } from '../../entities/market-data-bar.entity';
 import { MarketDataIngestionRun } from '../../entities/market-data-ingestion-run.entity';
@@ -30,6 +31,7 @@ import { MarketDataIngestionService } from './market-data-ingestion.service';
 import { TossReadOnlyBrokerService } from './toss-read-only-broker.service';
 import {
   AdvanceAutonomousRunRequest,
+  AssessFundingReadinessRequest,
   BrokerAdapterStatus,
   BrokerReadOnlyPollResponse,
   ControlPlaneAuditEvent,
@@ -203,6 +205,19 @@ export class ControlPlaneController {
   @Get('broker-snapshots/latest')
   getLatestBrokerSnapshot(): Promise<BrokerSnapshot> {
     return this.controlPlaneService.getLatestBrokerSnapshot();
+  }
+
+  @Post('broker-snapshots/:id/assess-funding-readiness')
+  assessFundingReadiness(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() request: AssessFundingReadinessRequest,
+  ): Promise<FundingReadinessRecord> {
+    return this.controlPlaneService.assessFundingReadiness(id, request);
+  }
+
+  @Get('funding-readiness')
+  listFundingReadinessRecords(): Promise<FundingReadinessRecord[]> {
+    return this.controlPlaneService.listFundingReadinessRecords();
   }
 
   @Get('broker-adapter/status')

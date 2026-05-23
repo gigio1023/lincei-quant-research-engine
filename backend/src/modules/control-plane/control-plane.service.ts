@@ -29,6 +29,7 @@ import {
   ExecutionControlState,
   ExecutionControlStateValue,
 } from '../../entities/execution-control-state.entity';
+import { FundingReadinessRecord } from '../../entities/funding-readiness-record.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
 import { MarketDataBar } from '../../entities/market-data-bar.entity';
 import { MarketDataIngestionRun } from '../../entities/market-data-ingestion-run.entity';
@@ -66,6 +67,7 @@ import { buildControlPlaneActionTimeline } from './control-plane-action-timeline
 import { buildControlPlaneActionStatus } from './control-plane-status.presenter';
 import {
   AdvanceAutonomousRunRequest,
+  AssessFundingReadinessRequest,
   ControlPlaneAuditEvent,
   ControlPlaneStatus,
   CreateAutonomousRunScheduleRequest,
@@ -140,6 +142,8 @@ export class ControlPlaneService {
     private readonly brokerFillRepository: Repository<BrokerFill>,
     @InjectRepository(BrokerSnapshot)
     private readonly brokerSnapshotRepository: Repository<BrokerSnapshot>,
+    @InjectRepository(FundingReadinessRecord)
+    private readonly fundingReadinessRepository: Repository<FundingReadinessRecord>,
     @InjectRepository(InvestmentProposal)
     private readonly proposalRepository: Repository<InvestmentProposal>,
     @InjectRepository(MarketDataBar)
@@ -188,6 +192,12 @@ export class ControlPlaneService {
       await this.paperReservationHoldRepository.count();
     const brokerFillCount = await this.brokerFillRepository.count();
     const brokerSnapshotCount = await this.brokerSnapshotRepository.count();
+    const fundingReadinessCount = await this.fundingReadinessRepository.count();
+    const latestFundingReadiness =
+      await this.fundingReadinessRepository.findOne({
+        where: {},
+        order: { checkedAt: 'DESC', updatedAt: 'DESC' },
+      });
     const executionControlState = await this.getExecutionControlState();
     const runCount = await this.runRepository.count();
     const schemaMigrationPolicy = await this.buildSchemaMigrationPolicyStatus();
@@ -214,6 +224,7 @@ export class ControlPlaneService {
       liveTradingGate,
       killSwitch,
       actionStatus,
+      fundingReadiness: latestFundingReadiness ?? undefined,
       readiness: [
         {
           key: 'budgetEnvelopeActive',
@@ -318,6 +329,18 @@ export class ControlPlaneService {
           detail: `${brokerSnapshotCount} broker read-only snapshots imported`,
         },
         {
+          key: 'fundingReadinessLedgerReady',
+          ready: fundingReadinessCount > 0,
+          detail: `${fundingReadinessCount} funding readiness records`,
+        },
+        {
+          key: 'fundingCapitalUsable',
+          ready: latestFundingReadiness?.status === 'ready',
+          detail: latestFundingReadiness
+            ? `Latest funding readiness is ${latestFundingReadiness.status}: ${latestFundingReadiness.blockers.join('; ') || 'expected deposit matches read-only broker cash and equity'}`
+            : 'No funding readiness record has matched expected deposit to read-only broker truth',
+        },
+        {
           key: 'brokerFillLedgerReady',
           ready: true,
           detail: `${brokerFillCount} broker read-only fill records imported`,
@@ -331,6 +354,9 @@ export class ControlPlaneService {
       blockers: [
         'No verified Toss read-only adapter schema or credentials',
         'No production signed order-plan workflow',
+        ...(latestFundingReadiness?.status === 'ready'
+          ? []
+          : ['No usable funding readiness record tied to broker truth']),
         'No production-verified broker polling loop',
         ...schemaMigrationPolicy.blockers,
         ...liveTradingGate.blockers,
@@ -1176,6 +1202,130 @@ export class ControlPlaneService {
   async listBrokerSnapshots(): Promise<BrokerSnapshot[]> {
     return this.brokerSnapshotRepository.find({
       order: { asOf: 'DESC', updatedAt: 'DESC' },
+    });
+  }
+
+  async assessFundingReadiness(
+    brokerSnapshotId: number,
+    request: AssessFundingReadinessRequest,
+  ): Promise<FundingReadinessRecord> {
+    this.assertFundingReadinessRequest(request);
+
+    const brokerSnapshot = await this.brokerSnapshotRepository.findOne({
+      where: { id: brokerSnapshotId },
+    });
+
+    if (!brokerSnapshot) {
+      throw new NotFoundException(
+        `Broker snapshot ${brokerSnapshotId} not found`,
+      );
+    }
+
+    const expectedDepositAmount = this.roundMoney(
+      request.expectedDepositAmount,
+    );
+    const checkedAt = new Date();
+    const tolerance = request.tolerance ?? 0.01;
+    const maxAgeMinutes = request.maxAgeMinutes ?? 60;
+    const idempotencyKey = request.idempotencyKey;
+
+    if (idempotencyKey) {
+      const existing = await this.fundingReadinessRepository.findOne({
+        where: { idempotencyKey },
+      });
+
+      if (existing) {
+        return existing;
+      }
+    }
+
+    const currency = request.currency ?? brokerSnapshot.currency;
+    const ageMinutes =
+      (checkedAt.getTime() - brokerSnapshot.asOf.getTime()) / 60_000;
+    const cashDiff = this.roundMoney(
+      brokerSnapshot.cash - expectedDepositAmount,
+    );
+    const equityDiff = this.roundMoney(
+      brokerSnapshot.equity - expectedDepositAmount,
+    );
+    const cashSufficient = cashDiff + tolerance >= 0;
+    const equitySufficient = equityDiff + tolerance >= 0;
+    const currencyMatched = brokerSnapshot.currency === currency;
+    const accountMatched = Boolean(brokerSnapshot.accountRefHash);
+    const snapshotFresh = ageMinutes <= maxAgeMinutes;
+    const reconciliationMatched =
+      brokerSnapshot.reconciliation.status === 'matched';
+    const blockers = [
+      brokerSnapshot?.accountRefHash
+        ? undefined
+        : 'Broker snapshot is missing account ref hash',
+      reconciliationMatched
+        ? undefined
+        : 'Broker snapshot reconciliation is not matched',
+      currencyMatched ? undefined : 'Broker snapshot currency does not match',
+      cashSufficient ? undefined : 'Broker cash is below expected deposit',
+      equitySufficient ? undefined : 'Broker equity is below expected deposit',
+      snapshotFresh ? undefined : 'Broker snapshot is stale',
+    ].filter((blocker): blocker is string => Boolean(blocker));
+    const status = blockers.length === 0 ? 'ready' : 'blocked';
+    const notes = [
+      'Funding readiness is read-only broker evidence. No order endpoint was called.',
+      ...(request.notes ?? []),
+    ];
+    const readinessSnapshot = {
+      expectedDepositAmount,
+      actualBrokerCash: brokerSnapshot?.cash,
+      actualBrokerEquity: brokerSnapshot?.equity,
+      cashDiff,
+      equityDiff,
+      tolerance,
+      maxAgeMinutes,
+      ageMinutes: this.roundMoney(ageMinutes),
+      brokerSnapshotAsOf: brokerSnapshot.asOf.toISOString(),
+      brokerSnapshotReconciliationStatus: brokerSnapshot.reconciliation.status,
+      cashSufficient,
+      equitySufficient,
+      currencyMatched,
+      accountMatched,
+      snapshotFresh,
+      brokerExecutionEnabled: false as const,
+      liveTradingEnabled: false as const,
+      blockers,
+      notes,
+    };
+
+    return this.fundingReadinessRepository.save(
+      this.fundingReadinessRepository.create({
+        provider: brokerSnapshot.provider,
+        idempotencyKey,
+        brokerSnapshotId: brokerSnapshot.id,
+        accountRefHash: brokerSnapshot.accountRefHash,
+        currency,
+        expectedDepositAmount,
+        actualBrokerCash: brokerSnapshot.cash,
+        actualBrokerEquity: brokerSnapshot.equity,
+        brokerSnapshotAsOf: brokerSnapshot.asOf,
+        brokerSnapshotReconciliationStatus:
+          brokerSnapshot.reconciliation.status,
+        cashDiff,
+        equityDiff,
+        snapshotAgeMinutes: this.roundMoney(ageMinutes),
+        status,
+        checkedAt,
+        tolerance,
+        maxAgeMinutes,
+        readinessSnapshot,
+        blockers,
+        notes,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+  }
+
+  async listFundingReadinessRecords(): Promise<FundingReadinessRecord[]> {
+    return this.fundingReadinessRepository.find({
+      order: { checkedAt: 'DESC', updatedAt: 'DESC' },
     });
   }
 
@@ -4172,6 +4322,56 @@ export class ControlPlaneService {
     if (presentDisallowedKey) {
       throw new BadRequestException(
         `Broker read-only snapshots cannot include ${presentDisallowedKey}`,
+      );
+    }
+  }
+
+  private assertFundingReadinessRequest(
+    request: AssessFundingReadinessRequest,
+  ): void {
+    const disallowedKeys = [
+      'brokerCredentials',
+      'accessToken',
+      'refreshToken',
+      'secret',
+      'clientSecret',
+      'apiKey',
+      'accountRef',
+      'accountId',
+      'orders',
+      'order',
+      'orderPayload',
+      'clientOrderId',
+      'placeOrder',
+      'cancelOrder',
+      'modifyOrder',
+    ];
+    const presentDisallowedKey = disallowedKeys.find(
+      (key) =>
+        (request as unknown as Record<string, unknown>)[key] !== undefined,
+    );
+
+    if (presentDisallowedKey) {
+      throw new BadRequestException(
+        `Funding readiness cannot include ${presentDisallowedKey}`,
+      );
+    }
+
+    if (request.expectedDepositAmount <= 0) {
+      throw new BadRequestException(
+        'Funding readiness expectedDepositAmount must be positive',
+      );
+    }
+
+    if (request.tolerance !== undefined && request.tolerance < 0) {
+      throw new BadRequestException(
+        'Funding readiness tolerance cannot be negative',
+      );
+    }
+
+    if (request.maxAgeMinutes !== undefined && request.maxAgeMinutes <= 0) {
+      throw new BadRequestException(
+        'Funding readiness maxAgeMinutes must be positive',
       );
     }
   }

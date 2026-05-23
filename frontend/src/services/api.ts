@@ -11,6 +11,7 @@ import {
   ControlPlaneAuditEvent,
   ControlPlaneStatus,
   ExecutionControlState,
+  FundingReadinessRecord,
   ImportMarketDataBarsRequest,
   InvestmentProposal,
   MarketDataBar,
@@ -34,6 +35,7 @@ import {
   RunRecoveryProposalResponse,
   RunScheduleWorkerStatus,
   RiskGateStatus,
+  AssessFundingReadinessRequest,
   TickAutonomousRunScheduleRequest,
   TripKillSwitchRequest,
 } from "../types";
@@ -186,6 +188,22 @@ export const controlPlaneApi = {
 
   getBrokerSnapshots: async (): Promise<BrokerSnapshot[]> => {
     const response = await api.get("/control-plane/broker-snapshots");
+    return response.data;
+  },
+
+  assessFundingReadiness: async (
+    brokerSnapshotId: number | string,
+    request: AssessFundingReadinessRequest,
+  ): Promise<FundingReadinessRecord> => {
+    const response = await api.post(
+      `/control-plane/broker-snapshots/${brokerSnapshotId}/assess-funding-readiness`,
+      request,
+    );
+    return response.data;
+  },
+
+  getFundingReadinessRecords: async (): Promise<FundingReadinessRecord[]> => {
+    const response = await api.get("/control-plane/funding-readiness");
     return response.data;
   },
 

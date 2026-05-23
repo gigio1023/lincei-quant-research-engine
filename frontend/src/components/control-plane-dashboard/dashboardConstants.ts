@@ -12,6 +12,7 @@ import {
   RiskPolicy,
   SafetyGate,
 } from "../../types";
+import { DOCUMENTED_FUNDING_READINESS } from "./dashboardSamples";
 export {
   DOCUMENTED_AUTONOMOUS_RUNS,
   DOCUMENTED_AUTONOMOUS_RUN_SCHEDULES,
@@ -19,6 +20,7 @@ export {
   DOCUMENTED_BROKER_FILLS,
   DOCUMENTED_BROKER_SNAPSHOTS,
   DOCUMENTED_BUDGET_ENVELOPES,
+  DOCUMENTED_FUNDING_READINESS,
   DOCUMENTED_INVESTMENT_PROPOSALS,
   DOCUMENTED_ORDER_PLAN_APPROVALS,
   DOCUMENTED_PAPER_ACCOUNT_EVENTS,
@@ -172,6 +174,7 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
     brokerExecutionEnabled: false,
     liveTradingEnabled: false,
   },
+  fundingReadiness: DOCUMENTED_FUNDING_READINESS[0],
   readiness: [
     {
       key: "budgetEnvelopeActive",
@@ -273,6 +276,17 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
       key: "brokerSnapshotLedgerReady",
       ready: true,
       detail: "Documented broker read-only snapshot sample is available",
+    },
+    {
+      key: "fundingReadinessLedgerReady",
+      ready: true,
+      detail: "Documented funding readiness sample is available",
+    },
+    {
+      key: "fundingCapitalUsable",
+      ready: true,
+      detail:
+        "Latest funding readiness is ready: expected deposit matches read-only broker cash and equity",
     },
     {
       key: "brokerFillLedgerReady",

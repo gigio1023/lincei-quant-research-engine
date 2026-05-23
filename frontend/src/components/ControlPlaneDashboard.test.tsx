@@ -24,6 +24,7 @@ vi.mock("../services/api", () => ({
     getExecutionControl: vi.fn(),
     getPaperOrderPlans: vi.fn(),
     getBrokerSnapshots: vi.fn(),
+    getFundingReadinessRecords: vi.fn(),
     getBrokerFills: vi.fn(),
     reconcileBrokerFill: vi.fn(),
     pollBrokerReadOnlyFills: vi.fn(),
@@ -131,6 +132,57 @@ const mockControlPlaneStatus = {
     brokerExecutionEnabled: false,
     liveTradingEnabled: false,
   },
+  fundingReadiness: {
+    id: "funding-readiness-api-1",
+    provider: "manual",
+    idempotencyKey: "funding-api-1",
+    brokerSnapshotId: "broker-snapshot-api-1",
+    accountRefHash: "sha256:broker-account",
+    currency: "KRW",
+    expectedDepositAmount: 9500000,
+    actualBrokerCash: 9500000,
+    actualBrokerEquity: 9999850,
+    brokerSnapshotAsOf: "2026-05-22T09:07:00.000Z",
+    brokerSnapshotReconciliationStatus: "matched",
+    cashDiff: 0,
+    equityDiff: 499850,
+    snapshotAgeMinutes: 1,
+    status: "ready",
+    checkedAt: "2026-05-22T09:08:00.000Z",
+    tolerance: 0.01,
+    maxAgeMinutes: 60,
+    readinessSnapshot: {
+      expectedDepositAmount: 9500000,
+      actualBrokerCash: 9500000,
+      actualBrokerEquity: 9999850,
+      cashDiff: 0,
+      equityDiff: 499850,
+      tolerance: 0.01,
+      maxAgeMinutes: 60,
+      ageMinutes: 1,
+      brokerSnapshotAsOf: "2026-05-22T09:07:00.000Z",
+      brokerSnapshotReconciliationStatus: "matched",
+      cashSufficient: true,
+      equitySufficient: true,
+      currencyMatched: true,
+      accountMatched: true,
+      snapshotFresh: true,
+      brokerExecutionEnabled: false,
+      liveTradingEnabled: false,
+      blockers: [],
+      notes: [
+        "Funding readiness is read-only broker evidence. No order endpoint was called.",
+      ],
+    },
+    blockers: [],
+    notes: [
+      "Funding readiness is read-only broker evidence. No order endpoint was called.",
+    ],
+    brokerExecutionEnabled: false,
+    liveTradingEnabled: false,
+    createdAt: "2026-05-22T09:08:00.000Z",
+    updatedAt: "2026-05-22T09:08:00.000Z",
+  },
   readiness: [
     {
       key: "riskGateReady",
@@ -165,6 +217,17 @@ const mockControlPlaneStatus = {
       ready: false,
       detail:
         "Production schema policy requires TYPEORM_SYNCHRONIZE=false and TYPEORM_MIGRATIONS_RUN=true",
+    },
+    {
+      key: "fundingReadinessLedgerReady",
+      ready: true,
+      detail: "1 funding readiness records",
+    },
+    {
+      key: "fundingCapitalUsable",
+      ready: true,
+      detail:
+        "Latest funding readiness is ready: expected deposit matches read-only broker cash and equity",
     },
   ],
   blockers: [
@@ -1111,6 +1174,9 @@ describe("ControlPlaneDashboard", () => {
     vi.mocked(controlPlaneApi.getBrokerSnapshots).mockResolvedValue(
       mockBrokerSnapshots,
     );
+    vi.mocked(controlPlaneApi.getFundingReadinessRecords).mockResolvedValue([
+      mockControlPlaneStatus.fundingReadiness,
+    ]);
     vi.mocked(controlPlaneApi.getBrokerFills).mockResolvedValue(
       mockBrokerFills,
     );
@@ -1263,6 +1329,7 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("riskGateReady")).toBeInTheDocument();
     expect(screen.getByText("researchRunLedgerReady")).toBeInTheDocument();
     expect(screen.getByText("schemaMigrationPolicyReady")).toBeInTheDocument();
+    expect(screen.getByText("fundingCapitalUsable")).toBeInTheDocument();
     expect(
       screen.getAllByText("Production schema migrations are not enforced")
         .length,
@@ -1324,6 +1391,13 @@ describe("ControlPlaneDashboard", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Broker Snapshot Monitor")).toBeInTheDocument();
     expect(screen.getByText("API broker snapshots")).toBeInTheDocument();
+    expect(screen.getByText("Funding Readiness")).toBeInTheDocument();
+    expect(screen.getByText("API funding readiness")).toBeInTheDocument();
+    expect(screen.getByText("Expected deposit")).toBeInTheDocument();
+    expect(screen.getByText("Broker cash")).toBeInTheDocument();
+    expect(
+      screen.getByText("expected deposit matches read-only broker truth"),
+    ).toBeInTheDocument();
     expect(screen.getByText("API broker adapter status")).toBeInTheDocument();
     expect(
       screen.getByText("toss / oauth2_client_credentials"),
@@ -1410,6 +1484,8 @@ describe("ControlPlaneDashboard", () => {
     expect(
       screen.getByRole("region", { name: "행동 감사 타임라인" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("자금 준비 상태")).toBeInTheDocument();
+    expect(screen.getByText("API 자금 준비")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "한국어" })).toHaveAttribute(
       "aria-pressed",
       "true",

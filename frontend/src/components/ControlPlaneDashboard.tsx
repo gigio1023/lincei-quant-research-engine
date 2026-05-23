@@ -5,6 +5,7 @@ import { AutonomousActionStatusPanel } from "./control-plane-dashboard/Autonomou
 import { BrokerSnapshotPanel } from "./control-plane-dashboard/BrokerSnapshotPanel";
 import { CurrentCycleEvidencePanel } from "./control-plane-dashboard/CurrentCycleEvidencePanel";
 import { DashboardHeader } from "./control-plane-dashboard/DashboardHeader";
+import { FundingReadinessPanel } from "./control-plane-dashboard/FundingReadinessPanel";
 import {
   DashboardLanguage,
   DashboardLanguageProvider,
@@ -48,6 +49,7 @@ const ControlPlaneDashboard = () => {
             <div className="min-w-0 space-y-4">
               <ResearchLedgerPanel model={model} />
               <PaperExecutionPanel model={model} />
+              <FundingReadinessPanel model={model} />
               <BrokerSnapshotPanel model={model} />
             </div>
             <RightRail model={model} />

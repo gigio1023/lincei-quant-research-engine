@@ -255,10 +255,12 @@ Current read-only slice:
 - `POST /control-plane/broker-snapshots/import-read-only` accepts manual/imported snapshots and rejects broker credentials, account ids, tokens, order payloads, and order intent fields;
 - `GET /control-plane/broker-snapshots` and `GET /control-plane/broker-snapshots/latest` expose read-only snapshot history;
 - `POST /control-plane/broker-snapshots/:id/reconcile-paper` compares a broker snapshot with the active paper account and records cash, equity, position, tolerance, age, stale, match, or mismatch evidence;
+- `funding_readiness_records` stores expected-deposit checks against reconciled read-only broker snapshots, including broker cash/equity, cash/equity diff, snapshot age, reconciliation status, blockers, and hard `brokerExecutionEnabled/liveTradingEnabled: false` flags;
+- `POST /control-plane/broker-snapshots/:id/assess-funding-readiness` and `GET /control-plane/funding-readiness` expose the funding readiness ledger. A record is `ready` only when the snapshot is fresh, has a hashed account ref, has `reconciliation.status: matched`, currency matches, and broker cash/equity cover the expected deposit;
 - `broker_fills` stores imported read-only fill evidence with hashed account/order/fill refs, symbol, side, quantity, price, notional, fee, timestamp, reconciliation status, and hard `brokerExecutionEnabled/liveTradingEnabled: false` flags;
 - `POST /control-plane/broker-fills/import-read-only` and `GET /control-plane/broker-fills` expose the fill evidence ledger without accepting credentials, order payloads, or callable order intent;
 - `GET /control-plane/broker-adapter/status` exposes a provider-neutral Toss readiness contract for credential presence, credential custody, OpenAPI schema verification, sandbox verification, read-only enablement, blocked order capabilities, and broker emergency-control blockers without exposing secrets;
-- the dashboard shows a Broker Snapshot Monitor next to paper execution so the user can see whether external account truth matches internal paper state;
+- the dashboard shows Funding Readiness, Broker Snapshot Monitor, and Broker Fill Evidence next to paper execution so the user can see whether expected deposit, external account truth, and paper state agree;
 - this is not a Toss client yet and cannot call Toss, place, cancel, modify, preview, or route orders.
 
 Toss Securities API must be treated as real-money write access unless an official sandbox or paper environment is verified. Official public pages show OAuth client-credentials, account lookup, holdings, and order examples, but access requires a Toss Securities account, pre-application, and API key issuance. The current public docs do not prove a paper environment.

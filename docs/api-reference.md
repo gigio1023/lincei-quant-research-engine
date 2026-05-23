@@ -505,6 +505,30 @@ all broker/live execution flags remain `false`.
 
 - **Description**: Returns the latest imported read-only broker snapshot. Returns `404` until a snapshot has been imported.
 
+#### `POST /control-plane/broker-snapshots/:id/assess-funding-readiness`
+
+- **Description**: Records whether a reconciled read-only broker snapshot can support a requested deposit amount. The endpoint never accepts raw account refs or order intent. It copies the hashed account ref from the broker snapshot and requires that snapshot's reconciliation status to be `matched` before returning `ready`.
+- **Example Request**:
+  ```json
+  {
+    "expectedDepositAmount": 9500000,
+    "currency": "KRW",
+    "tolerance": 0.01,
+    "maxAgeMinutes": 60,
+    "idempotencyKey": "funding-readiness-20260523-001",
+    "notes": ["Expected deposit checked against read-only broker cash."]
+  }
+  ```
+- **Response Notes**:
+  - returns a `FundingReadinessRecord`;
+  - `status` is `ready` only when broker cash and equity are sufficient, currency matches, the snapshot is fresh, the snapshot has a hashed account ref, and snapshot reconciliation is `matched`;
+  - missing `idempotencyKey` creates a fresh time-sensitive check; explicit idempotency keys replay the prior result;
+  - `brokerExecutionEnabled` and `liveTradingEnabled` are always `false`.
+
+#### `GET /control-plane/funding-readiness`
+
+- **Description**: Lists funding readiness records ordered by latest check. This is a local evidence ledger for deposit readiness, not a broker transfer, deposit, or order capability.
+
 #### `POST /control-plane/broker-fills/import-read-only`
 
 - **Description**: Imports read-only broker fill evidence and immediately attempts to match it against existing paper fills. This is a provider-neutral ledger step for later broker fill polling. It does not call a broker, does not store raw account/order/fill refs, rejects credential/order payload fields, and cannot place, cancel, or modify orders.

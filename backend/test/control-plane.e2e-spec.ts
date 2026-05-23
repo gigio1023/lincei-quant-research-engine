@@ -8,6 +8,7 @@ import { BrokerFill } from '../src/entities/broker-fill.entity';
 import { BrokerSnapshot } from '../src/entities/broker-snapshot.entity';
 import { BudgetEnvelope } from '../src/entities/budget-envelope.entity';
 import { ExecutionControlState } from '../src/entities/execution-control-state.entity';
+import { FundingReadinessRecord } from '../src/entities/funding-readiness-record.entity';
 import { InvestmentProposal } from '../src/entities/investment-proposal.entity';
 import { MarketDataBar } from '../src/entities/market-data-bar.entity';
 import { MarketDataIngestionRun } from '../src/entities/market-data-ingestion-run.entity';
@@ -36,6 +37,7 @@ describe('ControlPlane research provenance (e2e)', () => {
             BrokerSnapshot,
             BudgetEnvelope,
             ExecutionControlState,
+            FundingReadinessRecord,
             InvestmentProposal,
             MarketDataBar,
             MarketDataIngestionRun,
@@ -73,7 +75,7 @@ describe('ControlPlane research provenance (e2e)', () => {
         totalBudget: 10_000_000,
         mode: 'dry_run',
         policy: {
-          maxDataAgeMinutes: 240,
+          maxDataAgeMinutes: 2880,
         },
       })
       .expect(201);
@@ -363,7 +365,7 @@ describe('ControlPlane research provenance (e2e)', () => {
         totalBudget: 10_000_000,
         mode: 'dry_run',
         policy: {
-          maxDataAgeMinutes: 240,
+          maxDataAgeMinutes: 2880,
         },
       })
       .expect(201);
@@ -814,6 +816,44 @@ describe('ControlPlane research provenance (e2e)', () => {
       .expect(200);
     expect(latestBrokerSnapshotResponse.body.id).toBe(
       brokerSnapshotResponse.body.id,
+    );
+
+    const fundingReadinessResponse = await request(app.getHttpServer())
+      .post(
+        `/control-plane/broker-snapshots/${brokerSnapshotResponse.body.id}/assess-funding-readiness`,
+      )
+      .send({
+        expectedDepositAmount: paperAccountResponse.body.cash,
+        tolerance: 0.01,
+        maxAgeMinutes: 60,
+        idempotencyKey: 'e2e-funding-readiness-1',
+        notes: ['E2E funding readiness uses read-only broker evidence.'],
+      })
+      .expect(201);
+
+    expect(fundingReadinessResponse.body).toEqual(
+      expect.objectContaining({
+        brokerSnapshotId: brokerSnapshotResponse.body.id,
+        status: 'ready',
+        expectedDepositAmount: paperAccountResponse.body.cash,
+        accountRefHash: brokerSnapshotResponse.body.accountRefHash,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      }),
+    );
+    expect(
+      fundingReadinessResponse.body.readinessSnapshot
+        .brokerSnapshotReconciliationStatus,
+    ).toBe('matched');
+
+    const fundingReadinessRecordsResponse = await request(app.getHttpServer())
+      .get('/control-plane/funding-readiness')
+      .expect(200);
+    expect(fundingReadinessRecordsResponse.body[0]).toEqual(
+      expect.objectContaining({
+        id: fundingReadinessResponse.body.id,
+        status: 'ready',
+      }),
     );
 
     const brokerFillResponse = await request(app.getHttpServer())

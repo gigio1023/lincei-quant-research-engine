@@ -748,6 +748,58 @@ describe("API Service", () => {
       expect(result).toEqual(mockBrokerSnapshots);
     });
 
+    it("should_assess_funding_readiness_from_broker_snapshot", async () => {
+      const mockFundingReadiness = {
+        id: "funding-readiness-1",
+        brokerSnapshotId: "broker-snapshot-1",
+        status: "ready",
+        expectedDepositAmount: 9500000,
+        actualBrokerCash: 9500000,
+        brokerExecutionEnabled: false,
+        liveTradingEnabled: false,
+      };
+      const request = {
+        expectedDepositAmount: 9500000,
+        maxAgeMinutes: 60,
+        idempotencyKey: "funding-1",
+      };
+
+      mockPost.mockResolvedValue({ data: mockFundingReadiness });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.assessFundingReadiness(
+        "broker-snapshot-1",
+        request,
+      );
+
+      expect(mockPost).toHaveBeenCalledWith(
+        "/control-plane/broker-snapshots/broker-snapshot-1/assess-funding-readiness",
+        request,
+      );
+      expect(result).toEqual(mockFundingReadiness);
+    });
+
+    it("should_get_funding_readiness_records", async () => {
+      const mockRecords = [
+        {
+          id: "funding-readiness-1",
+          brokerSnapshotId: "broker-snapshot-1",
+          status: "ready",
+          expectedDepositAmount: 9500000,
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+        },
+      ];
+
+      mockGet.mockResolvedValue({ data: mockRecords });
+
+      const { controlPlaneApi } = await import("./api");
+      const result = await controlPlaneApi.getFundingReadinessRecords();
+
+      expect(mockGet).toHaveBeenCalledWith("/control-plane/funding-readiness");
+      expect(result).toEqual(mockRecords);
+    });
+
     it("should_get_broker_adapter_status", async () => {
       const mockStatus = {
         provider: "toss",

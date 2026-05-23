@@ -3,6 +3,7 @@ import {
   BrokerSnapshotProvider,
 } from '../../entities/broker-snapshot.entity';
 import { BrokerFill } from '../../entities/broker-fill.entity';
+import { FundingReadinessRecord } from '../../entities/funding-readiness-record.entity';
 import { ExecutionControlStateValue } from '../../entities/execution-control-state.entity';
 import {
   BacktestMetrics,
@@ -262,6 +263,15 @@ export interface ReconcileBrokerSnapshotRequest {
   notes?: string[];
 }
 
+export interface AssessFundingReadinessRequest {
+  expectedDepositAmount: number;
+  currency?: string;
+  tolerance?: number;
+  maxAgeMinutes?: number;
+  idempotencyKey?: string;
+  notes?: string[];
+}
+
 export type BrokerAdapterProvider = 'toss' | 'manual' | 'simulated';
 
 export type BrokerAdapterCapabilityStatus =
@@ -470,6 +480,7 @@ export interface ControlPlaneStatus {
   liveTradingGate: LiveTradingGateStatus;
   killSwitch: KillSwitchStatus;
   actionStatus: ControlPlaneActionStatus;
+  fundingReadiness?: FundingReadinessRecord;
   readiness: Array<{
     key: string;
     ready: boolean;
