@@ -110,6 +110,27 @@ const PaperPlanCard = ({ plan }: { plan: PaperPlan }) => (
             ? ` / seq ${plan.readinessSnapshot.paperAccountEventSequence}`
             : ""}
         </div>
+        <div>
+          Approval event:{" "}
+          <span className="font-mono">
+            {plan.readinessSnapshot.approvalPaperAccountEventHash ?? "none"}
+          </span>
+        </div>
+        <div>
+          Current event:{" "}
+          <span className="font-mono">
+            {plan.readinessSnapshot.currentPaperAccountEventHash ?? "none"}
+          </span>
+        </div>
+        {plan.blockedReasons.length > 0 && (
+          <div className="rounded-md border border-[#f6465d]/30 bg-[#f6465d]/10 p-2 text-[#f6465d]">
+            {plan.blockedReasons.map((reason) => (
+              <div key={reason} className="font-mono">
+                {reason}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
 

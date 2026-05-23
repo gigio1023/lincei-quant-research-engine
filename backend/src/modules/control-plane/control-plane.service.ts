@@ -1676,6 +1676,26 @@ export class ControlPlaneService {
     const saved = await this.paperOrderPlanRepository.save(paperOrderPlan);
 
     if (blockedReasons.length === 0 && paperAccount) {
+      const preApplyBlockedReason =
+        await this.getPaperAccountPreApplyBlockedReason(saved, paperAccount);
+
+      if (preApplyBlockedReason) {
+        this.blockPaperOrderPlanBeforeApply(
+          saved,
+          submittedAt,
+          preApplyBlockedReason,
+        );
+        if (saved.reservationHold) {
+          await this.releasePaperReservationHoldRecord(
+            saved.reservationHold.holdId,
+            saved,
+            submittedAt,
+            preApplyBlockedReason,
+          );
+        }
+        return this.paperOrderPlanRepository.save(saved);
+      }
+
       this.consumePaperReservationHold(saved, submittedAt);
       if (saved.reservationHold) {
         await this.consumePaperReservationHoldRecord(
@@ -1701,6 +1721,67 @@ export class ControlPlaneService {
 
   async listPaperOrderPlans(): Promise<PaperOrderPlan[]> {
     return this.paperOrderPlanRepository.find({ order: { updatedAt: 'DESC' } });
+  }
+
+  private async getPaperAccountPreApplyBlockedReason(
+    plan: PaperOrderPlan,
+    paperAccount: PaperAccount,
+  ): Promise<string | null> {
+    const expectedEventHash =
+      plan.readinessSnapshot.currentPaperAccountEventHash;
+
+    if (!expectedEventHash) {
+      return 'Paper account apply requires current account event evidence';
+    }
+
+    const latestEvent = await this.getLatestPaperAccountEvent(paperAccount.id);
+
+    if (!latestEvent) {
+      return 'Paper account apply requires latest account event evidence';
+    }
+
+    if (latestEvent.eventHash !== expectedEventHash) {
+      return 'Paper account event changed before account apply';
+    }
+
+    return null;
+  }
+
+  private blockPaperOrderPlanBeforeApply(
+    plan: PaperOrderPlan,
+    blockedAt: Date,
+    reason: string,
+  ): void {
+    plan.status = 'blocked';
+    plan.completedAt = blockedAt;
+    plan.blockedReasons = [...plan.blockedReasons, reason];
+    plan.fills = [];
+    plan.cashLedger = [];
+    plan.positionLedger = [];
+    plan.portfolioAfter = plan.portfolioBefore;
+    plan.endingCash = plan.startingCash;
+    plan.endingEquity = plan.startingEquity;
+    plan.reconciliation = {
+      status: 'not_required',
+      cashMatched: true,
+      positionsMatched: true,
+      expectedCash: plan.startingCash,
+      expectedPositions: this.positionsToMarketValueMap(
+        plan.portfolioBefore.positions,
+      ),
+      tolerance: 0,
+      notes: [
+        'Paper account projection was not updated because final account-event freshness failed.',
+      ],
+    };
+    if (plan.reservationHold) {
+      plan.reservationHold = {
+        ...plan.reservationHold,
+        status: 'released',
+        releasedAt: blockedAt.toISOString(),
+        notes: [...plan.reservationHold.notes, reason],
+      };
+    }
   }
 
   private buildPaperReservationHold(
@@ -1823,6 +1904,29 @@ export class ControlPlaneService {
       ...record.notes,
       `Consumed by paper order plan ${plan.id}.`,
     ];
+
+    await this.paperReservationHoldRepository.save(record);
+  }
+
+  private async releasePaperReservationHoldRecord(
+    holdId: string,
+    plan: PaperOrderPlan,
+    releasedAt: Date,
+    reason: string,
+  ): Promise<void> {
+    const record = await this.paperReservationHoldRepository.findOne({
+      where: { holdId },
+    });
+
+    if (!record || record.status !== 'reserved') {
+      return;
+    }
+
+    record.status = 'released';
+    record.paperOrderPlanId = plan.id;
+    record.releasedAt = releasedAt;
+    record.holdSnapshot = plan.reservationHold ?? record.holdSnapshot;
+    record.notes = [...record.notes, reason];
 
     await this.paperReservationHoldRepository.save(record);
   }

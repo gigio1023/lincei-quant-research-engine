@@ -577,13 +577,16 @@ all broker/live execution flags remain `false`.
     "idempotencyKey": "paper:proposal:1:risk:4",
     "approver": "operator@example.com",
     "reason": "Approve this paper cycle after reviewing the risk gate.",
+    "expectedPaperAccountEventHash": "sha256:latest-paper-account-event",
     "expiresAt": "2026-05-24T00:00:00.000Z"
   }
   ```
 - **Response Notes**:
   - returns an `OrderPlanApproval`;
   - `status` starts as `active` and becomes `consumed` after a filled paper order plan uses it;
-  - approval records store `proposalHash`, `riskRequestHash`, `approvalHash`, `approvalSnapshot`, `idempotencyKey`, expiry, approver, reason, and consumed plan id;
+  - approval creation requires `expectedPaperAccountEventHash`, and the service rejects creation if it does not match the latest promoted paper account event;
+  - approval records store `proposalHash`, `riskRequestHash`, `approvalHash`, `approvalSnapshot`, `idempotencyKey`, expiry, approver, reason, consumed plan id, paper account id, paper account event hash/sequence, canonical payload hash, signer key ref, and local hash signature;
+  - replaying the same approval idempotency key returns the existing approval only when the signed payload intent matches;
   - `mode` is always `paper`, and `brokerExecutionEnabled` / `liveTradingEnabled` are always `false`.
 
 #### `GET /control-plane/order-plan-approvals`
@@ -606,10 +609,11 @@ all broker/live execution flags remain `false`.
   - without an active matching signed approval it remains blocked for review;
   - `status` is `filled`, `blocked`, `reconciled`, or `reconciliation_failed` for the current implementation;
   - each plan stores `orderPlanApprovalId`, `proposalHash`, `riskRequestHash`, `planHash`, `readinessSnapshot`, immutable paper order ids, fill events, cash ledger rows, position ledger rows, portfolio before/after snapshots, reconciliation state, and kill-switch snapshot;
-  - `readinessSnapshot` includes reservation evidence: required cash, reserved cash, available cash, required sells, reserved sells, and available sell notional by symbol;
+  - `readinessSnapshot` includes reservation evidence and custody evidence: required cash, reserved cash, available cash, required sells, reserved sells, available sell notional by symbol, approval custody status, approval paper account event hash, current paper account event hash, and current account event sequence;
   - readiness checks subtract `paper_reservation_holds` rows with `status === "reserved"` before falling back to legacy open paper plans or `reservationHold.status === "reserved"` snapshots;
-  - filled paper plans include a durable `reservationHold` snapshot with hold id, status, cash amount, sell notional by symbol, hold hash, and consumption timestamp;
+  - filled paper plans include a durable `reservationHold` snapshot with hold id, status, cash amount, sell notional by symbol, hold hash, approval-custody-at-hold evidence, account event hash/sequence at hold, and consumption timestamp;
   - non-blocked paper plans create a database reservation-hold record before fill simulation and mark it consumed after the local paper plan is filled;
+  - immediately before applying simulated fills to the durable paper account, the service rechecks that the latest account event still matches the readiness snapshot; if it changed, the plan is blocked, fills/ledgers are cleared, and the reservation hold is released instead of consuming the approval;
   - fill and position-ledger rows include simulator quantity, average-price, cost-basis, and realized-PnL evidence;
   - filled plans update the durable local paper account so later paper cycles start from accumulated simulated state;
   - `brokerExecutionEnabled` and `liveTradingEnabled` are always `false`.

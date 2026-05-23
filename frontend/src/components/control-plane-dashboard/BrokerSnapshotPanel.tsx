@@ -254,7 +254,7 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
               </div>
             </div>
             <div className="grid gap-2 md:grid-cols-2">
-              {adapter.capabilities.slice(0, 6).map((capability) => (
+              {adapter.capabilities.map((capability) => (
                 <div
                   key={capability.key}
                   className="flex items-center justify-between gap-2 rounded-md border border-[#2b3139] px-2 py-1.5 text-xs"
@@ -275,6 +275,20 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
                 </div>
               ))}
             </div>
+            {adapter.blockers.length > 0 && (
+              <div className="mt-3 rounded-md border border-[#f6465d]/30 bg-[#f6465d]/10 p-2">
+                <div className="mb-1 text-[11px] font-bold uppercase text-[#f6465d]">
+                  Broker blockers
+                </div>
+                <div className="space-y-1 text-xs text-[#eaecef]">
+                  {adapter.blockers.map((blocker) => (
+                    <div key={blocker} className="font-mono">
+                      {blocker}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

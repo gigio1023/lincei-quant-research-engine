@@ -57,12 +57,29 @@ export const OrderPlanApprovalPanel = ({
             {[
               ["idempotency", approval.idempotencyKey],
               ["riskEvaluation", approval.riskEvaluationId],
+              ["custodyMode", approval.custodyMode],
               ["proposalHash", approval.proposalHash],
               ["payloadHash", approval.canonicalPayloadHash],
+              ["signature", approval.signature],
               ["signerKey", approval.signerKeyRef],
-              ["accountEvent", approval.paperAccountEventHash],
+              [
+                "accountEvent",
+                `${approval.paperAccountEventHash} / seq ${approval.paperAccountEventSequence}`,
+              ],
               ["approvalHash", approval.approvalHash],
               ["approvedAt", formatDateTime(approval.approvedAt)],
+              [
+                "expiresAt",
+                approval.expiresAt
+                  ? formatDateTime(approval.expiresAt)
+                  : "none",
+              ],
+              [
+                "consumedBy",
+                approval.consumedByPaperOrderPlanId
+                  ? `paper plan ${approval.consumedByPaperOrderPlanId}`
+                  : "not consumed",
+              ],
             ].map(([label, value]) => (
               <div key={label} className="flex justify-between gap-3">
                 <span className="text-[#707a8a]">{label}</span>

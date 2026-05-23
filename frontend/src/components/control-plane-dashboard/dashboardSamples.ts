@@ -330,16 +330,58 @@ export const DOCUMENTED_BROKER_ADAPTER_STATUS: BrokerAdapterStatus = {
         "Read-only polling remains disabled until credentials, schema, and BROKER_READ_ONLY_ENABLED=true are present.",
     },
     {
+      key: "holdingsSnapshot",
+      status: "blocked",
+      detail:
+        "Holdings can only be trusted after account and holdings response schemas are verified.",
+    },
+    {
+      key: "orderPreview",
+      status: "not_implemented",
+      detail: "Order preview or orderable amount support is not implemented.",
+    },
+    {
+      key: "paperOrSandbox",
+      status: "blocked",
+      detail: "No Toss sandbox or paper environment is verified.",
+    },
+    {
       key: "orderPlacement",
       status: "blocked",
       detail:
         "Live order placement is intentionally blocked until read-only reconciliation, sandbox parity, approval custody, and kill switch runtime exist.",
     },
+    {
+      key: "orderCancelReplace",
+      status: "not_implemented",
+      detail: "Cancel and modify endpoints are not implemented.",
+    },
+    {
+      key: "fillPolling",
+      status: "blocked",
+      detail:
+        "Read-only fill polling requires snapshot readiness, fill schema verification, and a configured fill path.",
+    },
+    {
+      key: "reconciliation",
+      status: "blocked",
+      detail:
+        "Broker-backed reconciliation requires read-only polling plus account/holdings/fill mapping.",
+    },
+    {
+      key: "killSwitch",
+      status: "blocked",
+      detail:
+        "Production kill switch runtime is not implemented for broker orders.",
+    },
   ],
   blockers: [
     "credentials: Toss Open API credentials are missing.",
+    "credentialCustody: Production trading requires an external secret manager reference before broker write access can be considered.",
     "openApiSchema: Exact Toss OpenAPI schema is not verified.",
+    "paperOrSandbox: No Toss sandbox or paper environment is verified.",
     "orderPlacement: Live order placement is intentionally blocked.",
+    "killSwitch: Production kill switch runtime is not implemented for broker orders.",
   ],
   brokerExecutionEnabled: false,
 };

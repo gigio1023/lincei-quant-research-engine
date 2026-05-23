@@ -74,10 +74,10 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
     checkedAt: "2026-05-22T09:00:00.000Z",
     verdict: "attention",
     latestAction: {
-      stage: "broker_fill",
-      status: "matched",
-      id: "broker-fill-docs-1",
-      detail: "Broker fill matched documented paper fill evidence.",
+      stage: "autonomous_run",
+      status: "paper_ready",
+      id: "run-docs-1",
+      detail: "Continue monitoring; live trading remains disabled.",
       updatedAt: "2026-05-22T09:00:00.000Z",
     },
     paper: {
@@ -124,9 +124,19 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
       detail: "Deterministic risk gate is registered",
     },
     {
+      key: "riskAuditReady",
+      ready: true,
+      detail: "Documented risk evaluation sample is available",
+    },
+    {
       key: "researchRunLedgerReady",
       ready: true,
       detail: "Research-run ledger exposes reproducible backtest records",
+    },
+    {
+      key: "autonomousRunLedgerReady",
+      ready: true,
+      detail: "Documented autonomous run ledger sample is available",
     },
     {
       key: "paperExecutionReady",
@@ -151,6 +161,11 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
       detail: "No durable paper account records yet",
     },
     {
+      key: "paperAccountEventLedgerReady",
+      ready: true,
+      detail: "Documented append-only paper account event sample is available",
+    },
+    {
       key: "executionControlReady",
       ready: true,
       detail: "Execution control state defaults to active",
@@ -167,9 +182,20 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
         "Live broker adapter is not implemented; read-only snapshot ledger is available",
     },
     {
+      key: "brokerAdapterContractReady",
+      ready: true,
+      detail:
+        "Provider-neutral Toss readiness contract exposes broker blockers",
+    },
+    {
       key: "brokerSnapshotLedgerReady",
       ready: true,
       detail: "Documented broker read-only snapshot sample is available",
+    },
+    {
+      key: "brokerFillLedgerReady",
+      ready: true,
+      detail: "Documented broker read-only fill sample is available",
     },
     {
       key: "liveTradingReady",

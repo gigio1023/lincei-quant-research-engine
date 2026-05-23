@@ -210,8 +210,11 @@ Current paper slice:
 - `paper_account_events` stores append-only seed, promotion, and paper-plan account events with per-account sequence, request hash, event hash, and previous-event hash;
 - paper-mode risk evaluation and paper execution require an explicitly seeded and promoted active paper account;
 - `order_plan_approvals` stores durable signed paper approvals with approver, reason, proposal hash, risk request hash, approval hash, idempotency key, status, expiry, and consumed plan id;
+- paper approvals are locally signed over a canonical payload that includes proposal, risk, idempotency, approver, expiry, paper account id, latest paper account event hash/sequence, signer key ref, and approval custody mode;
+- approval creation requires the caller to provide `expectedPaperAccountEventHash`, and creation fails if the paper account event chain has advanced;
 - `POST /control-plane/proposals/:id/paper-execute` returns the same plan for the same idempotency key and has a database uniqueness guard for the proposal/idempotency pair;
 - paper execution requires an active order-plan approval that matches the proposal, paper-mode risk evaluation, and idempotency key;
+- paper execution checks approval payload hash/signature evidence, binds the approval to the current promoted paper account, blocks stale paper account event hashes, and rechecks the event chain immediately before applying simulated fills to the durable paper account;
 - `POST /control-plane/paper-account/seed`, `POST /control-plane/paper-account/:id/promote`, and `GET /control-plane/paper-account/events` expose the explicit account lifecycle and append-only paper account event chain;
 - `GET /control-plane/paper-account` exposes only an active promoted paper account;
 - `POST /control-plane/paper-order-plans/:id/reconcile` reconciles expected paper cash and positions against account ledger entries for that plan;
@@ -433,7 +436,8 @@ Current status:
 - paper fill, cash ledger, position ledger, and local reconciliation snapshots exist;
 - paper position accounting now records quantity, average price, cost basis, unrealized PnL, and realized PnL in simulated fills, position ledger entries, account positions, and dashboard position rows;
 - paper execution readiness now records reservation evidence for required cash, reserved cash, available cash, required sells, reserved sells, and available sell notional by symbol before fill simulation;
-- filled paper order plans now persist a durable reservation-hold snapshot with hold id, status, cash amount, sell notional by symbol, hold hash, and consumption timestamp;
+- filled paper order plans now persist a durable reservation-hold snapshot with hold id, status, cash amount, sell notional by symbol, hold hash, approval-custody-at-hold evidence, account event hash/sequence at hold, and consumption timestamp;
+- if the paper account event chain advances after readiness checks but before account apply, the plan is blocked, simulated fills/ledgers are cleared, and the reservation hold is released instead of consuming the approval;
 - readiness checks subtract any still-reserved paper hold snapshot even if a previous plan has already moved out of an open execution status;
 - paper reservation holds now persist to a dedicated `paper_reservation_holds` database ledger before fill simulation, and readiness checks subtract `reserved` rows before falling back to legacy plan snapshots;
 - durable paper account state now carries simulated cash, equity, exposure, positions, and applied plan ids across paper cycles;

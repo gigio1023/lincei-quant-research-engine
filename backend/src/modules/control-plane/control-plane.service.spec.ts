@@ -856,6 +856,139 @@ describe('ControlPlaneService', () => {
     expect(paperAccounts[0].cash).toBe(10_000_000);
   });
 
+  it('blocks paper account apply when the event chain advances after readiness checks', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Pre-apply guard budget',
+      totalBudget: 10_000_000,
+    });
+    const seededAccount = await service.seedPaperAccount({
+      budgetEnvelopeId: budget.id,
+      cash: 10_000_000,
+      actor: 'unit-test-operator',
+      reason: 'Seed paper account before pre-apply guard test.',
+      idempotencyKey: 'seed-pre-apply-guard-account',
+    });
+    await service.promotePaperAccount(seededAccount.id, {
+      actor: 'unit-test-operator',
+      reason: 'Promote paper account before pre-apply guard test.',
+      idempotencyKey: 'promote-pre-apply-guard-account',
+      expectedEventHash: paperAccountEvents[0].eventHash,
+    });
+    const researchRun = await service.runBaselineResearch({
+      budgetEnvelopeId: budget.id,
+    });
+    const proposal = await service.createProposal({
+      budgetEnvelopeId: budget.id,
+      researchRunId: researchRun.id,
+      strategyId: 'pre-apply-guard-v1',
+      ruleId: 'account-event-final-check',
+      generatedAt: '2026-05-22T23:59:00.000Z',
+      marketDataTimestamp: '2026-05-22T23:55:00.000Z',
+      portfolioSnapshot: {
+        currency: 'KRW',
+        equity: 10_000_000,
+        cash: 10_000_000,
+        grossExposurePct: 0,
+      },
+      orders: [
+        {
+          symbol: '005930',
+          assetClass: 'domestic_stock',
+          side: 'BUY',
+          orderType: 'MARKET',
+          notional: 500_000,
+          targetPositionPct: 5,
+        },
+      ],
+    });
+    const approval = await service.createOrderPlanApproval(proposal.id, {
+      idempotencyKey: 'pre-apply-account-event-plan',
+      approver: 'unit-test-operator',
+      reason: 'Approve before the final account event check.',
+      expectedPaperAccountEventHash: paperAccountEvents[1].eventHash,
+    });
+    const originalGetLatestPaperAccountEvent = (
+      service as unknown as {
+        getLatestPaperAccountEvent: (
+          paperAccountId: number,
+        ) => Promise<PaperAccountEvent | null>;
+      }
+    ).getLatestPaperAccountEvent.bind(service);
+    let latestEventLookupCount = 0;
+    jest
+      .spyOn(
+        service as unknown as {
+          getLatestPaperAccountEvent: (
+            paperAccountId: number,
+          ) => Promise<PaperAccountEvent | null>;
+        },
+        'getLatestPaperAccountEvent',
+      )
+      .mockImplementation(async (paperAccountId: number) => {
+        latestEventLookupCount += 1;
+        const event = await originalGetLatestPaperAccountEvent(paperAccountId);
+
+        if (latestEventLookupCount === 2 && event) {
+          paperAccountEvents.push({
+            ...event,
+            id: 3,
+            eventType: 'reconciliation',
+            idempotencyKey: 'advance-account-event-before-apply',
+            actor: 'unit-test-operator',
+            reason: 'Account event advanced before paper account apply.',
+            sequence: 3,
+            previousEventHash: event.eventHash,
+            requestHash: 'sha256:pre-apply-account-request',
+            eventHash: 'sha256:pre-apply-account-event',
+            eventSnapshot: {
+              ...event.eventSnapshot,
+              eventType: 'reconciliation',
+              idempotencyKey: 'advance-account-event-before-apply',
+              actor: 'unit-test-operator',
+              reason: 'Account event advanced before paper account apply.',
+              sequence: 3,
+              previousEventHash: event.eventHash,
+              requestHash: 'sha256:pre-apply-account-request',
+              recordedAt: '2026-05-23T00:00:00.000Z',
+            },
+            createdAt: new Date('2026-05-23T00:00:01.000Z'),
+          } as PaperAccountEvent);
+        }
+
+        return originalGetLatestPaperAccountEvent(paperAccountId);
+      });
+
+    const plan = await service.paperExecuteProposal(proposal.id, {
+      idempotencyKey: 'pre-apply-account-event-plan',
+      orderPlanApprovalId: approval.id,
+    });
+
+    expect(plan.status).toBe('blocked');
+    expect(plan.blockedReasons).toContain(
+      'Paper account event changed before account apply',
+    );
+    expect(plan.fills).toHaveLength(0);
+    expect(plan.cashLedger).toHaveLength(0);
+    expect(plan.positionLedger).toHaveLength(0);
+    expect(plan.endingCash).toBe(10_000_000);
+    expect(plan.reservationHold).toEqual(
+      expect.objectContaining({
+        status: 'released',
+        releasedAt: '2026-05-23T00:00:00.000Z',
+      }),
+    );
+    expect(paperReservationHolds[0]).toEqual(
+      expect.objectContaining({
+        status: 'released',
+        paperOrderPlanId: plan.id,
+        releasedAt: new Date('2026-05-23T00:00:00.000Z'),
+      }),
+    );
+    expect(orderPlanApprovals[0].status).toBe('active');
+    expect(paperAccounts[0].cash).toBe(10_000_000);
+    expect(paperAccountEvents).toHaveLength(3);
+  });
+
   it('generates a SELL-only recovery proposal from active paper positions', async () => {
     const budget = await service.createBudgetEnvelope({
       name: 'Recovery paper budget',
