@@ -876,6 +876,10 @@ export interface AutonomousRunSchedule {
   autoPaperApprovalReason?: string | null;
   autoPaperApprovalSignerKeyRef?: string | null;
   autoPaperApprovalBudgetHash?: string | null;
+  researchDatasetId?: string | null;
+  researchSymbol?: string | null;
+  researchBenchmark?: string | null;
+  researchMaxDataAgeMinutes?: number | null;
   lastRunId?: number | string | null;
   lastCycleKey?: string | null;
   lastTickAt?: string | null;
@@ -900,6 +904,10 @@ export interface CreateAutonomousRunScheduleRequest {
   autoPaperApprover?: string;
   autoPaperApprovalReason?: string;
   autoPaperApprovalSignerKeyRef?: string;
+  researchDatasetId?: string;
+  researchSymbol?: string;
+  researchBenchmark?: string;
+  researchMaxDataAgeMinutes?: number;
 }
 
 export interface TickAutonomousRunScheduleRequest {

@@ -117,7 +117,7 @@ A research run stores:
 
 Only a research run with `status: proposal_ready` and `advanceEligible: true` can create a proposal. Blocked research runs must remain visible with their reasons.
 
-The first automated research slice is `POST /control-plane/research-runs/run-baseline`. It runs a deterministic momentum baseline, computes benchmark-aware backtest metrics, hashes the artifact snapshot, and stores a proposal-ready research run when all provenance gates pass. By default it uses local sample bars; when `datasetId`, `symbol`, and `benchmark` are provided it uses imported, timestamp-aligned market bars from the durable market-data ledger. It is a bootstrap runner, not validated alpha.
+The first automated research slice is `POST /control-plane/research-runs/run-baseline`. It runs a deterministic momentum baseline, computes benchmark-aware backtest metrics, hashes the artifact snapshot, and stores a proposal-ready research run when all provenance gates pass. By default it uses local sample bars for manual dry-run research only; when `datasetId`, `symbol`, and `benchmark` are provided it uses imported, timestamp-aligned market bars from the durable market-data ledger. Scheduled paper automation must use pinned imported market bars and must not rely on built-in sample bars. It is a bootstrap runner, not validated alpha.
 
 Model training is optional, not the default. The first implementation should use deterministic baselines and simple factor/ranking strategies. A trained model can be introduced only when it produces a signal that is evaluated like any other proposal.
 
@@ -209,7 +209,8 @@ Current paper slice:
 - each plan stores proposal/risk/plan hashes, an idempotency key, readiness snapshot, immutable paper order ids, fill events, cash ledger rows, position ledger rows, portfolio before/after snapshots, reconciliation state, and kill-switch snapshot;
 - `paper_accounts` stores the current durable paper account projection for paper cash, equity, gross exposure, positions, applied plan ids, and account-level cash/position ledgers across cycles;
 - `paper_account_events` stores append-only seed, promotion, and paper-plan account events with per-account sequence, request hash, event hash, and previous-event hash;
-- `autonomous_run_schedules` can store a standing paper-only authorization, but only when the schedule is `paper`, the budget is `paper`, `attemptPaperExecution` is on, the active budget policy explicitly sets `allowPaperAutoApproval: true`, and the schedule's stored budget-policy hash still matches at execution time;
+- `autonomous_run_schedules` can store a standing paper-only authorization, but only when the schedule is `paper`, the budget is `paper`, `attemptPaperExecution` is on, the active budget policy explicitly sets `allowPaperAutoApproval: true`, the schedule pins `researchDatasetId`, `researchSymbol`, and `researchBenchmark` to imported market bars, optional `researchMaxDataAgeMinutes` freshness passes, and the schedule's stored budget-policy hash still matches at execution time;
+- paper schedules fail closed without pinned imported market data; schedule-created proposals derive `marketDataTimestamp` from the imported dataset availability timestamp, not from wall-clock proposal time;
 - automatically created paper approvals are still durable `order_plan_approvals` records with local hash-signature custody, current paper-account event binding, consumed-plan evidence, `approvalSource: paper_auto`, run/schedule provenance, and `brokerExecutionEnabled/liveTradingEnabled: false`;
 - paper-mode risk evaluation and paper execution require an explicitly seeded and promoted active paper account;
 - `order_plan_approvals` stores durable signed paper approvals with approver, reason, proposal hash, risk request hash, approval hash, idempotency key, status, expiry, and consumed plan id;
@@ -503,7 +504,7 @@ Exit criteria:
 
 Current verdict: not ready.
 
-The system is not ready for "deposit money and let it invest." After this PR it can import timestamped market bars, create reproducible baseline research runs from sample or pinned imported datasets, advance an autonomous run through budget-bound research, proposal generation, and risk evaluation, run an env-gated in-process worker that ticks atomically leased run schedules, and simulate approved or schedule-auto-approved paper order plans against a durable local paper account with ledger/reconciliation evidence. It still cannot allocate, execute, or recover real capital end to end.
+The system is not ready for "deposit money and let it invest." After this PR it can import timestamped market bars, create reproducible baseline research runs from sample or pinned imported datasets, advance an autonomous run through budget-bound research, proposal generation, and risk evaluation, run an env-gated in-process worker that ticks atomically leased run schedules, and simulate approved or schedule-auto-approved paper order plans against a durable local paper account with ledger/reconciliation evidence. Paper schedules are dataset-bound and freshness-gated, so stale or sample-only scheduled automation is blocked before approval/execution. It still cannot allocate, execute, or recover real capital end to end.
 
 Blocking items:
 

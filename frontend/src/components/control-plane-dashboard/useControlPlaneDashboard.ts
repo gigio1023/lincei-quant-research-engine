@@ -819,6 +819,8 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       refreshedBrokerFills,
       refreshedBrokerAdapterStatus,
       refreshedOrderPlanApprovals,
+      refreshedRiskGateStatus,
+      refreshedControlPlaneStatus,
     ] = await Promise.allSettled([
       controlPlaneApi.getResearchRuns(),
       controlPlaneApi.getProposals(),
@@ -832,6 +834,8 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       controlPlaneApi.getBrokerFills(),
       controlPlaneApi.getBrokerAdapterStatus(),
       controlPlaneApi.getOrderPlanApprovals(),
+      riskGateApi.getStatus(),
+      controlPlaneApi.getStatus(),
     ]);
 
     if (refreshedResearchRuns.status === "fulfilled") {
@@ -935,6 +939,21 @@ export const useControlPlaneDashboard = (): DashboardModel => {
         "Approval refresh failed after automation action.",
       );
     }
+
+    if (refreshedRiskGateStatus.status === "fulfilled") {
+      setRiskGateStatus(refreshedRiskGateStatus.value);
+    }
+
+    if (refreshedControlPlaneStatus.status === "fulfilled") {
+      setControlPlaneStatus(refreshedControlPlaneStatus.value);
+    }
+
+    setStatusError(
+      refreshedRiskGateStatus.status === "rejected" ||
+        refreshedControlPlaneStatus.status === "rejected"
+        ? "One or more control-plane status APIs are unavailable after automation action."
+        : null,
+    );
   };
 
   const advanceLatestRun = async () => {

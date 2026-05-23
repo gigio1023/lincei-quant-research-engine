@@ -447,6 +447,10 @@ const mockAutonomousRunSchedules = [
     nextRunAt: "2026-05-22T09:50:00.000Z",
     enabled: true,
     attemptPaperExecution: false,
+    researchDatasetId: "api-daily-bars",
+    researchSymbol: "005930",
+    researchBenchmark: "KOSPI200",
+    researchMaxDataAgeMinutes: 1440,
     lastRunId: "run-api-1",
     lastCycleKey: "schedule:schedule-api-1:2026-05-22T08:50:00.000Z",
     lastTickAt: "2026-05-22T08:50:00.000Z",
@@ -1075,6 +1079,9 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("Worker Idle")).toBeInTheDocument();
     expect(screen.getByText("test-worker")).toBeInTheDocument();
     expect(screen.getAllByText("schedule-api-1").length).toBeGreaterThan(0);
+    expect(screen.getByText("api-daily-bars")).toBeInTheDocument();
+    expect(screen.getAllByText("KOSPI200").length).toBeGreaterThan(0);
+    expect(screen.getByText("1440m")).toBeInTheDocument();
     expect(screen.getAllByText("run-api-1").length).toBeGreaterThan(0);
     expect(
       screen.getByText("Autonomously prepare API paper allocation"),

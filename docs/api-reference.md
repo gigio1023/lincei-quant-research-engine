@@ -224,7 +224,8 @@ all broker/live execution flags remain `false`.
         "source": "sample",
         "windowStart": "2025-01-01",
         "windowEnd": "2026-05-22",
-        "availabilityTimestamp": "2026-05-22T23:50:00.000Z"
+        "availabilityTimestamp": "2026-05-22T23:50:00.000Z",
+        "marketDataTimestamp": "2026-05-22T23:50:00.000Z"
       }
     ],
     "featureRefs": ["close_20d_return", "volatility_20d"],
@@ -660,7 +661,7 @@ all broker/live execution flags remain `false`.
 
 #### `POST /control-plane/run-schedules`
 
-- **Description**: Creates an autonomous run schedule for an active budget. The schedule stores cadence, next-run timestamp, paper-execution intent, optional standing paper authorization, and lease fields for duplicate-tick protection. It never enables broker execution or live trading. `cadenceMinutes` must be at least 5. `mode` can be `dry_run`, `paper`, or `broker_read_only`; `live` is rejected. `dry_run` and `broker_read_only` schedules keep paper execution off even if a caller asks for it. `autoPaperApprovalEnabled` is accepted only when the schedule and budget are both `paper`, `attemptPaperExecution` is true, the budget policy has `allowPaperAutoApproval: true`, broker/live flags are false, and the stored budget hash still matches when a run is advanced.
+- **Description**: Creates an autonomous run schedule for an active budget. The schedule stores cadence, next-run timestamp, paper-execution intent, optional standing paper authorization, pinned research dataset selectors, optional research-data freshness policy, and lease fields for duplicate-tick protection. It never enables broker execution or live trading. `cadenceMinutes` must be at least 5. `mode` can be `dry_run`, `paper`, or `broker_read_only`; `live` is rejected. `dry_run` and `broker_read_only` schedules keep paper execution off even if a caller asks for it. Paper schedules require `researchDatasetId`, `researchSymbol`, and `researchBenchmark`; these must reference imported timestamp-aligned market bars. If `researchMaxDataAgeMinutes` is set, schedule creation/tick/auto approval fail when the imported asset or benchmark availability is stale. `autoPaperApprovalEnabled` is accepted only when the schedule and budget are both `paper`, `attemptPaperExecution` is true, the budget policy has `allowPaperAutoApproval: true`, broker/live flags are false, the schedule uses the pinned imported dataset for the proposal's research run, and the stored budget hash still matches when a run is advanced.
 - **Example Request**:
   ```json
   {
@@ -669,7 +670,11 @@ all broker/live execution flags remain `false`.
     "cadenceMinutes": 60,
     "mode": "dry_run",
     "attemptPaperExecution": false,
-    "autoPaperApprovalEnabled": false
+    "autoPaperApprovalEnabled": false,
+    "researchDatasetId": "manual-daily-bars-2026-05",
+    "researchSymbol": "005930",
+    "researchBenchmark": "KOSPI200",
+    "researchMaxDataAgeMinutes": 1440
   }
   ```
 - **Example Response**:
@@ -688,6 +693,10 @@ all broker/live execution flags remain `false`.
     "autoPaperApprovalReason": null,
     "autoPaperApprovalSignerKeyRef": null,
     "autoPaperApprovalBudgetHash": null,
+    "researchDatasetId": "manual-daily-bars-2026-05",
+    "researchSymbol": "005930",
+    "researchBenchmark": "KOSPI200",
+    "researchMaxDataAgeMinutes": 1440,
     "lastRunId": null,
     "lastCycleKey": null,
     "lastTickAt": null,

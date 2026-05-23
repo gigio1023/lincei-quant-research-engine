@@ -331,6 +331,10 @@ export interface CreateAutonomousRunScheduleRequest {
   autoPaperApprover?: string;
   autoPaperApprovalReason?: string;
   autoPaperApprovalSignerKeyRef?: string;
+  researchDatasetId?: string;
+  researchSymbol?: string;
+  researchBenchmark?: string;
+  researchMaxDataAgeMinutes?: number;
 }
 
 export interface TickAutonomousRunScheduleRequest {

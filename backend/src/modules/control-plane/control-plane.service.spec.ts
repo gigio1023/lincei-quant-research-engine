@@ -274,6 +274,7 @@ describe('ControlPlaneService', () => {
           windowStart: '2025-01-01',
           windowEnd: '2026-05-22',
           availabilityTimestamp: '2026-05-22T23:50:00.000Z',
+          marketDataTimestamp: '2026-05-22T23:50:00.000Z',
         },
       ],
       featureRefs: ['close_20d_return', 'volatility_20d'],
@@ -367,6 +368,7 @@ describe('ControlPlaneService', () => {
           windowStart: '2025-01-01',
           windowEnd: '2026-05-22',
           availabilityTimestamp: '2026-05-22T23:50:00.000Z',
+          marketDataTimestamp: '2026-05-22T23:50:00.000Z',
         },
       ],
       featureRefs: ['close_20d_return'],
@@ -1520,6 +1522,7 @@ describe('ControlPlaneService', () => {
           windowStart: '2025-01-01',
           windowEnd: '2026-05-22',
           availabilityTimestamp: '2026-05-22T23:50:00.000Z',
+          marketDataTimestamp: '2026-05-22T23:50:00.000Z',
         },
       ],
       featureRefs: ['close_20d_return'],
@@ -1917,6 +1920,7 @@ describe('ControlPlaneService', () => {
           windowStart: '2025-01-01',
           windowEnd: '2026-05-22',
           availabilityTimestamp: '2026-05-22T23:50:00.000Z',
+          marketDataTimestamp: '2026-05-22T23:50:00.000Z',
         },
       ],
       featureRefs: ['close_20d_return'],
@@ -2152,6 +2156,146 @@ describe('ControlPlaneService', () => {
     ).rejects.toThrow(
       'Dataset-backed baseline requires at least 6 bars for both symbol and benchmark',
     );
+  });
+
+  it('ticks a scheduled baseline against its configured market dataset', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Dataset scheduled budget',
+      totalBudget: 10_000_000,
+    });
+    const datasetId = 'scheduled-daily-bars-aligned';
+    const dates = [
+      '2026-05-17',
+      '2026-05-18',
+      '2026-05-19',
+      '2026-05-20',
+      '2026-05-21',
+      '2026-05-22',
+    ];
+    await service.importMarketDataBars({
+      datasetId,
+      provider: 'manual',
+      symbol: '005930',
+      bars: dates.map((date, index) => ({
+        timestamp: `${date}T00:00:00.000Z`,
+        availabilityTimestamp:
+          date === '2026-05-22'
+            ? '2026-05-22T23:45:00.000Z'
+            : `${date}T15:30:00.000Z`,
+        open: 100 + index,
+        high: 102 + index,
+        low: 99 + index,
+        close: 100 + index * 3,
+      })),
+    });
+    await service.importMarketDataBars({
+      datasetId,
+      provider: 'manual',
+      symbol: 'KOSPI200',
+      bars: dates.map((date, index) => ({
+        timestamp: `${date}T00:00:00.000Z`,
+        availabilityTimestamp:
+          date === '2026-05-22'
+            ? '2026-05-22T23:45:00.000Z'
+            : `${date}T15:30:00.000Z`,
+        open: 100 + index,
+        high: 101 + index,
+        low: 99 + index,
+        close: 100 + index,
+      })),
+    });
+
+    const schedule = await service.createRunSchedule({
+      budgetEnvelopeId: budget.id,
+      objective: 'Run scheduled dataset-backed baseline',
+      cadenceMinutes: 30,
+      nextRunAt: '2026-05-23T00:00:00.000Z',
+      researchDatasetId: datasetId,
+      researchSymbol: '005930',
+      researchBenchmark: 'KOSPI200',
+      researchMaxDataAgeMinutes: 60,
+    });
+    const run = await service.tickRunSchedule(schedule.id, {
+      leaseOwner: 'unit-test-dataset-scheduler',
+      attemptPaperExecution: false,
+    });
+
+    expect(run.status).toBe('risk_checked');
+    expect(researchRuns[0]).toEqual(
+      expect.objectContaining({
+        objective: 'Run scheduled dataset-backed baseline',
+        status: 'proposal_ready',
+      }),
+    );
+    expect(researchRuns[0].datasetRefs[0]).toEqual(
+      expect.objectContaining({
+        id: datasetId,
+        universe: ['005930', 'KOSPI200'],
+      }),
+    );
+    expect(proposals[0].orders[0].symbol).toBe('005930');
+    expect(proposals[0].marketDataTimestamp.toISOString()).toBe(
+      '2026-05-22T23:45:00.000Z',
+    );
+    expect(runSchedules[0]).toEqual(
+      expect.objectContaining({
+        researchDatasetId: datasetId,
+        researchSymbol: '005930',
+        researchBenchmark: 'KOSPI200',
+        researchMaxDataAgeMinutes: 60,
+      }),
+    );
+  });
+
+  it('rejects a scheduled market dataset when freshness policy is stale', async () => {
+    const budget = await service.createBudgetEnvelope({
+      name: 'Stale dataset schedule budget',
+      totalBudget: 10_000_000,
+    });
+    const datasetId = 'stale-scheduled-bars';
+    const dates = [
+      '2026-05-11',
+      '2026-05-12',
+      '2026-05-13',
+      '2026-05-14',
+      '2026-05-15',
+      '2026-05-18',
+    ];
+    await service.importMarketDataBars({
+      datasetId,
+      symbol: '005930',
+      bars: dates.map((date, index) => ({
+        timestamp: `${date}T00:00:00.000Z`,
+        availabilityTimestamp: `${date}T15:30:00.000Z`,
+        open: 100 + index,
+        high: 101 + index,
+        low: 99 + index,
+        close: 100 + index,
+      })),
+    });
+    await service.importMarketDataBars({
+      datasetId,
+      symbol: 'KOSPI200',
+      bars: dates.map((date, index) => ({
+        timestamp: `${date}T00:00:00.000Z`,
+        availabilityTimestamp: `${date}T15:30:00.000Z`,
+        open: 100 + index,
+        high: 101 + index,
+        low: 99 + index,
+        close: 100 + index,
+      })),
+    });
+
+    await expect(
+      service.createRunSchedule({
+        budgetEnvelopeId: budget.id,
+        objective: 'Reject stale scheduled dataset',
+        researchDatasetId: datasetId,
+        researchSymbol: '005930',
+        researchBenchmark: 'KOSPI200',
+        researchMaxDataAgeMinutes: 60,
+      }),
+    ).rejects.toThrow(`Schedule research dataset ${datasetId} is stale`);
   });
 
   it('rejects proposal creation without research-run provenance', async () => {
@@ -2489,6 +2633,39 @@ describe('ControlPlaneService', () => {
       idempotencyKey: 'auto-schedule-paper-promote',
       expectedEventHash: paperAccountEvents[0].eventHash,
     });
+    const datasetId = 'auto-paper-schedule-bars';
+    const dates = [
+      '2026-05-18',
+      '2026-05-19',
+      '2026-05-20',
+      '2026-05-21',
+      '2026-05-22',
+      '2026-05-23',
+    ];
+    await service.importMarketDataBars({
+      datasetId,
+      symbol: '005930',
+      bars: dates.map((date, index) => ({
+        timestamp: `${date}T00:00:00.000Z`,
+        availabilityTimestamp: `${date}T00:00:00.000Z`,
+        open: 100 + index,
+        high: 102 + index,
+        low: 99 + index,
+        close: 100 + index * 3,
+      })),
+    });
+    await service.importMarketDataBars({
+      datasetId,
+      symbol: 'KOSPI200',
+      bars: dates.map((date, index) => ({
+        timestamp: `${date}T00:00:00.000Z`,
+        availabilityTimestamp: `${date}T00:00:00.000Z`,
+        open: 100 + index,
+        high: 101 + index,
+        low: 99 + index,
+        close: 100 + index,
+      })),
+    });
     const schedule = await service.createRunSchedule({
       budgetEnvelopeId: budget.id,
       objective: 'Run paper automation under standing authorization',
@@ -2499,6 +2676,10 @@ describe('ControlPlaneService', () => {
       autoPaperApprovalEnabled: true,
       autoPaperApprover: 'system:paper-auto-approval',
       autoPaperApprovalReason: 'Standing paper schedule approval.',
+      researchDatasetId: datasetId,
+      researchSymbol: '005930',
+      researchBenchmark: 'KOSPI200',
+      researchMaxDataAgeMinutes: 60,
     });
 
     const advanced = await service.tickRunSchedule(schedule.id, {
@@ -2552,6 +2733,39 @@ describe('ControlPlaneService', () => {
       totalBudget: 10_000_000,
       mode: 'paper',
     });
+    const datasetId = 'policy-reject-paper-schedule-bars';
+    const dates = [
+      '2026-05-18',
+      '2026-05-19',
+      '2026-05-20',
+      '2026-05-21',
+      '2026-05-22',
+      '2026-05-23',
+    ];
+    await service.importMarketDataBars({
+      datasetId,
+      symbol: '005930',
+      bars: dates.map((date, index) => ({
+        timestamp: `${date}T00:00:00.000Z`,
+        availabilityTimestamp: `${date}T00:00:00.000Z`,
+        open: 100 + index,
+        high: 102 + index,
+        low: 99 + index,
+        close: 100 + index * 3,
+      })),
+    });
+    await service.importMarketDataBars({
+      datasetId,
+      symbol: 'KOSPI200',
+      bars: dates.map((date, index) => ({
+        timestamp: `${date}T00:00:00.000Z`,
+        availabilityTimestamp: `${date}T00:00:00.000Z`,
+        open: 100 + index,
+        high: 101 + index,
+        low: 99 + index,
+        close: 100 + index,
+      })),
+    });
 
     await expect(
       service.createRunSchedule({
@@ -2560,6 +2774,9 @@ describe('ControlPlaneService', () => {
         mode: 'paper',
         attemptPaperExecution: true,
         autoPaperApprovalEnabled: true,
+        researchDatasetId: datasetId,
+        researchSymbol: '005930',
+        researchBenchmark: 'KOSPI200',
       }),
     ).rejects.toThrow('Paper auto approval requires');
   });

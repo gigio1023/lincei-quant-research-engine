@@ -4298,10 +4298,40 @@ export class ControlPlaneService {
       if (!datasetRef.availabilityTimestamp) {
         reasons.push(`Dataset ${datasetRef.id} is missing availability time`);
       }
+
+      const availabilityTimestamp = this.parseRequiredDate(
+        datasetRef.availabilityTimestamp,
+      );
+      const marketDataTimestamp = this.parseRequiredDate(
+        datasetRef.marketDataTimestamp,
+      );
+
+      if (!availabilityTimestamp) {
+        reasons.push(`Dataset ${datasetRef.id} has invalid availability time`);
+      } else if (availabilityTimestamp.getTime() > Date.now()) {
+        reasons.push(`Dataset ${datasetRef.id} availability time is in future`);
+      }
+
+      if (!marketDataTimestamp) {
+        reasons.push(`Dataset ${datasetRef.id} has invalid market data time`);
+      }
     }
 
     if (!request.validationWindow?.start || !request.validationWindow?.end) {
       reasons.push('Validation window is required');
+    } else {
+      const validationStart = this.parseRequiredDate(
+        request.validationWindow.start,
+      );
+      const validationEnd = this.parseRequiredDate(
+        request.validationWindow.end,
+      );
+
+      if (!validationStart || !validationEnd) {
+        reasons.push('Validation window dates must be parseable');
+      } else if (validationStart.getTime() > validationEnd.getTime()) {
+        reasons.push('Validation window start must be before end');
+      }
     }
 
     if (!artifactRefs.length) {
@@ -4433,6 +4463,36 @@ export class ControlPlaneService {
     const attemptPaperExecution =
       mode === 'paper' && (request.attemptPaperExecution ?? true);
     const autoPaperApprovalEnabled = request.autoPaperApprovalEnabled === true;
+    const researchDatasetId = request.researchDatasetId?.trim() || null;
+    const researchSymbol = request.researchSymbol?.trim().toUpperCase() || null;
+    const researchBenchmark =
+      request.researchBenchmark?.trim().toUpperCase() || null;
+    const researchMaxDataAgeMinutes = request.researchMaxDataAgeMinutes ?? null;
+    const hasDatasetResearch =
+      Boolean(researchDatasetId) ||
+      Boolean(researchSymbol) ||
+      Boolean(researchBenchmark);
+
+    if (hasDatasetResearch) {
+      if (!researchDatasetId || !researchSymbol || !researchBenchmark) {
+        throw new BadRequestException(
+          'Schedule dataset research requires researchDatasetId, researchSymbol, and researchBenchmark',
+        );
+      }
+
+      await this.assertScheduleResearchDatasetReady({
+        researchDatasetId,
+        researchSymbol,
+        researchBenchmark,
+        researchMaxDataAgeMinutes,
+      });
+    }
+
+    if (mode === 'paper' && !hasDatasetResearch) {
+      throw new BadRequestException(
+        'Paper schedules require pinned imported market data: researchDatasetId, researchSymbol, and researchBenchmark',
+      );
+    }
 
     if (autoPaperApprovalEnabled) {
       if (mode !== 'paper' || budget.mode !== 'paper') {
@@ -4490,6 +4550,10 @@ export class ControlPlaneService {
         autoPaperApprovalBudgetHash: autoPaperApprovalEnabled
           ? this.buildAutoPaperApprovalBudgetHash(budget)
           : null,
+        researchDatasetId,
+        researchSymbol,
+        researchBenchmark,
+        researchMaxDataAgeMinutes,
         brokerExecutionEnabled: false,
         liveTradingEnabled: false,
       }),
@@ -4724,11 +4788,9 @@ export class ControlPlaneService {
         ? await this.researchRunRepository.findOne({
             where: { id: run.researchRunId },
           })
-        : await this.runBaselineResearch({
-            budgetEnvelopeId: budget.id,
-            objective: run.objective,
-            initialCapital: budget.totalBudget,
-          });
+        : await this.runBaselineResearch(
+            await this.buildBaselineResearchRequestForRun(run, budget),
+          );
 
       if (!researchRun) {
         throw new NotFoundException(
@@ -4995,6 +5057,28 @@ export class ControlPlaneService {
       request.autoPaperApprovalSignerKeyRef,
       'Autonomous schedule autoPaperApprovalSignerKeyRef must be a non-empty string',
     );
+    this.validateOptionalNonEmptyString(
+      request.researchDatasetId,
+      'Autonomous schedule researchDatasetId must be a non-empty string',
+    );
+    this.validateOptionalNonEmptyString(
+      request.researchSymbol,
+      'Autonomous schedule researchSymbol must be a non-empty string',
+    );
+    this.validateOptionalNonEmptyString(
+      request.researchBenchmark,
+      'Autonomous schedule researchBenchmark must be a non-empty string',
+    );
+
+    if (
+      request.researchMaxDataAgeMinutes !== undefined &&
+      (!Number.isInteger(request.researchMaxDataAgeMinutes) ||
+        request.researchMaxDataAgeMinutes < 1)
+    ) {
+      throw new BadRequestException(
+        'Autonomous schedule researchMaxDataAgeMinutes must be a positive integer',
+      );
+    }
   }
 
   private validateTickRunScheduleRequest(
@@ -5074,6 +5158,78 @@ export class ControlPlaneService {
     });
   }
 
+  private async buildBaselineResearchRequestForRun(
+    run: AutonomousRun,
+    budget: BudgetEnvelope,
+  ): Promise<RunBaselineResearchRequest> {
+    const request: RunBaselineResearchRequest = {
+      budgetEnvelopeId: budget.id,
+      objective: run.objective,
+      initialCapital: budget.totalBudget,
+    };
+
+    if (!run.scheduleId) {
+      return request;
+    }
+
+    const schedule = await this.runScheduleRepository.findOne({
+      where: { id: run.scheduleId },
+    });
+
+    if (
+      !schedule?.researchDatasetId ||
+      !schedule.researchSymbol ||
+      !schedule.researchBenchmark
+    ) {
+      return request;
+    }
+
+    await this.assertScheduleResearchDatasetReady({
+      researchDatasetId: schedule.researchDatasetId,
+      researchSymbol: schedule.researchSymbol,
+      researchBenchmark: schedule.researchBenchmark,
+      researchMaxDataAgeMinutes: schedule.researchMaxDataAgeMinutes ?? null,
+    });
+
+    return {
+      ...request,
+      datasetId: schedule.researchDatasetId,
+      symbol: schedule.researchSymbol,
+      benchmark: schedule.researchBenchmark,
+    };
+  }
+
+  private async assertScheduleResearchDatasetReady(schedule: {
+    researchDatasetId: string;
+    researchSymbol: string;
+    researchBenchmark: string;
+    researchMaxDataAgeMinutes?: number | null;
+  }): Promise<void> {
+    const marketDataset = await this.buildBaselineMarketDataset({
+      datasetId: schedule.researchDatasetId,
+      symbol: schedule.researchSymbol,
+      benchmark: schedule.researchBenchmark,
+    });
+
+    if (!schedule.researchMaxDataAgeMinutes) {
+      return;
+    }
+
+    const latestAvailabilityMs = Math.max(
+      ...marketDataset.bars.flatMap((bar) => [
+        new Date(bar.assetAvailabilityTimestamp).getTime(),
+        new Date(bar.benchmarkAvailabilityTimestamp).getTime(),
+      ]),
+    );
+    const ageMinutes = Math.floor((Date.now() - latestAvailabilityMs) / 60_000);
+
+    if (ageMinutes > schedule.researchMaxDataAgeMinutes) {
+      throw new BadRequestException(
+        `Schedule research dataset ${schedule.researchDatasetId} is stale: latest availability is ${ageMinutes} minutes old`,
+      );
+    }
+  }
+
   private async createBaselineProposalFromRun(
     researchRun: ResearchRun,
     budget: BudgetEnvelope,
@@ -5094,6 +5250,10 @@ export class ControlPlaneService {
     );
     const symbol =
       researchRun.datasetRefs[0]?.universe?.[0] ?? 'SAMPLE_MOMENTUM_BASKET';
+    const marketDataTimestamp =
+      researchRun.datasetRefs[0]?.marketDataTimestamp ??
+      researchRun.datasetRefs[0]?.availabilityTimestamp ??
+      generatedAt;
     const order: ProposedOrder = {
       symbol,
       assetClass: 'domestic_etf',
@@ -5112,7 +5272,7 @@ export class ControlPlaneService {
       ruleId: 'budget-capped-single-position-v1',
       actor: 'scheduler',
       generatedAt,
-      marketDataTimestamp: generatedAt,
+      marketDataTimestamp,
       portfolioSnapshot: {
         currency: budget.currency,
         equity: budget.totalBudget,
@@ -5223,6 +5383,36 @@ export class ControlPlaneService {
     if (schedule.autoPaperApprovalBudgetHash !== budgetHash) {
       return null;
     }
+
+    if (
+      !schedule.researchDatasetId ||
+      !schedule.researchSymbol ||
+      !schedule.researchBenchmark ||
+      !proposal.researchRunId
+    ) {
+      return null;
+    }
+
+    const researchRun = await this.researchRunRepository.findOne({
+      where: { id: proposal.researchRunId },
+    });
+    const datasetRef = researchRun?.datasetRefs[0];
+
+    if (
+      !researchRun ||
+      datasetRef?.id !== schedule.researchDatasetId ||
+      datasetRef.universe?.[0] !== schedule.researchSymbol ||
+      datasetRef.universe?.[1] !== schedule.researchBenchmark
+    ) {
+      return null;
+    }
+
+    await this.assertScheduleResearchDatasetReady({
+      researchDatasetId: schedule.researchDatasetId,
+      researchSymbol: schedule.researchSymbol,
+      researchBenchmark: schedule.researchBenchmark,
+      researchMaxDataAgeMinutes: schedule.researchMaxDataAgeMinutes ?? null,
+    });
 
     const paperAccount = await this.findPaperAccountForProposal(proposal);
 

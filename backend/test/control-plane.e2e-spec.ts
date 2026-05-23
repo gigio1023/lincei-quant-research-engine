@@ -70,6 +70,9 @@ describe('ControlPlane research provenance (e2e)', () => {
         name: 'Aggressive dry-run budget',
         totalBudget: 10_000_000,
         mode: 'dry_run',
+        policy: {
+          maxDataAgeMinutes: 240,
+        },
       })
       .expect(201);
 
@@ -87,6 +90,7 @@ describe('ControlPlane research provenance (e2e)', () => {
             windowStart: '2025-01-01',
             windowEnd: '2026-05-22',
             availabilityTimestamp: '2026-05-22T23:50:00.000Z',
+            marketDataTimestamp: '2026-05-22T23:50:00.000Z',
           },
         ],
         featureRefs: ['close_20d_return', 'volatility_20d'],
@@ -337,6 +341,9 @@ describe('ControlPlane research provenance (e2e)', () => {
         name: 'Autonomous e2e budget',
         totalBudget: 10_000_000,
         mode: 'dry_run',
+        policy: {
+          maxDataAgeMinutes: 240,
+        },
       })
       .expect(201);
 
@@ -393,6 +400,45 @@ describe('ControlPlane research provenance (e2e)', () => {
         mode: 'dry_run',
       })
       .expect(201);
+    const datasetId = `scheduled-e2e-bars-${budgetResponse.body.id}`;
+    const dates = [
+      '2026-05-18',
+      '2026-05-19',
+      '2026-05-20',
+      '2026-05-21',
+      '2026-05-22',
+      '2026-05-23',
+    ];
+    await request(app.getHttpServer())
+      .post('/control-plane/market-data/bars/import')
+      .send({
+        datasetId,
+        symbol: '005930',
+        bars: dates.map((date, index) => ({
+          timestamp: `${date}T00:00:00.000Z`,
+          availabilityTimestamp: `${date}T00:00:00.000Z`,
+          open: 100 + index,
+          high: 102 + index,
+          low: 99 + index,
+          close: 100 + index * 2,
+        })),
+      })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post('/control-plane/market-data/bars/import')
+      .send({
+        datasetId,
+        symbol: 'KOSPI200',
+        bars: dates.map((date, index) => ({
+          timestamp: `${date}T00:00:00.000Z`,
+          availabilityTimestamp: `${date}T00:00:00.000Z`,
+          open: 100 + index,
+          high: 101 + index,
+          low: 99 + index,
+          close: 100 + index,
+        })),
+      })
+      .expect(201);
 
     const scheduleResponse = await request(app.getHttpServer())
       .post('/control-plane/run-schedules')
@@ -401,11 +447,18 @@ describe('ControlPlane research provenance (e2e)', () => {
         objective: 'Tick scheduled autonomous research',
         cadenceMinutes: 30,
         nextRunAt: new Date(Date.now() - 60_000).toISOString(),
+        researchDatasetId: datasetId,
+        researchSymbol: '005930',
+        researchBenchmark: 'KOSPI200',
+        researchMaxDataAgeMinutes: 1440,
       })
       .expect(201);
 
     expect(scheduleResponse.body.enabled).toBe(true);
     expect(scheduleResponse.body.attemptPaperExecution).toBe(false);
+    expect(scheduleResponse.body.researchDatasetId).toBe(datasetId);
+    expect(scheduleResponse.body.researchSymbol).toBe('005930');
+    expect(scheduleResponse.body.researchBenchmark).toBe('KOSPI200');
     expect(scheduleResponse.body.brokerExecutionEnabled).toBe(false);
 
     await request(app.getHttpServer())
@@ -431,6 +484,19 @@ describe('ControlPlane research provenance (e2e)', () => {
     expect(tickResponse.body.researchRunId).toEqual(expect.any(Number));
     expect(tickResponse.body.proposalId).toEqual(expect.any(Number));
     expect(tickResponse.body.riskEvaluationId).toEqual(expect.any(Number));
+    const researchRunsResponse = await request(app.getHttpServer())
+      .get('/control-plane/research-runs')
+      .expect(200);
+    const scheduleResearchRun = researchRunsResponse.body.find(
+      (researchRun: { id: number }) =>
+        researchRun.id === tickResponse.body.researchRunId,
+    );
+    expect(scheduleResearchRun.datasetRefs[0]).toEqual(
+      expect.objectContaining({
+        id: datasetId,
+        universe: ['005930', 'KOSPI200'],
+      }),
+    );
 
     const schedulesResponse = await request(app.getHttpServer())
       .get('/control-plane/run-schedules')
@@ -803,6 +869,7 @@ describe('ControlPlane research provenance (e2e)', () => {
         mode: 'paper',
         policy: {
           allowPaperAutoApproval: true,
+          maxDataAgeMinutes: 1440,
         },
       })
       .expect(201);
@@ -828,6 +895,45 @@ describe('ControlPlane research provenance (e2e)', () => {
         idempotencyKey: 'e2e-auto-paper-promote-1',
       })
       .expect(201);
+    const datasetId = `auto-paper-schedule-e2e-bars-${budgetResponse.body.id}`;
+    const dates = [
+      '2026-05-18',
+      '2026-05-19',
+      '2026-05-20',
+      '2026-05-21',
+      '2026-05-22',
+      '2026-05-23',
+    ];
+    await request(app.getHttpServer())
+      .post('/control-plane/market-data/bars/import')
+      .send({
+        datasetId,
+        symbol: '005930',
+        bars: dates.map((date, index) => ({
+          timestamp: `${date}T00:00:00.000Z`,
+          availabilityTimestamp: `${date}T00:00:00.000Z`,
+          open: 100 + index,
+          high: 102 + index,
+          low: 99 + index,
+          close: 100 + index * 3,
+        })),
+      })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post('/control-plane/market-data/bars/import')
+      .send({
+        datasetId,
+        symbol: 'KOSPI200',
+        bars: dates.map((date, index) => ({
+          timestamp: `${date}T00:00:00.000Z`,
+          availabilityTimestamp: `${date}T00:00:00.000Z`,
+          open: 100 + index,
+          high: 101 + index,
+          low: 99 + index,
+          close: 100 + index,
+        })),
+      })
+      .expect(201);
 
     const scheduleResponse = await request(app.getHttpServer())
       .post('/control-plane/run-schedules')
@@ -839,6 +945,10 @@ describe('ControlPlane research provenance (e2e)', () => {
         mode: 'paper',
         attemptPaperExecution: true,
         autoPaperApprovalEnabled: true,
+        researchDatasetId: datasetId,
+        researchSymbol: '005930',
+        researchBenchmark: 'KOSPI200',
+        researchMaxDataAgeMinutes: 1440,
       })
       .expect(201);
 

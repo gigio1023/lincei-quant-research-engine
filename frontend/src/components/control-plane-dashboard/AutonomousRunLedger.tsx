@@ -199,6 +199,15 @@ export const AutonomousRunLedger = ({ model }: AutonomousRunLedgerProps) => {
                   : "none",
               ],
               ["paper", schedule.attemptPaperExecution ? "attempt" : "off"],
+              ["dataset", schedule.researchDatasetId ?? "sample"],
+              ["symbol", schedule.researchSymbol ?? "sample"],
+              ["benchmark", schedule.researchBenchmark ?? "sample"],
+              [
+                "freshness",
+                schedule.researchMaxDataAgeMinutes
+                  ? `${schedule.researchMaxDataAgeMinutes}m`
+                  : "not enforced",
+              ],
               ["last cycle", schedule.lastCycleKey ?? "none"],
               ["last error", schedule.lastError ?? "none"],
             ].map(([label, value]) => (

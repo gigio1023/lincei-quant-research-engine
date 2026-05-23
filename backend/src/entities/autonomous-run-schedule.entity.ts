@@ -49,6 +49,18 @@ export class AutonomousRunSchedule {
   autoPaperApprovalBudgetHash?: string | null;
 
   @Column({ nullable: true })
+  researchDatasetId?: string | null;
+
+  @Column({ nullable: true })
+  researchSymbol?: string | null;
+
+  @Column({ nullable: true })
+  researchBenchmark?: string | null;
+
+  @Column({ nullable: true })
+  researchMaxDataAgeMinutes?: number | null;
+
+  @Column({ nullable: true })
   lastRunId?: number | null;
 
   @Column({ nullable: true })
