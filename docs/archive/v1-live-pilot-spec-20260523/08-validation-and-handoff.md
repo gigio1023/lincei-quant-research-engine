@@ -1,5 +1,7 @@
 # Validation And Handoff
 
+Status: archived and superseded. This file is historical context only; it does not authorize live-money or broker-write work. See [../../../SPEC.md](../../../SPEC.md).
+
 ## Required Local Verification
 
 Backend:
@@ -107,4 +109,3 @@ Suggested title:
 ```text
 Build autonomous live pilot V1
 ```
-

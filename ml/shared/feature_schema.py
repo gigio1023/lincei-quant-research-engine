@@ -1,4 +1,4 @@
-"""V1 feature column order — must match backend FeatureSnapshot and LEAN meta export."""
+"""Feature column order for backend FeatureSnapshot and LEAN meta export."""
 
 from __future__ import annotations
 

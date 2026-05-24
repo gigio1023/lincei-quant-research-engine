@@ -1,9 +1,11 @@
-# External ML Baselines Research (V1)
+# External ML Baselines Research
+
+Status: supporting research note. External baselines are degraded scaffolding until promoted by the active validation policy.
 
 ## Scope
 
 - **Structured (numeric) alpha:** download a free pretrained **LightGBM** booster (QuantConnect-style tabular ML).
-- **Text / sentiment / macro:** **OpenAI LLM committee only** — no FinBERT or other local NLP models.
+- **Text / sentiment / macro:** hosted LLM semantic-alpha engine first. No FinBERT or other local NLP models until the point-in-time feature pipeline and validation evidence justify them.
 
 QuantConnect does not ship a public pretrained model zoo; community practice is gradient boosting on OHLCV features inside LEAN, or loading your own Object Store artifact. This repo uses a vetted Hugging Face LightGBM text booster as the default numeric baseline.
 
@@ -16,7 +18,7 @@ QuantConnect does not ship a public pretrained model zoo; community practice is 
 | Type | LightGBM regressor, `boosters/live.txt` + `config.json` |
 | Format | Text booster only — **no pickle** (`lgb.Booster(model_file=...)`) |
 | Features | 47 OHLCV / regime / cross-section columns (earnings fields neutral when unknown) |
-| Caveat | Trained on ~150 US names; V1 universe is `SPY, QQQ, IWM, TLT, GLD` — baseline signal only |
+| Caveat | Trained on ~150 US names; the initial ETF universe is `SPY, QQQ, IWM, TLT, GLD` — baseline signal only |
 
 ## Rejected (security)
 

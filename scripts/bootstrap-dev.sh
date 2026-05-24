@@ -43,7 +43,7 @@ echo "==> Bun dependencies (backend + frontend)"
 if [[ ! -f "$ROOT/.env" ]]; then
   if [[ -f "$ROOT/.env.example" ]]; then
     cp "$ROOT/.env.example" "$ROOT/.env"
-    echo "Created .env from .env.example — edit secrets before V1/LEAN runs."
+    echo "Created .env from .env.example — edit secrets before LEAN validation runs."
   else
     echo "No .env — copy .env.example to .env and fill QUANTCONNECT_* / OPENAI_*." >&2
   fi

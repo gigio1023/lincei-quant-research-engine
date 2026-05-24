@@ -1,5 +1,7 @@
 # Implementation Plan
 
+Status: archived and superseded. This file is historical context only; it does not authorize live-money or broker-write work. See [../../../SPEC.md](../../../SPEC.md).
+
 ## Build Strategy
 
 Implement V1 as one branch and one integrated system. Do not stop after a planning or Phase 1 slice. Internally, work can be parallelized, but the PR must prove the complete loop up to live preflight and, when external broker gates exist, the 10 USD pilot command.
@@ -133,4 +135,3 @@ Do not redesign the UI. Do not add marketing surfaces.
 8. Add live preflight and broker adapter interface.
 9. Add 10 USD command behind hard gates.
 10. Add tests and docs.
-

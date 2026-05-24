@@ -1,66 +1,79 @@
 # Deployment Guide
 
-This document explains how to deploy the current Docker/GitHub Actions stack. The target product is now the LEAN/QuantConnect + LLM autonomous alpha system described in [SPEC.md](../SPEC.md), so future deployment work must add LEAN runtime, model artifacts, broker credential custody, and scheduler separation.
+Status: operator runbook for development and validation deployments. The active spec does not permit production live trading.
+
+## Scope
+
+Use this guide to run the backend, frontend, database migrations, and local validation stack. It is not a live-money deployment runbook.
+
+Broker-connected or real-money deployment requires a separate user-approved live-money spec.
 
 ## Requirements
 
-- Docker and Docker Compose installed on the target host
-- A GitHub Actions self-hosted runner (ARC) registered on that host
-- Environment variables configured in an `.env` file
+- Bun;
+- Node runtime compatible with the checked-in packages;
+- PostgreSQL or the configured development database;
+- Docker or Podman for local LEAN;
+- Python virtual environments from the setup scripts;
+- QuantConnect credentials only for cloud/data paths that need them.
 
-## Local Deployment
+## Local Services
 
-1. Copy `.env.example` to `.env` and adjust values for production.
-2. Build and start containers:
+Backend:
 
-   ```bash
-   docker-compose build
-   docker-compose up -d
-   ```
+```bash
+cd backend
+bun install
+bun run start:dev
+```
 
-The backend is available on port `3001`. The frontend is served on port `3000`.
+Frontend:
+
+```bash
+cd frontend
+bun install
+bun run dev
+```
 
 ## Database Migration Policy
 
-Development defaults keep `TYPEORM_SYNCHRONIZE=true` so local SQLite databases can
-bootstrap quickly. Do not use that mode for broker-connected or real-money
-operation.
+Do not use `TYPEORM_SYNCHRONIZE=true` for broker-connected or long-running validation environments.
 
-For production-like environments:
+Check and run migrations:
 
-1. Set `TYPEORM_SYNCHRONIZE=false`.
-2. Set `TYPEORM_MIGRATIONS_RUN=true`.
-3. Before deployment, inspect pending migrations:
+```bash
+cd backend
+bun run migration:show
+bun run migration:run
+```
 
-   ```bash
-   cd backend
-   npm run migration:show
-   ```
+Migration state is part of preflight evidence. Unknown migration state should block execution-like paths.
 
-4. Apply migrations before enabling automation:
+## Validation Deployment Checklist
 
-   ```bash
-   cd backend
-   npm run migration:run
-   ```
+Before calling a validation deployment usable, run the relevant commands:
 
-5. Check `GET /control-plane/status`. The `schemaMigrationPolicyReady` gate must
-   be `ready` before treating paper-account lock and reservation evidence as
-   production-deployable.
+```bash
+cd backend
+bun run build
+bun run test
+bun run test:e2e
 
-The current explicit migration adds the paper-account lock-version/event
-evidence columns and reservation/order-plan indexes required by the paper
-critical section for databases created by prior application releases. It does
-not provide a full fresh-database baseline, broker write access, or live
-trading.
+cd ../frontend
+bun run typecheck
+bun run test:run
+bun run build
+```
 
-## CI/CD Pipeline
+For engine-facing changes, also run the matching LEAN/alpha/paper command from [LEAN Backtest And Readiness Paths](full-lean-backtest-setup.md).
 
-The repository includes a workflow at `.github/workflows/deploy.yml`.
-It runs on every push to the `main` branch and performs the following steps:
+## CI/CD
 
-1. Checkout the repository.
-2. Install backend and frontend dependencies using `npm ci`.
-3. Build and start Docker containers with `docker-compose up -d --build`.
+CI should report:
 
-Make sure the self-hosted runner has permission to execute Docker commands.
+- backend build and tests;
+- frontend typecheck, lint, tests, and build;
+- Python/LEAN unit tests for touched LEAN modules;
+- direct smoke commands where credentials and data access are available.
+
+CI must not enable broker writes. Any real-money path should remain blocked unless a future spec explicitly changes that rule.

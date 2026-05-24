@@ -1,15 +1,18 @@
-# LEAN Backtest And Live Readiness Paths
+# LEAN Backtest And Readiness Paths
 
-This document separates **what each path proves**. Only the **historical numeric backtest** path (Docker + `lean backtest` on QC data) is suitable for strategy evidence. The **local simulator** and **flow-validation** paths prove artifact plumbing only.
+Status: operator runbook. The active scope is defined by [../SPEC.md](../SPEC.md).
+
+This document separates **what each path proves**. QuantConnect Cloud backtests are the preferred promotion evidence when account access allows them. Local historical LEAN runs can support strategy evidence when data quality passes. The local simulator and flow-validation paths prove artifact plumbing only.
 
 ## Path overview
 
 | Path | Command / trigger | What it validates | Live-ready? |
 |------|-------------------|-------------------|-------------|
 | **LEAN flow validation** | `lean-backtest` with `LEAN_ALLOW_SIMULATOR=true`, or simulator fallback | End-to-end artifact export, import, paper bridge wiring | No |
-| **Historical numeric backtest** | `run-full-backtest` / `LeanCliRunner` | Bar-by-bar numeric alpha inside LEAN on QC historical data | Yes (when passed + reconciled) |
+| **Historical numeric backtest** | `run-full-backtest` / `LeanCliRunner` | Bar-by-bar numeric alpha inside LEAN on historical data | Strategy evidence when data gates pass |
 | **Rolling ML / meta research** | `run-alpha-cycle`, external baselines, `LIVE_PREFLIGHT_ALLOW_RESEARCH=true` | Nest feature snapshots, LightGBM scores, LLM committee, static `meta_decisions.json` | No (research only) |
-| **Paper / live readiness** | `run-paper-cycle`, `live-preflight`, `live-pilot-10usd` | Policy gates, broker snapshot reconciliation, caps | Paper first; live only when preflight `ready` |
+| **QuantConnect Cloud evidence** | `qc-cloud-backtest`, `qc-object-store-sync` | Cloud project push/backtest attempt, Object Store feature artifact upload, account-tier blockers | Promotion evidence when cloud run passes |
+| **Paper / live-shadow readiness** | `run-paper-cycle`, `run-live-shadow`, `live-preflight` | Policy gates, would-have-traded evidence, broker snapshot reconciliation, blocked preflight evidence | No real broker writes under active spec |
 
 **Static LLM / meta overlay is not historical alpha validation.** `meta_decisions.json` is a single committee snapshot per run (QuantConnect “precomputed overlay” pattern). It does not walk forward through time and must not be treated as proof that LLM alpha worked historically.
 
@@ -63,7 +66,7 @@ cd backend && bun install && bun run lint && bun run test:all && bun run build
 cd ../frontend && bun install && bun run lint && bun run test:run && bun run build
 ```
 
-V1 pilot commands always go through `bun run v1:cli -- <command>` from `backend/` (or use `./scripts/*` wrappers).
+Validation commands always go through `bun run v1:cli -- <command>` from `backend/` or the `./scripts/*` wrappers.
 
 #### Repo (automated)
 
@@ -147,26 +150,42 @@ Production `run-full-backtest` ingests Stooq bars first; if ingestion fails, alp
 Outputs under `engines/lean/aggressive_llm_momentum/input/`:
 
 - `meta_decisions.json` — static meta/LLM overlay for LEAN  
+- `llm_event_features.json` — point-in-time semantic alpha features for LEAN replay
 - `ml_predictions.json` — optional external LightGBM scores  
+
+The same LLM feature payload is exported to `artifacts/llm-features/latest.json` for QuantConnect Object Store upload.
 
 ---
 
-## Paper / live readiness
+## QuantConnect Cloud and Object Store
+
+Cloud commands use Lean CLI and always create local evidence records:
+
+```bash
+./scripts/qc-cloud-backtest aggressive_llm_momentum --push
+./scripts/qc-object-store-sync lincei/llm-features/latest.json
+```
+
+If credentials, paid organization tier, project lock, or dataset access block the run, the command records a `quantconnect-cloud` LEAN run with `status: blocked` and actionable blocker reasons.
+
+---
+
+## Paper / live-shadow readiness
 
 ```bash
 ./scripts/run-paper-cycle
+./scripts/run-live-shadow
 ./scripts/live-preflight
-./scripts/live-pilot-10usd --confirm-real-money
 ```
 
-`live-preflight` is **fail-closed**. It blocks when:
+`run-live-shadow` records proposed targets and would-have-traded orders without broker writes. `live-preflight` is **fail-closed** and is expected to stay blocked for real broker writes under the active spec. It blocks when:
 
 - Latest LEAN run is simulator / flow-validation / static-meta (unless research mode)  
 - Broker snapshot `provider === 'simulated'`  
 - Broker or paper `reconciliation.status !== 'matched'`  
 - Any required env flag or credential is missing  
 
-Research escape hatch (does **not** enable live by itself):
+Research escape hatch (does **not** enable broker writes):
 
 | Variable | Purpose |
 |----------|---------|
@@ -184,18 +203,26 @@ Research escape hatch (does **not** enable live by itself):
 | `--skip-alpha-cycle` | Reuse existing `input/meta_decisions.json` |
 | `--no-download-data` | Do not pass `--download-data` to Lean CLI |
 | `--skip-market-data-ingest` | Skip Stooq → SQLite ingest |
-| `--no-static-meta` | LEAN numeric-only; `validationMode: historical-research` |
-| `--no-static-ml` | Skip static `ml_predictions.json` overlay |
+| `--with-static-meta` | Enable static `meta_decisions.json` overlay; disabled by default |
+| `--with-static-ml` | Enable static `ml_predictions.json` overlay; disabled by default |
+| `--no-static-meta` | Explicitly keep static meta disabled; redundant with current default |
+| `--no-static-ml` | Explicitly keep static ML disabled; redundant with current default |
 
 ### `lean-backtest`
 
-Uses Lean CLI when `engines/lean/lean.json` exists; with `LEAN_ALLOW_SIMULATOR=true` forces simulator. With `LEAN_STRICT_CLI=false`, failed CLI may fall back to simulator (not for live sign-off).
+Uses Lean CLI when `engines/lean/lean.json` exists; with `LEAN_ALLOW_SIMULATOR=true` forces simulator. With `LEAN_STRICT_CLI=false`, failed CLI may fall back to simulator. Simulator fallback is plumbing evidence only.
 
-### `live-pilot-10usd` / `live-flatten`
+### `qc-cloud-backtest`
 
-| Flag | Effect |
-|------|--------|
-| `--confirm-real-money` | Required for any real-money path |
+Runs `lean cloud backtest`. `--push` pushes the local project before the cloud backtest. Exit code **2** means account/platform policy blocked the cloud run and a local evidence record was written.
+
+### `run-live-shadow`
+
+Creates a live-shadow record from the latest imported LEAN target snapshot. It never submits broker orders.
+
+### `run-learning-loop`
+
+Creates alpha outcome labels when future market bars are available and records a promotion decision. Promotion remains `blocked` unless QuantConnect Cloud and live-shadow evidence are both present.
 
 Exit code **2** = blocked by policy (not a crash).
 
@@ -213,7 +240,6 @@ Exit code **2** = blocked by policy (not a crash).
 | `QUANTCONNECT_USER_ID`, `QUANTCONNECT_API_TOKEN` | Lean CLI login (see `lean-login-from-env.sh`) |
 | `OPENAI_API_KEY` | LLM committee in alpha cycle |
 | `DATABASE_PATH` | SQLite (default `backend/data/investment.db`) |
-| `BROKER_WRITE_ENABLED`, `LIVE_TRADING_ENABLED`, `MAX_LIVE_PILOT_NOTIONAL_USD`, etc. | Live gates — see `docs/v1-live-pilot-spec/07-broker-and-live-pilot.md` |
 
 ---
 
@@ -237,13 +263,13 @@ Exit code **2** = blocked by policy (not a crash).
 | Missing QC data | `lean data download` per ticker |
 | Live preflight: simulator | Re-run with Lean CLI, not simulator |
 | Live preflight: reconciliation | `reconcileBrokerSnapshot` / paper reconcile until `matched` |
-| Meta overlay static | Expected for V1; not historical LLM validation |
+| Meta overlay static | Expected for the current static overlay path; not historical LLM validation |
 
 ---
 
 ## Architecture note
 
 - **Model sharing:** Downloaded LightGBM + JSON into LEAN (no QC model hub).  
-- **Sign-off:** Lean CLI + optional QC cloud parity; never treat `lean-local-simulator` as strategy validation.
+- **Sign-off:** QuantConnect Cloud evidence when available, plus local LEAN/direct verification; never treat `lean-local-simulator` as strategy validation.
 
 See also: [ml-external-baselines-research.md](./ml-external-baselines-research.md), [lean-quantconnect-engine.md](./lean-quantconnect-engine.md).

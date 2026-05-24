@@ -76,6 +76,6 @@
   "promotionThreshold": {
     "directionalAccuracy": 0.0
   },
-  "notes": "QC-style LightGBM tabular baseline (text booster only). Downloaded baseline only; promote after local walk-forward validation. NLP/sentiment is OpenAI LLM committee only \u2014 no FinBERT.",
+  "notes": "QuantConnect-style LightGBM tabular baseline (text booster only). Downloaded baseline only; promote after local walk-forward validation. Text, sentiment, and macro features use the hosted LLM semantic-alpha engine first; no FinBERT.",
   "securityManifest": "ml/registry/external_artifact_manifest.json"
 }

@@ -1,5 +1,7 @@
 # LLM Alpha Committee
 
+Status: supporting design. The normative LLM semantic-alpha spec is [spec/02-llm-semantic-alpha-engine.md](spec/02-llm-semantic-alpha-engine.md).
+
 ## Purpose
 
 The LLM committee should reason like an investment team, but produce typed alpha decisions that LEAN can execute and the control plane can audit.
@@ -17,9 +19,9 @@ The committee is allowed to judge. It is not allowed to place orders.
 | Bull Researcher | Build the strongest long thesis | positive evidence |
 | Bear Researcher | Build the strongest short/avoid thesis | negative evidence |
 | Risk Reviewer | Challenge sizing, liquidity, drawdown, and concentration | risk cuts and abstain reasons |
-| Final Trader | Produce final typed `AlphaDecision` | direction, horizon, confidence, max position hint |
+| Final Alpha Synthesizer | Produce final typed `AlphaDecision` | direction, horizon, confidence, max position hint |
 
-The roles can run in parallel where possible. The Final Trader should consume the structured outputs, not raw chat transcripts.
+The roles can run in parallel where possible. The Final Alpha Synthesizer should consume the structured outputs, not raw chat transcripts.
 
 ## Decision Schema
 
@@ -27,7 +29,8 @@ The roles can run in parallel where possible. The Final Trader should consume th
 type LlmAlphaDecision = {
   symbol: string;
   asOf: string;
-  horizonDays: number;
+  availableAt: string;
+  horizonHours: number;
   direction: "up" | "down" | "flat";
   expectedReturnBps?: number;
   confidence: number;
@@ -41,6 +44,10 @@ type LlmAlphaDecision = {
   thesis: string;
   counterThesis: string;
   evidenceRefs: string[];
+  model: string;
+  promptVersion: string;
+  inputHash: string;
+  outputHash: string;
   abstainReason?: string;
 };
 ```
@@ -52,6 +59,7 @@ type LlmAlphaDecision = {
 - Require counter-thesis for every long or short decision.
 - Require an abstain path.
 - Reject decisions based on stale inputs.
+- Reject decisions whose evidence would not have been available at `availableAt`.
 - Do not expose broker credentials, account ids, or tokens.
 - Do not ask the LLM to generate raw broker orders.
 - Store model name, prompt version, input hash, output hash, and latency.
@@ -95,7 +103,7 @@ Start with one committee workflow:
 2. retrieve recent news/filings/macro snippets;
 3. run Technical, News, Macro, Bull, and Bear roles in parallel;
 4. run Risk Reviewer;
-5. run Final Trader to emit `LlmAlphaDecision`;
+5. run Final Alpha Synthesizer to emit `LlmAlphaDecision`;
 6. store all outputs;
 7. pass the decision to Meta Alpha.
 

@@ -1,5 +1,9 @@
 # Review Prompt: V1 LEAN + LLM Backtest Experiment Handoff
 
+Status: archived historical prompt.
+
+This prompt targets a superseded branch/spec. Use it only for context, not as active implementation direction.
+
 Use this document as the **full prompt** for a fresh AI review session. Copy the section below the line into a new chat, or point the reviewer at this file on branch `codex/full-autonomous-live-pilot-v1`.
 
 ---

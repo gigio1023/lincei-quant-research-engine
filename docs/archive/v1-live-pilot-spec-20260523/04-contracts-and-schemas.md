@@ -1,5 +1,7 @@
 # Contracts And Schemas
 
+Status: archived and superseded. This file is historical context only; it does not authorize live-money or broker-write work. See [../../../SPEC.md](../../../SPEC.md).
+
 All cross-boundary data must be typed, validated, hashable, and replayable.
 
 ## Feature Snapshot
@@ -151,4 +153,3 @@ type LivePilotPreflight = {
 ```
 
 Live preflight must fail closed. Unknown state means `blocked`.
-

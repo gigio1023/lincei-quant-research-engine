@@ -1,5 +1,9 @@
 # V1 Autonomous Live Pilot Working Spec
 
+Status: archived and superseded on 2026-05-24.
+
+This directory is historical context only. It does not define active project scope. The active spec explicitly removes the current real-money pilot milestone and requires user approval before any broker write or live-money scope change. See [../../../SPEC.md](../../../SPEC.md).
+
 Created: 2026-05-23 18:32:05 KST.
 
 This is the implementation spec for the next branch. The older project documents describe the overall product direction. This directory defines the current all-at-once V1 build: implement the full autonomous alpha loop, run backtests, run paper execution, and prepare a tightly capped real-money pilot around 10 USD.
@@ -56,4 +60,3 @@ Some parts cannot be completed by code alone:
 - OpenRouter keys must not be used.
 - Toss Securities order schema and account access must be verified before any real Toss order.
 - If Toss write access is unavailable, implement the provider-neutral broker interface and keep real-money execution blocked, but still complete LEAN backtest and paper execution.
-

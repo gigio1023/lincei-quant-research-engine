@@ -1,11 +1,11 @@
-# ML Baselines (V1)
+# ML Baselines
 
 ## Roles
 
 | Layer | Model | How you get it |
 |-------|--------|----------------|
 | **Numeric / structured alpha** | External LightGBM (`jc-builds/stockprediction-ai`) | `./scripts/download-external-baselines` |
-| **Event / macro / risk text** | OpenAI LLM committee | API only — **no FinBERT** |
+| **Event / macro / risk text** | Hosted LLM semantic-alpha engine | API first — **no FinBERT** |
 | **Fallback** | Heuristic scorer | Only when no promoted external model or inference fails |
 | **Optional** | Local v1 LightGBM/sklearn | `./scripts/train-ml-baseline` (does not replace external unless you edit registry) |
 
@@ -26,7 +26,7 @@ Download verifies SHA-256, scans text/json for suspicious content, and load-test
 
 Uses `ml/registry/model_registry.json` when `status: promoted` and artifacts exist under `artifacts/external-baselines/`.
 
-## Full LEAN backtest (production)
+## Full LEAN backtest
 
 Not the local simulator — see [docs/full-lean-backtest-setup.md](../docs/full-lean-backtest-setup.md).
 

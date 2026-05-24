@@ -1,5 +1,9 @@
 # Handoff: V1 LEAN + LLM Backtest Experiment (2026-05-23)
 
+Status: archived historical handoff.
+
+This document records a prior branch state. It is not active scope and cannot override [../../SPEC.md](../../SPEC.md).
+
 ## Executive summary
 
 The latest `run-full-backtest` run **did not validate strategy performance**. It validated that Nest → static JSON → LEAN Docker → artifact hydrate → DB import can complete without crashing.

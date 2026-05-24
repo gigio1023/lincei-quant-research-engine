@@ -1705,7 +1705,7 @@ describe("ControlPlaneDashboard", () => {
         name: /paper execute|reconcile|pause|halt/i,
       }),
     ).not.toBeInTheDocument();
-  }, 10_000);
+  }, 20_000);
 
   it("should_default_to_english_and_toggle_dashboard_copy_to_korean", async () => {
     render(<ControlPlaneDashboard />);

@@ -1,5 +1,7 @@
 # Outcome And Scope
 
+Status: archived and superseded. This file is historical context only; it does not authorize live-money or broker-write work. See [../../../SPEC.md](../../../SPEC.md).
+
 ## Target Outcome
 
 The V1 branch is complete only when the repository can run a full autonomous investment cycle:
@@ -66,4 +68,3 @@ V1 is done when all of these are true:
 ## External Blockers
 
 If the broker does not provide usable write credentials, schema, sandbox, or fractional/minimum-order support, the code must still complete backtest and paper execution. In that case, live pilot status must be `blocked` with a precise reason instead of faking a live order.
-

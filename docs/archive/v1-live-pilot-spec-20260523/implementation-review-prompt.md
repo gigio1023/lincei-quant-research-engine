@@ -1,5 +1,7 @@
 # V1 Implementation Review Prompt
 
+Status: archived and superseded. This prompt is historical context only; it does not authorize live-money or broker-write work. See [../../../SPEC.md](../../../SPEC.md).
+
 Use this prompt to review the `codex/full-autonomous-live-pilot-v1` branch after merge or before release.
 
 ```text

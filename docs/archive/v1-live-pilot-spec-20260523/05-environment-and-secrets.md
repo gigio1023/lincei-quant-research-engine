@@ -1,5 +1,7 @@
 # Environment And Secrets
 
+Status: archived and superseded. This file is historical context only; it does not authorize live-money or broker-write work. See [../../../SPEC.md](../../../SPEC.md).
+
 ## OpenAI Environment Source
 
 Use this file for OpenAI SDK configuration:

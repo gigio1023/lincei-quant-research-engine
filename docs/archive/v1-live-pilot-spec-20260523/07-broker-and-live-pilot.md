@@ -1,5 +1,7 @@
 # Broker And Live Pilot
 
+Status: archived and superseded. This file is historical context only; it does not authorize live-money or broker-write work. See [../../../SPEC.md](../../../SPEC.md).
+
 ## Broker Strategy
 
 Toss Securities is a plausible target broker, but Toss is not a native QuantConnect/LEAN brokerage in the official supported brokerage list. Therefore V1 uses this structure:
@@ -113,4 +115,3 @@ After submit:
 6. store live pilot report.
 
 Any mismatch should trip a blocker for further live exposure.
-

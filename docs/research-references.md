@@ -1,8 +1,10 @@
 # Research References
 
+Status: supporting reference index. The active reference index for current platform docs is [spec/07-references.md](spec/07-references.md).
+
 ## Official Platform Docs
 
-- QuantConnect Algorithm Framework overview: https://www.quantconnect.com/docs/v1/algorithm-framework/overview
+- QuantConnect Algorithm Framework overview: https://www.quantconnect.com/docs/v2/writing-algorithms/algorithm-framework/overview
 - Lean CLI local backtesting: https://www.quantconnect.com/docs/v2/lean-cli/api-reference/lean-backtest
 - Lean CLI docs: https://www.lean.io/docs/v2/lean-cli
 - QuantConnect MCP Server: https://github.com/QuantConnect/mcp-server

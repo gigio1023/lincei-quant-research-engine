@@ -1,4 +1,4 @@
-"""Export V1 feature snapshots for offline training."""
+"""Export feature snapshots for offline training."""
 
 from __future__ import annotations
 

@@ -1,5 +1,7 @@
 # System Architecture
 
+Status: archived and superseded. This file is historical context only; it does not authorize live-money or broker-write work. See [../../../SPEC.md](../../../SPEC.md).
+
 ## Core Runtime Flow
 
 ```text
@@ -113,4 +115,3 @@ Slow path:
 Research path:
 
 - backtests, feature export, training, walk-forward validation, and model promotion.
-

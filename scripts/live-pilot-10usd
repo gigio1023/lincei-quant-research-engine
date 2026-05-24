@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Requires --confirm-real-money and preflight.ready; max $10 notional per V1 policy.
+# Legacy broker-write command. Active spec keeps this blocked unless a future live-money spec is approved.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT/backend"

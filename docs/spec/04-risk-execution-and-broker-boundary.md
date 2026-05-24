@@ -1,0 +1,110 @@
+# Risk, Execution, And Broker Boundary
+
+Status: active normative spec.
+
+## Boundary Principle
+
+LLMs and broker write paths must not touch. The LLM can produce semantic alpha and risk concerns. Deterministic portfolio, risk, execution, preflight, and reconciliation layers decide whether any target is executable.
+
+Current spec permits paper and live-shadow evidence. It does not permit real broker writes.
+
+## Portfolio Construction
+
+Portfolio construction converts `Insight` objects into target weights. The first production-shaped design should support:
+
+- aggressive top-k concentration;
+- volatility targeting;
+- single-symbol and sector caps;
+- gross and net exposure caps;
+- liquidity and turnover limits;
+- confidence-to-weight rules;
+- abstain and disagreement handling.
+
+LLM output may provide conviction and risk hints. Final sizing must be deterministic and replayable.
+
+## Risk Management
+
+Risk models must fail closed. Unknown state is blocked state.
+
+Required risk cuts:
+
+- stale alpha or stale feature data;
+- missing current price;
+- kill switch enabled;
+- exposure cap breach;
+- drawdown breach;
+- volatility spike;
+- liquidity below threshold;
+- unresolved open-order or reconciliation mismatch;
+- unsupported asset class or broker capability.
+
+Risk code should explain the safety invariant in comments where the failure mode is not obvious.
+
+## Execution Modes
+
+Backtest:
+
+- LEAN executes simulated orders inside the backtest runtime.
+- Results are strategy evidence only when data quality and acceptance gates pass.
+
+Paper:
+
+- orders mutate paper ledgers or QuantConnect paper trading only;
+- evidence proves alpha-to-order plumbing and behavior under market data;
+- paper fills are not proof of real broker readiness.
+
+Live-shadow:
+
+- the algorithm runs against live data or broker read-only state but cannot submit real orders;
+- produces proposed targets, risk cuts, and would-have-traded records;
+- used before any future live-money spec.
+
+Live-money:
+
+- out of scope for the active spec;
+- requires a separate user-approved spec change.
+
+## Broker Boundary
+
+Provider-neutral broker interfaces may exist for read-only and preflight work, but write methods must remain blocked unless an approved live-money spec exists.
+
+Forbidden without spec approval:
+
+- submit;
+- cancel;
+- replace;
+- flatten;
+- transfer;
+- change margin or account settings.
+
+Allowed now:
+
+- read account snapshot through approved credential env;
+- read positions;
+- read open orders;
+- read fills;
+- verify schema support;
+- produce blocked preflight status;
+- reconcile paper/live-shadow evidence.
+
+## Reconciliation
+
+Every execution-like path must reconcile intended state against observed state:
+
+- intended target;
+- risk-adjusted target;
+- execution intent;
+- order event;
+- fill event;
+- position;
+- cash and buying power where applicable;
+- blocker reasons.
+
+Reconciliation mismatches must block new exposure until resolved.
+
+## References
+
+- QuantConnect Paper Trading: https://www.quantconnect.com/docs/v2/cloud-platform/live-trading/brokerages/quantconnect-paper-trading
+- QuantConnect live trading risks: https://www.quantconnect.com/docs/v2/cloud-platform/live-trading/risks
+- QuantConnect live reconciliation: https://www.quantconnect.com/docs/v2/cloud-platform/live-trading/reconciliation
+- Algorithm Framework overview: https://www.quantconnect.com/docs/v2/writing-algorithms/algorithm-framework/overview

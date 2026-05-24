@@ -1,5 +1,9 @@
 # Code Review Prompt — GPT 5.5 High
 
+Status: archived historical prompt.
+
+This prompt references the superseded live-pilot scope. Use [../../SPEC.md](../../SPEC.md) for current direction.
+
 Use this prompt as the **system + user message** for a review of the `lincei-quant-research-engine` branch that implements V1 live pilot, external ML baselines, and production LEAN backtest orchestration.
 
 ---

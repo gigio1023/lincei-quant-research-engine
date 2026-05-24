@@ -1,5 +1,7 @@
 # LEAN Alpha Implementation
 
+Status: archived and superseded. This file is historical context only; it does not authorize live-money or broker-write work. See [../../../SPEC.md](../../../SPEC.md).
+
 ## First Algorithm
 
 Project name:
@@ -113,4 +115,3 @@ Risk model must cut targets when:
 ```
 
 Scripts should fail with useful messages when Lean CLI, Docker, data, or env prerequisites are missing.
-

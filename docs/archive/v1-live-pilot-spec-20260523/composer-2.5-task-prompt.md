@@ -1,5 +1,7 @@
 # Composer 2.5 Task Prompt
 
+Status: archived and superseded. This prompt is historical context only; it does not authorize live-money or broker-write work. See [../../../SPEC.md](../../../SPEC.md).
+
 Use this prompt for the implementation agent.
 
 ```text
@@ -71,4 +73,3 @@ Final report must state:
 - commands run;
 - tests passed.
 ```
-

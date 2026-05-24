@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs the whole V1 loop through live preflight. Exit 2 from preflight is a valid fail-closed outcome.
+# Runs the current validation loop through live preflight. Exit 2 from preflight is a valid fail-closed outcome.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -19,7 +19,7 @@ if [[ "${SKIP_ALPHA_CYCLE:-false}" != "true" ]]; then
     if [[ "${REQUIRE_ALPHA_CYCLE:-false}" == "true" ]]; then
       exit "$ALPHA_STATUS"
     fi
-    echo "V1 alpha cycle is blocked; continuing to paper/preflight so blockers are recorded." >&2
+    echo "Alpha cycle is blocked; continuing to paper/preflight so blockers are recorded." >&2
   fi
 fi
 
@@ -31,10 +31,10 @@ PREFLIGHT_STATUS=$?
 set -e
 
 if [[ "$PREFLIGHT_STATUS" -eq 0 ]]; then
-  echo "V1 cycle complete: live preflight is ready."
+  echo "Validation cycle complete: live preflight is ready."
 elif [[ "$PREFLIGHT_STATUS" -eq 2 ]]; then
-  echo "V1 cycle complete: live preflight is blocked by explicit gates."
+  echo "Validation cycle complete: live preflight is blocked by explicit gates."
 else
-  echo "V1 cycle failed during live preflight (exit $PREFLIGHT_STATUS)." >&2
+  echo "Validation cycle failed during live preflight (exit $PREFLIGHT_STATUS)." >&2
   exit "$PREFLIGHT_STATUS"
 fi
