@@ -33,7 +33,7 @@ describe('LeanPaperBridgeService', () => {
     const service = new LeanPaperBridgeService(
       controlPlaneService as never,
       {
-        getLatestRun: jest.fn().mockResolvedValue({
+        getLatestStrategyRun: jest.fn().mockResolvedValue({
           runId: tempDir.split('/').pop(),
           status: 'passed',
           resultDirectory: tempDir,

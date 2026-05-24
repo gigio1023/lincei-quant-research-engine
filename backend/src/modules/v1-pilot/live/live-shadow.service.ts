@@ -18,12 +18,14 @@ export class LiveShadowService {
   ) {}
 
   async runLiveShadow(): Promise<LiveShadowRecord> {
-    const latestRun = await this.leanRunImportService.getLatestRun();
+    const latestRun = await this.leanRunImportService.getLatestStrategyRun();
     const now = new Date().toISOString();
     const blockers: string[] = [];
 
     if (!latestRun) {
-      blockers.push('No imported LEAN run is available for live-shadow.');
+      blockers.push(
+        'No accepted LEAN strategy run is available for live-shadow.',
+      );
     } else if (latestRun.status !== 'passed') {
       blockers.push(`Latest LEAN run status is ${latestRun.status}.`);
     } else {
@@ -49,6 +51,10 @@ export class LiveShadowService {
       );
     }
 
+    const evidenceMode: LiveShadowRecord['evidenceMode'] =
+      this.isCurrentTargetSnapshot(snapshot?.asOf, now)
+        ? 'current_live_shadow'
+        : 'historical_target_replay';
     const proposedTargets = snapshot?.targets ?? [];
     const wouldHaveTraded = proposedTargets.map((target) => ({
       symbol: target.symbol,
@@ -61,7 +67,10 @@ export class LiveShadowService {
     }));
     const reconciliation = {
       status: blockers.length > 0 ? 'blocked' : 'matched',
-      observedSource: 'live-shadow-local-evidence',
+      observedSource:
+        evidenceMode === 'current_live_shadow'
+          ? 'live-shadow-current-target'
+          : 'historical-target-replay',
       brokerWriteEnabled: false,
       checkedAt: now,
     };
@@ -69,12 +78,14 @@ export class LiveShadowService {
       leanRunId: latestRun?.runId,
       portfolioTargetSnapshotId: snapshot?.id,
       asOf: now,
+      evidenceMode,
       proposedTargets,
       riskAdjustedTargets: proposedTargets,
       wouldHaveTraded,
       reconciliation,
       blockerReasons: blockers,
       evidenceRefs: [
+        `evidence-mode:${evidenceMode}`,
         ...(latestRun ? [`lean-run:${latestRun.runId}`] : []),
         ...(snapshot ? [`portfolio-target:${snapshot.id}`] : []),
       ],
@@ -84,6 +95,7 @@ export class LiveShadowService {
       this.liveShadowRepository.create({
         id: `live-shadow-${now.replace(/[-:TZ.]/g, '').slice(0, 14)}`,
         mode: 'live-shadow',
+        evidenceMode,
         status: blockers.length > 0 ? 'blocked' : 'recorded',
         recordHash: hashObject(payload),
         ...payload,
@@ -97,5 +109,20 @@ export class LiveShadowService {
       take: 1,
     });
     return records[0] ?? null;
+  }
+
+  private isCurrentTargetSnapshot(
+    asOf: string | undefined,
+    now: string,
+  ): boolean {
+    if (!asOf) {
+      return false;
+    }
+    const targetTime = new Date(asOf).getTime();
+    const nowTime = new Date(now).getTime();
+    if (!Number.isFinite(targetTime) || !Number.isFinite(nowTime)) {
+      return false;
+    }
+    return Math.abs(nowTime - targetTime) <= 30 * 60 * 1000;
   }
 }

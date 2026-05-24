@@ -41,6 +41,7 @@ import { LiveShadowRecord } from './entities/live-shadow-record.entity';
 import { PromotionDecision } from './entities/promotion-decision.entity';
 import { RawEvidenceRecord } from './entities/raw-evidence-record.entity';
 import { AddSpecEvidenceTables1764288000000 } from './migrations/1764288000000-AddSpecEvidenceTables';
+import { AddLiveShadowEvidenceMode1764374400000 } from './migrations/1764374400000-AddLiveShadowEvidenceMode';
 
 config();
 
@@ -88,6 +89,7 @@ export const databaseMigrations = [
   AddBrokerOrderStatusRecords1764105600000,
   AddV1PilotTables1764201600000,
   AddSpecEvidenceTables1764288000000,
+  AddLiveShadowEvidenceMode1764374400000,
 ];
 
 const AppDataSource = new DataSource({

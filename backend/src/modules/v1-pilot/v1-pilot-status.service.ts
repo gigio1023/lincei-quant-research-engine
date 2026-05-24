@@ -70,7 +70,11 @@ export class V1PilotStatusService {
       this.countAlphaDecisions(),
       this.alphaRepository.findOne({ where: {}, order: { asOf: 'DESC' } }),
       this.leanRunRepository.findOne({
-        where: {},
+        where: {
+          mode: 'backtest',
+          status: 'passed',
+          promotionEligible: true,
+        },
         order: { completedAt: 'DESC' },
       }),
       this.brokerSnapshotRepository.findOne({
@@ -236,6 +240,9 @@ export class V1PilotStatusService {
         where: { id: plan.proposalId },
       });
       const evidenceRefs = new Set(proposal?.evidenceRefs ?? []);
+      if ([...evidenceRefs].some((ref) => ref.startsWith('paper-replay:'))) {
+        continue;
+      }
       if (
         evidenceRefs.has(`lean-run:${leanRunId}`) &&
         evidenceRefs.has(`portfolio-target:${targetSnapshotId}`)

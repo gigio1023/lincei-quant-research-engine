@@ -141,7 +141,7 @@ function executionControlRepository(): any {
 
 function leanRunImportService(resultDirectory: string): any {
   return {
-    getLatestRun: jest.fn(async () => ({
+    getLatestStrategyRun: jest.fn(async () => ({
       runId: 'bt-schema-only',
       status: 'passed',
       resultDirectory,

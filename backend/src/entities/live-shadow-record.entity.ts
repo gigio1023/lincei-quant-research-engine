@@ -25,6 +25,9 @@ export class LiveShadowRecord {
   @Column({ default: 'live-shadow' })
   mode: 'live-shadow';
 
+  @Column({ default: 'historical_target_replay' })
+  evidenceMode: 'historical_target_replay' | 'current_live_shadow';
+
   @Column()
   status: 'recorded' | 'blocked';
 

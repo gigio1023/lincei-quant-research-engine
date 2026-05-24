@@ -59,7 +59,7 @@ export class LearningLoopService {
   }
 
   async recordStrategyPromotionDecision(): Promise<PromotionDecision> {
-    const latestRun = await this.leanRunImportService.getLatestRun();
+    const latestRun = await this.leanRunImportService.getLatestStrategyRun();
     const liveShadow = (
       await this.liveShadowRepository.find({
         order: { createdAt: 'DESC' },
@@ -86,6 +86,10 @@ export class LearningLoopService {
       blockers.push('No live-shadow evidence exists.');
     } else if (liveShadow.status !== 'recorded') {
       blockers.push('Latest live-shadow evidence is blocked.');
+    } else if (liveShadow.evidenceMode !== 'current_live_shadow') {
+      blockers.push(
+        `Latest live-shadow evidence mode is ${liveShadow.evidenceMode}; current_live_shadow required for promotion.`,
+      );
     }
 
     const evidenceRefs = [
@@ -99,6 +103,7 @@ export class LearningLoopService {
       labels: await this.labelRepository.count(),
       cloudRuntime: latestRun?.runtime === 'quantconnect-cloud',
       liveShadowRecorded: liveShadow?.status === 'recorded',
+      currentLiveShadow: liveShadow?.evidenceMode === 'current_live_shadow',
     };
     const payload = {
       scope: 'strategy' as const,

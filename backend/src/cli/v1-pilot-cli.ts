@@ -68,16 +68,35 @@ async function bootstrap(): Promise<void> {
       case 'import-lean-run': {
         const target = args.find((arg) => !arg.startsWith('--')) ?? 'latest';
         const schemaOnly = args.includes('--schema-only');
-        const imported = await orchestrator.importLeanRun(target, {
-          acceptanceMode: schemaOnly ? 'schema-import' : 'strategy-backtest',
-        });
-        console.log(
-          JSON.stringify(
-            { runId: imported.runId, status: imported.status },
-            null,
-            2,
-          ),
-        );
+        try {
+          const imported = await orchestrator.importLeanRun(target, {
+            acceptanceMode: schemaOnly ? 'schema-import' : 'strategy-backtest',
+          });
+          console.log(
+            JSON.stringify(
+              { runId: imported.runId, status: imported.status },
+              null,
+              2,
+            ),
+          );
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : 'LEAN import prerequisites are missing.';
+          if (isLeanImportBlocked(message)) {
+            console.log(
+              JSON.stringify(
+                { status: 'blocked', blockers: [message] },
+                null,
+                2,
+              ),
+            );
+            process.exitCode = 2;
+            break;
+          }
+          throw error;
+        }
         break;
       }
       case 'train-ml-baseline': {
@@ -143,6 +162,35 @@ async function bootstrap(): Promise<void> {
         }
         break;
       }
+      case 'run-paper-replay': {
+        try {
+          const plan = await orchestrator.runPaperReplay();
+          console.log(
+            JSON.stringify(
+              { paperOrderPlanId: plan.id, status: plan.status },
+              null,
+              2,
+            ),
+          );
+        } catch (error) {
+          console.log(
+            JSON.stringify(
+              {
+                status: 'blocked',
+                blockers: [
+                  error instanceof Error
+                    ? error.message
+                    : 'Paper replay prerequisites are missing.',
+                ],
+              },
+              null,
+              2,
+            ),
+          );
+          process.exitCode = 2;
+        }
+        break;
+      }
       case 'run-live-shadow': {
         const record = await orchestrator.runLiveShadow();
         console.log(
@@ -150,6 +198,7 @@ async function bootstrap(): Promise<void> {
             {
               liveShadowRecordId: record.id,
               status: record.status,
+              evidenceMode: record.evidenceMode,
               blockers: record.blockerReasons,
             },
             null,
@@ -198,7 +247,7 @@ async function bootstrap(): Promise<void> {
       }
       default:
         throw new Error(
-          `Unknown command: ${command ?? '(missing)'}. Expected run-full-backtest, lean-backtest, qc-cloud-backtest, qc-object-store-set, import-lean-run, download-external-baselines, train-ml-baseline, run-alpha-cycle, run-paper-cycle, run-live-shadow, run-learning-loop, live-preflight, live-pilot-10usd.`,
+          `Unknown command: ${command ?? '(missing)'}. Expected run-full-backtest, lean-backtest, qc-cloud-backtest, qc-object-store-set, import-lean-run, download-external-baselines, train-ml-baseline, run-alpha-cycle, run-paper-cycle, run-paper-replay, run-live-shadow, run-learning-loop, live-preflight, live-pilot-10usd.`,
         );
     }
   } finally {
@@ -210,3 +259,14 @@ bootstrap().catch((error: Error) => {
   console.error(error.message);
   process.exit(1);
 });
+
+function isLeanImportBlocked(message: string): boolean {
+  return (
+    message.includes('LEAN strategy-backtest rejected') ||
+    message.includes('LEAN schema-import rejected') ||
+    message.includes('Latest LEAN run marker not found') ||
+    message.includes('No .latest-strategy LEAN run marker found') ||
+    message.includes('No .latest LEAN run marker found') ||
+    message.includes('Missing statistics.json')
+  );
+}

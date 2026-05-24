@@ -74,6 +74,7 @@ export interface LiveShadowRecordContract {
   leanRunId?: string;
   portfolioTargetSnapshotId?: string;
   asOf: string;
+  evidenceMode: 'historical_target_replay' | 'current_live_shadow';
   status: 'recorded' | 'blocked';
   proposedTargets: unknown[];
   riskAdjustedTargets: unknown[];

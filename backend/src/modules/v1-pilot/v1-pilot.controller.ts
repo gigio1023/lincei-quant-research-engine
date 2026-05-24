@@ -34,6 +34,11 @@ export class V1PilotController {
     return this.orchestrator.runPaperCycle();
   }
 
+  @Post('paper-replay')
+  runPaperReplay() {
+    return this.orchestrator.runPaperReplay();
+  }
+
   @Post('live-shadow')
   runLiveShadow() {
     return this.orchestrator.runLiveShadow();

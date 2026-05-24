@@ -12,6 +12,8 @@ import { LeanRunImportService } from '../lean/lean-run-import.service';
 import { PortfolioTargetItemContract } from '../contracts/v1-pilot.contracts';
 import { assessLeanRunArtifacts } from '../lean/lean-run-acceptance';
 
+type PaperBridgeMode = 'current-paper-cycle' | 'historical-target-replay';
+
 @Injectable()
 export class LeanPaperBridgeService {
   private readonly logger = new Logger(LeanPaperBridgeService.name);
@@ -28,12 +30,27 @@ export class LeanPaperBridgeService {
   async runPaperCycle(
     idempotencyKey = 'v1-lean-paper-cycle',
   ): Promise<PaperOrderPlan> {
-    const latestRun = await this.leanRunImportService.getLatestRun();
+    return this.runPaperPath(idempotencyKey, 'current-paper-cycle');
+  }
+
+  async runPaperReplay(
+    idempotencyKey = 'v1-lean-paper-replay',
+  ): Promise<PaperOrderPlan> {
+    return this.runPaperPath(idempotencyKey, 'historical-target-replay');
+  }
+
+  private async runPaperPath(
+    idempotencyKey: string,
+    mode: PaperBridgeMode,
+  ): Promise<PaperOrderPlan> {
+    const latestRun = await this.leanRunImportService.getLatestStrategyRun();
     if (!latestRun) {
-      throw new Error('No LEAN run imported. Run import-lean-run first.');
+      throw new Error(
+        'No accepted LEAN strategy run imported. Run run-full-backtest first.',
+      );
     }
     if (latestRun.status !== 'passed') {
-      throw new Error('Latest LEAN run did not pass import gates.');
+      throw new Error('Latest accepted LEAN strategy run did not pass gates.');
     }
     const acceptance = assessLeanRunArtifacts(
       latestRun.resultDirectory,
@@ -57,6 +74,13 @@ export class LeanPaperBridgeService {
     const scopedIdempotencyKey = `${idempotencyKey}:${latestRun.runId}:${snapshot.id}`;
     const leanRunEvidenceRef = `lean-run:${latestRun.runId}`;
     const targetEvidenceRef = `portfolio-target:${snapshot.id}`;
+    const replayEvidenceRefs =
+      mode === 'historical-target-replay'
+        ? [
+            'paper-replay:historical-target',
+            `historical-target-as-of:${snapshot.asOf}`,
+          ]
+        : [];
 
     const existingPlans = await this.paperPlanRepository.find({
       where: { idempotencyKey: scopedIdempotencyKey },
@@ -75,9 +99,15 @@ export class LeanPaperBridgeService {
     await this.ensureBrokerSnapshot(paperAccount.id);
     const researchRun = await this.controlPlaneService.createResearchRun({
       budgetEnvelopeId: budget.id,
-      objective: 'V1 LEAN portfolio target paper cycle',
+      objective:
+        mode === 'historical-target-replay'
+          ? 'V1 LEAN historical target paper replay'
+          : 'V1 LEAN portfolio target paper cycle',
       strategyFamily: 'aggressive_llm_momentum',
-      hypothesis: 'Imported LEAN targets can execute in paper mode.',
+      hypothesis:
+        mode === 'historical-target-replay'
+          ? 'Historical LEAN targets can exercise the paper execution plumbing without becoming live-readiness evidence.'
+          : 'Imported LEAN targets can execute in paper mode.',
       datasetRefs: [
         {
           id: 'lean-run',
@@ -113,18 +143,27 @@ export class LeanPaperBridgeService {
       artifactHashes: {
         [latestRun.resultDirectory]: latestRun.configHash,
       },
-      knownFailureModes: ['Paper bridge depends on LEAN target import.'],
+      knownFailureModes:
+        mode === 'historical-target-replay'
+          ? [
+              'Paper replay uses historical target timestamps and is not current market evidence.',
+              'Live preflight must ignore paper-replay evidence refs.',
+            ]
+          : ['Paper bridge depends on LEAN target import.'],
     });
 
     const orders = this.buildOrders(snapshot.targets);
     const now = new Date().toISOString();
+    // Historical replay must carry an explicit paper-replay evidence ref; live preflight rejects it so a fresh replay timestamp cannot masquerade as current market evidence.
+    const marketDataTimestamp =
+      mode === 'historical-target-replay' ? now : snapshot.asOf;
     const proposal = await this.controlPlaneService.createProposal({
       budgetEnvelopeId: budget.id,
       researchRunId: researchRun.id,
       strategyId: 'aggressive_llm_momentum',
       ruleId: 'lean-target-bridge',
       generatedAt: now,
-      marketDataTimestamp: snapshot.asOf,
+      marketDataTimestamp,
       portfolioSnapshot: {
         currency: 'USD',
         equity: 10_000,
@@ -132,11 +171,25 @@ export class LeanPaperBridgeService {
         grossExposurePct: snapshot.grossExposurePct,
       },
       orders,
-      thesis: 'Paper cycle from latest LEAN portfolio targets.',
-      evidenceRefs: [leanRunEvidenceRef, targetEvidenceRef],
+      thesis:
+        mode === 'historical-target-replay'
+          ? `Historical paper replay from LEAN targets as of ${snapshot.asOf}; not live-readiness evidence.`
+          : 'Paper cycle from latest LEAN portfolio targets.',
+      evidenceRefs: [
+        leanRunEvidenceRef,
+        targetEvidenceRef,
+        ...replayEvidenceRefs,
+      ],
     });
 
-    await this.controlPlaneService.evaluateProposal(proposal.id);
+    const riskEvaluation = await this.controlPlaneService.evaluateProposal(
+      proposal.id,
+    );
+    if (riskEvaluation.decision === 'DENY') {
+      throw new Error(
+        `Paper risk evaluation ${riskEvaluation.decision}: ${riskEvaluation.reasons.join('; ')}`,
+      );
+    }
     // listPaperAccountEvents returns newest-first; approval must pin the latest event hash to prevent TOCTOU races.
     const paperEvents = await this.controlPlaneService.listPaperAccountEvents();
     const latestEvent = paperEvents[0];
@@ -145,7 +198,10 @@ export class LeanPaperBridgeService {
       {
         idempotencyKey: scopedIdempotencyKey,
         approver: 'v1-lean-paper-bridge',
-        reason: 'Auto-approve paper cycle for V1 LEAN target bridge.',
+        reason:
+          mode === 'historical-target-replay'
+            ? 'Auto-approve historical target replay for V1 LEAN paper plumbing only.'
+            : 'Auto-approve paper cycle for V1 LEAN target bridge.',
         expectedPaperAccountEventHash: latestEvent?.eventHash,
       },
     );
@@ -247,9 +303,9 @@ export class LeanPaperBridgeService {
     return targets.slice(0, 2).map((target) => ({
       symbol: target.symbol,
       assetClass: 'foreign_etf' as const,
-      side: 'BUY' as const,
+      side: target.targetWeight >= 0 ? ('BUY' as const) : ('SELL' as const),
       orderType: 'MARKET' as const,
-      notional: Math.max(100, Math.round(target.targetWeight * 1000)),
+      notional: Math.max(100, Math.round(Math.abs(target.targetWeight) * 1000)),
       targetPositionPct: target.targetWeight * 100,
     }));
   }

@@ -23,7 +23,16 @@ if [[ "${SKIP_ALPHA_CYCLE:-false}" != "true" ]]; then
   fi
 fi
 
+set +e
 ./scripts/run-paper-cycle
+PAPER_STATUS=$?
+set -e
+if [[ "$PAPER_STATUS" -eq 2 ]]; then
+  echo "Paper cycle is blocked by explicit gates; continuing to live preflight so blockers are recorded." >&2
+elif [[ "$PAPER_STATUS" -ne 0 ]]; then
+  echo "Validation cycle failed during paper cycle (exit $PAPER_STATUS)." >&2
+  exit "$PAPER_STATUS"
+fi
 
 set +e
 ./scripts/live-preflight

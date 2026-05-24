@@ -57,7 +57,8 @@ export class LivePreflightService {
 
   async runPreflight(): Promise<LivePilotPreflightContract> {
     const blockers: string[] = [];
-    const latestLeanRun = await this.leanRunImportService.getLatestRun();
+    const latestLeanRun =
+      await this.leanRunImportService.getLatestStrategyRun();
     if (!latestLeanRun || latestLeanRun.status !== 'passed') {
       blockers.push('Latest LEAN backtest did not pass.');
     } else {
@@ -303,6 +304,9 @@ export class LivePreflightService {
         where: { id: plan.proposalId },
       });
       const evidenceRefs = new Set(proposal?.evidenceRefs ?? []);
+      if ([...evidenceRefs].some((ref) => ref.startsWith('paper-replay:'))) {
+        continue;
+      }
       if (
         evidenceRefs.has(`lean-run:${leanRunId}`) &&
         evidenceRefs.has(`portfolio-target:${targetSnapshotId}`)
