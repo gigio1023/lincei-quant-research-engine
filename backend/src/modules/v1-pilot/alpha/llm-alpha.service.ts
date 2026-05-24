@@ -11,6 +11,7 @@ import {
   AlphaDecisionContract,
   FeatureSnapshotContract,
 } from '../contracts/v1-pilot.contracts';
+import { LlmEventFeatureContract } from '../contracts/spec-contracts';
 import { validateAlphaDecision } from '../contracts/v1-pilot.validators';
 import { loadOpenAiEnv } from '../../../shared/openai-env.loader';
 import { hashObject } from '../../../shared/hash.util';
@@ -41,7 +42,12 @@ export class LlmAlphaService {
   async buildDecisions(
     snapshots: FeatureSnapshotContract[],
     numeric: AlphaDecisionContract[],
+    llmFeatures?: LlmEventFeatureContract[],
   ): Promise<AlphaDecisionContract[]> {
+    if (llmFeatures) {
+      return this.buildFromSemanticFeatures(snapshots, numeric, llmFeatures);
+    }
+
     const env = loadOpenAiEnv();
     if (
       !env.apiKey ||
@@ -98,7 +104,9 @@ export class LlmAlphaService {
         source: 'llm',
         symbol: entry.symbol,
         asOf: snapshot.asOf,
+        availableAt: snapshot.availableAt ?? snapshot.dataAvailabilityTime,
         horizonDays: 21,
+        horizonHours: 21 * 24,
         direction: entry.direction,
         confidence: entry.confidence,
         conviction: entry.conviction,
@@ -106,6 +114,10 @@ export class LlmAlphaService {
         featureSnapshotHash: snapshot.inputHash,
         sourceModels: [`llm-committee-${entry.role}`],
         evidenceRefs: entry.evidenceRefs ?? snapshot.sourceRefs,
+        llmFeatureRefs: [],
+        numericFeatureRefs: numeric
+          .filter((item) => item.symbol === entry.symbol)
+          .map((item) => item.outputHash),
         thesis: entry.thesis,
         counterThesis: entry.counterThesis,
         abstainReason: entry.abstainReason,
@@ -120,6 +132,86 @@ export class LlmAlphaService {
       }
       decisions.push(decision);
     });
+
+    if (decisions.length > 0) {
+      await this.alphaRepository.save(
+        decisions.map((decision) => this.alphaRepository.create(decision)),
+      );
+    }
+
+    return decisions;
+  }
+
+  private async buildFromSemanticFeatures(
+    snapshots: FeatureSnapshotContract[],
+    numeric: AlphaDecisionContract[],
+    llmFeatures: LlmEventFeatureContract[],
+  ): Promise<AlphaDecisionContract[]> {
+    const numericRefsBySymbol = new Map(
+      numeric.map((decision) => [decision.symbol, decision.outputHash]),
+    );
+    const decisions: AlphaDecisionContract[] = [];
+
+    for (const feature of llmFeatures) {
+      const snapshot = snapshots.find((item) => item.symbol === feature.symbol);
+      if (!snapshot) {
+        continue;
+      }
+      const decision: AlphaDecisionContract = {
+        id: `llm-${feature.eventType}-${feature.symbol}-${feature.availableAt.slice(0, 10)}`,
+        source: 'llm',
+        symbol: feature.symbol,
+        asOf: snapshot.asOf,
+        availableAt: feature.availableAt,
+        horizonDays: Math.max(1, Math.ceil(feature.horizonHours / 24)),
+        horizonHours: feature.horizonHours,
+        direction: feature.direction,
+        expectedReturnBps:
+          feature.direction === 'flat'
+            ? undefined
+            : Number(
+                (
+                  (feature.catalystStrength - feature.downsideRisk) *
+                  300
+                ).toFixed(2),
+              ),
+        confidence: feature.confidence,
+        conviction:
+          feature.confidence > 0.7
+            ? 'high'
+            : feature.confidence > 0.5
+              ? 'medium'
+              : 'low',
+        maxPositionPct: feature.direction === 'up' ? 0.2 : 0,
+        featureSnapshotHash: snapshot.inputHash,
+        sourceModels: [
+          `llm-${feature.eventType}-semantic-feature`,
+          feature.model,
+        ],
+        evidenceRefs: [
+          `llm-event-feature:${feature.id}`,
+          ...feature.evidenceRefs,
+        ],
+        llmFeatureRefs: [feature.id],
+        numericFeatureRefs: numericRefsBySymbol.get(feature.symbol)
+          ? [numericRefsBySymbol.get(feature.symbol)!]
+          : [],
+        promptVersion: feature.promptVersion,
+        thesis: feature.thesis,
+        counterThesis: feature.counterThesis,
+        abstainReason: feature.abstainReason,
+        inputHash: feature.inputHash,
+        outputHash: hashObject({
+          featureId: feature.id,
+          direction: feature.direction,
+          confidence: feature.confidence,
+        }),
+      };
+      if (decision.direction !== 'flat') {
+        validateAlphaDecision(decision);
+      }
+      decisions.push(decision);
+    }
 
     if (decisions.length > 0) {
       await this.alphaRepository.save(

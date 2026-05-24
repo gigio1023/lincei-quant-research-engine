@@ -22,8 +22,14 @@ export class AlphaDecision {
   @Column()
   asOf: string;
 
+  @Column({ nullable: true })
+  availableAt?: string;
+
   @Column('int')
   horizonDays: number;
+
+  @Column('int', { nullable: true })
+  horizonHours?: number;
 
   @Column()
   direction: 'up' | 'down' | 'flat';
@@ -54,6 +60,15 @@ export class AlphaDecision {
 
   @Column('json')
   evidenceRefs: string[];
+
+  @Column('json', { nullable: true })
+  llmFeatureRefs?: string[];
+
+  @Column('json', { nullable: true })
+  numericFeatureRefs?: string[];
+
+  @Column({ nullable: true })
+  promptVersion?: string;
 
   @Column({ nullable: true })
   thesis?: string;

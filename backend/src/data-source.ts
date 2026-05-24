@@ -32,9 +32,15 @@ import { AddV1PilotTables1764201600000 } from './migrations/1764201600000-AddV1P
 import { LeanRun } from './entities/lean-run.entity';
 import { FeatureSnapshot } from './entities/feature-snapshot.entity';
 import { AlphaDecision } from './entities/alpha-decision.entity';
+import { AlphaOutcomeLabel } from './entities/alpha-outcome-label.entity';
 import { PortfolioTargetSnapshot } from './entities/portfolio-target-snapshot.entity';
 import { ExecutionIntent } from './entities/execution-intent.entity';
 import { LivePilotStatusRecord } from './entities/live-pilot-status.entity';
+import { LlmEventFeature } from './entities/llm-event-feature.entity';
+import { LiveShadowRecord } from './entities/live-shadow-record.entity';
+import { PromotionDecision } from './entities/promotion-decision.entity';
+import { RawEvidenceRecord } from './entities/raw-evidence-record.entity';
+import { AddSpecEvidenceTables1764288000000 } from './migrations/1764288000000-AddSpecEvidenceTables';
 
 config();
 
@@ -64,6 +70,11 @@ export const databaseEntities = [
   LeanRun,
   FeatureSnapshot,
   AlphaDecision,
+  AlphaOutcomeLabel,
+  LlmEventFeature,
+  LiveShadowRecord,
+  PromotionDecision,
+  RawEvidenceRecord,
   PortfolioTargetSnapshot,
   ExecutionIntent,
   LivePilotStatusRecord,
@@ -76,6 +87,7 @@ export const databaseMigrations = [
   AddBrokerOrderCommands1764019200000,
   AddBrokerOrderStatusRecords1764105600000,
   AddV1PilotTables1764201600000,
+  AddSpecEvidenceTables1764288000000,
 ];
 
 const AppDataSource = new DataSource({

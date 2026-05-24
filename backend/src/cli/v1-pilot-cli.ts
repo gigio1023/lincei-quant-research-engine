@@ -25,6 +25,46 @@ async function bootstrap(): Promise<void> {
         console.log(JSON.stringify(result, null, 2));
         break;
       }
+      case 'qc-cloud-backtest': {
+        const project =
+          args.find((arg) => !arg.startsWith('--')) ??
+          'aggressive_llm_momentum';
+        const result = await orchestrator.runQuantConnectCloudBacktest(
+          project,
+          {
+            push: args.includes('--push'),
+          },
+        );
+        console.log(
+          JSON.stringify(
+            {
+              runId: result.runId,
+              runtime: result.runtime,
+              status: result.status,
+              blockers: result.blockerReasons,
+              cloudUrl: result.cloudUrl,
+            },
+            null,
+            2,
+          ),
+        );
+        process.exitCode =
+          result.status === 'passed' ? 0 : result.status === 'blocked' ? 2 : 1;
+        break;
+      }
+      case 'qc-object-store-set': {
+        const [key, sourcePath] = args;
+        if (!key || !sourcePath) {
+          throw new Error('qc-object-store-set requires <key> <sourcePath>');
+        }
+        const result = await orchestrator.syncQuantConnectObjectStore(
+          key,
+          sourcePath,
+        );
+        console.log(JSON.stringify(result, null, 2));
+        process.exitCode = result.status === 'blocked' ? 2 : 0;
+        break;
+      }
       case 'import-lean-run': {
         const target = args.find((arg) => !arg.startsWith('--')) ?? 'latest';
         const schemaOnly = args.includes('--schema-only');
@@ -85,6 +125,29 @@ async function bootstrap(): Promise<void> {
         );
         break;
       }
+      case 'run-live-shadow': {
+        const record = await orchestrator.runLiveShadow();
+        console.log(
+          JSON.stringify(
+            {
+              liveShadowRecordId: record.id,
+              status: record.status,
+              blockers: record.blockerReasons,
+            },
+            null,
+            2,
+          ),
+        );
+        process.exitCode = record.status === 'blocked' ? 2 : 0;
+        break;
+      }
+      case 'run-learning-loop': {
+        const result = await orchestrator.runLearningLoop();
+        console.log(JSON.stringify(result, null, 2));
+        process.exitCode =
+          result.promotionDecision.status === 'blocked' ? 2 : 0;
+        break;
+      }
       case 'live-preflight': {
         const preflight = await orchestrator.runLivePreflight();
         console.log(JSON.stringify(preflight, null, 2));
@@ -117,7 +180,7 @@ async function bootstrap(): Promise<void> {
       }
       default:
         throw new Error(
-          `Unknown command: ${command ?? '(missing)'}. Expected run-full-backtest, lean-backtest, import-lean-run, download-external-baselines, train-ml-baseline, run-alpha-cycle, run-paper-cycle, live-preflight, live-pilot-10usd.`,
+          `Unknown command: ${command ?? '(missing)'}. Expected run-full-backtest, lean-backtest, qc-cloud-backtest, qc-object-store-set, import-lean-run, download-external-baselines, train-ml-baseline, run-alpha-cycle, run-paper-cycle, run-live-shadow, run-learning-loop, live-preflight, live-pilot-10usd.`,
         );
     }
   } finally {

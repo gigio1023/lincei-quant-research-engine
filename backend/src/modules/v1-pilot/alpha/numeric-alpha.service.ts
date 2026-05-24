@@ -161,7 +161,10 @@ export class NumericAlphaService {
       source: 'numeric',
       symbol: input.snapshot.symbol,
       asOf: input.snapshot.asOf,
+      availableAt:
+        input.snapshot.availableAt ?? input.snapshot.dataAvailabilityTime,
       horizonDays: 21,
+      horizonHours: 21 * 24,
       direction: input.direction,
       expectedReturnBps: Number(((input.score - 0.5) * 400).toFixed(2)),
       confidence: input.confidence,
@@ -178,6 +181,8 @@ export class NumericAlphaService {
         ...input.snapshot.sourceRefs,
         'ml/registry/model_registry.json',
       ],
+      llmFeatureRefs: [],
+      numericFeatureRefs: [input.snapshot.inputHash],
       thesis: input.thesis,
       counterThesis:
         input.direction === 'up'

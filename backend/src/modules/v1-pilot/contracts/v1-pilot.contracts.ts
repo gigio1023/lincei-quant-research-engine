@@ -1,4 +1,4 @@
-/** Cross-boundary DTOs for V1 pilot — see docs/v1-live-pilot-spec/04-contracts-and-schemas.md */
+/** Cross-boundary DTOs for the LEAN validation path; legacy names remain for API compatibility. */
 export type FeatureTimeframe = 'daily' | 'hourly' | 'minute';
 
 export interface FeatureSnapshotContract {
@@ -6,6 +6,7 @@ export interface FeatureSnapshotContract {
   symbol: string;
   asOf: string;
   dataAvailabilityTime: string;
+  availableAt?: string;
   timeframe: FeatureTimeframe;
   features: Record<string, number | string | boolean | null>;
   sourceRefs: string[];
@@ -22,7 +23,9 @@ export interface AlphaDecisionContract {
   source: AlphaSource;
   symbol: string;
   asOf: string;
+  availableAt?: string;
   horizonDays: number;
+  horizonHours?: number;
   direction: AlphaDirection;
   expectedReturnBps?: number;
   confidence: number;
@@ -33,6 +36,9 @@ export interface AlphaDecisionContract {
   featureSnapshotHash: string;
   sourceModels: string[];
   evidenceRefs: string[];
+  llmFeatureRefs?: string[];
+  numericFeatureRefs?: string[];
+  promptVersion?: string;
   thesis?: string;
   counterThesis?: string;
   abstainReason?: string;
@@ -42,12 +48,14 @@ export interface AlphaDecisionContract {
 
 export interface LeanRunResultContract {
   runId: string;
+  runtime?: 'local-lean' | 'quantconnect-cloud' | 'simulator';
+  mode?: 'backtest' | 'paper' | 'live-shadow';
   projectName: string;
   algorithmVersion: string;
   parameters: Record<string, string | number | boolean>;
   startedAt: string;
   completedAt: string;
-  status: 'passed' | 'failed';
+  status: 'passed' | 'failed' | 'blocked';
   resultDirectory: string;
   sourceHash: string;
   configHash: string;
@@ -81,7 +89,7 @@ export interface PortfolioTargetSnapshotContract {
   targetHash: string;
 }
 
-export type ExecutionMode = 'paper' | 'live';
+export type ExecutionMode = 'paper' | 'live-shadow' | 'live';
 export type ExecutionIntentSource =
   | 'lean-target'
   | 'manual-flatten'

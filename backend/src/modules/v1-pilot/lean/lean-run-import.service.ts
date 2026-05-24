@@ -43,6 +43,7 @@ export class LeanRunImportService {
       ? (JSON.parse(readFileSync(configPath, 'utf8')) as {
           projectName?: string;
           algorithmVersion?: string;
+          simulator?: string;
           parameters?: Record<string, string | number | boolean>;
         })
       : {};
@@ -77,6 +78,8 @@ export class LeanRunImportService {
 
     const result: LeanRunResult = {
       runId,
+      runtime: config.simulator ? 'simulator' : 'local-lean',
+      mode: 'backtest',
       projectName: config.projectName ?? 'aggressive_llm_momentum',
       algorithmVersion: config.algorithmVersion ?? 'v1',
       parameters: config.parameters ?? {},
@@ -102,6 +105,7 @@ export class LeanRunImportService {
         ...result,
         startedAt: new Date(result.startedAt),
         completedAt: new Date(result.completedAt),
+        promotionEligible: strategyAcceptance.passed,
         importIdempotencyKey: importKey,
       }),
     );

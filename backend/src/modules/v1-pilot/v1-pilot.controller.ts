@@ -34,6 +34,16 @@ export class V1PilotController {
     return this.orchestrator.runPaperCycle();
   }
 
+  @Post('live-shadow')
+  runLiveShadow() {
+    return this.orchestrator.runLiveShadow();
+  }
+
+  @Post('learning-loop')
+  runLearningLoop() {
+    return this.orchestrator.runLearningLoop();
+  }
+
   @Get('live-preflight')
   runLivePreflight() {
     return this.livePreflightService.runPreflight();

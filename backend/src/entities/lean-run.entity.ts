@@ -30,7 +30,25 @@ export class LeanRun {
   completedAt: Date;
 
   @Column({ default: 'passed' })
-  status: 'passed' | 'failed';
+  status: 'passed' | 'failed' | 'blocked';
+
+  @Column({ default: 'local-lean' })
+  runtime: 'local-lean' | 'quantconnect-cloud' | 'simulator';
+
+  @Column({ default: 'backtest' })
+  mode: 'backtest' | 'paper' | 'live-shadow';
+
+  @Column({ nullable: true })
+  cloudProjectId?: string;
+
+  @Column({ nullable: true })
+  cloudBacktestId?: string;
+
+  @Column({ nullable: true })
+  cloudUrl?: string;
+
+  @Column({ default: false })
+  promotionEligible: boolean;
 
   @Column()
   resultDirectory: string;

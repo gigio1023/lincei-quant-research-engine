@@ -91,7 +91,9 @@ export class MetaAlphaService {
         source: 'meta',
         symbol: snapshot.symbol,
         asOf: snapshot.asOf,
+        availableAt: snapshot.availableAt ?? snapshot.dataAvailabilityTime,
         horizonDays: 21,
+        horizonHours: 21 * 24,
         direction,
         confidence: Number(Math.min(1, Math.max(0.2, finalScore)).toFixed(4)),
         conviction:
@@ -103,6 +105,16 @@ export class MetaAlphaService {
           ...(numericDecision?.evidenceRefs ?? []),
           ...(llmEvent?.evidenceRefs ?? []),
         ],
+        llmFeatureRefs: llm
+          .filter((item) => item.symbol === snapshot.symbol)
+          .flatMap((item) => item.llmFeatureRefs ?? []),
+        numericFeatureRefs: numericDecision
+          ? [
+              numericDecision.outputHash,
+              ...(numericDecision.numericFeatureRefs ?? []),
+            ]
+          : [],
+        promptVersion: llmEvent?.promptVersion ?? llmMacro?.promptVersion,
         thesis:
           direction === 'up'
             ? `Meta score ${finalScore.toFixed(3)} combines numeric and LLM committee inputs.`

@@ -10,16 +10,20 @@ import { existsSync, writeFileSync, mkdirSync } from 'fs';
 import { join, resolve } from 'path';
 import { LeanAcceptanceMode } from './lean/lean-run-acceptance';
 import { FeatureSnapshotService } from './alpha/feature-snapshot.service';
+import { LlmEventFeatureService } from './alpha/llm-event-feature.service';
 import { NumericAlphaService } from './alpha/numeric-alpha.service';
 import { LlmAlphaService } from './alpha/llm-alpha.service';
 import { MetaAlphaService } from './alpha/meta-alpha.service';
 import { LeanLocalSimulatorService } from './lean/lean-local-simulator.service';
 import { LeanRunImportService } from './lean/lean-run-import.service';
 import { LeanPaperBridgeService } from './paper/lean-paper-bridge.service';
+import { LearningLoopService } from './learning/learning-loop.service';
+import { LiveShadowService } from './live/live-shadow.service';
 import { LivePreflightService } from './live/live-preflight.service';
 import { LivePilot10UsdService } from './live/live-pilot-10usd.service';
 import { MlPythonRunner } from './ml/ml-python.runner';
 import { MlModelRegistryService } from './ml/ml-model-registry.service';
+import { LeanCloudRunner } from './lean/lean-cloud.runner';
 import { LeanCliRunner } from './lean/lean-cli.runner';
 import { LeanDailyDataExportService } from './lean/lean-daily-data-export.service';
 import { MarketDataIngestionService } from '../control-plane/market-data-ingestion.service';
@@ -30,16 +34,20 @@ export class V1PilotOrchestratorService {
 
   constructor(
     private readonly featureSnapshotService: FeatureSnapshotService,
+    private readonly llmEventFeatureService: LlmEventFeatureService,
     private readonly numericAlphaService: NumericAlphaService,
     private readonly llmAlphaService: LlmAlphaService,
     private readonly metaAlphaService: MetaAlphaService,
     private readonly leanLocalSimulatorService: LeanLocalSimulatorService,
     private readonly leanRunImportService: LeanRunImportService,
     private readonly leanPaperBridgeService: LeanPaperBridgeService,
+    private readonly learningLoopService: LearningLoopService,
+    private readonly liveShadowService: LiveShadowService,
     private readonly livePreflightService: LivePreflightService,
     private readonly livePilot10UsdService: LivePilot10UsdService,
     private readonly mlPythonRunner: MlPythonRunner,
     private readonly mlModelRegistryService: MlModelRegistryService,
+    private readonly leanCloudRunner: LeanCloudRunner,
     private readonly leanCliRunner: LeanCliRunner,
     private readonly leanDailyDataExportService: LeanDailyDataExportService,
     private readonly marketDataIngestionService: MarketDataIngestionService,
@@ -183,6 +191,7 @@ export class V1PilotOrchestratorService {
   async runAlphaCycle(): Promise<{
     featureCount: number;
     numericCount: number;
+    llmFeatureCount: number;
     llmCount: number;
     metaCount: number;
   }> {
@@ -192,11 +201,20 @@ export class V1PilotOrchestratorService {
         { allowSynthetic: false },
       );
     const numeric = await this.numericAlphaService.buildDecisions(snapshots);
-    const llm = await this.llmAlphaService.buildDecisions(snapshots, numeric);
+    const llmFeatures = await this.llmEventFeatureService.buildFeatures(
+      snapshots,
+      numeric,
+    );
+    const llm = await this.llmAlphaService.buildDecisions(
+      snapshots,
+      numeric,
+      llmFeatures,
+    );
     const meta = await this.metaAlphaService.combine(snapshots, numeric, llm);
     return {
       featureCount: snapshots.length,
       numericCount: numeric.length,
+      llmFeatureCount: llmFeatures.length,
       llmCount: llm.length,
       metaCount: meta.length,
     };
@@ -254,6 +272,20 @@ export class V1PilotOrchestratorService {
     return { runId: result.runId, mode: result.mode };
   }
 
+  async runQuantConnectCloudBacktest(
+    projectName = 'aggressive_llm_momentum',
+    options: { push?: boolean } = {},
+  ) {
+    return this.leanCloudRunner.runCloudBacktest({
+      projectName,
+      push: options.push,
+    });
+  }
+
+  async syncQuantConnectObjectStore(key: string, sourcePath: string) {
+    return this.leanCloudRunner.syncObjectStore(key, sourcePath);
+  }
+
   async importLeanRun(
     target: string,
     options: { acceptanceMode?: LeanAcceptanceMode } = {
@@ -282,6 +314,14 @@ export class V1PilotOrchestratorService {
 
   async runPaperCycle() {
     return this.leanPaperBridgeService.runPaperCycle();
+  }
+
+  async runLiveShadow() {
+    return this.liveShadowService.runLiveShadow();
+  }
+
+  async runLearningLoop() {
+    return this.learningLoopService.runLearningLoop();
   }
 
   async runLivePreflight() {

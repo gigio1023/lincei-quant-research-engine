@@ -8,6 +8,7 @@ import {
   MAX_SINGLE_LIVE_ORDER_NOTIONAL_USD,
   ExecutionIntentContract,
 } from './v1-pilot.contracts';
+import { LlmEventFeatureContract } from './spec-contracts';
 
 const MAX_FEATURE_AGE_MS = 72 * 60 * 60 * 1000;
 
@@ -22,7 +23,9 @@ export function validateFeatureSnapshot(
     }
   });
 
-  const availability = new Date(snapshot.dataAvailabilityTime).getTime();
+  const availability = new Date(
+    snapshot.availableAt ?? snapshot.dataAvailabilityTime,
+  ).getTime();
   const asOf = new Date(snapshot.asOf).getTime();
   if (Number.isNaN(availability) || Number.isNaN(asOf)) {
     throw new BadRequestException('Feature snapshot timestamps are invalid.');
@@ -34,15 +37,37 @@ export function validateFeatureSnapshot(
     );
   }
 
-  // Live pilot must not act on features older than policy window (fail closed on stale data).
+  // Execution-like paths fail closed on stale features so old data cannot silently size new exposure.
   if (Date.now() - availability > MAX_FEATURE_AGE_MS) {
     throw new BadRequestException(
-      'Feature snapshot is stale for live pilot policy.',
+      'Feature snapshot is stale for execution policy.',
     );
   }
 }
 
 export function validateAlphaDecision(decision: AlphaDecisionContract): void {
+  const availableAt = decision.availableAt
+    ? new Date(decision.availableAt).getTime()
+    : undefined;
+  const asOf = new Date(decision.asOf).getTime();
+  if (
+    availableAt !== undefined &&
+    (!Number.isFinite(availableAt) || asOf < availableAt)
+  ) {
+    throw new BadRequestException(
+      'Alpha decision asOf precedes availability time.',
+    );
+  }
+
+  if (
+    decision.horizonHours !== undefined &&
+    (!Number.isInteger(decision.horizonHours) || decision.horizonHours <= 0)
+  ) {
+    throw new BadRequestException(
+      'Alpha decision horizonHours must be a positive integer.',
+    );
+  }
+
   if (decision.confidence < 0 || decision.confidence > 1) {
     throw new BadRequestException(
       'Alpha decision confidence must be between 0 and 1.',
@@ -66,6 +91,48 @@ export function validateAlphaDecision(decision: AlphaDecisionContract): void {
         'Non-flat alpha decisions require at least one evidence ref.',
       );
     }
+  }
+}
+
+export function validateLlmEventFeature(
+  feature: LlmEventFeatureContract,
+): void {
+  const timestamps = [
+    feature.eventTime,
+    feature.availableAt,
+    feature.processedAt,
+  ].map((value) => new Date(value).getTime());
+  if (timestamps.some((value) => !Number.isFinite(value))) {
+    throw new BadRequestException('LLM event feature timestamps are invalid.');
+  }
+  if (new Date(feature.processedAt).getTime() < timestamps[1]) {
+    throw new BadRequestException(
+      'LLM event feature processedAt precedes availableAt.',
+    );
+  }
+  if (feature.horizonHours <= 0) {
+    throw new BadRequestException(
+      'LLM event feature horizonHours must be positive.',
+    );
+  }
+  [
+    feature.sentimentScore,
+    feature.catalystStrength,
+    feature.noveltyScore,
+    feature.uncertainty,
+    feature.downsideRisk,
+    feature.confidence,
+  ].forEach((value) => {
+    if (!Number.isFinite(value) || value < 0 || value > 1) {
+      throw new BadRequestException(
+        'LLM event feature scores must be finite values between 0 and 1.',
+      );
+    }
+  });
+  if (!feature.evidenceRefs.length) {
+    throw new BadRequestException(
+      'LLM event feature requires at least one evidence ref.',
+    );
   }
 }
 

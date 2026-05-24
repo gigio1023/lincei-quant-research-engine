@@ -1,8 +1,12 @@
 /** Artifact shapes shared by simulator, importer, and paper bridge — kept aligned with docs/v1-live-pilot-spec/04-contracts-and-schemas.md */
-export type LeanRunStatus = 'passed' | 'failed';
+export type LeanRunStatus = 'passed' | 'failed' | 'blocked';
+export type LeanRunRuntime = 'local-lean' | 'quantconnect-cloud' | 'simulator';
+export type LeanRunMode = 'backtest' | 'paper' | 'live-shadow';
 
 export type LeanRunResult = {
   runId: string;
+  runtime?: LeanRunRuntime;
+  mode?: LeanRunMode;
   projectName: string;
   algorithmVersion: string;
   parameters: Record<string, string | number | boolean>;

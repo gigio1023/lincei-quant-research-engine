@@ -3,6 +3,7 @@ import {
   validateAlphaDecision,
   validateExecutionIntent,
   validateFeatureSnapshot,
+  validateLlmEventFeature,
 } from './v1-pilot.validators';
 import {
   AlphaDecisionContract,
@@ -75,5 +76,34 @@ describe('v1-pilot.validators', () => {
       intentHash: 'sha256:intent',
     };
     expect(() => validateExecutionIntent(intent)).toThrow(BadRequestException);
+  });
+
+  it('rejects_llm_event_feature_processed_before_availability', () => {
+    expect(() =>
+      validateLlmEventFeature({
+        id: 'llm-feature-1',
+        symbol: 'SPY',
+        eventId: 'event-1',
+        eventTime: '2026-01-01T00:00:00.000Z',
+        availableAt: '2026-01-02T00:00:00.000Z',
+        processedAt: '2026-01-01T12:00:00.000Z',
+        horizonHours: 24,
+        eventType: 'event',
+        direction: 'up',
+        sentimentScore: 0.7,
+        catalystStrength: 0.7,
+        noveltyScore: 0.6,
+        uncertainty: 0.2,
+        downsideRisk: 0.3,
+        confidence: 0.7,
+        thesis: 'Structured feature test.',
+        counterThesis: 'Availability time is in the future.',
+        evidenceRefs: ['raw-evidence:1'],
+        model: 'test-model',
+        promptVersion: 'test-prompt',
+        inputHash: 'sha256:in',
+        outputHash: 'sha256:out',
+      }),
+    ).toThrow(BadRequestException);
   });
 });

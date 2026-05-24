@@ -51,6 +51,9 @@ export class FeatureSnapshotService {
         dataAvailabilityTime:
           bars[0]?.availabilityTimestamp ??
           new Date(Date.now() - 86_400_000).toISOString(),
+        availableAt:
+          bars[0]?.availabilityTimestamp ??
+          new Date(Date.now() - 86_400_000).toISOString(),
         timeframe: 'daily',
         features,
         sourceRefs: bars.length

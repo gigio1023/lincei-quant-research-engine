@@ -16,7 +16,7 @@ export class ExecutionIntent {
   id: string;
 
   @Column()
-  mode: 'paper' | 'live';
+  mode: 'paper' | 'live-shadow' | 'live';
 
   @Column()
   source: 'lean-target' | 'manual-flatten' | 'risk-reduce';

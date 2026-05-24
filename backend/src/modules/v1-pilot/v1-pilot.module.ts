@@ -5,12 +5,18 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AlphaDecision } from '../../entities/alpha-decision.entity';
+import { AlphaOutcomeLabel } from '../../entities/alpha-outcome-label.entity';
 import { ExecutionIntent } from '../../entities/execution-intent.entity';
 import { FeatureSnapshot } from '../../entities/feature-snapshot.entity';
 import { LeanRun } from '../../entities/lean-run.entity';
+import { LlmEventFeature } from '../../entities/llm-event-feature.entity';
+import { LiveShadowRecord } from '../../entities/live-shadow-record.entity';
 import { LivePilotStatusRecord } from '../../entities/live-pilot-status.entity';
 import { MarketDataBar } from '../../entities/market-data-bar.entity';
+import { NewsSource } from '../../entities/news-source.entity';
 import { PortfolioTargetSnapshot } from '../../entities/portfolio-target-snapshot.entity';
+import { PromotionDecision } from '../../entities/promotion-decision.entity';
+import { RawEvidenceRecord } from '../../entities/raw-evidence-record.entity';
 import { PaperOrderPlan } from '../../entities/paper-order-plan.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
 import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
@@ -19,13 +25,18 @@ import { BrokerOrderStatusRecord } from '../../entities/broker-order-status.enti
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
 import { ControlPlaneModule } from '../control-plane/control-plane.module';
 import { FeatureSnapshotService } from './alpha/feature-snapshot.service';
+import { LlmEventFeatureService } from './alpha/llm-event-feature.service';
 import { NumericAlphaService } from './alpha/numeric-alpha.service';
 import { LlmAlphaService } from './alpha/llm-alpha.service';
 import { MetaAlphaService } from './alpha/meta-alpha.service';
+import { RawEvidenceArchiveService } from './alpha/raw-evidence-archive.service';
 import { LeanLocalSimulatorService } from './lean/lean-local-simulator.service';
 import { LeanDailyDataExportService } from './lean/lean-daily-data-export.service';
+import { LeanCloudRunner } from './lean/lean-cloud.runner';
 import { LeanRunImportService } from './lean/lean-run-import.service';
 import { LeanPaperBridgeService } from './paper/lean-paper-bridge.service';
+import { LearningLoopService } from './learning/learning-loop.service';
+import { LiveShadowService } from './live/live-shadow.service';
 import { LivePreflightService } from './live/live-preflight.service';
 import { LivePilot10UsdService } from './live/live-pilot-10usd.service';
 import { MockBrokerAdapter } from './broker/mock-broker.adapter';
@@ -43,12 +54,18 @@ import { LeanCliRunner } from './lean/lean-cli.runner';
     ControlPlaneModule,
     TypeOrmModule.forFeature([
       AlphaDecision,
+      AlphaOutcomeLabel,
       ExecutionIntent,
       FeatureSnapshot,
       LeanRun,
+      LlmEventFeature,
+      LiveShadowRecord,
       LivePilotStatusRecord,
       MarketDataBar,
+      NewsSource,
       PortfolioTargetSnapshot,
+      PromotionDecision,
+      RawEvidenceRecord,
       PaperOrderPlan,
       InvestmentProposal,
       BrokerSnapshot,
@@ -60,6 +77,8 @@ import { LeanCliRunner } from './lean/lean-cli.runner';
   controllers: [V1PilotController],
   providers: [
     FeatureSnapshotService,
+    RawEvidenceArchiveService,
+    LlmEventFeatureService,
     NumericAlphaService,
     MlModelRegistryService,
     MlPythonRunner,
@@ -68,9 +87,12 @@ import { LeanCliRunner } from './lean/lean-cli.runner';
     MetaAlphaService,
     LeanLocalSimulatorService,
     LeanDailyDataExportService,
+    LeanCloudRunner,
     LeanCliRunner,
     LeanRunImportService,
     LeanPaperBridgeService,
+    LearningLoopService,
+    LiveShadowService,
     LivePreflightService,
     LivePilot10UsdService,
     MockBrokerAdapter,
