@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Legacy broker-write command. Active spec keeps this blocked unless a future live-money spec is approved.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT/backend"
+bun run v1:cli -- live-pilot-10usd "$@"

@@ -1,88 +1,86 @@
 # Execution Readiness
 
+Status: operator readiness snapshot. The active scope is defined by [../SPEC.md](../SPEC.md).
+
 ## Current Verdict
 
-Not ready for real money.
+Not ready for real money, and real-money execution is not in active scope.
 
-After the initial control-plane work, the repo can run deterministic research, risk, and paper-simulation slices. It still cannot take a cash deposit, connect a broker account, place real orders, monitor real fills, or recover positions end to end.
-
-The most important blocker is now strategic, not cosmetic: the executable investment engine is missing. The next readiness step is to integrate LEAN/QuantConnect as a first-class runtime, then connect LLM alpha decisions, portfolio construction, risk, and paper/live execution around that runtime.
+The repo can exercise meaningful parts of the alpha/control-plane stack, including accepted local LEAN runs, result import, point-in-time LLM semantic feature replay, historical paper replay ledgers, live-shadow evidence, broker read-only evidence, risk gates, and dashboard visibility. The current readiness gap is QuantConnect Cloud promotion evidence plus current-market paper/live-shadow evidence, not another dashboard or a small broker-write pilot.
 
 ## Runnable Now
 
-- Backend report service, if environment variables are configured.
-- Frontend report UI.
-- New risk gate tests and backend build.
-- Control-plane budget/research-run/proposal/risk-evaluation/run ledgers.
-- Deterministic paper order-plan/fill/cash/position ledger.
-- Durable local paper account state across paper execution cycles.
-- Explicit paper account seed/promote endpoints and append-only paper account event chain.
-- Autonomous SELL-only recovery proposal path when execution control is `reducing`.
-- Local paper reconciliation endpoint.
-- Minimal execution-control state that can block paper execution when paused, reducing, or halted.
-- Runtime kill switch endpoint that appends a durable halted execution-control event and stops future autonomous advancement without consuming schedule cycles.
-- Explicit disabled live-trading gate with blockers for order endpoints, broker write access, credential custody, fill polling, reconciliation, and broker-order emergency controls.
-- Manual broker read-only snapshot/fill evidence ledgers and paper-account reconciliation.
-- Funding readiness ledger that checks an expected deposit against a matched read-only broker snapshot before capital is treated as usable.
-- Live pilot readiness ledger that checks tiny pilot budget caps, funding readiness, active budget policy, broker adapter readiness, production schema policy, credential custody, read-only/fill polling, and broker emergency controls while still keeping broker write and live trading disabled.
-- Provider-neutral broker adapter readiness contract for Toss credentials, credential custody, schema, sandbox, read-only, order capability gates, and broker emergency-control blockers.
-- Blocked dry-run broker order command ledger that can copy order intent from a signed paper plan, record cancel/flatten emergency dry-runs, and show the exact blockers without calling broker order endpoints.
-- Read-only broker order lifecycle ledger that can import submitted/open/partial/terminal broker order status evidence, mark dry-run-linked external orders as mismatches, and expose open-order candidates for cancel dry-runs without calling broker endpoints.
-- Durable signed paper order-plan approval ledger.
-- Schedule-scoped standing paper authorization that can create and consume per-proposal signed paper approvals for paper-only schedules when the budget explicitly allows it, the schedule pins imported asset/benchmark market bars, dataset freshness passes, and the stored budget hash still matches. In `reducing` mode the same authorization can only approve deterministic SELL-only recovery proposals derived from internal paper-account projection evidence.
-- Env-gated autonomous run schedule worker and dashboard worker status.
-- Control-plane dashboard view.
-- Local reference inspection under `references/projects/`.
+- backend build, unit tests, and e2e tests with Bun;
+- frontend typecheck, lint, tests, and build with Bun;
+- local LEAN/Podman/Docker smoke runs;
+- local LEAN result import;
+- simulator path for plumbing evidence only;
+- ML baseline setup and Python tests;
+- alpha cycle and paper cycle when local data/env is available;
+- live preflight as a blocked evidence report;
+- broker read-only snapshot/fill ledgers where credentials and schema verification allow polling;
+- paper account, paper order plan, approval, reservation, and reconciliation ledgers;
+- execution-control and kill-switch state;
+- operational dashboard surfaces for status and blockers.
 
-## Not Runnable Yet
+## Not Promotion Evidence By Itself
 
-- LEAN workspace as a first-class repo runtime;
-- `lean backtest` orchestration and result ingestion;
-- QuantConnect MCP/API workflow;
-- production `AlphaModel`, `PortfolioConstructionModel`, `RiskManagementModel`, and `ExecutionModel`;
-- LLM Alpha Committee producing typed decisions for LEAN;
-- meta-alpha conversion from numeric/LLM decisions to LEAN `Insight` objects;
-- live broker account connection;
-- Toss API client;
-- broker-backed paper trading;
-- live order placement;
-- broker write readiness that can actually place, cancel, flatten, or reconcile live orders;
-- scheduled broker order/account reconciliation;
-- automated liquidation or exposure reduction;
-- production-authenticated autonomous scheduler deployment;
-- broker-order cancel/flatten kill switch;
-- approved budget capsule storage;
-- production credential custody and signing custody for order-plan approvals;
-- external broker reconciliation.
+- local simulator runs;
+- local sample-data runs;
+- static `meta_decisions.json` overlays;
+- synthetic features;
+- import status without non-zero insights/orders/fills;
+- paper fills without reconciliation;
+- broker dry-run commands;
+- live preflight that is blocked as designed.
 
-## Required Gates
+These can prove plumbing. They cannot prove strategy quality or broker readiness.
 
-| Gate                    | Status  | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| ----------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Research reports        | Partial | Existing app creates LLM-assisted reports, not trade proposals.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| Research-run provenance | Started | Research-run entity/API, proposal-ready gate, deterministic baseline runner, durable imported market-bar ledger, schedule-bound dataset/freshness gates, disabled-by-default Stooq market-data ingestion worker, durable ingestion-run ledger, and dashboard ingestion visibility exist. Broader provider coverage, corporate-action adjustment validation, and production data SLAs are still missing.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| Proposal contract       | Started | Budget/research-run/proposal/risk-evaluation/run entities and endpoints exist, with a unified action-timeline audit feed joining budget, schedule, research, proposal, risk, approval, paper, broker, and market-data evidence for dashboard/operator review.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| Deterministic risk gate | Started | Evaluation-only backend module plus persisted risk-evaluation audit through control-plane.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Paper execution         | Started | Deterministic paper simulator ledger, durable signed paper approvals, schedule-scoped paper auto approval, pinned imported market-data requirement for paper schedules, schedule-auto-approved SELL-only paper recovery while execution control is `reducing`, explicit paper account seed/promote controls, append-only account events, idempotent paper-execute endpoint, idempotent SELL-only recovery proposal replay, autonomous reducing-state recovery proposal generation, approval payload hash/signature evidence, approval-to-account-event binding, final pre-apply account-event freshness guard, transaction-scoped reservation readiness recompute, reservation hold creation, paper-account lock-version claim, final paper apply commit, explicit TypeORM migration/run policy for paper-account lock and reservation indexes, rollback-to-blocked behavior when account-event append fails, quantity/cost-basis/realized-PnL accounting, reservation readiness evidence, database reservation-hold ledger, reserved-hold-aware availability checks, consumed/released reservation-hold snapshots, durable local paper account state, local reconciliation, broker-fill-to-paper-fill matching, execution-control state, and runtime kill-switch halt exist. Production signing custody and live-provider reconciliation are still missing. |
-| Broker read-only        | Partial | Read-only broker snapshot ledger, funding readiness ledger, read-only broker fill evidence ledger, disabled-by-default Toss snapshot/fill polling workers, automatic paper reconciliation after snapshot poll/import, broker-fill-to-paper-fill matching, and a provider-neutral Toss adapter readiness contract with credential-custody evidence exist. Verified Toss schema/client responses, actual external secret-manager wiring, and live-provider fill schema validation are still missing.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| Broker write access     | Blocked | Live pilot readiness records now capture the preflight evidence needed before broker writes are considered, including tiny budget caps, funding readiness, credential custody, schema/sandbox verification, read-only/fill polling, and cancel/flatten/open-order-poll controls. Blocked dry-run `broker_order_commands` and read-only `broker_order_status_records` ledgers can prepare paper-plan order intent, import external broker order lifecycle evidence, and show cancel candidates for review, but the order endpoint, broker write path, broker cancel path, and production signed order custody are intentionally absent. |
-| Live trading            | Blocked | No real-money order path is implemented. Control-plane status exposes a disabled live-trading gate and the live pilot readiness ledger records why it is still blocked. The current kill switch stops the autonomous runtime; it does not cancel or flatten broker orders.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+## Current Blockers
+
+| Area                         | Status                 | Blocker                                                                                                                                                                                                                        |
+| ---------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| QuantConnect Cloud           | Blocked/partial        | Cloud wrappers exist and record blocked evidence, but the current verified run is blocked by missing cloud project. Command success alone is blocked unless REST-imported cloud result artifacts pass strategy-evidence gates. |
+| Local LEAN strategy evidence | Passed for local smoke | Linux ARM local LEAN strategy smoke passed through `sg docker` fallback with run `bt-20260524104630-4495ff89`. This is local strategy evidence, not Cloud promotion evidence.                                                  |
+| Numeric alpha                | Partial                | LEAN skeleton exists, but promotion-quality cloud evidence and ablation history are still missing.                                                                                                                             |
+| LLM semantic alpha           | Partial                | Point-in-time semantic feature export and LEAN replay exist, but richer source ingestion, Object Store workflow, and ablation evidence are still needed.                                                                       |
+| Paper execution              | Partial                | Historical paper replay can create a reconciled plan, but strict `run-paper-cycle` correctly blocks stale historical targets. Current-market target evidence is still missing.                                                 |
+| Live-shadow                  | Partial                | Would-have-traded mode records `historical_target_replay`; promotion still requires `current_live_shadow`.                                                                                                                     |
+| Broker writes                | Out of scope           | Real submit/cancel/flatten paths require a separate user-approved live-money spec.                                                                                                                                             |
+| Reconciliation               | Partial                | Paper and read-only reconciliation exist, but broker-backed live reconciliation is intentionally absent.                                                                                                                       |
+
+## Required Gates For Active Scope
+
+- cloud backtest attempt with actionable blocked/passed status;
+- cloud command success must not count as promotion evidence until cloud result artifacts are imported and pass acceptance;
+- imported cloud or local LEAN run with source/config/data hashes;
+- non-zero insight/target/order evidence for strategy-validation claims;
+- no-lookahead feature and alpha records keyed by `availableAt`;
+- numeric-only, LLM-only, and combined ablation where relevant;
+- paper or live-shadow cycle from imported target to reconciliation evidence;
+- preflight remains blocked for real broker writes unless a future spec changes scope.
 
 ## Practical Next Step
 
-Build toward this order instead of adding more peripheral UI first:
+Build toward this order:
 
-1. create the LEAN workspace and `aggressive_llm_momentum` algorithm;
-2. add local `lean backtest` orchestration and ingest result artifacts;
-3. implement numeric alpha and aggressive portfolio construction in LEAN;
-4. implement LLM Alpha Committee typed decisions and meta-alpha adapter;
-5. connect LEAN paper output to existing paper execution ledgers;
-6. add model training and registry for numeric/meta alpha;
-7. add verified broker write adapter with cancel/flatten/open-order polling;
-8. run tiny live pilot behind explicit approval and hard budget caps.
+1. create or push the QuantConnect Cloud project, then import real cloud result artifacts;
+2. stabilize numeric-only LEAN backtests before LLM overlay;
+3. expand LLM semantic source ingestion while preserving `eventTime`, `availableAt`, hashes, model, and prompt version;
+4. consume those features in LEAN through custom data or Object Store artifacts;
+5. run paper and live-shadow cycles from accepted LEAN targets;
+6. join outcomes back to feature/alpha versions for learning.
+
+Do not implement real broker writes under the active spec.
 
 ## Toss-Specific Readiness
 
-Toss Securities Open API should be treated as live broker access until an official test environment is verified. Public official materials show account, holdings, market data, and order examples, but access is gated by account ownership, pre-application, and API key issuance.
+Toss Securities Open API should be treated as live broker access until an official test environment is verified. The current repo posture is read-only or blocked evidence only:
 
-The repo now has provider-neutral read-only broker snapshot, funding readiness, live pilot readiness, broker order command dry-run, and fill evidence ledgers, broker adapter readiness contract, and disabled-by-default Toss read-only snapshot/fill poll workers. It can store imported cash/holdings/fill evidence, reject credentials and order payloads, require matched read-only snapshot evidence before marking expected deposit capital as ready, automatically attempt paper-account reconciliation after snapshot poll/import, copy signed paper-plan intent into blocked dry-run broker command records, match imported broker fills against paper fills, show whether Toss credentials/schema/fill-schema/sandbox/read-only gates are satisfied, and only allowlist token/account/holdings plus an operator-configured GET fill path when polling is explicitly enabled. It still does not have verified Toss schema access, sandbox parity, credential custody suitable for production, broker-order emergency controls that call a broker, or any live order endpoint.
+- credentials stay in approved env/secret boundaries;
+- schema verification is required before polling;
+- read-only snapshots and fills can be imported where enabled;
+- order payloads and credentials are rejected from frontend/LLM paths;
+- submit, cancel, replace, and flatten remain out of scope.
+
+See [Toss Securities Open API Readiness](toss-open-api-readiness.md) for source-specific details.

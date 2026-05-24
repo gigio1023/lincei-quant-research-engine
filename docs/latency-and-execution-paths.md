@@ -1,5 +1,7 @@
 # Latency and Execution Paths
 
+Status: supporting design. The active spec permits fast, slow, and research paths, but not real broker writes.
+
 ## Strategy Fit
 
 This project is not an HFT or market-making system. LLMs and Lean backtests introduce seconds-to-minutes of latency, which is appropriate for aggressive swing, daily, hourly, and selective intraday strategies.
@@ -26,7 +28,8 @@ Typical actions:
 - max drawdown cut;
 - stale data halt;
 - existing numeric alpha continuation;
-- broker cancel/flatten emergency.
+- paper/live-shadow cancel/flatten simulation;
+- future broker cancel/flatten emergency only after a separate live-money spec.
 
 Expected latency:
 
@@ -34,7 +37,7 @@ Expected latency:
 feature refresh:      0.5s to 5s
 LEAN/rule decision:   <1s to 5s
 risk gate:            <1s
-broker order/cancel:  broker dependent, often <1s to 3s
+paper/live-shadow order intent: <1s to 3s
 ```
 
 Target: 5 to 30 seconds end to end for non-HFT actions.
@@ -103,7 +106,7 @@ Use research path when:
 - a new strategy is generated;
 - a model is retrained;
 - parameters change materially;
-- live promotion is requested.
+- promotion is requested.
 
 ## Observability
 
@@ -113,7 +116,7 @@ Record latency for every decision:
 - LLM role latency;
 - Lean run latency;
 - risk gate latency;
-- broker submit/cancel latency;
+- paper/live-shadow execution latency;
 - total decision latency;
 - path type: fast, slow, or research.
 

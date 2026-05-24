@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Download verified external tabular baseline (LightGBM text booster). NLP stays on OpenAI LLM only.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
+if [[ ! -x "$ROOT/.venv-ml/bin/python" ]]; then
+  echo "Run ./scripts/setup-ml-venv.sh first." >&2
+  exit 1
+fi
+
+"$ROOT/.venv-ml/bin/python" -m ml.external.download_baselines

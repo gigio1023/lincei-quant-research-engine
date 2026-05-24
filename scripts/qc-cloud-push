@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Pushes the local LEAN project to QuantConnect Cloud through the next cloud backtest.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PROJECT="${1:-aggressive_llm_momentum}"
+cd "$ROOT/backend"
+bun run v1:cli -- qc-cloud-backtest "$PROJECT" --push

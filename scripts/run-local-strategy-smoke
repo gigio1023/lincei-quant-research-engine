@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Runs the validated local LEAN strategy-evidence smoke path on bundled ARM-friendly data.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+export LINCEI_ENV_FILE="${LINCEI_ENV_FILE:-/tmp/lincei-no-env}"
+export LINCEI_OPENAI_ENV_FILE="${LINCEI_OPENAI_ENV_FILE:-/tmp/lincei-no-openai}"
+export SKIP_ALPHA_CYCLE="${SKIP_ALPHA_CYCLE:-true}"
+export LEAN_DOWNLOAD_DATA="${LEAN_DOWNLOAD_DATA:-false}"
+export V1_UNIVERSE_SYMBOLS="${V1_UNIVERSE_SYMBOLS:-SPY,QQQ,IWM}"
+
+"$ROOT/scripts/run-full-backtest.sh" \
+  --skip-alpha-cycle \
+  --skip-market-data-ingest \
+  --no-download-data \
+  "$@"

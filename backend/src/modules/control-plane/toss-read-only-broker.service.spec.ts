@@ -57,6 +57,7 @@ describe('TossReadOnlyBrokerService', () => {
     const requester = jest.fn();
     const service = new TossReadOnlyBrokerService(
       {
+        importTossReadOnlyBrokerSnapshot: importBrokerSnapshot,
         importBrokerSnapshot,
         importBrokerFill,
         reconcileBrokerSnapshot,
@@ -109,6 +110,7 @@ describe('TossReadOnlyBrokerService', () => {
       });
     const service = new TossReadOnlyBrokerService(
       {
+        importTossReadOnlyBrokerSnapshot: importBrokerSnapshot,
         importBrokerSnapshot,
         importBrokerFill,
         reconcileBrokerSnapshot,
@@ -197,6 +199,7 @@ describe('TossReadOnlyBrokerService', () => {
       });
     const service = new TossReadOnlyBrokerService(
       {
+        importTossReadOnlyBrokerSnapshot: importBrokerSnapshot,
         importBrokerSnapshot,
         importBrokerFill,
         reconcileBrokerSnapshot,
@@ -254,6 +257,7 @@ describe('TossReadOnlyBrokerService', () => {
       });
     const service = new TossReadOnlyBrokerService(
       {
+        importTossReadOnlyBrokerSnapshot: importBrokerSnapshot,
         importBrokerSnapshot,
         importBrokerFill,
         reconcileBrokerSnapshot,
@@ -314,6 +318,7 @@ describe('TossReadOnlyBrokerService', () => {
     const requester = jest.fn();
     const service = new TossReadOnlyBrokerService(
       {
+        importTossReadOnlyBrokerSnapshot: importBrokerSnapshot,
         importBrokerSnapshot,
         importBrokerFill,
         reconcileBrokerSnapshot,

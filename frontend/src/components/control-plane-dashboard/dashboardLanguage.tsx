@@ -504,8 +504,8 @@ const KOREAN_COPY: Record<string, string> = {
     "자금 준비 상태는 읽기 전용 브로커 증거입니다. 주문 엔드포인트는 호출되지 않았습니다.",
 
   "Broker Write Readiness": "브로커 쓰기 준비 상태",
-  "Live pilot preflight evidence. This panel explains why broker write remains blocked.":
-    "소규모 실거래 파일럿 사전 점검 증거입니다. 브로커 쓰기가 왜 차단되어 있는지 보여줍니다.",
+  "Broker-write preflight evidence. This panel explains why real-money broker writes remain out of active scope.":
+    "브로커 쓰기 사전 점검 증거입니다. 실제 자금 브로커 쓰기가 왜 active scope 밖인지 보여줍니다.",
   brokerWriteEnabled: "브로커 쓰기",
   orderEndpointImplemented: "주문 엔드포인트",
   Funding: "자금",
@@ -516,21 +516,22 @@ const KOREAN_COPY: Record<string, string> = {
   "Cancel orders": "주문 취소",
   "Flatten positions": "포지션 청산",
   "Open-order polling": "미체결 주문 조회",
-  "pilot budget": "파일럿 예산",
+  "preflight budget": "사전 점검 예산",
   "single order cap": "단일 주문 한도",
   funding: "자금",
   "Broker write blockers": "브로커 쓰기 차단 항목",
-  "Live pilot readiness API is unavailable. Showing documented live pilot sample.":
-    "실거래 파일럿 준비 API를 사용할 수 없어 문서화된 샘플을 표시합니다.",
-  "Live pilot readiness refresh failed after automation action.":
-    "자동화 작업 후 실거래 파일럿 준비 상태 새로고침에 실패했습니다.",
-  "API live pilot readiness": "API 실거래 파일럿 준비",
-  "Loading live pilot readiness": "실거래 파일럿 준비 로딩 중",
-  "Documented live pilot sample": "문서화된 실거래 파일럿 샘플",
-  "Documented live pilot readiness sample is available":
-    "문서화된 실거래 파일럿 준비 샘플 사용 가능",
-  "Latest live pilot readiness is blocked: broker write preflight gates are not ready":
-    "최근 실거래 파일럿 준비 상태가 차단됨: 브로커 쓰기 사전 점검 게이트가 준비되지 않았습니다.",
+  "Broker-write preflight readiness API is unavailable. Showing documented preflight sample.":
+    "브로커 쓰기 사전 점검 API를 사용할 수 없어 문서화된 사전 점검 샘플을 표시합니다.",
+  "Broker-write preflight readiness refresh failed after automation action.":
+    "자동화 작업 후 브로커 쓰기 사전 점검 상태 새로고침에 실패했습니다.",
+  "API broker-write preflight readiness": "API 브로커 쓰기 사전 점검",
+  "Loading broker-write preflight readiness": "브로커 쓰기 사전 점검 로딩 중",
+  "Documented broker-write preflight sample":
+    "문서화된 브로커 쓰기 사전 점검 샘플",
+  "Documented broker-write preflight readiness sample is available":
+    "문서화된 브로커 쓰기 사전 점검 샘플 사용 가능",
+  "Latest broker-write preflight readiness is blocked: broker write gates are not ready":
+    "최근 브로커 쓰기 사전 점검 상태가 차단됨: 브로커 쓰기 게이트가 준비되지 않았습니다.",
   "Production broker credential custody is not ready":
     "프로덕션 브로커 자격 증명 보관이 준비되지 않았습니다.",
   "Broker OpenAPI schema is not verified":
@@ -579,7 +580,9 @@ const KOREAN_COPY: Record<string, string> = {
   "Proposal contracts": "제안 계약",
   "Research automation": "리서치 자동화",
   "Broker read-only": "브로커 읽기 전용",
-  "Tiny live pilot": "소규모 실거래 파일럿",
+  "Future broker-write canary": "향후 브로커 쓰기 카나리",
+  "Out of active scope until a future user-approved live-money spec defines budget, approval, and broker-order kill-switch requirements.":
+    "향후 사용자가 승인한 실자금 스펙이 예산, 승인, 브로커 주문 킬 스위치 요구사항을 정의하기 전까지 active scope 밖입니다.",
   "Broker Order Command Ledger": "브로커 주문 명령 원장",
   "Dry-run broker command evidence. It shows what would be prepared, not submitted.":
     "드라이런 브로커 명령 증거입니다. 실제 제출이 아니라 준비될 내용을 보여줍니다.",
@@ -594,7 +597,8 @@ const KOREAN_COPY: Record<string, string> = {
     "문서화된 브로커 주문 명령 드라이런 샘플 사용 가능",
   command: "명령",
   provider: "공급자",
-  "live pilot": "실거래 파일럿",
+  "broker-write preflight": "브로커 쓰기 사전 점검",
+  preflight: "사전 점검",
   hash: "해시",
   "signed approval": "서명 승인",
   sandbox: "샌드박스",
@@ -610,8 +614,8 @@ const KOREAN_COPY: Record<string, string> = {
   flatten_positions: "포지션 청산",
   "No broker order command dry-run has been recorded.":
     "아직 브로커 주문 명령 드라이런이 기록되지 않았습니다.",
-  "No ready live pilot readiness record":
-    "준비된 실거래 파일럿 준비 기록이 없습니다.",
+  "No ready broker-write preflight readiness record":
+    "준비된 브로커 쓰기 사전 점검 기록이 없습니다.",
   "Live broker order endpoint is not implemented":
     "실브로커 주문 엔드포인트가 구현되지 않았습니다.",
   "Broker order command is dry-run only":

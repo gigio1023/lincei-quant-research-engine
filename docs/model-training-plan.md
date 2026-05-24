@@ -1,5 +1,7 @@
 # Model Training Plan
 
+Status: supporting design. The active roadmap is [spec/06-implementation-roadmap.md](spec/06-implementation-roadmap.md).
+
 ## Training Philosophy
 
 Training is useful, but it should not block the first executable LEAN + LLM system. Build the full model slots now, then train models behind those slots.
@@ -188,13 +190,13 @@ type ModelArtifact = {
   artifactRef: string;
   artifactHash: string;
   metrics: Record<string, number>;
-  approvedFor: "research" | "paper" | "live_shadow" | "live";
+  approvedFor: "research" | "paper" | "live_shadow" | "future_live_candidate";
 };
 ```
 
 ## Promotion Rule
 
-Do not let a trained model affect live capital until:
+No trained model may affect real capital under the active spec. A future live-money spec would need at least:
 
 - it beats numeric rule baseline after costs;
 - it survives walk-forward validation;

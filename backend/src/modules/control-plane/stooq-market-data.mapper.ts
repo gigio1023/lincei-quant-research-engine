@@ -42,6 +42,7 @@ export function parseStooqDailyCsv(
     const cells = line.split(',').map((cell) => cell.trim());
     const date = cells[index.date];
     const timestamp = new Date(`${date}T00:00:00.000Z`);
+    const availabilityTimestamp = new Date(`${date}T22:00:00.000Z`);
     const open = parseRequiredNumber(
       cells[index.open],
       symbol,
@@ -80,7 +81,7 @@ export function parseStooqDailyCsv(
 
     return {
       timestamp: timestamp.toISOString(),
-      availabilityTimestamp: timestamp.toISOString(),
+      availabilityTimestamp: availabilityTimestamp.toISOString(),
       open,
       high,
       low,

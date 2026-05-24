@@ -1,5 +1,7 @@
 # Toss Securities Open API Readiness
 
+Status: supporting broker-readiness note. The active spec permits read-only evidence and blocked preflight only, not Toss broker writes.
+
 Date checked: 2026-05-23 KST.
 
 ## Official Sources Checked
@@ -66,7 +68,7 @@ I did not find an official Toss sandbox or paper-trading environment in the publ
 
 Toss is a plausible first broker-adapter candidate, but this repo is not ready to use Toss for real money. The repo now includes disabled-by-default Toss read-only adapter paths that allowlist token, account, holdings, and an operator-configured GET fill path, then import mapped results into the broker snapshot/fill ledgers. Snapshot polling is blocked unless credentials, account ref, explicit poll enablement, and operator schema verification are present. Fill polling additionally requires `TOSS_READ_ONLY_FILL_POLLER_ENABLED=true`, `TOSS_OPEN_API_FILL_SCHEMA_VERIFIED=true`, and a relative `TOSS_OPEN_API_FILLS_PATH`, because the exact fill/execution endpoint schema is not verified in this repo. The readiness contract also reports credential custody separately: local environment variables are development-only, while production trading requires `BROKER_CREDENTIAL_SECRET_REF` or `TOSS_OPEN_API_SECRET_REF`.
 
-Required before real-money use:
+Required before any future real-money spec could use Toss:
 
 1. obtain Toss Open API access and API keys;
 2. fetch and review the OpenAPI schema;
@@ -75,6 +77,6 @@ Required before real-money use:
 5. verify Toss paper/sandbox parity against the locked local paper order-plan interface;
 6. move broker credentials behind an external secret reference and add production signing custody for durable approval records and idempotency keys;
 7. add reconciliation and kill-switch tests;
-8. only then consider a tiny live pilot.
+8. only then draft a separate live-money spec for user approval.
 
 No LLM or research process should receive Toss credentials or directly call Toss order endpoints.

@@ -3,6 +3,12 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 
+type HealthStatus = {
+  status: 'ok' | 'error';
+  info: Record<string, Record<string, unknown>>;
+  details: Record<string, Record<string, unknown>>;
+};
+
 @Injectable()
 export class AppService {
   constructor(
@@ -16,13 +22,12 @@ export class AppService {
   }
 
   async getHealthStatus(): Promise<any> {
-    const healthStatus = {
+    const healthStatus: HealthStatus = {
       status: 'ok',
       info: {},
       details: {},
     };
 
-    // Database 상태 체크
     try {
       await this.dataSource.query('SELECT 1');
       healthStatus.info['database'] = { status: 'up' };
@@ -36,33 +41,23 @@ export class AppService {
       };
     }
 
-    // AI 서비스 (Gemini) 상태 체크
-    const geminiKey = this.configService.get('GEMINI_API_KEY');
-    if (geminiKey) {
-      try {
-        // 간단한 API 키 유효성 체크 (실제 요청 없이)
-        healthStatus.info['gemini'] = { status: 'up' };
-        healthStatus.details['gemini'] = {
-          status: 'up',
-          configured: true,
-        };
-      } catch (error) {
-        healthStatus.status = 'error';
-        healthStatus.info['gemini'] = { status: 'down' };
-        healthStatus.details['gemini'] = {
-          status: 'down',
-          error: error.message,
-        };
-      }
-    } else {
-      healthStatus.status = 'error';
-      healthStatus.info['gemini'] = { status: 'down' };
-      healthStatus.details['gemini'] = {
-        status: 'down',
-        error: 'API key not configured',
-      };
-    }
+    const openaiConfigured = this.hasConfiguredKey('OPENAI_API_KEY');
+    const geminiConfigured = this.hasConfiguredKey('GEMINI_API_KEY');
+    healthStatus.info['llm'] = {
+      status: openaiConfigured || geminiConfigured ? 'configured' : 'optional',
+    };
+    healthStatus.details['llm'] = {
+      status: openaiConfigured || geminiConfigured ? 'configured' : 'optional',
+      openaiConfigured,
+      geminiConfigured,
+      note: 'LLM credentials are optional for numeric-only local strategy backtests.',
+    };
 
     return healthStatus;
+  }
+
+  private hasConfiguredKey(name: string): boolean {
+    const value = this.configService.get<string>(name);
+    return Boolean(value && !value.startsWith('your_'));
   }
 }

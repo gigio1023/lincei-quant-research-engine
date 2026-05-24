@@ -19,6 +19,27 @@ backend/data/*.sqlite3
 backend/dist/
 frontend/build/
 
+# V1 pilot generated artifacts
+artifacts/
+engines/lean/aggressive_llm_momentum/input/meta_decisions.json
+engines/lean/aggressive_llm_momentum/input/llm_event_features.json
+engines/lean/aggressive_llm_momentum/input/ml_predictions.json
+artifacts/model-registry/
+.venv-ml/
+.venv-lean-cli/
+.tmp/
+engines/lean/data/
+engines/lean/lean.json
+engines/lean/.lean-cli-config-*.json
+engines/lean/backtests/
+engines/lean/aggressive_llm_momentum/backtests/
+data/
+engines/lean/live/
+engines/lean/optimizations/
+**/__pycache__/
+*.pyc
+backend/tmp-test-lean-runs/
+
 # Coverage reports
 coverage/
 frontend/coverage/

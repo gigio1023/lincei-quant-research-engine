@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import * as nunjucks from 'nunjucks';
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { existsSync } from 'fs';
 
 export enum LlmModel {
@@ -19,12 +19,10 @@ export class LlmService {
   private nunjucksEnv: nunjucks.Environment;
 
   constructor(private configService: ConfigService) {
-    const templatesPath = join(__dirname, '..', '..', 'templates');
+    const templatesPath = this.resolveTemplatesPath();
     this.nunjucksEnv = nunjucks.configure(templatesPath, { autoescape: false });
 
-    // Validate required template files exist
     this.validateTemplates(templatesPath);
-    // OpenAI 클라이언트 (보조 모델)
     const openaiKey = this.configService.get('OPENAI_API_KEY');
     if (openaiKey && openaiKey !== 'your_openai_api_key_here') {
       this.openai = new OpenAI({
@@ -32,7 +30,6 @@ export class LlmService {
       });
     }
 
-    // Gemini를 OpenAI 호환 형태로 사용 (주 모델)
     const geminiKey = this.configService.get('GEMINI_API_KEY');
     if (geminiKey && geminiKey !== 'your_gemini_api_key_here') {
       this.geminiClient = new OpenAI({
@@ -58,13 +55,13 @@ export class LlmService {
 
       if (!client) {
         this.logger.warn(
-          'LLM 클라이언트가 설정되지 않았습니다. 기본 메시지를 반환합니다.',
+          'LLM client is not configured. Returning the default analysis message.',
         );
         return this.getDefaultAnalysisMessage(prompt);
       }
 
       this.logger.log(
-        `${useGemini ? 'Gemini' : 'OpenAI'} 모델(${model})로 투자 분석 시작 (시도: ${retryCount + 1})`,
+        `Starting investment analysis with ${useGemini ? 'Gemini' : 'OpenAI'} model ${model} (attempt ${retryCount + 1})`,
       );
 
       const response = await client.chat.completions.create({
@@ -85,21 +82,20 @@ export class LlmService {
 
       const result = response.choices[0].message.content || '';
       if (!result || result.length < 100) {
-        throw new Error('생성된 분석 내용이 너무 짧습니다.');
+        throw new Error('Generated analysis content is too short.');
       }
 
-      this.logger.log('투자 분석 생성 완료');
+      this.logger.log('Investment analysis generation completed.');
       return result;
     } catch (error) {
       this.logger.error(
-        `LLM API 오류 (시도 ${retryCount + 1}):`,
+        `LLM API error (attempt ${retryCount + 1}):`,
         error.message,
       );
 
-      // Rate limit 오류 시 대기 후 재시도
       if (error.status === 429 && retryCount < maxRetries) {
-        const waitTime = Math.pow(2, retryCount) * 1000; // 지수 백오프
-        this.logger.warn(`Rate limit 도달, ${waitTime}ms 대기 후 재시도`);
+        const waitTime = Math.pow(2, retryCount) * 1000;
+        this.logger.warn(`Rate limit reached; retrying after ${waitTime}ms.`);
         await new Promise((resolve) => setTimeout(resolve, waitTime));
         return this.generateInvestmentAnalysis(
           prompt,
@@ -108,10 +104,11 @@ export class LlmService {
         );
       }
 
-      // 503 오류(서비스 과부하) 시에도 재시도
       if (error.status === 503 && retryCount < maxRetries) {
-        const waitTime = Math.pow(2, retryCount + 1) * 1000; // 더 긴 대기 시간
-        this.logger.warn(`서비스 과부하, ${waitTime}ms 대기 후 재시도`);
+        const waitTime = Math.pow(2, retryCount + 1) * 1000;
+        this.logger.warn(
+          `LLM service overloaded; retrying after ${waitTime}ms.`,
+        );
         await new Promise((resolve) => setTimeout(resolve, waitTime));
         return this.generateInvestmentAnalysis(
           prompt,
@@ -120,19 +117,17 @@ export class LlmService {
         );
       }
 
-      // Gemini 실패 시 OpenAI로 폴백 (한 번만)
       if (useGemini && this.openai && retryCount === 0) {
-        this.logger.warn('Gemini 실패, OpenAI로 폴백 시도');
+        this.logger.warn('Gemini failed; trying OpenAI fallback once.');
         return this.generateInvestmentAnalysis(prompt, false, 0);
       }
 
-      // 최후의 대안: 기본 메시지 반환
       if (retryCount >= maxRetries) {
-        this.logger.error('모든 재시도 실패, 기본 메시지 반환');
+        this.logger.error('All LLM retries failed; returning default message.');
         return this.getDefaultAnalysisMessage(prompt);
       }
 
-      throw new Error('투자 분석 생성 중 오류가 발생했습니다.');
+      throw new Error('Investment analysis generation failed.');
     }
   }
 
@@ -175,7 +170,6 @@ export class LlmService {
         'Template rendering failed for news_analysis.j2:',
         error,
       );
-      // Fallback to basic prompt without template
       const newsText = newsItems
         .map(
           (item) =>
@@ -195,7 +189,6 @@ export class LlmService {
         'Template rendering failed for system_prompt.j2:',
         error,
       );
-      // Fallback to hardcoded system prompt
       return `당신은 27세 개인 투자자를 위한 전문적인 투자 분석가입니다.
 
 ## 투자자 프로필
@@ -234,5 +227,17 @@ export class LlmService {
     } else {
       this.logger.log('All required template files found');
     }
+  }
+
+  private resolveTemplatesPath(): string {
+    const candidates = [
+      join(__dirname, '..', '..', 'templates'),
+      resolve(process.cwd(), 'src/templates'),
+      resolve(process.cwd(), 'dist/src/templates'),
+      resolve(process.cwd(), 'dist/templates'),
+    ];
+    return (
+      candidates.find((candidate) => existsSync(candidate)) ?? candidates[0]
+    );
   }
 }

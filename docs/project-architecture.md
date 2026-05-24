@@ -1,5 +1,7 @@
 # Project Architecture
 
+Status: supporting design. The active normative architecture is split under [spec/](spec/) and indexed from [../SPEC.md](../SPEC.md).
+
 ## Product Definition
 
 Lincei is an aggressive autonomous alpha system for a personal account. The system should research, decide, backtest, size, execute, monitor, and learn. It should not stop at investment reports or control-plane ledgers.
@@ -8,8 +10,8 @@ The core loop is:
 
 ```text
 Data -> Features -> Alpha Decisions -> LEAN Insights
-     -> Portfolio Targets -> Risk Cuts -> Orders
-     -> Fills / Positions -> Reconciliation -> Model Review
+     -> Portfolio Targets -> Risk Cuts -> Paper/Live-Shadow Evidence
+     -> Reconciliation -> Model Review
 ```
 
 ## Runtime Ownership
@@ -21,9 +23,9 @@ Data -> Features -> Alpha Decisions -> LEAN Insights
 | LLM Alpha Committee | LLM orchestration service | Produce typed alpha decisions with evidence and counter-thesis |
 | Numeric alpha engine | Python / LEAN | Produce rule-based or ML alpha scores |
 | Meta alpha | Python / LEAN adapter | Combine numeric and LLM signals into final alpha decisions |
-| LEAN engine | LEAN / QuantConnect | Backtest, paper, live, and emit orders through framework models |
+| LEAN engine | LEAN / QuantConnect | Backtest, paper/live-shadow, and emit framework order events in approved modes |
 | Control plane | NestJS | Store budget, ledgers, approvals, risk state, and execution evidence |
-| Broker adapter | Narrow execution service | Submit/cancel/reconcile broker orders without LLM access |
+| Broker adapter | Narrow execution service | Read/reconcile broker state now; submit/cancel/flatten only under a future approved live-money spec |
 | Dashboard | React | Show alpha, risk, orders, positions, blockers, and next actions |
 
 ## Target Data Flow
@@ -40,8 +42,8 @@ flowchart TD
     MA --> LI["LEAN Insight Adapter"]
     LI --> PC["Portfolio Construction"]
     PC --> RM["Risk Management"]
-    RM --> EX["Execution"]
-    EX --> BA["Broker Adapter"]
+    RM --> EX["Execution Evidence"]
+    EX --> BA["Broker Boundary"]
     BA --> LED["Ledgers + Reconciliation"]
     LED --> FS
 ```
@@ -55,13 +57,13 @@ Keep the current control-plane work, but reposition it as infrastructure around 
 - research runs store LEAN backtest and LLM committee artifacts;
 - proposals become derived from LEAN portfolio targets, not hand-built baseline output;
 - paper order plans become the first execution ledger;
-- broker snapshot/fill/order ledgers become live truth reconciliation.
+- broker snapshot/fill/order ledgers become read-only truth and future reconciliation evidence.
 
 ## Components To Build
 
 ### LEAN Workspace
 
-Create `lean/` or `engines/lean/` as the local LEAN workspace. It should contain:
+Use `engines/lean/` as the local LEAN workspace. It should contain:
 
 - `aggressive_llm_momentum/`;
 - shared alpha components;
@@ -99,14 +101,15 @@ Every Lean backtest must be ingested into the control plane:
 
 ### Broker Adapter
 
-Broker write access must be a separate boundary:
+Broker access must be a separate boundary:
 
 - no prompt text;
 - no LLM imports;
 - no arbitrary generated orders;
 - only signed order plans or LEAN-generated, control-plane-approved targets;
-- submit, cancel, flatten, open-order polling, fill polling, and reconciliation.
+- read-only polling and reconciliation under the active spec;
+- submit, cancel, and flatten only under a future user-approved live-money spec.
 
 ## Agile Rule
 
-Build vertical, executable slices. A slice that shows another dashboard panel but does not improve alpha generation, backtesting, sizing, execution, or reconciliation is secondary. The first valuable slice is a LEAN algorithm that can run locally, produce portfolio targets, and have its result ingested into the control plane.
+Build vertical, executable slices. A slice that shows another dashboard panel but does not improve alpha generation, backtesting, sizing, paper/live-shadow execution evidence, or reconciliation is secondary. The first valuable slice is a LEAN algorithm that can run locally and in QuantConnect Cloud when available, produce portfolio targets, and have its result ingested into the control plane.

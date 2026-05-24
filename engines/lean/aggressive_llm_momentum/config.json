@@ -1,0 +1,17 @@
+{
+  "algorithm-language": "Python",
+  "parameters": {
+    "max-single-name-pct": "0.35",
+    "top-k": "2",
+    "meta-decisions-path": "input/meta_decisions.json",
+    "llm-event-features-path": "input/llm_event_features.json",
+    "vol-target-annual": "0.15",
+    "max-drawdown-pct": "0.12",
+    "max-gross-exposure-pct": "1.0",
+    "stale-data-hours": "48"
+  },
+  "description": "Aggressive LLM momentum — liquid ETF universe with numeric + meta alpha",
+  "local-id": 987654321,
+  "organization-id": "lincei-local",
+  "algorithm-type-name": "AggressiveLlmMomentum"
+}

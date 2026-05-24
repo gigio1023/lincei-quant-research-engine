@@ -206,7 +206,9 @@ export class TossReadOnlyBrokerService {
       });
       imported.sourceRef = `toss-read-only-poll:${triggerRef}`;
       const snapshot =
-        await this.controlPlaneService.importBrokerSnapshot(imported);
+        await this.controlPlaneService.importTossReadOnlyBrokerSnapshot(
+          imported,
+        );
       const reconciledSnapshot =
         await this.tryReconcileImportedSnapshot(snapshot);
       this.lastPollAt = new Date().toISOString();

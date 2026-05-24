@@ -1,111 +1,130 @@
-# LEAN and QuantConnect Engine
+# LEAN And QuantConnect Engine
+
+Status: supporting design. The normative runtime spec is [spec/01-quantconnect-lean-runtime.md](spec/01-quantconnect-lean-runtime.md).
 
 ## Role In This Project
 
-LEAN is the trading engine. The control plane should not reimplement a full trading engine in NestJS. LEAN should own:
+LEAN is the strategy runtime. The control plane should not reimplement a full trading engine in NestJS.
+
+LEAN owns:
 
 - algorithm lifecycle;
 - universe selection;
 - alpha generation;
+- `Insight` emission;
 - portfolio target construction;
 - risk model application;
-- execution model behavior;
-- backtest, paper, and live runtime semantics.
+- execution behavior in backtest, paper, and future approved modes.
 
-The NestJS control plane owns policy, ledgers, approvals, broker credentials boundary, and operator visibility.
+The NestJS control plane owns:
+
+- orchestration;
+- policy and ledgers;
+- LLM feature jobs;
+- run manifests and result import;
+- broker credential boundary;
+- reconciliation;
+- operator visibility.
+
+## QuantConnect Cloud Posture
+
+QuantConnect Cloud is not optional polish. It is the preferred promotion runtime when credentials, account tier, and dataset access allow it.
+
+Local LEAN is still required for:
+
+- fast debugging;
+- deterministic replay;
+- custom-data checks;
+- Docker/Podman smoke tests;
+- Linux ARM portability checks.
+
+Local simulator and sample-data results prove plumbing only. They must not be described as strategy promotion evidence.
 
 ## Algorithm Framework Mapping
 
-QuantConnect's Algorithm Framework is built around these strategy modules:
+Use QuantConnect's Algorithm Framework as the normal strategy boundary:
 
-| LEAN model | Project role |
-|---|---|
-| `UniverseSelectionModel` | Select tradable assets for the current strategy |
-| `AlphaModel` | Emit `Insight` objects from numeric and LLM alpha decisions |
-| `PortfolioConstructionModel` | Convert insights into target weights or quantities |
-| `RiskManagementModel` | Cut or liquidate targets that violate risk constraints |
-| `ExecutionModel` | Convert adjusted targets into orders |
+| LEAN model                   | Project role                                                      |
+| ---------------------------- | ----------------------------------------------------------------- |
+| `UniverseSelectionModel`     | Select tradable assets for the current strategy                   |
+| `AlphaModel`                 | Emit `Insight` objects from numeric and LLM alpha decisions       |
+| `PortfolioConstructionModel` | Convert insights into target weights or quantities                |
+| `RiskManagementModel`        | Cut or liquidate targets that violate risk constraints            |
+| `ExecutionModel`             | Convert adjusted targets into runtime orders in the selected mode |
 
-Official docs describe these as the core modules of Algorithm Framework: https://www.quantconnect.com/docs/v1/algorithm-framework/overview
+Official docs: https://www.quantconnect.com/docs/v2/writing-algorithms/algorithm-framework/overview
 
 ## Required First Algorithm
 
 Name: `aggressive_llm_momentum`
 
-Purpose: prove the full executable path.
+Purpose: prove the executable alpha-validation path.
 
 Model composition:
 
 - Universe: liquid ETFs and highly liquid equities first; expand later.
 - Numeric alpha: momentum, trend, volatility, liquidity, and drawdown features.
-- LLM alpha: typed event/fundamental/macro decision overlay.
-- Meta alpha: combine numeric and LLM scores into final `AlphaDecision`.
+- LLM alpha: point-in-time event, filing, macro, and risk features.
+- Meta alpha: combine numeric and LLM signals into final `AlphaDecision`.
 - Portfolio construction: top-k concentration with volatility targeting and caps.
 - Risk management: max drawdown, exposure, single-name, volatility spike, and stale-data cuts.
-- Execution: immediate execution for backtest/paper first; broker-aware execution later.
+- Execution: backtest/paper/live-shadow only under the active spec.
 
 ## Lean CLI Integration
 
-Use Lean CLI for local backtests. The key command shape is:
+Use Lean CLI for local runs. The repo wrapper should own paths and metadata:
 
 ```bash
-lean backtest "aggressive_llm_momentum" --output ./results/backtest-001
+./scripts/lean-backtest aggressive_llm_momentum
+./scripts/import-lean-run latest
+./scripts/qc-cloud-backtest aggressive_llm_momentum --push
+./scripts/qc-object-store-sync lincei/llm-features/latest.json
+./scripts/run-local-strategy-smoke
+./scripts/run-paper-replay
+./scripts/run-live-shadow
+./scripts/run-learning-loop
 ```
 
-Lean CLI local backtests run in Docker and write result files to an output directory. The orchestration layer should:
+The orchestration layer should:
 
 1. create a run directory;
 2. write strategy parameters;
-3. call `lean backtest`;
+3. call Lean CLI or record a blocked status;
 4. capture stdout/stderr;
 5. hash source, config, input data, and result artifacts;
-6. ingest the result into the control-plane research ledger.
+6. ingest the result into the control-plane research ledger;
+7. label simulator or flow-validation runs as plumbing evidence only.
 
 Official docs: https://www.quantconnect.com/docs/v2/lean-cli/api-reference/lean-backtest
 
-## QuantConnect MCP / Cloud Role
+## QuantConnect API / CLI / MCP Role
 
-QuantConnect MCP can let agents update projects, write strategies, run backtests, and deploy strategies through QuantConnect APIs. Use it as an optional cloud accelerator, not as the only runtime.
+Use QuantConnect API, CLI, and MCP to automate platform workflows:
 
-Expected uses:
-
-- remote syntax checks;
+- project sync or push;
+- cloud compile checks;
 - cloud backtests with QuantConnect data;
-- strategy iteration by Codex/Claude agents;
-- cloud report retrieval;
-- later live deployment experiments.
+- result/statistics/order/insight retrieval;
+- Object Store artifact upload/read;
+- paper or live-shadow deployment when spec-approved.
 
-Official MCP repo/docs: https://github.com/QuantConnect/mcp-server
+Every cloud action must create a local evidence record with source hash, parameter hash, cloud ids, artifact refs, status, and blockers.
 
-## Result Contract
+Current repo wrappers record QuantConnect Cloud credential, paid-tier, project-lock, dataset, and REST result-import blockers as `blocked` evidence instead of treating policy/account access as a crash.
 
-Every LEAN run should export:
+Official docs:
 
-```ts
-type LeanRunResult = {
-  runId: string;
-  projectName: string;
-  algorithmVersion: string;
-  parameters: Record<string, string | number | boolean>;
-  startedAt: string;
-  completedAt: string;
-  status: "passed" | "failed";
-  resultDirectory: string;
-  sourceHash: string;
-  configHash: string;
-  dataManifestHash: string;
-  statistics: Record<string, string | number>;
-  equityCurveRef?: string;
-  orderEventsRef?: string;
-  logsRef?: string;
-  blockerReasons: string[];
-};
-```
+- API reference: https://www.quantconnect.com/docs/v2/cloud-platform/api-reference
+- Read Backtest statistics: https://www.quantconnect.com/docs/v2/cloud-platform/api-reference/backtest-management/read-backtest/backtest-statistics
+- Read Backtest insights: https://www.quantconnect.com/docs/v2/cloud-platform/api-reference/backtest-management/read-backtest/insights
+- Read Backtest orders: https://www.quantconnect.com/docs/v2/cloud-platform/api-reference/backtest-management/read-backtest/orders
+- Cloud backtest CLI: https://www.quantconnect.com/docs/v2/lean-cli/api-reference/lean-cloud-backtest
+- MCP server: https://github.com/QuantConnect/mcp-server
 
 ## Acceptance Criteria
 
-- `lean backtest` runs from a repo command.
-- The first algorithm produces at least one backtest result artifact.
-- The backend can ingest a LEAN result as a research run.
-- The dashboard shows LEAN run status, alpha decisions, portfolio targets, and blockers.
-- Existing deterministic baseline is marked fallback-only.
+- local LEAN run works from a repo command or records an actionable blocker;
+- QuantConnect Cloud backtest/import is first-class when account access allows it;
+- result artifacts are hashed and imported;
+- simulator evidence is visibly separated from strategy evidence;
+- dashboard and ledgers show run status, alpha decisions, portfolio targets, risk cuts, and blockers.

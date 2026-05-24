@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Replays historical LEAN targets through paper plumbing; not valid live-readiness evidence.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT/backend"
+bun run v1:cli -- run-paper-replay

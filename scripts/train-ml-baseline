@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Train LightGBM tabular alpha (QC-style). Promotes to ml/registry when walk-forward accuracy passes.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT/backend"
+bun run v1:cli -- train-ml-baseline

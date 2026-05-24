@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Runs fail-closed live gates. Exit 2 means blocked (expected until broker write flags are set).
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT/backend"
+bun run v1:cli -- live-preflight

@@ -1,110 +1,100 @@
-# Lincei Autonomous Alpha System
+# Lincei Quant Research Engine Specification
 
-## Goal
+Status: active long-term specification.
 
-Build a personal, aggressive autonomous investment system that combines:
+Last aligned: 2026-05-24.
 
-1. LEAN / QuantConnect as the executable strategy, backtest, paper, and live-trading engine;
-2. LLM agents as first-class alpha judges for research, event interpretation, strategy review, and model selection;
-3. deterministic portfolio, risk, execution, broker, and ledger boundaries so capital can move only through typed, testable contracts.
+## Spec Authority
 
-The project is not a generic investment-report dashboard. The core product is an automated capital-allocation system. Dashboards, reports, and ledgers exist to make the engine observable and controllable, not to replace the engine.
+This file is the canonical index for the project specification. A contributor can understand the full active spec by reading this file first and then the documents linked in the "Required Reading" section.
 
-## Current Reality
+Documents linked from this file are normative. Older dated handoffs, prompts, archived plans, and review notes are historical context only. They cannot override this spec.
 
-The repository already has useful control-plane foundations:
+Changing this file or a linked `docs/spec/` document changes the long-term project direction. Do not make that kind of change from inference alone. Any change that expands or relaxes live trading, broker writes, leverage, derivatives, capital limits, QuantConnect promotion requirements, testing policy, or the LLM/broker boundary requires explicit user approval before implementation.
 
-- budget envelopes;
-- deterministic risk gate;
-- research-run and proposal ledgers;
-- market-data bar import and ingestion records;
-- paper account, paper order plan, approval, reservation, and reconciliation ledgers;
-- execution-control and kill-switch state;
-- broker read-only evidence, broker order lifecycle evidence, and broker command dry-run ledgers;
-- React operational dashboard.
+## Current Direction Lock
 
-The critical missing piece is the actual investment execution brain:
+The current milestone is not automatic production/live trading. The project is being fixed around a QuantConnect Cloud and LEAN validation runtime for alpha research, cloud/local backtests, paper or live-shadow evidence, result import, and reconciliation.
 
-- no LEAN workspace is integrated as a first-class runtime;
-- no QuantConnect MCP/API or Lean CLI orchestration is implemented;
-- no production `AlphaModel`, `PortfolioConstructionModel`, `RiskManagementModel`, or `ExecutionModel` exists;
-- no LLM alpha committee produces typed decisions for LEAN;
-- no meta-alpha layer converts numeric and LLM judgments into executable `Insight` objects;
-- no broker write adapter can submit, cancel, or reconcile real orders.
+Real-money broker writes are out of scope unless the user explicitly approves a separate spec change. Old `10 USD live pilot` language is superseded by this direction lock.
 
-The old deterministic momentum baseline remains useful only as a smoke-test fallback. It is not the product.
+QuantConnect Cloud and LEAN are the strategy validation runtime. Local LEAN is still required for fast debugging, deterministic replay, custom-data checks, and smoke tests, but local sample-data or simulator results alone are not strategy-promotion evidence.
 
-## Design Principle
+LLMs are first-class semantic alpha engines. They may read timestamped news, filings, macro context, numeric features, and portfolio state, then emit typed, replayable alpha/risk features. They must not generate broker payloads, choose final order quantities, access credentials, or create non-replayable live-only trade decisions.
 
-Move in vertical slices that prove the capital-allocation loop works end to end:
+## Product Goal
 
-```text
-Data -> Numeric Features -> LLM Alpha Committee -> Meta Alpha
-     -> LEAN Insight -> Portfolio Targets -> Risk Cuts
-     -> Paper/Live Execution -> Broker Reconciliation -> Learning Loop
-```
+Build a personal, aggressive autonomous investment research system that can eventually support capital allocation by combining:
 
-Do not spend large effort on secondary surfaces until the execution engine, alpha model, portfolio sizing, and risk/execution loop are working.
+1. LEAN / QuantConnect as the executable strategy, backtest, paper, and later live runtime;
+2. LLM agents as semantic alpha engines for natural-language data, event interpretation, thesis/counter-thesis, and risk narrative;
+3. deterministic portfolio, risk, execution, broker, and reconciliation boundaries so broker-write behavior only happens through typed, auditable contracts.
+
+The repository is not a generic investment dashboard. Dashboards, reports, and ledgers exist to make the alpha and execution loop observable and controllable.
+
+## Required Reading
+
+Read these documents in order when implementing core behavior:
+
+1. [Direction And Change Control](docs/spec/00-direction-and-change-control.md): locked product direction, approval rules, non-goals, and subscription posture.
+2. [Terminology](terminology.md): canonical engineering and quant terms, platform terms, and banned AI-slop expressions.
+3. [QuantConnect And LEAN Runtime](docs/spec/01-quantconnect-lean-runtime.md): role split between QuantConnect Cloud, local LEAN, Research, Object Store, API/CLI/MCP, and the repo control plane.
+4. [LLM Semantic Alpha Engine](docs/spec/02-llm-semantic-alpha-engine.md): how LLMs participate inside alpha generation without touching broker order paths.
+5. [Data Sources And Feature Store](docs/spec/03-data-sources-and-feature-store.md): news, filings, macro, market data, direct ingestion, custom data, and point-in-time feature requirements.
+6. [Risk, Execution, And Broker Boundary](docs/spec/04-risk-execution-and-broker-boundary.md): portfolio construction, risk caps, paper/live-shadow mode, broker write blocking, and reconciliation.
+7. [Testing And Verification Policy](docs/spec/05-testing-and-verification.md): narrow Detroit-style tests plus direct runnable verification.
+8. [Implementation Roadmap](docs/spec/06-implementation-roadmap.md): current phase sequence and acceptance criteria.
+9. [References](docs/spec/07-references.md): official docs and research references used by this spec.
+
+Supporting project docs may provide runbooks and implementation detail, but they must be interpreted through the active spec:
+
+- [LEAN and QuantConnect Engine](docs/lean-quantconnect-engine.md)
+- [Alpha Model Design](docs/alpha-model-design.md)
+- [LLM Alpha Committee](docs/llm-alpha-committee.md)
+- [Implementation Roadmap](docs/implementation-roadmap.md)
+- [Research References](docs/research-references.md)
+- [QuantConnect Realignment Decision](docs/decisions/2026-05-24-quantconnect-realignment.md)
+
+The old [V1 Autonomous Live Pilot Working Spec](docs/archive/v1-live-pilot-spec-20260523/README.md) is superseded for live-money scope. Use it only as historical implementation context unless the active spec links to a specific contract.
 
 ## System Shape
 
-```mermaid
-flowchart LR
-    D["Market / News / Filing / Macro / Broker Data"] --> F["Feature Store"]
-    F --> N["Numeric Alpha Engine"]
-    F --> L["LLM Alpha Committee"]
-    N --> M["Meta Alpha Combiner"]
-    L --> M
-    M --> A["LEAN AlphaModel Insight Adapter"]
-    A --> P["LEAN PortfolioConstructionModel"]
-    P --> R["LEAN + Control-Plane Risk Models"]
-    R --> E["LEAN ExecutionModel"]
-    E --> B["Broker Adapter"]
-    B --> O["Orders / Fills / Positions"]
-    O --> C["Control Plane Ledgers"]
-    C --> F
+```text
+Market/news/filing/macro data
+  -> point-in-time feature snapshots
+  -> numeric alpha + LLM semantic alpha
+  -> meta alpha combiner
+  -> LEAN AlphaModel Insights
+  -> portfolio construction
+  -> risk model cuts
+  -> paper/live-shadow execution evidence
+  -> result import + reconciliation
+  -> learning loop
 ```
 
-## Documentation Map
-
-Detailed implementation guidance is split across focused documents:
-
-- [Project Architecture](docs/project-architecture.md): target architecture, module ownership, and data flow.
-- [LEAN and QuantConnect Engine](docs/lean-quantconnect-engine.md): how LEAN, Lean CLI, and QuantConnect MCP fit into this repo.
-- [Alpha Model Design](docs/alpha-model-design.md): numeric alpha, LLM alpha, meta alpha, outputs, and validation.
-- [LLM Alpha Committee](docs/llm-alpha-committee.md): agent roles, schemas, guardrails, and where LLM judgment is allowed.
-- [Latency and Execution Paths](docs/latency-and-execution-paths.md): fast path, slow path, expected latency, and strategy suitability.
-- [Model Training Plan](docs/model-training-plan.md): training targets, datasets, validation, and hardware plans for T4 16GB, RTX 3070 8GB, and TPU v5e.
-- [Implementation Roadmap](docs/implementation-roadmap.md): concrete build phases and acceptance criteria.
-- [Research References](docs/research-references.md): papers, official docs, and how to use them without copying blindly.
-
-Existing operational docs remain useful but should be updated as implementation catches up:
-
-- [API Reference](docs/api-reference.md)
-- [Execution Readiness](docs/execution-readiness.md)
-- [Toss Open API Readiness](docs/toss-open-api-readiness.md)
-- [Development Guide](docs/development-guide.md)
-- [Deployment Guide](docs/deployment-guide.md)
+The control plane orchestrates and records evidence. LEAN owns the strategy runtime. LLMs produce semantic alpha features and risk judgments. Broker write paths remain blocked until a user-approved live-trading spec exists.
 
 ## Core Contracts
 
-### Alpha Decision
-
-Every alpha source must produce typed output, not free-form trade text:
+Every alpha source must produce typed output rather than free-form trade text:
 
 ```ts
 type AlphaDecision = {
   symbol: string;
   asOf: string;
-  horizonDays: number;
+  availableAt: string;
+  horizonHours: number;
   direction: "up" | "down" | "flat";
   expectedReturnBps?: number;
   confidence: number;
   conviction: "low" | "medium" | "high";
   maxPositionPct?: number;
-  stopLossPct?: number;
-  takeProfitPct?: number;
+  eventType?: string;
+  catalystStrength?: number;
+  downsideRisk?: number;
   sourceModels: string[];
+  promptVersion?: string;
+  featureSnapshotHash: string;
   evidenceRefs: string[];
   thesis?: string;
   counterThesis?: string;
@@ -112,107 +102,59 @@ type AlphaDecision = {
 };
 ```
 
-LEAN converts this into `Insight` fields:
+LEAN converts approved alpha decisions into `Insight` objects. Portfolio construction and risk models determine final target weights. LLMs may influence confidence, direction, horizon, catalyst strength, and risk flags, but they do not own final order quantity.
 
-- `symbol` -> `Insight.Symbol`;
-- `direction` -> `InsightDirection`;
-- `horizonDays` -> `Insight.Period`;
-- `expectedReturnBps` -> `Insight.Magnitude`;
-- `confidence` -> `Insight.Confidence`;
-- `maxPositionPct` -> optional `Insight.Weight`.
+## Required Modes
 
-### Portfolio Target
+Fast path:
 
-Portfolio construction should size capital with deterministic math:
-
-- top-k concentration for aggressive growth;
-- volatility targeting;
-- fractional Kelly caps when edge estimates are calibrated;
-- liquidity and turnover limits;
-- max symbol, sector, market, and gross exposure caps.
-
-LLMs may recommend conviction and risk concerns. They must not directly decide final order quantity.
-
-### Execution Boundary
-
-Execution code must not import LLM modules or prompt text. It receives approved portfolio targets or signed order plans and produces idempotent paper/live orders through a broker adapter.
-
-## Required Engine Modes
-
-### Fast Path
-
-Purpose: low-latency actions where LLM reasoning would be too slow.
-
-- LEAN numeric alpha only;
-- no LLM call;
-- no fresh strategy generation;
-- used for stop-loss, risk-off, de-risking, breakout continuation, and validated rule execution;
+- numeric and precomputed alpha only;
+- no fresh LLM calls;
+- used for stop-loss, stale-data blocks, de-risking, and validated rule execution;
 - expected latency: seconds.
 
-### Slow Path
+Slow path:
 
-Purpose: high-context decisions.
-
-- numeric factors plus LLM alpha committee;
-- news, filings, macro, portfolio context, and bull/bear debate;
-- optional Lean backtest or scenario check before new exposure;
-- used for new positions, concentration increases, strategy selection, and event-driven trades;
+- numeric features plus LLM semantic alpha;
+- uses recent news, filings, macro context, portfolio state, and bull/bear review;
+- used for new positions, concentration changes, strategy selection, and event-driven trades;
 - expected latency: one to several minutes.
 
-### Research Path
+Research path:
 
-Purpose: strategy creation, retraining, walk-forward validation, and promotion.
-
-- full data pull;
-- training or parameter search when needed;
-- Lean backtests and reports;
-- LLM review and failure analysis;
+- strategy creation, model training, walk-forward validation, cloud backtests, and failure review;
 - expected latency: minutes to hours.
 
-## Model Strategy
+## Verification Summary
 
-The first production-shaped system should include all major layers even if early models are simple:
+Testing is important, but unit tests are not the project goal. This is a non-production research engine where the fastest valid feedback often comes from running the implementation directly.
 
-1. numeric alpha engine: momentum, trend, volatility, liquidity, and cross-sectional rank features;
-2. LLM alpha committee: structured analysis of news, filings, macro, and current portfolio state;
-3. meta-alpha combiner: deterministic and trainable combination of numeric and LLM decisions;
-4. LEAN AlphaModel adapter: emits `Insight` objects;
-5. LEAN PortfolioConstructionModel: aggressive top-k sizing with volatility and Kelly-style caps;
-6. LEAN RiskManagementModel plus control-plane risk gate;
-7. LEAN ExecutionModel plus broker adapter.
+Use focused Detroit-style tests for pure behavior, schemas, policy gates, timestamp/lookahead checks, idempotency, and fail-closed cases. Runtime claims require direct commands and artifacts: LEAN backtests, cloud backtests when available, alpha replay, paper/live-shadow cycles, preflight checks, and result imports.
 
-## Implementation Priority
-
-1. Create a real LEAN workspace and first algorithm: `aggressive_llm_momentum`.
-2. Add local `lean backtest` orchestration and result ingestion.
-3. Implement numeric feature snapshots and AlphaDecision storage.
-4. Implement LLM Alpha Committee schemas and prompts.
-5. Implement meta-alpha to LEAN `Insight` adapter.
-6. Implement aggressive portfolio construction and risk cuts.
-7. Connect paper execution and dashboard to LEAN outputs.
-8. Add training pipeline and model registry.
-9. Add broker write adapter only after paper/live-shadow validation.
+Final reports must separate unit-test evidence from direct-execution evidence.
 
 ## Non-Goals
 
-- HFT, market making, or tick scalping;
-- LLM free-text directly placing broker orders;
+- automatic production/live trading in the current milestone;
+- real broker writes without a separate user-approved spec;
+- HFT, market making, tick scalping, unrestricted margin, options, futures, shorts, or derivatives;
+- LLM free text directly placing broker orders;
+- local simulator, local sample data, or static fixtures treated as promotion evidence;
 - hidden backtest selection or only storing winning runs;
-- unrestricted leverage, margin, options, futures, or derivatives before a separate design review;
-- broker credentials in frontend, LLM prompts, or research artifacts;
-- UI polish that delays the alpha/execution loop.
+- broker credentials in frontend, LLM prompts, logs, or research artifacts;
+- UI polish that delays the alpha, backtest, paper/live-shadow, and reconciliation loop.
 
 ## Real-Money Readiness
 
-Current verdict: not ready.
+Current verdict: not ready and not in active scope.
 
-The repo has control-plane foundations, but the executable investment engine is still missing. Real-money readiness requires at minimum:
+Before any future live-money spec can be approved, the repository must have:
 
-- LEAN algorithm backtests ingested into the control plane;
-- paper/live-shadow performance evidence;
-- stable alpha decision schemas;
-- latency monitoring for fast and slow paths;
-- broker write adapter with cancel/flatten controls;
-- fill and open-order reconciliation;
-- production credential custody;
-- explicit user loss limits and kill-switch drills.
+- point-in-time alpha decisions with no-lookahead evidence;
+- QuantConnect Cloud backtest/import evidence;
+- paper or live-shadow performance evidence;
+- stable alpha, portfolio target, risk cut, execution intent, order, fill, and reconciliation schemas;
+- explicit capital limits and kill-switch behavior;
+- broker write adapter design reviewed separately;
+- fail-closed preflight and reconciliation tests;
+- user approval for the live-money spec change.

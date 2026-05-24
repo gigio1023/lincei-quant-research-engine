@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Uploads a local replay artifact to QuantConnect Object Store.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+KEY="${1:-lincei/llm-features/latest.json}"
+SOURCE="${2:-$ROOT/artifacts/llm-features/latest.json}"
+cd "$ROOT/backend"
+bun run v1:cli -- qc-object-store-set "$KEY" "$SOURCE"

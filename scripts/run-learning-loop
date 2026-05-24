@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Joins alpha outcomes and records promotion evidence under the active spec.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT/backend"
+bun run v1:cli -- run-learning-loop

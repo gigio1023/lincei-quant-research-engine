@@ -70,6 +70,13 @@ describe('ControlPlane research provenance (e2e)', () => {
     await app.close();
   });
 
+  const recentBarTimestamps = (count: number): string[] => {
+    const now = Date.now();
+    return Array.from({ length: count }, (_, index) =>
+      new Date(now - (count - index) * 60_000).toISOString(),
+    );
+  };
+
   it('creates a research run before creating and evaluating a proposal', async () => {
     const generatedAt = new Date(Date.now() - 60_000).toISOString();
     const marketDataTimestamp = new Date(Date.now() - 5 * 60_000).toISOString();
@@ -430,22 +437,15 @@ describe('ControlPlane research provenance (e2e)', () => {
       })
       .expect(201);
     const datasetId = `scheduled-e2e-bars-${budgetResponse.body.id}`;
-    const dates = [
-      '2026-05-18',
-      '2026-05-19',
-      '2026-05-20',
-      '2026-05-21',
-      '2026-05-22',
-      '2026-05-23',
-    ];
+    const timestamps = recentBarTimestamps(6);
     await request(app.getHttpServer())
       .post('/control-plane/market-data/bars/import')
       .send({
         datasetId,
         symbol: '005930',
-        bars: dates.map((date, index) => ({
-          timestamp: `${date}T00:00:00.000Z`,
-          availabilityTimestamp: `${date}T00:00:00.000Z`,
+        bars: timestamps.map((timestamp, index) => ({
+          timestamp,
+          availabilityTimestamp: timestamp,
           open: 100 + index,
           high: 102 + index,
           low: 99 + index,
@@ -458,9 +458,9 @@ describe('ControlPlane research provenance (e2e)', () => {
       .send({
         datasetId,
         symbol: 'KOSPI200',
-        bars: dates.map((date, index) => ({
-          timestamp: `${date}T00:00:00.000Z`,
-          availabilityTimestamp: `${date}T00:00:00.000Z`,
+        bars: timestamps.map((timestamp, index) => ({
+          timestamp,
+          availabilityTimestamp: timestamp,
           open: 100 + index,
           high: 101 + index,
           low: 99 + index,
@@ -1097,22 +1097,15 @@ describe('ControlPlane research provenance (e2e)', () => {
       })
       .expect(201);
     const datasetId = `auto-paper-schedule-e2e-bars-${budgetResponse.body.id}`;
-    const dates = [
-      '2026-05-18',
-      '2026-05-19',
-      '2026-05-20',
-      '2026-05-21',
-      '2026-05-22',
-      '2026-05-23',
-    ];
+    const timestamps = recentBarTimestamps(6);
     await request(app.getHttpServer())
       .post('/control-plane/market-data/bars/import')
       .send({
         datasetId,
         symbol: '005930',
-        bars: dates.map((date, index) => ({
-          timestamp: `${date}T00:00:00.000Z`,
-          availabilityTimestamp: `${date}T00:00:00.000Z`,
+        bars: timestamps.map((timestamp, index) => ({
+          timestamp,
+          availabilityTimestamp: timestamp,
           open: 100 + index,
           high: 102 + index,
           low: 99 + index,
@@ -1125,9 +1118,9 @@ describe('ControlPlane research provenance (e2e)', () => {
       .send({
         datasetId,
         symbol: 'KOSPI200',
-        bars: dates.map((date, index) => ({
-          timestamp: `${date}T00:00:00.000Z`,
-          availabilityTimestamp: `${date}T00:00:00.000Z`,
+        bars: timestamps.map((timestamp, index) => ({
+          timestamp,
+          availabilityTimestamp: timestamp,
           open: 100 + index,
           high: 101 + index,
           low: 99 + index,

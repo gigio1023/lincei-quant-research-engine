@@ -44,7 +44,7 @@ export const BrokerWriteReadinessPanel = ({
   const pilotRows: Array<[string, string]> = pilot
     ? [
         [
-          "pilot budget",
+          "preflight budget",
           formatCurrency(pilot.pilotBudgetAmount, pilot.currency),
         ],
         [
@@ -68,7 +68,7 @@ export const BrokerWriteReadinessPanel = ({
           </div>
           <p className="mt-1 text-xs leading-5 text-[#707a8a]">
             {t(
-              "Live pilot preflight evidence. This panel explains why broker write remains blocked.",
+              "Broker-write preflight evidence. This panel explains why real-money broker writes remain out of active scope.",
             )}
           </p>
         </div>

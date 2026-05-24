@@ -1,0 +1,20 @@
+{
+  "policyVersion": "1",
+  "approved": [
+    {
+      "id": "jc-stockprediction-ai-live",
+      "huggingfaceRepo": "jc-builds/stockprediction-ai",
+      "license": "See model card on Hugging Face",
+      "modelType": "lightgbm-booster-txt",
+      "files": [
+        { "repoPath": "boosters/live.txt", "localRel": "boosters/live.txt", "maxBytes": 52428800 },
+        { "repoPath": "config.json", "localRel": "config.json", "maxBytes": 1048576 }
+      ],
+      "artifactDir": "artifacts/external-baselines/jc-builds-stockprediction-ai",
+      "framework": "jc-stockprediction-lgb",
+      "modelName": "jc-stockprediction-ai-live",
+      "trainingCutoff": "2025-04-22",
+      "notes": "QuantConnect-style LightGBM tabular baseline (text booster only). Text, sentiment, and macro features use the hosted LLM semantic-alpha engine first; no FinBERT."
+    }
+  ]
+}

@@ -1,243 +1,126 @@
 # Development Guide
 
-This guide covers the existing NestJS + React application. The project direction has changed: the core product is now a LEAN/QuantConnect + LLM autonomous alpha system, not only an investment report generator.
+Status: operator runbook. The active product direction is defined by [../SPEC.md](../SPEC.md).
 
-Use these documents for the current implementation direction:
+## Local Setup
 
-- [Project Architecture](project-architecture.md)
-- [LEAN and QuantConnect Engine](lean-quantconnect-engine.md)
-- [Alpha Model Design](alpha-model-design.md)
-- [LLM Alpha Committee](llm-alpha-committee.md)
-- [Model Training Plan](model-training-plan.md)
-- [Implementation Roadmap](implementation-roadmap.md)
-
-When choosing what to build next, prioritize the executable alpha/backtest/portfolio/risk/execution loop over surrounding UI or report surfaces.
-
-## 1. System Architecture
-
-The existing system consists of a NestJS backend, a React frontend, and several external services for data and AI.
-
-```mermaid
-graph TD
-    subgraph "User"
-        USER[React SPA]
-    end
-
-    subgraph "Backend System (NestJS)"
-        API[API Gateway]
-        REPORTS[Reports Module]
-        NEWS[News Module]
-        LLM[LLM Module]
-        SCHED[Task Scheduler]
-        DB[(SQLite DB)]
-    end
-
-    subgraph "External Services"
-        RSS[RSS News Feeds]
-        AI_API[AI Providers]
-    end
-
-    USER -- "REST API" --> API
-    API --> REPORTS & NEWS
-    REPORTS --> LLM & DB
-    NEWS --> DB & RSS
-    LLM --> AI_API
-    SCHED --> REPORTS
-```
-
--   **Backend**: A modular NestJS application responsible for business logic, data persistence, and external API communication.
--   **Frontend**: A React SPA for user interaction and data visualization.
--   **External Services**: RSS feeds for news aggregation and AI providers (e.g., Gemini) for analysis.
-
-## 2. Project Structure
-
-The project follows an independent services architecture where each service can be developed, tested, and deployed separately.
-
-```
-auto-investment-helper/
-├── backend/            # NestJS Backend (Independent)
-│   ├── src/
-│   │   ├── modules/    # Core feature modules (reports, news, llm)
-│   │   ├── entities/   # TypeORM entities
-│   │   ├── config/     # Configuration
-│   │   └── main.ts     # Application entry point
-│   ├── data/           # SQLite database file
-│   ├── package.json    # Backend dependencies
-│   └── test/           # E2E tests
-├── frontend/           # React Frontend (Independent)
-│   ├── src/
-│   │   ├── components/ # UI Components
-│   │   ├── services/   # API services
-│   │   └── App.tsx     # Main application component
-│   ├── package.json    # Frontend dependencies
-│   └── public/
-├── docs/               # Project documentation
-└── docker-compose.yml  # Container orchestration
-```
-
-## 3. Getting Started
-
-### Prerequisites
-
--   Node.js v18+
--   npm v9+
--   Git
--   Docker (for production deployment)
-
-### Development Setup
-
-1.  **Clone the repository**:
-    ```bash
-    git clone <repository-url>
-    cd auto-investment-helper
-    ```
-
-2.  **Setup Backend**:
-     ```bash
-     cd backend
-     npm install
-     cp .env.example .env
-     # Edit .env and add your GEMINI_API_KEY
-     npm run start:dev
-     ```
-
-3.  **Setup Frontend** (in another terminal):
-     ```bash
-     cd frontend
-     npm install
-     npm start
-     ```
-
-### Production Deployment
+Run the bootstrap script first:
 
 ```bash
-# Setup environment
-cp backend/.env.example backend/.env
-# Edit backend/.env and add your GEMINI_API_KEY
-
-# Deploy with Docker Compose
-docker-compose up --build
+./scripts/bootstrap-dev.sh
 ```
 
-## 4. Development Workflow
+The repository currently uses:
 
-### Backend Development
+- Bun for backend/frontend package scripts;
+- Python virtual environments for ML and Lean CLI helpers;
+- Docker or Podman for local LEAN;
+- QuantConnect credentials only when running cloud or data-download paths.
 
-Navigate to the backend directory and use standard NestJS commands:
+Do not put broker credentials, raw account identifiers, or OpenAI keys in frontend config, prompts, logs, or docs.
+
+## Backend
 
 ```bash
 cd backend
-
-# Install dependencies
-npm install
-
-# Development with hot-reload
-npm run start:dev
-
-# Build for production
-npm run build
-
-# Start production server
-npm run start:prod
-
-# Run tests
-npm run test          # Unit tests
-npm run test:e2e      # E2E tests
-npm run test:all      # All tests
-
-# Linting and formatting
-npm run lint          # Lint with auto-fix
-npm run format        # Format code
+bun install
+bun run start:dev
 ```
 
-### Frontend Development
+Focused verification:
 
-Navigate to the frontend directory and use standard React commands:
+```bash
+cd backend
+bun run build
+bun run test
+bun run test:e2e
+```
+
+Useful CLI entrypoint:
+
+```bash
+cd backend
+bun run v1:cli -- <command>
+```
+
+Examples:
+
+```bash
+cd backend
+bun run v1:cli -- run-alpha-cycle
+bun run v1:cli -- run-paper-cycle
+bun run v1:cli -- live-preflight
+```
+
+`live-preflight` is evidence only under the active spec. It should remain blocked for real broker writes until a separate user-approved live-money spec exists.
+
+## Frontend
 
 ```bash
 cd frontend
-
-# Install dependencies
-npm install
-
-# Development server
-npm start
-
-# Build for production
-npm run build
-
-# Run tests
-npm test              # Interactive mode
-npm run test:coverage # With coverage report
-
-# Linting and formatting
-npm run lint          # Lint with auto-fix
-npm run lint:check    # Lint check only
-npm run format        # Format code
-npm run format:check  # Format check only
+bun install
+bun run dev
 ```
 
-### Docker Development
-
-For production-like environment testing:
+Focused verification:
 
 ```bash
-# Build and start all services
-docker-compose up --build
-
-# Run in background
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop services
-docker-compose down
+cd frontend
+bun run typecheck
+bun run lint
+bun run test:run
+bun run build
 ```
 
-## 5. Service Independence
+The dashboard is an operational surface. It should show alpha, run, risk, execution, reconciliation, and blocker state. Do not spend major effort on frontend polish while the LEAN/QuantConnect and LLM-alpha loop is incomplete.
 
-Each service (backend/frontend) is completely independent:
+## LEAN And ML
 
-- **Separate Dependencies**: Each has its own `package.json`
-- **Independent Deployment**: Can be deployed separately
-- **Technology Flexibility**: Backend could be replaced with Python/Go, frontend with Vue/Angular
-- **Isolated Testing**: Each service has its own test suite
+Python/LEAN setup:
 
-### Adding New Services
-
-To add a new service (e.g., `mobile-app`, `admin-panel`):
-
-1. Create a new directory with its own `package.json`
-2. Add the service to `docker-compose.yml` if needed
-3. Follow the same independent development pattern
-
-## 6. Configuration Files
-
-- **Backend**: `.eslintrc.js`, `.prettierrc` (NestJS optimized)
-- **Frontend**: `.eslintrc.js`, `.prettierrc` (React optimized)
-- **Docker**: `Dockerfile` in each service directory
-
-## 7. IDE Setup Recommendations
-
-For VSCode users:
-- ESLint extension
-- Prettier - Code formatter
-- TypeScript Importer
-
-Workspace settings (`.vscode/settings.json`):
-```json
-{
-  "editor.formatOnSave": true,
-  "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": true
-  }
-}
+```bash
+./scripts/setup-ml-venv.sh
+./scripts/setup-lean-cli.sh
+./scripts/setup-lean-workspace.sh
 ```
 
-## 8. Common Issues
+Local LEAN smoke/backtest:
 
-- **Port Conflicts**: Use `lsof -i :<port>` and `kill -9 <PID>` to free ports
-- **API Key Errors**: Ensure `GEMINI_API_KEY` in `backend/.env` is correct
-- **Database Issues**: Delete `backend/data/investment.db` to reset schema
-- **Docker Issues**: Run `docker-compose down` and `docker system prune` to clean up
+```bash
+./scripts/lean-backtest aggressive_llm_momentum
+```
+
+Full local orchestration:
+
+```bash
+./scripts/run-full-backtest.sh --skip-alpha-cycle --skip-market-data-ingest --no-download-data
+./scripts/run-local-strategy-smoke
+./scripts/import-lean-run latest
+```
+
+Local simulator/sample-data runs prove plumbing only. `run-local-strategy-smoke` is useful local LEAN strategy evidence, but strategy promotion still requires QuantConnect Cloud REST-imported evidence when account access allows it.
+
+## Testing Policy
+
+Use the narrowest test that protects behavior:
+
+- schema and typed-contract validation;
+- feature timestamp/lookahead rejection;
+- numeric scoring;
+- portfolio/risk policy;
+- idempotency;
+- blocked preflight/reconciliation cases.
+
+Then run the direct command for the changed path. A unit test is not a substitute for proving the affected alpha/backtest/paper/reconciliation path still executes.
+
+## Documentation Policy
+
+New docs need a status line near the top:
+
+- active normative spec;
+- supporting design;
+- operator runbook;
+- decision record;
+- archived historical context.
+
+If a doc conflicts with [../SPEC.md](../SPEC.md), update or archive the doc rather than leaving contradictory guidance in place.

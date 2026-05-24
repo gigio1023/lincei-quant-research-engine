@@ -1,0 +1,17 @@
+{
+  "jc-stockprediction-ai-live": {
+    "verifiedAt": "2026-05-23T10:33:15.994147+00:00",
+    "files": [
+      {
+        "path": "artifacts/external-baselines/jc-builds-stockprediction-ai/boosters/live.txt",
+        "sha256": "194d4938b9ee4b9f6bb72d3a25ad76655d84615e8d920a0c96bf61425d886178",
+        "bytes": 759102
+      },
+      {
+        "path": "artifacts/external-baselines/jc-builds-stockprediction-ai/config.json",
+        "sha256": "7b5c5fb2cff39ab2e1c0430d72a8c3ae5ca7b35c2fffd48920b0186f9063ce3b",
+        "bytes": 2927
+      }
+    ]
+  }
+}

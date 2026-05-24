@@ -1,0 +1,46 @@
+{
+  "cases": [
+    {
+      "name": "strong_numeric_with_llm_up",
+      "numeric": { "direction": "up", "confidence": 0.85 },
+      "llmEvent": { "direction": "up", "confidence": 0.72 },
+      "llmMacro": { "direction": "up", "confidence": 0.68 },
+      "llmRisk": { "direction": "flat", "confidence": 0.55 },
+      "expected": {
+        "numericScore": 0.85,
+        "eventScore": 0.72,
+        "macroScore": 0.68,
+        "riskAdjustment": 0.5,
+        "finalScore": 0.757,
+        "direction": "up"
+      }
+    },
+    {
+      "name": "weak_numeric_flat_committee",
+      "numeric": { "direction": "flat", "confidence": 0.4 },
+      "llmEvent": { "direction": "flat", "confidence": 0.45 },
+      "llmMacro": { "direction": "down", "confidence": 0.6 },
+      "llmRisk": { "direction": "up", "confidence": 0.75 },
+      "expected": {
+        "numericScore": 0.5,
+        "eventScore": 0.5,
+        "macroScore": 0.4,
+        "riskAdjustment": 0.25,
+        "finalScore": 0.46,
+        "direction": "flat"
+      }
+    },
+    {
+      "name": "numeric_only_fast_path",
+      "numeric": { "direction": "up", "confidence": 0.78 },
+      "expected": {
+        "numericScore": 0.78,
+        "eventScore": 0.5,
+        "macroScore": 0.5,
+        "riskAdjustment": 0.5,
+        "finalScore": 0.64,
+        "direction": "flat"
+      }
+    }
+  ]
+}

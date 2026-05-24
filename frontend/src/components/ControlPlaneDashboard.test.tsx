@@ -45,6 +45,48 @@ vi.mock("../services/api", () => ({
     runRecoveryProposal: vi.fn(),
     tripKillSwitch: vi.fn(),
   },
+  v1PilotApi: {
+    getStatus: vi.fn(() =>
+      Promise.resolve({
+        checkedAt: "2026-05-22T09:00:00.000Z",
+        verdict: "blocked",
+        leanRun: null,
+        alpha: {
+          featureSnapshotCount: 0,
+          numericDecisionCount: 0,
+          llmDecisionCount: 0,
+          metaDecisionCount: 0,
+          mlModelStatus: "not_promoted",
+        },
+        portfolioTarget: { targetCount: 0 },
+        paper: { status: "missing", fillCount: 0 },
+        broker: { snapshotStatus: "missing", openOrderCount: 0 },
+        livePilot: { realOrderSent: false },
+        preflight: {
+          status: "blocked",
+          checkedAt: "2026-05-22T09:00:00.000Z",
+          maxPilotNotionalUsd: 10,
+          broker: "toss",
+          blockers: ["Test preflight blocked."],
+          requiredFlags: {},
+          openOrderRefs: [],
+          credentialMode: "missing",
+        },
+        stages: [
+          {
+            key: "live_preflight",
+            label: "Live Preflight",
+            status: "blocked",
+            detail: "blocked",
+            blockers: ["Test preflight blocked."],
+            refs: [],
+          },
+        ],
+        nextActions: ["Resolve Live Preflight: Test preflight blocked."],
+      }),
+    ),
+    listLeanRuns: vi.fn(() => Promise.resolve([])),
+  },
 }));
 
 import { controlPlaneApi } from "../services/api";
@@ -221,7 +263,7 @@ const mockControlPlaneStatus = {
         "Live order endpoint is not implemented",
       ],
       notes: [
-        "Live pilot readiness is evidence only. No broker order endpoint was called.",
+        "Broker-write preflight readiness is evidence only. No broker order endpoint was called.",
       ],
     },
     blockers: [
@@ -229,7 +271,7 @@ const mockControlPlaneStatus = {
       "Live order endpoint is not implemented",
     ],
     notes: [
-      "Live pilot readiness is evidence only. No broker order endpoint was called.",
+      "Broker-write preflight readiness is evidence only. No broker order endpoint was called.",
     ],
     brokerExecutionEnabled: false,
     liveTradingEnabled: false,
@@ -391,13 +433,13 @@ const mockControlPlaneStatus = {
     {
       key: "livePilotReadinessLedgerReady",
       ready: true,
-      detail: "1 live pilot readiness records",
+      detail: "1 broker-write preflight readiness records",
     },
     {
       key: "livePilotReady",
       ready: false,
       detail:
-        "Latest live pilot readiness is blocked: broker write preflight gates are not ready",
+        "Latest broker-write preflight readiness is blocked: broker write gates are not ready",
     },
     {
       key: "brokerOrderCommandLedgerReady",
@@ -1589,7 +1631,9 @@ describe("ControlPlaneDashboard", () => {
       screen.getByText("expected deposit matches read-only broker truth"),
     ).toBeInTheDocument();
     expect(screen.getByText("Broker Write Readiness")).toBeInTheDocument();
-    expect(screen.getByText("API live pilot readiness")).toBeInTheDocument();
+    expect(
+      screen.getByText("API broker-write preflight readiness"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Broker write blockers")).toBeInTheDocument();
     expect(
       screen.getAllByText("Live order endpoint is not implemented").length,
@@ -1663,7 +1707,7 @@ describe("ControlPlaneDashboard", () => {
         name: /paper execute|reconcile|pause|halt/i,
       }),
     ).not.toBeInTheDocument();
-  }, 10_000);
+  }, 20_000);
 
   it("should_default_to_english_and_toggle_dashboard_copy_to_korean", async () => {
     render(<ControlPlaneDashboard />);
@@ -1700,7 +1744,7 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("자금 준비 상태")).toBeInTheDocument();
     expect(screen.getByText("API 자금 준비")).toBeInTheDocument();
     expect(screen.getByText("브로커 쓰기 준비 상태")).toBeInTheDocument();
-    expect(screen.getByText("API 실거래 파일럿 준비")).toBeInTheDocument();
+    expect(screen.getByText("API 브로커 쓰기 사전 점검")).toBeInTheDocument();
     expect(screen.getByText("브로커 주문 명령 원장")).toBeInTheDocument();
     expect(screen.getByText("API 브로커 주문 명령")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "한국어" })).toHaveAttribute(

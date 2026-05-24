@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Records live-shadow would-have-traded evidence without broker writes.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT/backend"
+bun run v1:cli -- run-live-shadow

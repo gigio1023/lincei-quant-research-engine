@@ -1,5 +1,7 @@
 # Alpha Model Design
 
+Status: supporting design. The normative LLM alpha contract is [spec/02-llm-semantic-alpha-engine.md](spec/02-llm-semantic-alpha-engine.md).
+
 ## Mental Model
 
 In this project, alpha means a forecast that can be converted into a LEAN `Insight`.
@@ -18,7 +20,8 @@ Use a project-native decision record first:
 type AlphaDecision = {
   symbol: string;
   asOf: string;
-  horizonDays: number;
+  availableAt: string;
+  horizonHours: number;
   direction: "up" | "down" | "flat";
   expectedReturnBps?: number;
   confidence: number;
@@ -27,6 +30,7 @@ type AlphaDecision = {
   stopLossPct?: number;
   takeProfitPct?: number;
   sourceModels: string[];
+  promptVersion?: string;
   evidenceRefs: string[];
   featureSnapshotHash: string;
   thesis?: string;
@@ -41,7 +45,7 @@ Then adapt it into LEAN:
 |---|---|
 | `symbol` | symbol |
 | `direction` | `InsightDirection.Up/Down/Flat` |
-| `horizonDays` | period |
+| `horizonHours` | period |
 | `expectedReturnBps` | magnitude |
 | `confidence` | confidence |
 | `maxPositionPct` | optional weight |
@@ -95,6 +99,8 @@ LLM output must be structured JSON matching the alpha decision schema. It must i
 - confidence;
 - horizon;
 - evidence references;
+- `availableAt` for point-in-time replay;
+- model and prompt versions;
 - abstain reason when evidence is weak.
 
 LLM output must not include raw broker orders, credentials, or executable code.
@@ -153,11 +159,11 @@ Each alpha source must be evaluated separately and together:
 
 ## Promotion Rule
 
-No alpha becomes live-capable until it has:
+No alpha becomes promotion-capable until it has:
 
 - schema-valid decisions;
 - no-lookahead data proof;
-- LEAN backtest;
+- QuantConnect Cloud backtest when available, or local LEAN evidence with explicit blocker notes;
 - out-of-sample or walk-forward evidence;
 - paper/live-shadow evidence;
 - documented failure modes;
