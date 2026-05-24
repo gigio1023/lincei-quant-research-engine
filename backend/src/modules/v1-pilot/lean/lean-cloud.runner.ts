@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { execFileSync } from 'child_process';
-import { mkdirSync, writeFileSync } from 'fs';
+import { mkdirSync } from 'fs';
 import { join, resolve } from 'path';
 import { randomBytes } from 'crypto';
 import { Repository } from 'typeorm';
@@ -9,6 +9,8 @@ import { LeanRun } from '../../../entities/lean-run.entity';
 import { hashObject } from '../../../shared/hash.util';
 import { LeanCliRunner } from './lean-cli.runner';
 import { assessLeanRunArtifacts } from './lean-run-acceptance';
+import { LeanCloudArtifactWriter } from './lean-cloud-artifact-writer';
+import { QuantConnectCloudRestImporter } from './lean-cloud-rest-importer';
 
 export type LeanCloudBacktestRequest = {
   projectName?: string;
@@ -20,6 +22,8 @@ export type LeanCloudBacktestRequest = {
 export class LeanCloudRunner {
   private readonly repoRoot = resolve(process.cwd(), '..');
   private readonly leanWorkspace = join(this.repoRoot, 'engines/lean');
+  private readonly cloudArtifactWriter = new LeanCloudArtifactWriter();
+  private readonly cloudRestImporter = new QuantConnectCloudRestImporter();
 
   constructor(
     private readonly leanCliRunner: LeanCliRunner,
@@ -36,7 +40,14 @@ export class LeanCloudRunner {
       .replace(/[-:TZ.]/g, '')
       .slice(0, 14)}-${randomBytes(4).toString('hex')}`;
     const resultDirectory = join(this.repoRoot, 'artifacts/lean-runs', runId);
+    const artifactsRoot = join(this.repoRoot, 'artifacts/lean-runs');
     mkdirSync(resultDirectory, { recursive: true });
+    this.cloudArtifactWriter.writeLatestMarker(artifactsRoot, '.latest', runId);
+    this.cloudArtifactWriter.writeLatestMarker(
+      artifactsRoot,
+      '.latest-cloud-attempt',
+      runId,
+    );
 
     const parameters = {
       'run-id': runId,
@@ -87,7 +98,20 @@ export class LeanCloudRunner {
     const cloudUrl =
       this.extractFirstUrl(stdout) ?? this.extractFirstUrl(stderr);
     const cloudBacktestId = this.extractBacktestId(stdout) ?? undefined;
-    this.writeCloudArtifacts({
+    if (status === 'passed') {
+      const restImport = await this.cloudRestImporter.importArtifacts({
+        resultDirectory,
+        runId,
+        cloudUrl,
+        cloudBacktestId,
+        completedAt,
+      });
+      blockerReasons.push(...restImport.blockers);
+      if (restImport.blockers.length > 0) {
+        status = 'blocked';
+      }
+    }
+    this.cloudArtifactWriter.writeCloudArtifacts({
       resultDirectory,
       runId,
       projectName,
@@ -112,7 +136,7 @@ export class LeanCloudRunner {
           'QuantConnect Cloud command completed, but cloud result artifacts were not imported; command success is not promotion evidence.',
           ...acceptance.blockers,
         ];
-        this.writeCloudArtifacts({
+        this.cloudArtifactWriter.writeCloudArtifacts({
           resultDirectory,
           runId,
           projectName,
@@ -126,6 +150,12 @@ export class LeanCloudRunner {
           cloudUrl,
           cloudBacktestId,
         });
+      } else {
+        this.cloudArtifactWriter.writeLatestMarker(
+          artifactsRoot,
+          '.latest-strategy',
+          runId,
+        );
       }
     }
 
@@ -243,93 +273,6 @@ export class LeanCloudRunner {
       blockers.push('QuantConnect dataset access may be blocked.');
     }
     return blockers;
-  }
-
-  private writeCloudArtifacts(input: {
-    resultDirectory: string;
-    runId: string;
-    projectName: string;
-    parameters: Record<string, string | number | boolean>;
-    startedAt: Date;
-    completedAt: Date;
-    status: 'passed' | 'failed' | 'blocked';
-    stdout: string;
-    stderr: string;
-    blockerReasons: string[];
-    cloudUrl?: string;
-    cloudBacktestId?: string;
-  }): void {
-    const manifest = {
-      runtime: 'quantconnect-cloud',
-      mode: 'backtest',
-      ...input,
-      startedAt: input.startedAt.toISOString(),
-      completedAt: input.completedAt.toISOString(),
-    };
-    writeFileSync(
-      join(input.resultDirectory, 'cloud-run-manifest.json'),
-      `${JSON.stringify(manifest, null, 2)}\n`,
-      'utf8',
-    );
-    writeFileSync(
-      join(input.resultDirectory, 'statistics.json'),
-      `${JSON.stringify(
-        {
-          cloudBacktestId: input.cloudBacktestId ?? '',
-          status: input.status,
-        },
-        null,
-        2,
-      )}\n`,
-      'utf8',
-    );
-    writeFileSync(
-      join(input.resultDirectory, 'config.json'),
-      `${JSON.stringify(
-        {
-          projectName: input.projectName,
-          algorithmVersion: 'v1',
-          runtime: 'quantconnect-cloud',
-          mode: 'backtest',
-          parameters: input.parameters,
-        },
-        null,
-        2,
-      )}\n`,
-      'utf8',
-    );
-    writeFileSync(
-      join(input.resultDirectory, 'logs.txt'),
-      `${input.stdout}\n${input.stderr}\n`,
-      'utf8',
-    );
-    writeFileSync(
-      join(input.resultDirectory, 'insights.json'),
-      `${JSON.stringify({ runId: input.runId, insights: [] }, null, 2)}\n`,
-      'utf8',
-    );
-    writeFileSync(
-      join(input.resultDirectory, 'portfolio_targets.json'),
-      `${JSON.stringify(
-        {
-          id: `targets-${input.runId}`,
-          leanRunId: input.runId,
-          asOf: input.completedAt.toISOString(),
-          targets: [],
-          grossExposurePct: 0,
-          maxSingleNamePct: 0,
-          riskNotes: ['cloud_artifact_import_pending'],
-        },
-        null,
-        2,
-      )}\n`,
-      'utf8',
-    );
-    writeFileSync(
-      join(input.resultDirectory, 'order_events.json'),
-      '{"events":[]}\n',
-    );
-    writeFileSync(join(input.resultDirectory, 'fills.json'), '{"fills":[]}\n');
   }
 
   private extractFirstUrl(output: string): string | undefined {
