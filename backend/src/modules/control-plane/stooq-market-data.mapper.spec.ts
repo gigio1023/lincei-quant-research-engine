@@ -23,7 +23,7 @@ describe('parseStooqDailyCsv', () => {
     expect(bars).toEqual([
       expect.objectContaining({
         timestamp: '2026-05-20T00:00:00.000Z',
-        availabilityTimestamp: '2026-05-20T00:00:00.000Z',
+        availabilityTimestamp: '2026-05-20T22:00:00.000Z',
         open: 100,
         high: 103,
         low: 99,

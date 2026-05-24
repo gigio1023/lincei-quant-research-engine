@@ -22,8 +22,8 @@ export class FeatureSnapshot {
   @Column()
   dataAvailabilityTime: string;
 
-  @Column({ nullable: true })
-  availableAt?: string;
+  @Column()
+  availableAt: string;
 
   @Column({ default: 'daily' })
   timeframe: 'daily' | 'hourly' | 'minute';

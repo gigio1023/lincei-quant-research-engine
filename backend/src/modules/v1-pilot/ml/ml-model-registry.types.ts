@@ -44,6 +44,9 @@ export type MlModelRegistryRecord = {
 
 export type MlPrediction = {
   symbol: string;
+  asOf?: string;
+  availableAt?: string;
+  inputHash?: string;
   rawScore: number;
   score: number;
   expectedReturnBps: number;

@@ -46,23 +46,15 @@ export function validateFeatureSnapshot(
 }
 
 export function validateAlphaDecision(decision: AlphaDecisionContract): void {
-  const availableAt = decision.availableAt
-    ? new Date(decision.availableAt).getTime()
-    : undefined;
+  const availableAt = new Date(decision.availableAt).getTime();
   const asOf = new Date(decision.asOf).getTime();
-  if (
-    availableAt !== undefined &&
-    (!Number.isFinite(availableAt) || asOf < availableAt)
-  ) {
+  if (!Number.isFinite(availableAt) || asOf < availableAt) {
     throw new BadRequestException(
       'Alpha decision asOf precedes availability time.',
     );
   }
 
-  if (
-    decision.horizonHours !== undefined &&
-    (!Number.isInteger(decision.horizonHours) || decision.horizonHours <= 0)
-  ) {
+  if (!Number.isInteger(decision.horizonHours) || decision.horizonHours <= 0) {
     throw new BadRequestException(
       'Alpha decision horizonHours must be a positive integer.',
     );
@@ -151,7 +143,7 @@ export function validateExecutionIntent(intent: ExecutionIntentContract): void {
     }
     if (intent.orderType === 'market') {
       throw new BadRequestException(
-        'Live pilot market orders are disabled by policy.',
+        'Broker-write market orders are disabled by policy.',
       );
     }
   }

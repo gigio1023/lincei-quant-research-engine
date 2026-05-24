@@ -17,6 +17,7 @@ describe('v1-pilot.validators', () => {
     symbol: 'SPY',
     asOf: new Date().toISOString(),
     dataAvailabilityTime: new Date().toISOString(),
+    availableAt: new Date().toISOString(),
     timeframe: 'daily',
     features: {
       return_20d: 0.01,
@@ -38,6 +39,7 @@ describe('v1-pilot.validators', () => {
     stale.dataAvailabilityTime = new Date(
       Date.now() - 96 * 60 * 60 * 1000,
     ).toISOString();
+    stale.availableAt = stale.dataAvailabilityTime;
     expect(() => validateFeatureSnapshot(stale)).toThrow(BadRequestException);
   });
 
@@ -47,7 +49,9 @@ describe('v1-pilot.validators', () => {
       source: 'numeric',
       symbol: 'SPY',
       asOf: new Date().toISOString(),
+      availableAt: new Date().toISOString(),
       horizonDays: 21,
+      horizonHours: 21 * 24,
       direction: 'up',
       confidence: 0.8,
       conviction: 'high',

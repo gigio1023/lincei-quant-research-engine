@@ -123,15 +123,13 @@ export class LearningLoopService {
     decision: AlphaDecision,
   ): Promise<AlphaOutcomeLabel | null> {
     const horizonHours = alphaHorizonHours(decision);
+    const labelStart = this.labelStart(decision);
     const labelAt = new Date(
-      new Date(decision.asOf).getTime() + horizonHours * 60 * 60 * 1000,
+      new Date(labelStart).getTime() + horizonHours * 60 * 60 * 1000,
     ).toISOString();
-    const startBar = await this.firstBarAtOrAfter(
-      decision.symbol,
-      decision.asOf,
-    );
+    const startBar = await this.firstBarAtOrAfter(decision.symbol, labelStart);
     const endBar = await this.firstBarAtOrAfter(decision.symbol, labelAt);
-    const startBenchmark = await this.firstBarAtOrAfter('SPY', decision.asOf);
+    const startBenchmark = await this.firstBarAtOrAfter('SPY', labelStart);
     const endBenchmark = await this.firstBarAtOrAfter('SPY', labelAt);
     if (!startBar || !endBar || !startBenchmark || !endBenchmark) {
       return null;
@@ -146,7 +144,7 @@ export class LearningLoopService {
       alphaDecisionId: decision.id,
       symbol: decision.symbol,
       asOf: decision.asOf,
-      availableAt: decision.availableAt ?? decision.asOf,
+      availableAt: decision.availableAt,
       horizonHours,
       labelAt,
       forwardReturnBps,
@@ -183,6 +181,17 @@ export class LearningLoopService {
       take: 1,
     });
     return records[0] ?? null;
+  }
+
+  private labelStart(decision: AlphaDecision): string {
+    const asOf = new Date(decision.asOf).getTime();
+    const availableAt = new Date(decision.availableAt).getTime();
+    if (!Number.isFinite(asOf)) {
+      return new Date(0).toISOString();
+    }
+    return new Date(
+      Math.max(asOf, Number.isFinite(availableAt) ? availableAt : asOf),
+    ).toISOString();
   }
 
   private returnBps(startPrice: number, endPrice: number): number {

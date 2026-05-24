@@ -33,7 +33,8 @@ except OSError:
 
 
 def walk_forward_score(frame: pd.DataFrame, folds: int = 3) -> dict[str, float]:
-    frame = frame.sort_values(by=["symbol"]).reset_index(drop=True)
+    sort_columns = ["asOf", "symbol"] if "asOf" in frame.columns else ["symbol"]
+    frame = frame.sort_values(by=sort_columns).reset_index(drop=True)
     fold_size = max(len(frame) // (folds + 1), 50)
     accuracies: list[float] = []
     mses: list[float] = []
@@ -118,7 +119,11 @@ def train_and_register(
     model_path = _save_model(final_model, framework, artifact_dir)
     model_hash = f"sha256:{hashlib.sha256(model_path.read_bytes()).hexdigest()}"
 
-    promoted = force_promote or metrics["directionalAccuracy"] >= PROMOTE_MIN_DIRECTIONAL_ACCURACY
+    synthetic_data = data_source.startswith("synthetic")
+    promoted = (
+        not synthetic_data
+        and (force_promote or metrics["directionalAccuracy"] >= PROMOTE_MIN_DIRECTIONAL_ACCURACY)
+    )
     registry = {
         "modelName": MODEL_NAME,
         "modelType": "lightgbm" if framework == "lightgbm" else "sklearn-hgb",
@@ -131,6 +136,7 @@ def train_and_register(
         "artifactPath": str(model_path.relative_to(repo_root)),
         "modelHash": model_hash,
         "dataSource": data_source,
+        "syntheticDataBlockedPromotion": synthetic_data,
         "trainedAt": datetime.now(timezone.utc).isoformat(),
         "validation": metrics,
         "promotionThreshold": {"directionalAccuracy": PROMOTE_MIN_DIRECTIONAL_ACCURACY},

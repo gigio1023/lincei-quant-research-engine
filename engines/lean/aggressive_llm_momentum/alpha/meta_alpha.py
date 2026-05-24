@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from AlgorithmImports import *
@@ -89,7 +90,7 @@ class LinceiMetaAlphaModel(AlphaModel):
                     symbol_value,
                     algorithm.UtcTime,
                 )
-                or self._meta_by_symbol.get(symbol_value.upper())
+                or self._meta_record_for_time(symbol_value, algorithm.UtcTime)
             )
             final_score, conflict_notes, component_scores = self._combine_scores(
                 numeric_score,
@@ -177,6 +178,24 @@ class LinceiMetaAlphaModel(AlphaModel):
 
         return {}
 
+    def _meta_record_for_time(
+        self,
+        symbol: str,
+        algorithm_time: object,
+    ) -> dict[str, Any] | None:
+        record = self._meta_by_symbol.get(symbol.upper())
+        if record is None:
+            return None
+        available_at = record.get("availableAt")
+        if available_at is None:
+            return None
+        try:
+            available = datetime.fromisoformat(str(available_at).replace("Z", "+00:00"))
+            current = self._to_utc_datetime(algorithm_time)
+        except ValueError:
+            return None
+        return record if available <= current else None
+
     def _combine_scores(
         self,
         numeric_score: float,
@@ -215,3 +234,13 @@ class LinceiMetaAlphaModel(AlphaModel):
         if score >= self.UP_THRESHOLD:
             return InsightDirection.Up
         return InsightDirection.Flat
+
+    @staticmethod
+    def _to_utc_datetime(value: object) -> datetime:
+        if isinstance(value, datetime):
+            parsed = value
+        else:
+            parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)

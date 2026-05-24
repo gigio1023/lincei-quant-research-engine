@@ -47,7 +47,18 @@ export class MlBaselineInferenceService {
       const response = this.pythonRunner.runJsonScript<{
         predictions: MlPrediction[];
       }>('ml/inference/predict.py', payload);
-      const predictions = response.predictions ?? [];
+      const snapshotBySymbol = new Map(
+        snapshots.map((snapshot) => [snapshot.symbol, snapshot]),
+      );
+      const predictions = (response.predictions ?? []).map((prediction) => {
+        const snapshot = snapshotBySymbol.get(prediction.symbol);
+        return {
+          ...prediction,
+          asOf: prediction.asOf ?? snapshot?.asOf,
+          availableAt: prediction.availableAt ?? snapshot?.availableAt,
+          inputHash: prediction.inputHash ?? snapshot?.inputHash,
+        };
+      });
       this.exportPredictionsForLean(registry.modelName, predictions);
       return predictions;
     } catch (error) {

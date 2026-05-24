@@ -141,11 +141,26 @@ export class LlmEventFeatureService {
         const symbol = item.symbol!;
         const snapshot = snapshots.find((entry) => entry.symbol === symbol)!;
         const eventType = this.eventType(item.eventType);
-        const evidenceRefs = this.evidenceRefs(item.evidenceRefs, evidence);
+        const eligibleEvidence = this.eligibleEvidenceForSnapshot(
+          snapshot,
+          evidence,
+        );
+        const evidenceRefs = this.evidenceRefs(
+          item.evidenceRefs,
+          eligibleEvidence,
+        );
+        const safeEvidenceRefs = evidenceRefs.length
+          ? evidenceRefs
+          : [`no-text-evidence:${symbol}`];
+        const featureAvailableAt = this.featureAvailableAt(
+          snapshot,
+          safeEvidenceRefs,
+          eligibleEvidence,
+        );
         const base = {
           symbol,
           eventType,
-          evidenceRefs,
+          evidenceRefs: safeEvidenceRefs,
           model,
           promptVersion: PROMPT_VERSION,
           snapshotHash: snapshot.inputHash,
@@ -158,14 +173,15 @@ export class LlmEventFeatureService {
           symbol,
           eventId,
           eventTime: item.eventTime ?? snapshot.asOf,
-          availableAt:
-            item.availableAt ??
-            snapshot.availableAt ??
-            snapshot.dataAvailabilityTime,
+          availableAt: featureAvailableAt,
           processedAt: new Date().toISOString(),
           horizonHours: item.horizonHours ?? 21 * 24,
           eventType,
-          direction: this.direction(item.direction),
+          direction: safeEvidenceRefs.some((ref) =>
+            ref.startsWith('raw-evidence:'),
+          )
+            ? this.direction(item.direction)
+            : 'flat',
           sentimentScore: this.score(item.sentimentScore, 0.5),
           catalystStrength: this.score(item.catalystStrength, 0.5),
           noveltyScore: this.score(item.noveltyScore, 0.5),
@@ -175,12 +191,16 @@ export class LlmEventFeatureService {
           thesis: item.thesis ?? 'LLM emitted a structured feature.',
           counterThesis:
             item.counterThesis ?? 'Evidence quality may be insufficient.',
-          evidenceRefs,
+          evidenceRefs: safeEvidenceRefs,
           model,
           promptVersion: PROMPT_VERSION,
           inputHash: hashObject(base),
           outputHash: hashObject(item),
-          abstainReason: item.abstainReason,
+          abstainReason:
+            item.abstainReason ??
+            (safeEvidenceRefs.some((ref) => ref.startsWith('raw-evidence:'))
+              ? undefined
+              : 'No point-in-time eligible text evidence refs.'),
         };
         validateLlmEventFeature(feature);
         return feature;
@@ -193,16 +213,24 @@ export class LlmEventFeatureService {
     reason: string,
     model: string,
   ): LlmEventFeatureContract[] {
-    const refs = this.evidenceRefs(undefined, evidence);
     return snapshots.flatMap((snapshot) =>
       EVENT_TYPES.map((eventType) => {
+        const eligibleEvidence = this.eligibleEvidenceForSnapshot(
+          snapshot,
+          evidence,
+        );
+        const refs = this.evidenceRefs(undefined, eligibleEvidence);
         const eventId = `${eventType}-${snapshot.symbol}-${snapshot.asOf.slice(0, 10)}`;
         const feature: LlmEventFeatureContract = {
           id: `llm-feature-${eventId}`,
           symbol: snapshot.symbol,
           eventId,
           eventTime: snapshot.asOf,
-          availableAt: snapshot.availableAt ?? snapshot.dataAvailabilityTime,
+          availableAt: this.featureAvailableAt(
+            snapshot,
+            refs,
+            eligibleEvidence,
+          ),
           processedAt: new Date().toISOString(),
           horizonHours: 21 * 24,
           eventType,
@@ -280,6 +308,10 @@ export class LlmEventFeatureService {
     numeric: AlphaDecisionContract[],
     evidence: RawEvidenceRecord[],
   ): string {
+    const eligibleEvidence = this.eligibleEvidenceForSnapshots(
+      snapshots,
+      evidence,
+    );
     return JSON.stringify({
       task: 'Create point-in-time semantic alpha features. Emit event, macro, and risk features when evidence supports them; otherwise emit flat abstentions.',
       promptVersion: PROMPT_VERSION,
@@ -295,12 +327,24 @@ export class LlmEventFeatureService {
         confidence: decision.confidence,
         expectedReturnBps: decision.expectedReturnBps,
       })),
-      evidence: evidence.slice(0, 20).map((record) => ({
+      evidence: eligibleEvidence.slice(0, 20).map((record) => ({
         ref: `raw-evidence:${record.id}`,
         sourceType: record.sourceType,
+        symbol: record.symbol,
         title: record.title,
         availableAt: record.availableAt,
         content: record.content.slice(0, 800),
+      })),
+      evidenceCuts: snapshots.map((snapshot) => ({
+        symbol: snapshot.symbol,
+        asOf: snapshot.asOf,
+        availableAt: snapshot.availableAt,
+        eligibleEvidenceRefs: this.eligibleEvidenceForSnapshot(
+          snapshot,
+          evidence,
+        )
+          .slice(0, 20)
+          .map((record) => `raw-evidence:${record.id}`),
       })),
       outputContract: {
         features:
@@ -331,9 +375,64 @@ export class LlmEventFeatureService {
     refs: string[] | undefined,
     evidence: RawEvidenceRecord[],
   ): string[] {
+    const allowed = new Set(
+      evidence.map((record) => `raw-evidence:${record.id}`),
+    );
     if (refs?.length) {
-      return refs;
+      return refs.filter((ref) => allowed.has(ref));
     }
     return evidence.slice(0, 5).map((record) => `raw-evidence:${record.id}`);
+  }
+
+  private eligibleEvidenceForSnapshot(
+    snapshot: FeatureSnapshotContract,
+    evidence: RawEvidenceRecord[],
+  ): RawEvidenceRecord[] {
+    const snapshotAvailableAt = new Date(snapshot.availableAt).getTime();
+    return evidence.filter((record) => {
+      const evidenceAvailableAt = new Date(record.availableAt).getTime();
+      if (!Number.isFinite(evidenceAvailableAt)) {
+        return false;
+      }
+      if (evidenceAvailableAt > snapshotAvailableAt) {
+        return false;
+      }
+      return !record.symbol || record.symbol === snapshot.symbol;
+    });
+  }
+
+  private eligibleEvidenceForSnapshots(
+    snapshots: FeatureSnapshotContract[],
+    evidence: RawEvidenceRecord[],
+  ): RawEvidenceRecord[] {
+    const byId = new Map<string, RawEvidenceRecord>();
+    snapshots.forEach((snapshot) => {
+      this.eligibleEvidenceForSnapshot(snapshot, evidence).forEach((record) => {
+        byId.set(record.id, record);
+      });
+    });
+    return [...byId.values()].sort(
+      (left, right) =>
+        new Date(right.availableAt).getTime() -
+        new Date(left.availableAt).getTime(),
+    );
+  }
+
+  private featureAvailableAt(
+    snapshot: FeatureSnapshotContract,
+    refs: string[],
+    evidence: RawEvidenceRecord[],
+  ): string {
+    const evidenceByRef = new Map(
+      evidence.map((record) => [`raw-evidence:${record.id}`, record]),
+    );
+    const latestInputAvailability = refs
+      .map((ref) => evidenceByRef.get(ref)?.availableAt)
+      .filter((value): value is string => Boolean(value))
+      .reduce(
+        (latest, value) => Math.max(latest, new Date(value).getTime()),
+        new Date(snapshot.availableAt).getTime(),
+      );
+    return new Date(latestInputAvailability).toISOString();
   }
 }

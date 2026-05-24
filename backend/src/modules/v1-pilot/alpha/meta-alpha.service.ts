@@ -145,6 +145,9 @@ export class MetaAlphaService {
       exportRecords.push({
         id: decision.id,
         symbol: decision.symbol,
+        asOf: decision.asOf,
+        availableAt: decision.availableAt,
+        horizonHours: decision.horizonHours,
         direction,
         confidence: decision.confidence,
         numericScore,
@@ -158,6 +161,11 @@ export class MetaAlphaService {
           riskAdjustment,
         },
         maxPositionPct,
+        featureSnapshotHash: decision.featureSnapshotHash,
+        evidenceRefs: decision.evidenceRefs,
+        llmFeatureRefs: decision.llmFeatureRefs ?? [],
+        numericFeatureRefs: decision.numericFeatureRefs ?? [],
+        outputHash: decision.outputHash,
       });
       savePromises.push(
         this.alphaRepository.save(this.alphaRepository.create(decision)),

@@ -22,6 +22,9 @@ export interface MetaComponentScores {
 export interface MetaDecisionExportRecord {
   id: string;
   symbol: string;
+  asOf: string;
+  availableAt: string;
+  horizonHours: number;
   direction: 'up' | 'flat';
   confidence: number;
   numericScore: number;
@@ -35,6 +38,11 @@ export interface MetaDecisionExportRecord {
     riskAdjustment: number;
   };
   maxPositionPct?: number;
+  featureSnapshotHash: string;
+  evidenceRefs: string[];
+  llmFeatureRefs: string[];
+  numericFeatureRefs: string[];
+  outputHash: string;
 }
 
 export function directionScore(

@@ -62,6 +62,9 @@ describe('meta-alpha combiner parity', () => {
       const exportRecord = {
         id: `meta-test-${expected.direction}`,
         symbol: 'SPY',
+        asOf: '2026-05-24T00:00:00.000Z',
+        availableAt: '2026-05-24T00:00:00.000Z',
+        horizonHours: 504,
         direction: expected.direction,
         confidence: nest.finalScore,
         numericScore: nest.numericScore,
@@ -74,6 +77,11 @@ describe('meta-alpha combiner parity', () => {
           macro: nest.macroScore,
           riskAdjustment: nest.riskAdjustment,
         },
+        featureSnapshotHash: 'sha256:feature',
+        evidenceRefs: ['fixture:evidence'],
+        llmFeatureRefs: [],
+        numericFeatureRefs: ['sha256:numeric'],
+        outputHash: 'sha256:output',
       };
 
       const lean = combineMetaLeanReplay(0.42, exportRecord);
@@ -91,6 +99,9 @@ describe('meta-alpha combiner parity', () => {
     const exportRecord = {
       id: 'meta-spy-export',
       symbol: 'SPY',
+      asOf: '2026-05-24T00:00:00.000Z',
+      availableAt: '2026-05-24T00:00:00.000Z',
+      horizonHours: 504,
       direction: 'up' as const,
       confidence: 0.739,
       numericScore: 0.82,
@@ -103,6 +114,11 @@ describe('meta-alpha combiner parity', () => {
         macro: 0.65,
         riskAdjustment: 0.48,
       },
+      featureSnapshotHash: 'sha256:feature',
+      evidenceRefs: ['fixture:evidence'],
+      llmFeatureRefs: [],
+      numericFeatureRefs: ['sha256:numeric'],
+      outputHash: 'sha256:output',
     };
 
     const lean = combineMetaLeanReplay(0.99, exportRecord);

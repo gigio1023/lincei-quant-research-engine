@@ -22,14 +22,14 @@ export class AlphaDecision {
   @Column()
   asOf: string;
 
-  @Column({ nullable: true })
-  availableAt?: string;
+  @Column()
+  availableAt: string;
 
   @Column('int')
   horizonDays: number;
 
-  @Column('int', { nullable: true })
-  horizonHours?: number;
+  @Column('int')
+  horizonHours: number;
 
   @Column()
   direction: 'up' | 'down' | 'flat';

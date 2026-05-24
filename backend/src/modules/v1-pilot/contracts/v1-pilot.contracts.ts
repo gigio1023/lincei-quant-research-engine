@@ -6,7 +6,7 @@ export interface FeatureSnapshotContract {
   symbol: string;
   asOf: string;
   dataAvailabilityTime: string;
-  availableAt?: string;
+  availableAt: string;
   timeframe: FeatureTimeframe;
   features: Record<string, number | string | boolean | null>;
   sourceRefs: string[];
@@ -23,9 +23,9 @@ export interface AlphaDecisionContract {
   source: AlphaSource;
   symbol: string;
   asOf: string;
-  availableAt?: string;
+  availableAt: string;
   horizonDays: number;
-  horizonHours?: number;
+  horizonHours: number;
   direction: AlphaDirection;
   expectedReturnBps?: number;
   confidence: number;

@@ -7,6 +7,7 @@ describe('scoreSnapshotHeuristic', () => {
     symbol: 'SPY',
     asOf: new Date().toISOString(),
     dataAvailabilityTime: new Date().toISOString(),
+    availableAt: new Date().toISOString(),
     timeframe: 'daily',
     features: {
       return_20d: 0.05,

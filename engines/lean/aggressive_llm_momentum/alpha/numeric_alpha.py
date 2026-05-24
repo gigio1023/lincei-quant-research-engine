@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from AlgorithmImports import *
@@ -63,7 +64,7 @@ class LinceiNumericAlphaModel(AlphaModel):
         if not feature_rows:
             return []
 
-        ranked_scores = self._score_universe(feature_rows)
+        ranked_scores = self._score_universe(algorithm, feature_rows)
         insights: list[Insight] = []
         for symbol, score in ranked_scores.items():
             self._last_scores[str(symbol)] = score
@@ -138,7 +139,7 @@ class LinceiNumericAlphaModel(AlphaModel):
         drawdowns = (closes / rolling_max) - 1.0
         return float(drawdowns.min())
 
-    def _load_ml_scores(self) -> dict[str, float]:
+    def _load_ml_scores(self, algorithm_time: object) -> dict[str, float]:
         if not self._use_ml_predictions:
             return {}
         path = os.path.join("input", "ml_predictions.json")
@@ -146,17 +147,20 @@ class LinceiNumericAlphaModel(AlphaModel):
             return {}
         with open(path, encoding="utf-8") as handle:
             payload = json.load(handle)
+        current = self._to_utc_datetime(algorithm_time)
         return {
             item["symbol"]: float(item["score"])
             for item in payload.get("predictions", [])
             if "symbol" in item and "score" in item
+            and self._prediction_available(item, current)
         }
 
     def _score_universe(
         self,
+        algorithm: QCAlgorithm,
         feature_rows: list[tuple[Symbol, dict[str, float]]],
     ) -> dict[Symbol, float]:
-        ml_scores = self._load_ml_scores()
+        ml_scores = self._load_ml_scores(algorithm.UtcTime)
         if ml_scores:
             return {
                 symbol: ml_scores.get(str(symbol.Value), 0.5)
@@ -186,6 +190,31 @@ class LinceiNumericAlphaModel(AlphaModel):
             )
             scores[symbol] = max(0.0, min(1.0, raw_score / 2.2))
         return scores
+
+    @staticmethod
+    def _prediction_available(item: dict, current: datetime) -> bool:
+        available_at = item.get("availableAt")
+        if available_at is None:
+            return False
+        try:
+            available = datetime.fromisoformat(str(available_at).replace("Z", "+00:00"))
+        except ValueError:
+            return False
+        if available.tzinfo is None:
+            available = available.replace(tzinfo=timezone.utc)
+        else:
+            available = available.astimezone(timezone.utc)
+        return available <= current
+
+    @staticmethod
+    def _to_utc_datetime(value: object) -> datetime:
+        if isinstance(value, datetime):
+            parsed = value
+        else:
+            parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
 
     @staticmethod
     def _percentile_ranks(values: list[float]) -> list[float]:

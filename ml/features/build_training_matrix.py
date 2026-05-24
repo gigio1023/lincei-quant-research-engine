@@ -53,7 +53,7 @@ def build_from_sqlite(database_path: Path) -> pd.DataFrame:
     for symbol in UNIVERSE:
         cursor = conn.execute(
             """
-            SELECT timestamp, close, COALESCE(volume, 0)
+            SELECT timestamp, COALESCE(availabilityTimestamp, timestamp), close, COALESCE(volume, 0)
             FROM market_data_bars
             WHERE symbol = ?
             ORDER BY timestamp ASC
@@ -63,8 +63,10 @@ def build_from_sqlite(database_path: Path) -> pd.DataFrame:
         series = cursor.fetchall()
         if len(series) < HORIZON_DAYS + 130:
             continue
-        closes = [float(item[1]) for item in series]
-        volumes = [float(item[2]) for item in series]
+        timestamps = [str(item[0]) for item in series]
+        availability_times = [str(item[1]) for item in series]
+        closes = [float(item[2]) for item in series]
+        volumes = [float(item[3]) for item in series]
         for index in range(130, len(closes) - HORIZON_DAYS):
             window_closes = closes[: index + 1]
             window_volumes = volumes[: index + 1]
@@ -74,7 +76,15 @@ def build_from_sqlite(database_path: Path) -> pd.DataFrame:
             forward_base = closes[index]
             forward_end = closes[index + HORIZON_DAYS]
             label = 0.0 if forward_base == 0 else forward_end / forward_base - 1
-            rows.append({"symbol": symbol, "label_forward_return_21d": label, **features})
+            rows.append(
+                {
+                    "symbol": symbol,
+                    "asOf": timestamps[index],
+                    "availableAt": availability_times[index],
+                    "label_forward_return_21d": label,
+                    **features,
+                },
+            )
     conn.close()
     return pd.DataFrame(rows)
 
@@ -95,7 +105,15 @@ def build_synthetic(seed: int = 42, rows_per_symbol: int = 400) -> pd.DataFrame:
                 + 0.1 * (features["price_vs_sma_200d"] - 1)
                 + rng.normal(0, 0.02)
             )
-            rows.append({"symbol": symbol, "label_forward_return_21d": label, **features})
+            rows.append(
+                {
+                    "symbol": symbol,
+                    "asOf": f"synthetic-{len(rows):06d}",
+                    "availableAt": f"synthetic-{len(rows):06d}",
+                    "label_forward_return_21d": label,
+                    **features,
+                },
+            )
     return pd.DataFrame(rows)
 
 
