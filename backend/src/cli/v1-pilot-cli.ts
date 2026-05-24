@@ -1,6 +1,6 @@
 /**
  * Headless entrypoint for ./scripts/* — boots Nest without HTTP and runs one V1 command.
- * Exit code 2 from live-preflight / live-pilot means blocked by policy (not a crash).
+ * Exit code 2 from engine/preflight commands means blocked by policy or missing evidence, not a crash.
  */
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
@@ -115,14 +115,32 @@ async function bootstrap(): Promise<void> {
         break;
       }
       case 'run-paper-cycle': {
-        const plan = await orchestrator.runPaperCycle();
-        console.log(
-          JSON.stringify(
-            { paperOrderPlanId: plan.id, status: plan.status },
-            null,
-            2,
-          ),
-        );
+        try {
+          const plan = await orchestrator.runPaperCycle();
+          console.log(
+            JSON.stringify(
+              { paperOrderPlanId: plan.id, status: plan.status },
+              null,
+              2,
+            ),
+          );
+        } catch (error) {
+          console.log(
+            JSON.stringify(
+              {
+                status: 'blocked',
+                blockers: [
+                  error instanceof Error
+                    ? error.message
+                    : 'Paper cycle prerequisites are missing.',
+                ],
+              },
+              null,
+              2,
+            ),
+          );
+          process.exitCode = 2;
+        }
         break;
       }
       case 'run-live-shadow': {

@@ -8,6 +8,7 @@ import { Repository } from 'typeorm';
 import { LeanRun } from '../../../entities/lean-run.entity';
 import { hashObject } from '../../../shared/hash.util';
 import { LeanCliRunner } from './lean-cli.runner';
+import { assessLeanRunArtifacts } from './lean-run-acceptance';
 
 export type LeanCloudBacktestRequest = {
   projectName?: string;
@@ -100,6 +101,33 @@ export class LeanCloudRunner {
       cloudUrl,
       cloudBacktestId,
     });
+    if (status === 'passed') {
+      const acceptance = assessLeanRunArtifacts(
+        resultDirectory,
+        'strategy-backtest',
+      );
+      if (!acceptance.passed) {
+        status = 'blocked';
+        blockerReasons = [
+          'QuantConnect Cloud command completed, but cloud result artifacts were not imported; command success is not promotion evidence.',
+          ...acceptance.blockers,
+        ];
+        this.writeCloudArtifacts({
+          resultDirectory,
+          runId,
+          projectName,
+          parameters,
+          startedAt,
+          completedAt,
+          status,
+          stdout,
+          stderr,
+          blockerReasons,
+          cloudUrl,
+          cloudBacktestId,
+        });
+      }
+    }
 
     const existing = await this.leanRunRepository.findOne({
       where: { importIdempotencyKey: `cloud:${runId}` },
@@ -134,7 +162,7 @@ export class LeanCloudRunner {
         orderEventsRef: join(resultDirectory, 'order_events.json'),
         fillsRef: join(resultDirectory, 'fills.json'),
         blockerReasons,
-        promotionEligible: status === 'passed',
+        promotionEligible: status === 'passed' && blockerReasons.length === 0,
         cloudBacktestId,
         cloudUrl,
         importIdempotencyKey: `cloud:${runId}`,

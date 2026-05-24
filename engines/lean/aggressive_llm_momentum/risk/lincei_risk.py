@@ -53,20 +53,23 @@ class LinceiRiskManagementModel(RiskManagementModel):
         if self._is_data_stale(algorithm):
             risk_notes.append("stale_data_cut")
             adjusted = [
-                self._scale_target(algorithm, target, 0.5) for target in adjusted
+                PortfolioTarget.Percent(algorithm, target.Symbol, 0.0)
+                for target in adjusted
             ]
 
         drawdown = self._current_drawdown(algorithm)
         if drawdown >= self._max_drawdown_pct:
             risk_notes.append("drawdown_breach")
             adjusted = [
-                self._scale_target(algorithm, target, 0.25) for target in adjusted
+                PortfolioTarget.Percent(algorithm, target.Symbol, 0.0)
+                for target in adjusted
             ]
 
         if self._volatility_spike(algorithm):
             risk_notes.append("volatility_spike")
             adjusted = [
-                self._scale_target(algorithm, target, 0.5) for target in adjusted
+                PortfolioTarget.Percent(algorithm, target.Symbol, 0.0)
+                for target in adjusted
             ]
 
         adjusted = self._enforce_caps(algorithm, adjusted, risk_notes)
@@ -85,7 +88,10 @@ class LinceiRiskManagementModel(RiskManagementModel):
                 for target in adjusted
             ]
             gross = sum(abs(row["targetWeight"]) for row in export_rows)
-            max_single = max((abs(row["targetWeight"]) for row in export_rows), default=0.0)
+            max_single = max(
+                (abs(row["targetWeight"]) for row in export_rows),
+                default=0.0,
+            )
             self._artifact_exporter.record_portfolio_targets(
                 export_rows,
                 gross,
@@ -100,16 +106,15 @@ class LinceiRiskManagementModel(RiskManagementModel):
         return str(flag).lower() in {"1", "true", "yes", "on"}
 
     def _is_data_stale(self, algorithm: QCAlgorithm) -> bool:
-        stale_after = timedelta(hours=self._stale_data_hours)
         for security in algorithm.ActiveSecurities.Values:
             if not security.HasData:
-                continue
+                return True
             last_bar = security.GetLastData()
             if last_bar is None:
-                continue
+                return True
             last_time = getattr(last_bar, "EndTime", getattr(last_bar, "Time", None))
             if last_time is None:
-                continue
+                return True
             if self._hours_since(algorithm.UtcTime, last_time) > self._stale_data_hours:
                 return True
         return False

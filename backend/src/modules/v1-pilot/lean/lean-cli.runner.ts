@@ -97,8 +97,12 @@ export class LeanCliRunner {
       env: processEnv,
     });
     if (dockerCheck.status !== 0) {
+      const diagnostic = [dockerCheck.stderr, dockerCheck.stdout]
+        .filter(Boolean)
+        .join('\n')
+        .trim();
       throw new Error(
-        'Docker is not running. Lean CLI backtests require Docker (see docs/full-lean-backtest-setup.md).',
+        `Docker is unavailable to the current process. Lean CLI backtests require Docker socket access (see docs/full-lean-backtest-setup.md).${diagnostic ? ` Docker diagnostic: ${diagnostic}` : ''}`,
       );
     }
     return { leanBin, leanConfigPath, processEnv };

@@ -1,4 +1,4 @@
-/** Artifact shapes shared by simulator, importer, and paper bridge — kept aligned with docs/v1-live-pilot-spec/04-contracts-and-schemas.md */
+/** Artifact shapes shared by simulator, importer, and paper bridge; keep aligned with SPEC.md and docs/spec/. */
 export type LeanRunStatus = 'passed' | 'failed' | 'blocked';
 export type LeanRunRuntime = 'local-lean' | 'quantconnect-cloud' | 'simulator';
 export type LeanRunMode = 'backtest' | 'paper' | 'live-shadow';

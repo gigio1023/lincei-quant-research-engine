@@ -29,7 +29,7 @@ class LinceiArtifactExporter:
         self._logs: list[str] = []
 
     def log(self, message: str) -> None:
-        timestamp = datetime.now(timezone.utc).isoformat()
+        timestamp = self._algorithm_time().isoformat()
         line = f"[{timestamp}] {message}"
         self._logs.append(line)
         self._algorithm.Debug(message)
@@ -41,7 +41,8 @@ class LinceiArtifactExporter:
         direction: str,
         confidence: float,
     ) -> None:
-        insight_id = f"insight-{symbol}-{datetime.now(timezone.utc):%Y%m%d%H%M%S}"
+        algorithm_time = self._algorithm_time()
+        insight_id = f"insight-{symbol}-{algorithm_time:%Y%m%d%H%M%S}"
         self._latest_insight_ids_by_symbol[symbol] = [insight_id]
         self._numeric_scores.append(
             {
@@ -49,7 +50,7 @@ class LinceiArtifactExporter:
                 "numericScore": round(score, 6),
                 "direction": direction,
                 "confidence": round(confidence, 6),
-                "recordedAt": datetime.now(timezone.utc).isoformat(),
+                "recordedAt": algorithm_time.isoformat(),
             },
         )
         self._insights.append(
@@ -61,7 +62,7 @@ class LinceiArtifactExporter:
                 "confidence": round(confidence, 6),
                 "magnitude": round(score - 0.5, 6),
                 "sourceModel": "LinceiNumericAlphaModel",
-                "generatedTime": datetime.now(timezone.utc).isoformat(),
+                "generatedTime": algorithm_time.isoformat(),
                 "finalScore": round(score, 6),
                 "conflictNotes": [],
                 "metaDecisionId": None,
@@ -78,7 +79,8 @@ class LinceiArtifactExporter:
         meta_record: dict[str, Any] | None,
         component_scores: dict[str, float] | None = None,
     ) -> None:
-        insight_id = f"insight-{symbol}-{datetime.now(timezone.utc):%Y%m%d%H%M%S}"
+        algorithm_time = self._algorithm_time()
+        insight_id = f"insight-{symbol}-{algorithm_time:%Y%m%d%H%M%S}"
         self._latest_insight_ids_by_symbol[symbol] = [insight_id]
         scores = component_scores or {}
         self._insights.append(
@@ -90,7 +92,7 @@ class LinceiArtifactExporter:
                 "confidence": round(confidence, 6),
                 "magnitude": round(final_score - 0.5, 6),
                 "sourceModel": "LinceiMetaAlphaModel",
-                "generatedTime": datetime.now(timezone.utc).isoformat(),
+                "generatedTime": algorithm_time.isoformat(),
                 "finalScore": round(final_score, 6),
                 "numericScore": scores.get("numericScore"),
                 "eventScore": scores.get("eventScore"),
@@ -163,7 +165,7 @@ class LinceiArtifactExporter:
     def export_all(self, output_dir: str, statistics: dict[str, Any], parameters: dict[str, Any]) -> None:
         os.makedirs(output_dir, exist_ok=True)
         run_id = getattr(self._algorithm, "run_id", "lean-run")
-        as_of = datetime.now(timezone.utc).isoformat()
+        as_of = self._algorithm_time().isoformat()
 
         insights_payload = {"runId": run_id, "asOf": as_of, "insights": self._insights}
         targets_payload = {
@@ -208,3 +210,11 @@ class LinceiArtifactExporter:
         raw_value = getattr(value, "Value", value)
         amount = getattr(raw_value, "Amount", raw_value)
         return float(amount or 0.0)
+
+    def _algorithm_time(self) -> datetime:
+        raw_time = getattr(self._algorithm, "UtcTime", None)
+        if isinstance(raw_time, datetime):
+            if raw_time.tzinfo is None:
+                return raw_time.replace(tzinfo=timezone.utc)
+            return raw_time.astimezone(timezone.utc)
+        return datetime.now(timezone.utc)
