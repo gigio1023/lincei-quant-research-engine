@@ -74,7 +74,31 @@ export function copyDataMonitorReport(input: {
   }
   const reportPath = join(input.backtestDirectory, reportName);
   cpSync(reportPath, join(input.outputDirectory, 'data-monitor-report.json'));
+  copyLatestDataRequestFile(input.backtestDirectory, input.outputDirectory, [
+    'failed-data-requests-',
+    '.txt',
+  ]);
+  copyLatestDataRequestFile(input.backtestDirectory, input.outputDirectory, [
+    'succeeded-data-requests-',
+    '.txt',
+  ]);
   return reportPath;
+}
+
+function copyLatestDataRequestFile(
+  backtestDirectory: string,
+  outputDirectory: string,
+  pattern: [string, string],
+): void {
+  const [prefix, suffix] = pattern;
+  const fileName = readdirSync(backtestDirectory)
+    .filter((name) => name.startsWith(prefix) && name.endsWith(suffix))
+    .sort()
+    .pop();
+  if (!fileName) {
+    return;
+  }
+  cpSync(join(backtestDirectory, fileName), join(outputDirectory, fileName));
 }
 
 export function findBacktestDirectoryForRunId(input: {

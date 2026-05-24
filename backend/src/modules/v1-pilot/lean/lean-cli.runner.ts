@@ -37,6 +37,8 @@ const REQUIRED_ARTIFACTS = [
   'logs.txt',
 ] as const;
 
+type LeanDockerMode = 'direct' | 'sg-docker';
+
 export type LeanCliBacktestRequest = {
   projectName?: string;
   runId?: string;
@@ -83,6 +85,7 @@ export class LeanCliRunner {
     leanBin: string;
     leanConfigPath: string;
     processEnv: NodeJS.ProcessEnv;
+    dockerMode: LeanDockerMode;
   } {
     const leanBin = this.resolveLeanBin();
     const leanConfigPath = join(this.leanWorkspace, 'lean.json');
@@ -92,20 +95,42 @@ export class LeanCliRunner {
       );
     }
     const processEnv = this.buildLeanProcessEnv();
+    const dockerMode = this.resolveDockerMode(processEnv);
+    return { leanBin, leanConfigPath, processEnv, dockerMode };
+  }
+
+  private resolveDockerMode(processEnv: NodeJS.ProcessEnv): LeanDockerMode {
     const dockerCheck = spawnSync('docker', ['info'], {
       encoding: 'utf8',
       env: processEnv,
     });
-    if (dockerCheck.status !== 0) {
-      const diagnostic = [dockerCheck.stderr, dockerCheck.stdout]
-        .filter(Boolean)
-        .join('\n')
-        .trim();
-      throw new Error(
-        `Docker is unavailable to the current process. Lean CLI backtests require Docker socket access (see docs/full-lean-backtest-setup.md).${diagnostic ? ` Docker diagnostic: ${diagnostic}` : ''}`,
-      );
+    if (dockerCheck.status === 0) {
+      return 'direct';
     }
-    return { leanBin, leanConfigPath, processEnv };
+
+    const sgDockerCheck = spawnSync('sg', ['docker', '-c', 'docker info'], {
+      encoding: 'utf8',
+      env: processEnv,
+    });
+    if (sgDockerCheck.status === 0) {
+      this.logger.warn(
+        'Docker socket is unavailable to the current shell; running Lean CLI through `sg docker` because the user is in the docker group.',
+      );
+      return 'sg-docker';
+    }
+
+    const diagnostic = [
+      dockerCheck.stderr,
+      dockerCheck.stdout,
+      sgDockerCheck.stderr,
+      sgDockerCheck.stdout,
+    ]
+      .filter(Boolean)
+      .join('\n')
+      .trim();
+    throw new Error(
+      `Docker is unavailable to the current process. Lean CLI backtests require Docker socket access (see docs/full-lean-backtest-setup.md).${diagnostic ? ` Docker diagnostic: ${diagnostic}` : ''}`,
+    );
   }
 
   buildLeanProcessEnv(): NodeJS.ProcessEnv {
@@ -127,7 +152,7 @@ export class LeanCliRunner {
   }
 
   runBacktest(request: LeanCliBacktestRequest = {}): LeanCliBacktestResult {
-    const { leanBin, processEnv } = this.assertPrerequisites();
+    const { leanBin, processEnv, dockerMode } = this.assertPrerequisites();
     const projectName = request.projectName ?? 'aggressive_llm_momentum';
     const runId =
       request.runId ??
@@ -203,12 +228,7 @@ export class LeanCliRunner {
     let stdout = '';
     let stderr = '';
     try {
-      stdout = execFileSync(leanBin, args, {
-        cwd: this.leanWorkspace,
-        encoding: 'utf8',
-        maxBuffer: 32 * 1024 * 1024,
-        env: processEnv,
-      });
+      stdout = this.runLeanCommand(leanBin, args, processEnv, dockerMode);
     } catch (error) {
       const execError = error as {
         stdout?: string;
@@ -435,5 +455,40 @@ export class LeanCliRunner {
       return;
     }
     args.push('--parameter', name, String(value));
+  }
+
+  private runLeanCommand(
+    leanBin: string,
+    args: string[],
+    processEnv: NodeJS.ProcessEnv,
+    dockerMode: LeanDockerMode,
+  ): string {
+    if (dockerMode === 'direct') {
+      return execFileSync(leanBin, args, {
+        cwd: this.leanWorkspace,
+        encoding: 'utf8',
+        maxBuffer: 32 * 1024 * 1024,
+        env: processEnv,
+      });
+    }
+
+    return execFileSync(
+      'sg',
+      ['docker', '-c', this.shellCommand([leanBin, ...args])],
+      {
+        cwd: this.leanWorkspace,
+        encoding: 'utf8',
+        maxBuffer: 32 * 1024 * 1024,
+        env: processEnv,
+      },
+    );
+  }
+
+  private shellCommand(parts: string[]): string {
+    return parts.map((part) => this.shellQuote(part)).join(' ');
+  }
+
+  private shellQuote(value: string): string {
+    return `'${value.replace(/'/g, `'\\''`)}'`;
   }
 }

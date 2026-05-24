@@ -153,10 +153,11 @@ export class V1PilotOrchestratorService {
     steps.leanBacktest = leanResult;
 
     const artifactsRoot = join(repoRoot, 'artifacts/lean-runs');
-    writeFileSync(
-      join(artifactsRoot, '.latest'),
-      `${leanResult.runId}\n`,
-      'utf8',
+    this.writeLeanLatestMarker(artifactsRoot, '.latest', leanResult.runId);
+    this.writeLeanLatestMarker(
+      artifactsRoot,
+      '.latest-strategy',
+      leanResult.runId,
     );
     steps.import = await this.leanRunImportService.importFromDirectory(
       leanResult.outputDirectory,
@@ -258,18 +259,18 @@ export class V1PilotOrchestratorService {
           : join(workspaceRoot, 'input/meta_decisions.json.example'),
       });
       const artifactsRoot = join(repoRoot, 'artifacts/lean-runs');
-      mkdirSync(artifactsRoot, { recursive: true });
-      writeFileSync(
-        join(artifactsRoot, '.latest'),
-        `${result.runId}\n`,
-        'utf8',
+      this.writeLeanLatestMarker(artifactsRoot, '.latest', result.runId);
+      this.writeLeanLatestMarker(
+        artifactsRoot,
+        '.latest-simulator',
+        result.runId,
       );
       return { runId: result.runId, mode: 'simulator' };
     }
 
     const result = this.leanCliRunner.runBacktest({ projectName });
     const artifactsRoot = join(repoRoot, 'artifacts/lean-runs');
-    writeFileSync(join(artifactsRoot, '.latest'), `${result.runId}\n`, 'utf8');
+    this.writeLeanLatestMarker(artifactsRoot, '.latest', result.runId);
     return { runId: result.runId, mode: result.mode };
   }
 
@@ -296,14 +297,18 @@ export class V1PilotOrchestratorService {
     const repoRoot = resolve(process.cwd(), '..');
     const artifactsRoot = join(repoRoot, 'artifacts/lean-runs');
     if (target === 'latest') {
-      if (!existsSync(join(artifactsRoot, '.latest'))) {
+      const latestMarker =
+        options.acceptanceMode === 'schema-import'
+          ? '.latest'
+          : '.latest-strategy';
+      if (!existsSync(join(artifactsRoot, latestMarker))) {
         throw new Error(
-          'No latest LEAN run marker found. Run lean-backtest or run-full-backtest first.',
+          `No ${latestMarker} LEAN run marker found. Run run-full-backtest first for strategy evidence.`,
         );
       }
       return this.leanRunImportService.importLatestFromArtifactsRoot(
         artifactsRoot,
-        options,
+        { ...options, latestMarker },
       );
     }
     return this.leanRunImportService.importFromDirectory(
@@ -315,6 +320,10 @@ export class V1PilotOrchestratorService {
 
   async runPaperCycle() {
     return this.leanPaperBridgeService.runPaperCycle();
+  }
+
+  async runPaperReplay() {
+    return this.leanPaperBridgeService.runPaperReplay();
   }
 
   async runLiveShadow() {
@@ -331,5 +340,14 @@ export class V1PilotOrchestratorService {
 
   async runLivePilot10Usd(confirmRealMoney: boolean) {
     return this.livePilot10UsdService.execute({ confirmRealMoney });
+  }
+
+  private writeLeanLatestMarker(
+    artifactsRoot: string,
+    markerName: string,
+    runId: string,
+  ): void {
+    mkdirSync(artifactsRoot, { recursive: true });
+    writeFileSync(join(artifactsRoot, markerName), `${runId}\n`, 'utf8');
   }
 }

@@ -3,5 +3,8 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TARGET="${1:-latest}"
+if (($# > 0)); then
+  shift
+fi
 cd "$ROOT/backend"
-bun run v1:cli -- import-lean-run "$TARGET"
+bun run v1:cli -- import-lean-run "$TARGET" "$@"

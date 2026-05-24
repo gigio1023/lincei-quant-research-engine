@@ -49,10 +49,7 @@ export function loadRepoEnv(): string {
     const base = databasePath.startsWith('backend/')
       ? resolveRepoRoot()
       : process.cwd();
-    const relative = databasePath.startsWith('backend/')
-      ? databasePath.slice('backend/'.length)
-      : databasePath;
-    process.env.DATABASE_PATH = resolve(base, relative);
+    process.env.DATABASE_PATH = resolve(base, databasePath);
   }
 
   return envPath;

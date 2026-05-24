@@ -115,14 +115,18 @@ export class LeanRunImportService {
 
   async importLatestFromArtifactsRoot(
     artifactsRoot: string,
-    options: { acceptanceMode?: LeanAcceptanceMode } = {},
+    options: {
+      acceptanceMode?: LeanAcceptanceMode;
+      latestMarker?: string;
+    } = {},
   ): Promise<LeanRun> {
     if (!existsSync(artifactsRoot)) {
       throw new BadRequestException(
         `Artifacts root not found: ${artifactsRoot}`,
       );
     }
-    const latestPath = join(artifactsRoot, '.latest');
+    const latestMarker = options.latestMarker ?? '.latest';
+    const latestPath = join(artifactsRoot, latestMarker);
     if (!existsSync(latestPath)) {
       throw new BadRequestException(
         `Latest LEAN run marker not found: ${latestPath}`,
@@ -139,6 +143,33 @@ export class LeanRunImportService {
 
   async getLatestRun(): Promise<LeanRun | null> {
     const runs = await this.listRuns();
+    return runs[0] ?? null;
+  }
+
+  async getLatestStrategyRun(): Promise<LeanRun | null> {
+    const runs = await this.leanRunRepository.find({
+      where: {
+        mode: 'backtest',
+        status: 'passed',
+        promotionEligible: true,
+      },
+      order: { completedAt: 'DESC' },
+      take: 10,
+    });
+    return runs.find((run) => run.runtime !== 'simulator') ?? null;
+  }
+
+  async getLatestCloudStrategyRun(): Promise<LeanRun | null> {
+    const runs = await this.leanRunRepository.find({
+      where: {
+        mode: 'backtest',
+        runtime: 'quantconnect-cloud',
+        status: 'passed',
+        promotionEligible: true,
+      },
+      order: { completedAt: 'DESC' },
+      take: 1,
+    });
     return runs[0] ?? null;
   }
 
@@ -164,7 +195,7 @@ export class LeanRunImportService {
     runId: string,
   ): string {
     if (!/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(runId)) {
-      throw new BadRequestException(`Unsafe LEAN run id in .latest: ${runId}`);
+      throw new BadRequestException(`Unsafe LEAN run id in marker: ${runId}`);
     }
     const root = resolve(artifactsRoot);
     const resultDirectory = resolve(root, runId);
@@ -172,9 +203,7 @@ export class LeanRunImportService {
       resultDirectory !== root &&
       !resultDirectory.startsWith(`${root}${sep}`)
     ) {
-      throw new BadRequestException(
-        `Unsafe LEAN run path in .latest: ${runId}`,
-      );
+      throw new BadRequestException(`Unsafe LEAN run path in marker: ${runId}`);
     }
     return resultDirectory;
   }

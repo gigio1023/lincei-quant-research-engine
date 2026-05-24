@@ -50,7 +50,9 @@ type FillsPayload = {
 type DataMonitorReport = {
   'total-data-requests-count'?: number;
   'failed-data-requests-count'?: number;
+  'failed-data-requests-percentage'?: number;
   'failed-universe-data-requests-count'?: number;
+  'failed-universe-data-requests-percentage'?: number;
 };
 
 const HYDRATION_NOTE = 'hydrated_from_lean_summary_only';
@@ -248,13 +250,21 @@ function dataCoverageBlockers(
     blockers.push('LEAN data monitor did not report any data requests.');
   }
   if (metrics.failedDataRequests > 0) {
+    const failurePct = numericField(
+      dataMonitorReport,
+      'failed-data-requests-percentage',
+    );
     blockers.push(
-      `LEAN data monitor reports ${metrics.failedDataRequests} failed data requests.`,
+      `LEAN data monitor reports ${metrics.failedDataRequests} failed data requests (${failurePct}%); inspect data-monitor-report.json and failed-data-requests-* in the LEAN backtest folder.`,
     );
   }
   if (metrics.failedUniverseDataRequests > 0) {
+    const failurePct = numericField(
+      dataMonitorReport,
+      'failed-universe-data-requests-percentage',
+    );
     blockers.push(
-      `LEAN data monitor reports ${metrics.failedUniverseDataRequests} failed universe data requests.`,
+      `LEAN data monitor reports ${metrics.failedUniverseDataRequests} failed universe data requests (${failurePct}%); inspect data-monitor-report.json and failed-data-requests-* in the LEAN backtest folder.`,
     );
   }
   return blockers;

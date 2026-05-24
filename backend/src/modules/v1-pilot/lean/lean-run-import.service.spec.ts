@@ -75,7 +75,7 @@ describe('LeanRunImportService', () => {
     writeFileSync(join(dir, '.latest'), '../../outside\n', 'utf8');
 
     await expect(service.importLatestFromArtifactsRoot(dir)).rejects.toThrow(
-      'Unsafe LEAN run id in .latest',
+      'Unsafe LEAN run id in marker',
     );
   });
 });
