@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Runs the whole V1 loop through live preflight. Exit 2 from preflight is a valid fail-closed outcome.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
+export LEAN_DOWNLOAD_DATA="${LEAN_DOWNLOAD_DATA:-false}"
+export V1_UNIVERSE_SYMBOLS="${V1_UNIVERSE_SYMBOLS:-SPY,QQQ,IWM}"
+
+./scripts/run-full-backtest.sh "$@"
+
+if [[ "${SKIP_ALPHA_CYCLE:-false}" != "true" ]]; then
+  set +e
+  ./scripts/run-alpha-cycle
+  ALPHA_STATUS=$?
+  set -e
+  if [[ "$ALPHA_STATUS" -ne 0 ]]; then
+    if [[ "${REQUIRE_ALPHA_CYCLE:-false}" == "true" ]]; then
+      exit "$ALPHA_STATUS"
+    fi
+    echo "V1 alpha cycle is blocked; continuing to paper/preflight so blockers are recorded." >&2
+  fi
+fi
+
+./scripts/run-paper-cycle
+
+set +e
+./scripts/live-preflight
+PREFLIGHT_STATUS=$?
+set -e
+
+if [[ "$PREFLIGHT_STATUS" -eq 0 ]]; then
+  echo "V1 cycle complete: live preflight is ready."
+elif [[ "$PREFLIGHT_STATUS" -eq 2 ]]; then
+  echo "V1 cycle complete: live preflight is blocked by explicit gates."
+else
+  echo "V1 cycle failed during live preflight (exit $PREFLIGHT_STATUS)." >&2
+  exit "$PREFLIGHT_STATUS"
+fi

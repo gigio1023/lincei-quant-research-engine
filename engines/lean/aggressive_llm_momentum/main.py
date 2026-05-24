@@ -21,7 +21,7 @@ from risk.lincei_risk import LinceiRiskManagementModel
 class AggressiveLlmMomentum(QCAlgorithm):
     """Framework-based momentum strategy with numeric + meta alpha overlay."""
 
-    UNIVERSE = ("SPY", "QQQ", "IWM", "TLT", "GLD")
+    DEFAULT_UNIVERSE = ("SPY", "QQQ", "IWM", "TLT", "GLD")
 
     @staticmethod
     def _parse_bool(value: str | None, *, default: bool = False) -> bool:
@@ -46,13 +46,14 @@ class AggressiveLlmMomentum(QCAlgorithm):
         self.SetEndDate(end[0], end[1], end[2])
         self.SetCash(100_000)
         self.SetBenchmark("SPY")
+        universe = self._parse_universe_param()
 
-        for ticker in self.UNIVERSE:
+        for ticker in universe:
             equity = self.AddEquity(ticker, Resolution.Daily)
             equity.SetDataNormalizationMode(DataNormalizationMode.Adjusted)
 
         universe_symbols = [
-            Symbol.Create(ticker, SecurityType.Equity, Market.USA) for ticker in self.UNIVERSE
+            Symbol.Create(ticker, SecurityType.Equity, Market.USA) for ticker in universe
         ]
         self.SetUniverseSelection(ManualUniverseSelectionModel(universe_symbols))
 
@@ -100,6 +101,7 @@ class AggressiveLlmMomentum(QCAlgorithm):
             "no-static-meta": no_static_meta,
             "no-static-ml": no_static_ml,
             "alpha-mode": alpha_mode,
+            "universe-symbols": ",".join(universe),
         }
 
         if no_static_meta or alpha_mode == "numeric-only":
@@ -137,6 +139,13 @@ class AggressiveLlmMomentum(QCAlgorithm):
         )
         self.SetExecution(ImmediateExecutionModel())
         self.SetWarmUp(timedelta(days=220))
+
+    def _parse_universe_param(self) -> tuple[str, ...]:
+        raw = self.GetParameter("universe-symbols")
+        if not raw:
+            return self.DEFAULT_UNIVERSE
+        symbols = tuple(symbol.strip().upper() for symbol in raw.split(",") if symbol.strip())
+        return symbols or self.DEFAULT_UNIVERSE
 
     def OnOrderEvent(self, orderEvent: OrderEvent) -> None:
         self._artifact_exporter.record_order_event(orderEvent)

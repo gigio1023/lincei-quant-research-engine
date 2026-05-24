@@ -15,4 +15,8 @@ fi
 ARGS+=("$@")
 
 cd "$ROOT/backend"
-bun run v1:cli -- run-full-backtest "${ARGS[@]}"
+if ((${#ARGS[@]})); then
+  bun run v1:cli -- run-full-backtest "${ARGS[@]}"
+else
+  bun run v1:cli -- run-full-backtest
+fi

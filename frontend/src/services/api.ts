@@ -46,6 +46,7 @@ import {
   TickAutonomousRunScheduleRequest,
   TripKillSwitchRequest,
 } from "../types";
+import type { V1PilotSystemStatus } from "../types/v1Pilot";
 
 const env = (
   import.meta as ImportMeta & {
@@ -384,10 +385,7 @@ export const controlPlaneApi = {
 
 /** V1 live-pilot observability — read-only; execution stays in CLI/scripts. */
 export const v1PilotApi = {
-  getStatus: async (): Promise<{
-    leanRun: { runId: string; status: string } | null;
-    preflight: { status: string; blockers: string[] };
-  }> => {
+  getStatus: async (): Promise<V1PilotSystemStatus> => {
     const response = await api.get("/v1-pilot/status");
     return response.data;
   },

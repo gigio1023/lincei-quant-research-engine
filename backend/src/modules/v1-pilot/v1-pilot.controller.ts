@@ -3,6 +3,7 @@ import { Controller, Get, Post } from '@nestjs/common';
 import { V1PilotOrchestratorService } from './v1-pilot-orchestrator.service';
 import { LeanRunImportService } from './lean/lean-run-import.service';
 import { LivePreflightService } from './live/live-preflight.service';
+import { V1PilotStatusService } from './v1-pilot-status.service';
 
 @Controller('v1-pilot')
 export class V1PilotController {
@@ -10,6 +11,7 @@ export class V1PilotController {
     private readonly orchestrator: V1PilotOrchestratorService,
     private readonly leanRunImportService: LeanRunImportService,
     private readonly livePreflightService: LivePreflightService,
+    private readonly statusService: V1PilotStatusService,
   ) {}
 
   @Get('lean-runs')
@@ -39,10 +41,6 @@ export class V1PilotController {
 
   @Get('status')
   async getStatus() {
-    const [leanRun, preflight] = await Promise.all([
-      this.leanRunImportService.getLatestRun(),
-      this.livePreflightService.runPreflight(),
-    ]);
-    return { leanRun, preflight };
+    return this.statusService.getStatus();
   }
 }

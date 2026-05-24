@@ -48,6 +48,7 @@ export type LeanCliBacktestRequest = {
   noStaticMeta?: boolean;
   noStaticMl?: boolean;
   alphaMode?: string;
+  universeSymbols?: string[];
   allowSummaryHydration?: boolean;
   requireStrategyEvidence?: boolean;
 };
@@ -179,6 +180,11 @@ export class LeanCliRunner {
     this.appendParameter(args, 'no-static-meta', request.noStaticMeta);
     this.appendParameter(args, 'no-static-ml', request.noStaticMl);
     this.appendParameter(args, 'alpha-mode', request.alphaMode);
+    this.appendParameter(
+      args,
+      'universe-symbols',
+      request.universeSymbols?.join(','),
+    );
     if (request.downloadData === false) {
       args.push('--data-provider-historical', 'Local');
       this.appendParameter(args, 'backtest-start-date', '2020-01-01');

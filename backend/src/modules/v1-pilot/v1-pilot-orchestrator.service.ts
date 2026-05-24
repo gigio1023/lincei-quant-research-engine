@@ -5,7 +5,7 @@
  * paper bridge → live preflight → optional $10 pilot. LEAN CLI is preferred; the local
  * simulator exists so CI and dev machines without Docker/Lean can still prove artifact flow.
  */
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { existsSync, writeFileSync, mkdirSync } from 'fs';
 import { join, resolve } from 'path';
 import { LeanAcceptanceMode } from './lean/lean-run-acceptance';
@@ -21,10 +21,13 @@ import { LivePilot10UsdService } from './live/live-pilot-10usd.service';
 import { MlPythonRunner } from './ml/ml-python.runner';
 import { MlModelRegistryService } from './ml/ml-model-registry.service';
 import { LeanCliRunner } from './lean/lean-cli.runner';
+import { LeanDailyDataExportService } from './lean/lean-daily-data-export.service';
 import { MarketDataIngestionService } from '../control-plane/market-data-ingestion.service';
 
 @Injectable()
 export class V1PilotOrchestratorService {
+  private readonly logger = new Logger(V1PilotOrchestratorService.name);
+
   constructor(
     private readonly featureSnapshotService: FeatureSnapshotService,
     private readonly numericAlphaService: NumericAlphaService,
@@ -38,6 +41,7 @@ export class V1PilotOrchestratorService {
     private readonly mlPythonRunner: MlPythonRunner,
     private readonly mlModelRegistryService: MlModelRegistryService,
     private readonly leanCliRunner: LeanCliRunner,
+    private readonly leanDailyDataExportService: LeanDailyDataExportService,
     private readonly marketDataIngestionService: MarketDataIngestionService,
   ) {}
 
@@ -67,6 +71,7 @@ export class V1PilotOrchestratorService {
     const steps: Record<string, unknown> = {};
     const noStaticMeta = options.noStaticMeta ?? true;
     const noStaticMl = options.noStaticMl ?? true;
+    const universeSymbols = this.v1UniverseSymbols();
     const shouldRunAlphaCycle =
       options.skipAlphaCycle !== true && (!noStaticMeta || !noStaticMl);
     const validationMode =
@@ -76,20 +81,15 @@ export class V1PilotOrchestratorService {
     const usesStaticMlPredictions = !noStaticMl;
     const alphaMode = noStaticMeta ? 'numeric-only' : 'meta-overlay';
 
-    if (
-      options.ingestUniverseBars === true ||
-      (options.ingestUniverseBars !== false && shouldRunAlphaCycle)
-    ) {
+    if (options.ingestUniverseBars !== false) {
       const windowEnd = new Date();
-      const windowStart = new Date(
-        windowEnd.getTime() - 400 * 24 * 60 * 60_000,
-      );
+      const windowStart = new Date('2019-01-01T00:00:00.000Z');
       try {
         steps.marketDataIngestion = await this.marketDataIngestionService.poll(
           {
             force: true,
             datasetId: 'v1-lean-universe',
-            symbols: ['SPY', 'QQQ', 'IWM', 'TLT', 'GLD'],
+            symbols: universeSymbols,
             provider: 'stooq',
             timeframe: '1d',
             currency: 'USD',
@@ -104,6 +104,20 @@ export class V1PilotOrchestratorService {
           reason: error instanceof Error ? error.message : 'ingestion failed',
         };
       }
+      steps.leanDailyDataExport =
+        await this.leanDailyDataExportService.exportMissingDailyEquityData({
+          repoRoot,
+          datasetId: 'v1-lean-universe',
+          symbols: universeSymbols,
+        });
+      steps.leanDailyDataHydration =
+        await this.leanDailyDataExportService.hydrateMarketDataFromLeanDailyData(
+          {
+            repoRoot,
+            datasetId: 'v1-lean-universe',
+            symbols: universeSymbols,
+          },
+        );
     }
 
     if (shouldRunAlphaCycle) {
@@ -111,7 +125,7 @@ export class V1PilotOrchestratorService {
     }
 
     if (validationMode === 'flow-validation') {
-      console.warn(
+      this.logger.warn(
         '[v1-pilot] validationMode=flow-validation: static Nest alpha/ML overlay is pipeline proof only, not historical performance validation.',
       );
     }
@@ -124,6 +138,7 @@ export class V1PilotOrchestratorService {
       noStaticMeta,
       noStaticMl,
       alphaMode,
+      universeSymbols,
       requireStrategyEvidence: true,
     });
     steps.leanBacktest = leanResult;
@@ -185,6 +200,18 @@ export class V1PilotOrchestratorService {
       llmCount: llm.length,
       metaCount: meta.length,
     };
+  }
+
+  private v1UniverseSymbols(): string[] {
+    const configured = process.env.V1_UNIVERSE_SYMBOLS;
+    if (!configured) {
+      return ['SPY', 'QQQ', 'IWM', 'TLT', 'GLD'];
+    }
+    const symbols = configured
+      .split(',')
+      .map((symbol) => symbol.trim().toUpperCase())
+      .filter(Boolean);
+    return symbols.length > 0 ? symbols : ['SPY', 'QQQ', 'IWM', 'TLT', 'GLD'];
   }
 
   async runLeanBacktest(

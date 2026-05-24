@@ -14,6 +14,8 @@ import { PortfolioTargetSnapshot } from '../../entities/portfolio-target-snapsho
 import { PaperOrderPlan } from '../../entities/paper-order-plan.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
 import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
+import { BrokerFill } from '../../entities/broker-fill.entity';
+import { BrokerOrderStatusRecord } from '../../entities/broker-order-status.entity';
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
 import { ControlPlaneModule } from '../control-plane/control-plane.module';
 import { FeatureSnapshotService } from './alpha/feature-snapshot.service';
@@ -21,6 +23,7 @@ import { NumericAlphaService } from './alpha/numeric-alpha.service';
 import { LlmAlphaService } from './alpha/llm-alpha.service';
 import { MetaAlphaService } from './alpha/meta-alpha.service';
 import { LeanLocalSimulatorService } from './lean/lean-local-simulator.service';
+import { LeanDailyDataExportService } from './lean/lean-daily-data-export.service';
 import { LeanRunImportService } from './lean/lean-run-import.service';
 import { LeanPaperBridgeService } from './paper/lean-paper-bridge.service';
 import { LivePreflightService } from './live/live-preflight.service';
@@ -29,6 +32,7 @@ import { MockBrokerAdapter } from './broker/mock-broker.adapter';
 import { TossWriteBrokerAdapter } from './broker/toss-write-broker.adapter';
 import { V1PilotOrchestratorService } from './v1-pilot-orchestrator.service';
 import { V1PilotController } from './v1-pilot.controller';
+import { V1PilotStatusService } from './v1-pilot-status.service';
 import { MlModelRegistryService } from './ml/ml-model-registry.service';
 import { MlPythonRunner } from './ml/ml-python.runner';
 import { MlBaselineInferenceService } from './ml/ml-baseline-inference.service';
@@ -48,6 +52,8 @@ import { LeanCliRunner } from './lean/lean-cli.runner';
       PaperOrderPlan,
       InvestmentProposal,
       BrokerSnapshot,
+      BrokerFill,
+      BrokerOrderStatusRecord,
       ExecutionControlState,
     ]),
   ],
@@ -61,6 +67,7 @@ import { LeanCliRunner } from './lean/lean-cli.runner';
     LlmAlphaService,
     MetaAlphaService,
     LeanLocalSimulatorService,
+    LeanDailyDataExportService,
     LeanCliRunner,
     LeanRunImportService,
     LeanPaperBridgeService,
@@ -69,6 +76,7 @@ import { LeanCliRunner } from './lean/lean-cli.runner';
     MockBrokerAdapter,
     TossWriteBrokerAdapter,
     V1PilotOrchestratorService,
+    V1PilotStatusService,
   ],
   exports: [
     V1PilotOrchestratorService,

@@ -244,8 +244,41 @@ vi.mock("./services/api", () => ({
   v1PilotApi: {
     getStatus: vi.fn(() =>
       Promise.resolve({
+        checkedAt: "2026-05-22T09:00:00.000Z",
+        verdict: "blocked",
         leanRun: null,
-        preflight: { status: "blocked", blockers: ["Test preflight blocked."] },
+        alpha: {
+          featureSnapshotCount: 0,
+          numericDecisionCount: 0,
+          llmDecisionCount: 0,
+          metaDecisionCount: 0,
+          mlModelStatus: "not_promoted",
+        },
+        portfolioTarget: { targetCount: 0 },
+        paper: { status: "missing", fillCount: 0 },
+        broker: { snapshotStatus: "missing", openOrderCount: 0 },
+        livePilot: { realOrderSent: false },
+        preflight: {
+          status: "blocked",
+          checkedAt: "2026-05-22T09:00:00.000Z",
+          maxPilotNotionalUsd: 10,
+          broker: "toss",
+          blockers: ["Test preflight blocked."],
+          requiredFlags: {},
+          openOrderRefs: [],
+          credentialMode: "missing",
+        },
+        stages: [
+          {
+            key: "live_preflight",
+            label: "Live Preflight",
+            status: "blocked",
+            detail: "blocked",
+            blockers: ["Test preflight blocked."],
+            refs: [],
+          },
+        ],
+        nextActions: ["Resolve Live Preflight: Test preflight blocked."],
       }),
     ),
     listLeanRuns: vi.fn(() => Promise.resolve([])),

@@ -1,80 +1,82 @@
 # plan.md
 
 ## Intent (의도)
-- Finish the remaining V1 autonomous pilot work as far as the current branch, credentials, and external account entitlements honestly allow, while preserving strict evidence gates and fail-closed live behavior.
+- Finish the V1 work as a whole autonomous pilot system: alpha decisions, LEAN evidence, control-plane import, paper execution, broker read-only evidence, live preflight, live pilot gate, dashboard observability, scripts, and verification.
 
 ## Background (배경)
-- The LEAN local Docker path now runs, exports strict artifacts, imports them, and feeds a reconciled paper plan.
-- QuantConnect data terms are accepted, but the current organization lacks the Security Master map/factor entitlement required for `--download-data` equity runs.
-- Live preflight is blocked on Toss read-only/write readiness, broker credentials, and explicit live flags.
-- The remaining uncertainty is which blockers are engineering defects versus external account/API access requirements.
+- The repo docs define the V1 target in `docs/project-architecture.md` and `docs/v1-live-pilot-spec/`.
+- The previous pass hardened LEAN evidence and live gates, but the operator-facing system status still reports only LEAN plus preflight and does not show the complete design loop.
+- The user reports the 4 failed local LEAN data requests are fixed, so verification must rerun the strict backtest path and downstream import/paper/preflight.
 
 ## Goals (목표)
-- Goal 1: Remove or refine code paths that hide actionable LEAN/QC failures.
-- Goal 2: Add explicit validation around QuantConnect entitlement and LEAN data-provider state so failures are diagnosed before false claims.
-- Goal 3: Advance safe Toss readiness only where current credentials, schemas, and repo contracts make implementation defensible.
-- Goal 4: Re-run strict LEAN backtesting and downstream import/paper/preflight gates after changes.
-- Goal 5: Leave durable plan, progress, and result artifacts for continuation.
+- Goal 1: Map the documented whole-system V1 loop to implemented repo surfaces.
+- Goal 2: Add a read-only whole-system V1 status API that covers every required stage without triggering execution side effects.
+- Goal 3: Upgrade the dashboard V1 panel to show the whole loop, not only LEAN/preflight.
+- Goal 4: Add a single operator script that runs backtest -> paper -> live preflight and preserves blocked live status as a valid outcome.
+- Goal 5: Rerun strict backtest, import, paper, live preflight, backend checks, frontend checks, and artifact validators.
 
 ## Expected Results (결과)
-- LEAN failures surface concise root-cause output instead of only the failed command.
-- QC download-data status is classified as either runnable or externally blocked with specific evidence.
-- Local LEAN historical-research evidence remains reproducible and strict-importable.
-- Paper bridge remains reconciled before live preflight.
-- Live remains blocked only for real broker/account readiness, not avoidable internal plumbing issues.
+- Operators can see whether data/features, alpha, LEAN, import, paper, broker read-only, preflight, live-pilot submit, and reconciliation are ready/blocked/missing.
+- Dashboard status reads are observational and do not append preflight rows.
+- The full local V1 command path can prove the loop up to live preflight, while live trading remains blocked unless real broker gates pass.
+- Plan/progress/result artifacts reflect the final implemented and verified state.
 
 ## Scope
-- In scope: `engine` repo only; LEAN runner diagnostics; QC readiness checks; V1 paper/live preflight contracts; tests; backtest verification; plan/progress/result files.
-- Out of scope: Purchasing QC subscriptions; accepting paid charges; inventing Toss credentials; bypassing live safety gates; using simulator results as production evidence.
+- In scope: `engine` repo only; V1 backend status API; frontend V1 panel; scripts; tests; strict backtest and downstream verification.
+- Out of scope: inventing Toss schemas, bypassing broker write gates, purchasing external data, exposing secrets, or changing unrelated report-app behavior.
 
 ## Constraints
-- Work must happen on the current branch, without git worktrees.
-- English-only code comments, docs, logs, and final response.
-- No secrets may be printed, committed, or stored in plan artifacts.
-- Files should stay small and focused; split tests or helpers when needed.
-- Real live trading cannot be marked ready without Toss read-only reconciliation, write schema verification, broker credentials, kill/cancel/flatten readiness, and explicit live flags.
+- Work in the current branch only; no git worktrees.
+- English-only code, docs, logs, and final response.
+- Keep files focused and avoid large new monoliths.
+- No secrets may be printed, committed, or copied into artifacts.
+- Real broker write calls remain impossible unless explicit schema, credential custody, cancel/flatten/open-order, and live flags pass.
 
 ## Success Criteria
-- `./scripts/run-full-backtest.sh --skip-market-data-ingest` either completes with QC download-data evidence or fails fast with a precise external entitlement blocker.
-- `LEAN_DOWNLOAD_DATA=false ./scripts/run-full-backtest.sh --skip-market-data-ingest` either completes with zero failed data requests or is rejected with a precise partial-data blocker.
-- `./scripts/import-lean-run latest` passes only when latest evidence satisfies strict strategy acceptance; otherwise the blocker is explicit and no false production evidence is claimed.
-- `./scripts/run-paper-cycle` returns a reconciled paper plan only after a strict accepted LEAN import exists.
-- `./scripts/live-preflight` reports data-evidence blockers plus external/live broker blockers without marking the system ready prematurely.
-- Backend build, unit tests, e2e tests, lint, format, Python tests, and whitespace checks pass.
+- `GET /v1-pilot/status` returns a whole-system status with stage summaries and no execution side effects.
+- The dashboard V1 panel renders the complete V1 loop with blockers and next actions.
+- `./scripts/run-v1-cycle` exists and runs the operator loop through live preflight.
+- `./scripts/run-full-backtest.sh --skip-market-data-ingest` or the local-data equivalent completes strict LEAN acceptance after the user’s data fix.
+- `./scripts/run-paper-cycle` reconciles a paper plan from the accepted LEAN run.
+- `./scripts/live-preflight` is `ready` only if all live gates pass; otherwise it reports exact blockers.
+- Backend build/unit/e2e, frontend typecheck/test, Python LEAN unittest, format/lint, and plan/progress/result validators pass or have explicit external blockers.
 
 ## Workstreams
-- WS1: Delivery tracking, Owner: main agent, Output: `plan.md`, `progress.md`, `result.md`, Done signal: artifacts stay current with the branch state.
-- WS2: QC/LEAN readiness, Owner: main agent plus explorer, Output: clearer diagnostics and backtest evidence, Done signal: QC entitlement state and LEAN run result are explicit.
-- WS3: Toss/live readiness, Owner: explorer plus main agent, Output: implementable safe refinements or explicit external blockers, Done signal: live preflight blockers are classified and defensible.
-- WS4: Verification, Owner: main agent, Output: command evidence, Done signal: required checks pass or external blockers are documented.
+- WS1: Spec mapping and tracking, Owner: main agent + explorer, Output: updated plan/progress/result, Done signal: docs mapped to implementation.
+- WS2: Backend whole-system status, Owner: main agent, Output: V1 status service/controller tests, Done signal: API summarizes all documented stages without side effects.
+- WS3: Dashboard/operator UX, Owner: main agent, Output: V1 panel/API types/tests, Done signal: frontend shows full loop status.
+- WS4: Operator script and verification, Owner: main agent, Output: `run-v1-cycle` and command evidence, Done signal: full local loop verified or blocked explicitly.
+- WS5: Parallel audit, Owner: subagents, Output: prioritized remaining gaps, Done signal: findings integrated or documented.
 
 ## Dependency Graph
-- WS1 starts first and remains active throughout.
-- WS2 and WS3 run in parallel after WS1.
-- WS4 is blocked by any code changes from WS2 or WS3.
-- Closure is blocked by WS4 and final `result.md`.
+- WS1 starts first and stays active.
+- WS2 and WS5 run in parallel after spec mapping.
+- WS3 depends on WS2 status shape.
+- WS4 depends on WS2/WS3 code stability and the user’s fixed LEAN data.
+- Commit/push depends on WS4 and final result sync.
 
 ## Validation Gates
-- Gate A: No generated data, artifacts, secrets, or local LEAN workspace files are committed.
-- Gate B: Strict LEAN acceptance is not weakened for convenience.
-- Gate C: Live broker readiness remains fail-closed when any required Toss evidence is missing.
-- Gate D: Tests cover changed behavior near the changed surface.
-- Gate E: Backtest evidence is labeled accurately as QC download-data, local LEAN data, or blocked.
+- Gate A: Dashboard status endpoints do not trigger live/preflight/paper/backtest side effects.
+- Gate B: Strict LEAN evidence remains required for import, paper, and live readiness.
+- Gate C: Live broker execution remains fail-closed without verified Toss write readiness.
+- Gate D: Frontend and backend tests cover changed status surfaces.
+- Gate E: Generated artifacts, data, DBs, and secrets remain uncommitted.
 
 ## Risks and Mitigations
-- Risk: QC account cannot download required equity map/factor files. Mitigation: detect and document as external entitlement; do not fake production evidence.
-- Risk: LEAN CLI mutates `lean.json` provider settings across runs. Mitigation: validate local/QC provider state and restore deterministic local behavior where appropriate.
-- Risk: Toss write implementation without official schema/credentials could create false readiness. Mitigation: only implement schema-backed, testable pieces; leave live blocked otherwise.
-- Risk: Long backtests or Docker state can mask failures. Mitigation: capture direct LEAN logs and summarize root cause.
+- Risk: The fixed local LEAN data still fails strict acceptance. Mitigation: report exact data-monitor blocker and keep system blocked.
+- Risk: Status aggregation becomes a hidden executor. Mitigation: use repository reads only and keep execution on POST/CLI/script commands.
+- Risk: Whole-system scope expands into real Toss write implementation without schemas. Mitigation: expose blocker/readiness status only until official evidence exists.
+- Risk: Dashboard becomes a redesign. Mitigation: keep the existing compact right-rail panel and add dense operational fields only.
 
 ## Execution Waves / Order
-- Wave 1: Create plan/progress, launch parallel read-only audits, inspect current blockers.
-- Wave 2: Implement narrowly scoped diagnostics/readiness fixes that remove internal blockers.
-- Wave 3: Run QC download-data attempt and local LEAN strict fallback with clear labeling.
-- Wave 4: Run import, paper, live preflight, and full automated checks.
-- Wave 5: Write `result.md`, commit, and push if code or plan artifacts changed.
+- Wave 1: Read whole-system docs, update plan/progress, launch read-only audits.
+- Wave 2: Implement backend whole-system status DTO/service/controller.
+- Wave 3: Implement frontend API typing and panel rendering.
+- Wave 4: Add operator loop script.
+- Wave 5: Run strict backtest/import/paper/preflight and automated checks.
+- Wave 6: Update result, commit, and push.
 
 ## Rollback / Containment Intent
-- Keep safety gates strict and additive; avoid broad refactors.
-- If a change weakens evidence or live fail-closed behavior, revert that change before committing.
-- Keep generated LEAN data/artifacts ignored so reruns do not pollute source history.
+- New status code is additive; existing execution commands stay in place.
+- If strict evidence fails, do not weaken acceptance; record the blocker.
+- If frontend changes cause broad churn, keep only the backend/script/status work and leave a minimal panel fallback.
