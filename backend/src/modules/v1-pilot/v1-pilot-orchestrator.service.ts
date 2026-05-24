@@ -1,9 +1,10 @@
 /**
- * Coordinates the V1 vertical slice invoked by repo scripts and the v1-pilot CLI.
+ * Coordinates the V1 validation loop invoked by repo scripts and the v1-pilot CLI.
  *
- * Order of operations matches docs/v1-live-pilot-spec: alpha → LEAN backtest/import →
- * paper bridge → live preflight → optional $10 pilot. LEAN CLI is preferred; the local
- * simulator exists so CI and dev machines without Docker/Lean can still prove artifact flow.
+ * Order of operations follows SPEC.md: alpha -> LEAN backtest/import -> paper bridge
+ * -> broker-write preflight. Real-money broker writes remain blocked unless a future
+ * user-approved spec changes the active scope. LEAN CLI is preferred; the local
+ * simulator exists so CI and dev machines without Docker/LEAN can still prove artifact flow.
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { existsSync, writeFileSync, mkdirSync } from 'fs';

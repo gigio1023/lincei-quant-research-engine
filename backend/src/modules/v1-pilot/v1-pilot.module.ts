@@ -1,5 +1,5 @@
 /**
- * V1 autonomous live-pilot module: alpha generation, LEAN ingest, paper bridge, broker adapters, live gates.
+ * V1 autonomous validation module: alpha generation, LEAN ingest, paper bridge, broker adapters, broker-write gates.
  * Kept separate from ControlPlaneModule to preserve the LEAN/LLM/broker credential boundaries in the spec.
  */
 import { Module } from '@nestjs/common';

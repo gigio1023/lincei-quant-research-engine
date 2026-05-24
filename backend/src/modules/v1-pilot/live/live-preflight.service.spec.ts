@@ -74,7 +74,7 @@ describe('LivePreflightService', () => {
 
     expect(preflight.credentialMode).toBe('local-dev-env');
     expect(preflight.blockers).toContain(
-      'Live pilot requires broker credentials from an external secret reference.',
+      'Broker-write preflight requires broker credentials from an external secret reference.',
     );
     expect(preflight.blockers).not.toContain('Broker credentials are missing.');
   });

@@ -405,14 +405,14 @@ export class ControlPlaneService {
         {
           key: 'livePilotReadinessLedgerReady',
           ready: livePilotReadinessCount > 0,
-          detail: `${livePilotReadinessCount} live pilot readiness records`,
+          detail: `${livePilotReadinessCount} broker-write preflight readiness records`,
         },
         {
           key: 'livePilotReady',
           ready: latestLivePilotReadiness?.status === 'ready',
           detail: latestLivePilotReadiness
-            ? `Latest live pilot readiness is ${latestLivePilotReadiness.status}: ${latestLivePilotReadiness.blockers.join('; ') || 'all live pilot preflight gates are ready'}`
-            : 'No live pilot readiness record has verified broker write preflight gates',
+            ? `Latest broker-write preflight readiness is ${latestLivePilotReadiness.status}: ${latestLivePilotReadiness.blockers.join('; ') || 'all broker-write preflight gates are ready'}`
+            : 'No broker-write preflight readiness record has verified broker write gates',
         },
         {
           key: 'liveTradingReady',
@@ -428,7 +428,7 @@ export class ControlPlaneService {
           : ['No usable funding readiness record tied to broker truth']),
         ...(latestLivePilotReadiness?.status === 'ready'
           ? []
-          : ['No verified live pilot readiness record']),
+          : ['No verified broker-write preflight readiness record']),
         ...(latestBrokerOrderCommand
           ? []
           : ['No broker order command dry-run ledger record']),
@@ -1510,10 +1510,12 @@ export class ControlPlaneService {
       brokerAdapterStatus.emergencyControls.openOrderPollingReady;
 
     const blockers = [
-      budget ? undefined : 'No budget envelope selected for live pilot',
+      budget
+        ? undefined
+        : 'No budget envelope selected for broker-write preflight',
       budget?.mode === 'live'
         ? undefined
-        : 'Live pilot requires a budget envelope in live mode',
+        : 'Broker-write preflight requires a budget envelope in live mode',
       budget?.policy.allowLiveTrading === true
         ? undefined
         : 'Budget policy does not allow live trading',
@@ -1523,21 +1525,21 @@ export class ControlPlaneService {
       fundingReadiness && request.currency
         ? fundingReadiness.currency === request.currency
           ? undefined
-          : 'Funding readiness currency does not match live pilot request'
+          : 'Funding readiness currency does not match broker-write preflight request'
         : undefined,
       fundingReadiness &&
       pilotBudgetAmount <= fundingReadiness.expectedDepositAmount
         ? undefined
-        : 'Live pilot budget exceeds verified funding readiness amount',
+        : 'Broker-write preflight budget exceeds verified funding readiness amount',
       pilotBudgetAmount <= maxPilotBudgetAmount
         ? undefined
-        : 'Live pilot budget exceeds requested pilot cap',
+        : 'Broker-write preflight budget exceeds requested pilot cap',
       maxPilotBudgetAmount <= hardMaxPilotBudgetAmount
         ? undefined
-        : 'Live pilot cap exceeds hard environment pilot cap',
+        : 'Broker-write preflight cap exceeds hard environment pilot cap',
       maxSingleOrderNotional <= pilotBudgetAmount
         ? undefined
-        : 'Single order cap exceeds pilot budget',
+        : 'Single order cap exceeds broker-write preflight budget',
       schemaMigrationPolicy.ready
         ? undefined
         : 'Schema migration policy is not ready',
@@ -1560,7 +1562,7 @@ export class ControlPlaneService {
       'Production signed order-plan custody is not implemented',
     ].filter((blocker): blocker is string => Boolean(blocker));
     const notes = [
-      'Live pilot readiness is evidence only. No broker order endpoint was called.',
+      'Broker-write preflight readiness is evidence only. No broker order endpoint was called.',
       ...(request.notes ?? []),
     ];
     const readinessSnapshot = {
@@ -4945,7 +4947,7 @@ export class ControlPlaneService {
 
     if (presentDisallowedKey) {
       throw new BadRequestException(
-        `Live pilot readiness cannot include ${presentDisallowedKey}`,
+        `Broker-write preflight readiness cannot include ${presentDisallowedKey}`,
       );
     }
 
@@ -4955,7 +4957,7 @@ export class ControlPlaneService {
       request.pilotBudgetAmount <= 0
     ) {
       throw new BadRequestException(
-        'Live pilot readiness pilotBudgetAmount must be positive',
+        'Broker-write preflight readiness pilotBudgetAmount must be positive',
       );
     }
 
@@ -4966,7 +4968,7 @@ export class ControlPlaneService {
         request.maxPilotBudgetAmount <= 0)
     ) {
       throw new BadRequestException(
-        'Live pilot readiness maxPilotBudgetAmount must be positive',
+        'Broker-write preflight readiness maxPilotBudgetAmount must be positive',
       );
     }
 
@@ -4977,7 +4979,7 @@ export class ControlPlaneService {
         request.maxSingleOrderNotional <= 0)
     ) {
       throw new BadRequestException(
-        'Live pilot readiness maxSingleOrderNotional must be positive',
+        'Broker-write preflight readiness maxSingleOrderNotional must be positive',
       );
     }
   }
@@ -4996,7 +4998,7 @@ export class ControlPlaneService {
 
     if (livePilotReadinessId && !livePilotReadiness) {
       throw new NotFoundException(
-        `Live pilot readiness ${livePilotReadinessId} not found`,
+        `Broker-write preflight readiness ${livePilotReadinessId} not found`,
       );
     }
 
@@ -5101,7 +5103,7 @@ export class ControlPlaneService {
     return [
       input.livePilotReadiness?.status === 'ready'
         ? undefined
-        : 'No ready live pilot readiness record',
+        : 'No ready broker-write preflight readiness record',
       input.brokerAdapterStatus.schemaVerified
         ? undefined
         : 'Broker OpenAPI schema is not verified',

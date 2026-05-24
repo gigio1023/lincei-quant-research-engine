@@ -167,7 +167,7 @@ export class LivePreflightService {
     }
     if (credentialMode === 'local-dev-env') {
       blockers.push(
-        'Live pilot requires broker credentials from an external secret reference.',
+        'Broker-write preflight requires broker credentials from an external secret reference.',
       );
     }
 

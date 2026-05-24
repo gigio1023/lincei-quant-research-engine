@@ -127,14 +127,16 @@ export function buildV1SystemStages(
     buildLivePreflightStage(input.latestLeanRun, input.paper, input.preflight),
     stage(
       'live_pilot',
-      'Live Pilot',
+      'Broker Write Scope',
       input.livePilot.realOrderSent ? 'ready' : 'blocked',
       input.livePilot.realOrderSent
         ? `real order sent via ${input.livePilot.latestIntentId}`
-        : 'No real broker order has been sent.',
+        : 'Real-money broker writes are out of active scope.',
       input.livePilot.realOrderSent
         ? []
-        : ['Live pilot is blocked until live preflight is ready.'],
+        : [
+            'Broker writes require a future user-approved live-money spec change.',
+          ],
       input.livePilot.latestIntentId ? [input.livePilot.latestIntentId] : [],
     ),
     stage(
@@ -164,7 +166,7 @@ export function buildV1NextActions(stages: V1SystemStage[]): string[] {
   const firstBlocker = stages.find((stageItem) => stageItem.status !== 'ready');
   if (!firstBlocker) {
     return [
-      'All V1 stages are ready; real-money pilot can run only with explicit confirmation.',
+      'All V1 validation stages are ready; broker writes still require a future user-approved live-money spec.',
     ];
   }
   return [

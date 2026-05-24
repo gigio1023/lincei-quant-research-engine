@@ -1707,7 +1707,7 @@ describe('ControlPlaneService', () => {
     ).rejects.toThrow('Funding readiness cannot include orders');
   });
 
-  it('records blocked live pilot readiness before broker write controls exist', async () => {
+  it('records blocked broker-write preflight readiness before broker write controls exist', async () => {
     const snapshot = await service.importBrokerSnapshot({
       provider: 'manual',
       accountRef: 'pilot-account-ref',
@@ -1732,7 +1732,7 @@ describe('ControlPlaneService', () => {
         maxPilotBudgetAmount: 1_000_000,
         maxSingleOrderNotional: 100_000,
         idempotencyKey: 'live-pilot-blocked-1',
-        notes: ['Operator requested tiny live pilot preflight.'],
+        notes: ['Operator requested broker-write preflight evidence.'],
       },
       {
         provider: 'toss',
@@ -1788,7 +1788,7 @@ describe('ControlPlaneService', () => {
     expect(readiness.fundingReadinessId).toBe(funding.id);
     expect(readiness.blockers).toEqual(
       expect.arrayContaining([
-        'Live pilot requires a budget envelope in live mode',
+        'Broker-write preflight requires a budget envelope in live mode',
         'Production broker credential custody is not ready',
         'Broker OpenAPI schema is not verified',
         'Broker sandbox or paper environment is not verified',
@@ -1826,7 +1826,7 @@ describe('ControlPlaneService', () => {
     );
   });
 
-  it('rejects live pilot readiness requests that include order intent', async () => {
+  it('rejects broker-write preflight readiness requests that include order intent', async () => {
     await expect(
       service.assessLivePilotReadiness({} as any, {
         provider: 'toss',
@@ -1876,7 +1876,7 @@ describe('ControlPlaneService', () => {
         brokerExecutionEnabled: false,
       }),
     ).rejects.toThrow(
-      'Live pilot readiness pilotBudgetAmount must be positive',
+      'Broker-write preflight readiness pilotBudgetAmount must be positive',
     );
 
     await expect(
@@ -1933,7 +1933,9 @@ describe('ControlPlaneService', () => {
           brokerExecutionEnabled: false,
         },
       ),
-    ).rejects.toThrow('Live pilot readiness cannot include placeOrder');
+    ).rejects.toThrow(
+      'Broker-write preflight readiness cannot include placeOrder',
+    );
   });
 
   it('records blocked dry-run broker order commands without broker writes', async () => {
@@ -2005,7 +2007,7 @@ describe('ControlPlaneService', () => {
     ]);
     expect(command.blockedReasons).toEqual(
       expect.arrayContaining([
-        'No ready live pilot readiness record',
+        'No ready broker-write preflight readiness record',
         'Live broker order endpoint is not implemented',
         'Broker write access is disabled',
         'Broker order command is dry-run only',
@@ -2015,7 +2017,7 @@ describe('ControlPlaneService', () => {
     const emergency = await service.runBrokerEmergencyCommandDryRun(
       {
         commandType: 'cancel_open_orders',
-        reason: 'Operator drills cancel before any live pilot.',
+        reason: 'Operator drills cancel before any broker-write scope exists.',
         idempotencyKey: 'broker-emergency-cancel-1',
       },
       makeBlockedBrokerAdapterStatus() as any,

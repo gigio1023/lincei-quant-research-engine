@@ -1,142 +1,70 @@
-import { BadRequestException } from '@nestjs/common';
-import { LivePilot10UsdService } from './live-pilot-10usd.service';
-import { hashObject } from '../../../shared/hash.util';
-
-const latestTarget = {
-  id: 'targets-1',
-  targets: [{ symbol: 'SPY', targetWeight: 0.35 }],
-};
+import {
+  LIVE_MONEY_OUT_OF_SCOPE_BLOCKER,
+  LivePilot10UsdService,
+} from './live-pilot-10usd.service';
 
 describe('LivePilot10UsdService', () => {
-  const envBackup = { ...process.env };
   const preflight = {
     status: 'ready',
     latestLeanRunId: 'lean-1',
+    latestPaperPlanId: 10,
     blockers: [],
   };
 
-  beforeEach(() => {
-    process.env = { ...envBackup };
-  });
-
-  afterEach(() => {
-    process.env = { ...envBackup };
-  });
-
-  function buildService(existingIntent?: Record<string, unknown>) {
-    const intentRepository = {
-      findOne: jest.fn(async () => existingIntent ?? null),
-      create: jest.fn((value) => value),
-      save: jest.fn(async (value) => value),
-    };
-    const targetRepository = {
-      findOne: jest.fn(async () => latestTarget),
-    };
+  function buildService(blockers: string[] = []) {
     const statusRepository = {
       create: jest.fn((value) => value),
       save: jest.fn(async (value) => value),
     };
     const livePreflightService = {
-      runPreflight: jest.fn(async () => preflight),
-    };
-    const mockBrokerAdapter = {
-      previewOrder: jest.fn(async () => ({ allowed: true, blockers: [] })),
-      submitOrder: jest.fn(async () => ({ status: 'filled' })),
-    };
-    const tossWriteBrokerAdapter = {
-      previewOrder: jest.fn(),
-      submitOrder: jest.fn(),
-      isLiveReady: jest.fn(() => false),
+      runPreflight: jest.fn(async () => ({
+        ...preflight,
+        status: blockers.length ? 'blocked' : 'ready',
+        blockers,
+      })),
     };
     const service = new LivePilot10UsdService(
-      intentRepository as any,
-      targetRepository as any,
-      statusRepository as any,
-      livePreflightService as any,
-      mockBrokerAdapter as any,
-      tossWriteBrokerAdapter as any,
+      statusRepository as never,
+      livePreflightService as never,
     );
 
-    return {
-      service,
-      intentRepository,
-      mockBrokerAdapter,
-      tossWriteBrokerAdapter,
-    };
+    return { service, statusRepository, livePreflightService };
   }
 
-  it('replays an existing submitted intent without broker I/O', async () => {
-    const existingIntent = {
-      id: 'intent-1',
-      status: 'submitted',
-      intentHash: expectedIntentHash(),
-      blockers: [],
-    };
-    const { service, intentRepository, mockBrokerAdapter } =
-      buildService(existingIntent);
+  it('always blocks the legacy live-money command under the active spec', async () => {
+    const { service, statusRepository } = buildService();
 
     const result = await service.execute({
       confirmRealMoney: true,
-      idempotencyKey: 'live-pilot-10usd:SPY',
+      idempotencyKey: 'legacy-live-command',
     });
 
     expect(result).toEqual({
-      submitted: true,
-      intentId: 'intent-1',
-      blockers: [],
+      submitted: false,
+      intentId: 'legacy-live-command',
+      blockers: [LIVE_MONEY_OUT_OF_SCOPE_BLOCKER],
     });
-    expect(mockBrokerAdapter.previewOrder).not.toHaveBeenCalled();
-    expect(mockBrokerAdapter.submitOrder).not.toHaveBeenCalled();
-    expect(intentRepository.save).not.toHaveBeenCalled();
-  });
-
-  it('blocks idempotency key reuse for a different intent hash', async () => {
-    const { service, mockBrokerAdapter } = buildService({
-      id: 'intent-1',
-      status: 'submitted',
-      intentHash: 'sha256:different',
-      blockers: [],
-    });
-
-    await expect(
-      service.execute({
-        confirmRealMoney: true,
-        idempotencyKey: 'live-pilot-10usd:SPY',
+    expect(statusRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'blocked',
+        realOrderSent: false,
+        blockers: [LIVE_MONEY_OUT_OF_SCOPE_BLOCKER],
       }),
-    ).rejects.toBeInstanceOf(BadRequestException);
-    expect(mockBrokerAdapter.submitOrder).not.toHaveBeenCalled();
+    );
   });
 
-  it('does not select Toss write unless live adapter readiness passes', async () => {
-    process.env.TOSS_ORDER_SCHEMA_VERIFIED = 'true';
-    process.env.BROKER_WRITE_ENABLED = 'true';
-    process.env.LIVE_TRADING_ENABLED = 'true';
-    const { service, mockBrokerAdapter, tossWriteBrokerAdapter } =
-      buildService();
+  it('preserves preflight blockers and missing confirmation as blocked evidence', async () => {
+    const { service } = buildService(['Latest LEAN backtest did not pass.']);
 
-    const result = await service.execute({
-      confirmRealMoney: true,
-      idempotencyKey: 'live-pilot-10usd:SPY',
-    });
+    const result = await service.execute({ confirmRealMoney: false });
 
-    expect(tossWriteBrokerAdapter.isLiveReady).toHaveBeenCalled();
-    expect(tossWriteBrokerAdapter.previewOrder).not.toHaveBeenCalled();
-    expect(tossWriteBrokerAdapter.submitOrder).not.toHaveBeenCalled();
-    expect(mockBrokerAdapter.previewOrder).toHaveBeenCalled();
-    expect(mockBrokerAdapter.submitOrder).toHaveBeenCalled();
-    expect(result.blockers).toContain(
-      'No real broker order sent; mock adapter used for plumbing verification.',
+    expect(result.submitted).toBe(false);
+    expect(result.blockers).toEqual(
+      expect.arrayContaining([
+        LIVE_MONEY_OUT_OF_SCOPE_BLOCKER,
+        'Latest LEAN backtest did not pass.',
+        'Legacy command was invoked without --confirm-real-money.',
+      ]),
     );
   });
 });
-
-function expectedIntentHash(): string {
-  return hashObject({
-    portfolioTargetSnapshotId: latestTarget.id,
-    symbol: 'SPY',
-    side: 'buy',
-    orderType: 'limit',
-    notionalUsd: 5,
-    limitPrice: 100,
-  });
-}

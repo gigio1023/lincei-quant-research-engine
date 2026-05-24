@@ -59,9 +59,9 @@ export function loadOpenAiEnv(
 }
 
 export function assertOpenAiEnvAllowed(env: NodeJS.ProcessEnv): void {
-  // Fail closed: OpenRouter is explicitly out of scope for V1 (see docs/v1-live-pilot-spec/05-environment-and-secrets.md).
+  // Fail closed: OpenRouter is explicitly out of scope for the active OpenAI-only LLM alpha boundary.
   if ((env.LLM_PROVIDER ?? '').toLowerCase() === 'openrouter') {
-    throw new Error('LLM_PROVIDER=openrouter is forbidden for V1 live pilot.');
+    throw new Error('LLM_PROVIDER=openrouter is forbidden for V1 LLM alpha.');
   }
 
   const baseUrl = (env.OPENAI_BASE_URL ?? '').toLowerCase();
