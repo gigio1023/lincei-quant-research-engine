@@ -42,8 +42,10 @@ stateDiagram-v2
     [*] --> LocalDebug
     LocalDebug --> CloudAttempt: qc-cloud-backtest
     CloudAttempt --> CloudBlocked: credentials / project / tier / data blocker
-    CloudAttempt --> CloudPassed: cloud backtest passed
+    CloudAttempt --> CloudPassed: cloud REST artifacts imported
     CloudPassed --> PaperEvidence: run-paper-cycle
+    LocalDebug --> LocalStrategy: run-local-strategy-smoke
+    LocalStrategy --> PaperReplay: run-paper-replay
     PaperEvidence --> LiveShadow: run-live-shadow
     LiveShadow --> PromotionReview: run-learning-loop
     PromotionReview --> Accepted: cloud + paper/live-shadow evidence
@@ -51,22 +53,39 @@ stateDiagram-v2
     Blocked --> CloudAttempt
 ```
 
-Local simulator and sample-data paths prove plumbing only. Promotion evidence requires imported QuantConnect Cloud or accepted historical LEAN artifacts, plus paper/live-shadow evidence and reconciliation. A successful `lean cloud backtest` command is not enough unless result artifacts are imported and pass strategy-evidence gates.
+Local simulator and sample-data paths prove plumbing only. Promotion evidence requires imported QuantConnect Cloud artifacts plus current live-shadow evidence and reconciliation. Accepted local historical LEAN artifacts are useful strategy evidence for debugging and paper replay, but they do not replace Cloud promotion evidence. A successful `lean cloud backtest` command is not enough unless REST result artifacts are imported and pass strategy-evidence gates.
+
+## Evidence Markers
+
+```mermaid
+flowchart TB
+    LATEST[".latest<br/>latest attempted run"] --> ANY["any run type<br/>passed or blocked"]
+    STRATEGY[".latest-strategy<br/>latest accepted strategy run"] --> LOCAL["accepted local LEAN<br/>or accepted Cloud run"]
+    CLOUD[".latest-cloud-attempt<br/>latest Cloud attempt"] --> QC["QuantConnect Cloud<br/>passed or blocked"]
+    SIM[".latest-simulator<br/>latest simulator run"] --> PLUMB["flow-validation<br/>plumbing only"]
+
+    IMPORT["import-lean-run latest"] --> STRATEGY
+    PAPER["run-paper-cycle"] --> STRATEGY
+    REPLAY["run-paper-replay"] --> STRATEGY
+    PREFLIGHT["live-preflight"] --> CURRENT["current paper/live-shadow<br/>not historical replay"]
+```
+
+The marker split prevents a blocked Cloud attempt or simulator smoke from overwriting the latest accepted strategy evidence. `run-paper-replay` can prove historical target plumbing, but only current paper/live-shadow evidence can satisfy live preflight and promotion gates.
 
 ## Repository Map
 
-| Path | Purpose |
-|---|---|
-| [SPEC.md](SPEC.md) | Canonical active spec index and direction lock |
-| [terminology.md](terminology.md) | Required terminology and banned AI-slop expressions |
-| [AGENTS.md](AGENTS.md) | Agent/contributor rules for this repo |
-| [docs/spec/](docs/spec) | Normative split spec documents |
-| [docs/](docs) | Supporting design docs, runbooks, API reference, decisions, archive |
-| [backend/](backend) | NestJS control plane, ledgers, CLI orchestration, API |
-| [engines/lean/aggressive_llm_momentum/](engines/lean/aggressive_llm_momentum) | LEAN Algorithm Framework strategy |
-| [ml/](ml) | Offline feature/model helpers and external baseline registry |
-| [frontend/](frontend) | Operational dashboard |
-| [scripts/](scripts) | Repo-level wrappers for setup, LEAN, Cloud, paper/live-shadow, learning |
+| Path                                                                          | Purpose                                                                 |
+| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [SPEC.md](SPEC.md)                                                            | Canonical active spec index and direction lock                          |
+| [terminology.md](terminology.md)                                              | Required terminology and banned AI-slop expressions                     |
+| [AGENTS.md](AGENTS.md)                                                        | Agent/contributor rules for this repo                                   |
+| [docs/spec/](docs/spec)                                                       | Normative split spec documents                                          |
+| [docs/](docs)                                                                 | Supporting design docs, runbooks, API reference, decisions, archive     |
+| [backend/](backend)                                                           | NestJS control plane, ledgers, CLI orchestration, API                   |
+| [engines/lean/aggressive_llm_momentum/](engines/lean/aggressive_llm_momentum) | LEAN Algorithm Framework strategy                                       |
+| [ml/](ml)                                                                     | Offline feature/model helpers and external baseline registry            |
+| [frontend/](frontend)                                                         | Operational dashboard                                                   |
+| [scripts/](scripts)                                                           | Repo-level wrappers for setup, LEAN, Cloud, paper/live-shadow, learning |
 
 ## Active Runtime Architecture
 
@@ -128,13 +147,13 @@ The latest validated platform snapshot for this branch was:
 
 ### Prerequisites
 
-| Tool | Used for |
-|---|---|
-| Bun | Backend, frontend, CLI wrappers |
-| Python 3.10+ | ML venv and Lean CLI venv |
-| Docker or Podman-compatible Docker CLI | Local LEAN container runs |
-| QuantConnect account/API token | Cloud backtests, workspace setup, Object Store |
-| OpenAI API key | LLM semantic alpha features |
+| Tool                                   | Used for                                       |
+| -------------------------------------- | ---------------------------------------------- |
+| Bun                                    | Backend, frontend, CLI wrappers                |
+| Python 3.10+                           | ML venv and Lean CLI venv                      |
+| Docker or Podman-compatible Docker CLI | Local LEAN container runs                      |
+| QuantConnect account/API token         | Cloud backtests, workspace setup, Object Store |
+| OpenAI API key                         | LLM semantic alpha features                    |
 
 ### Bootstrap
 
@@ -173,6 +192,7 @@ Run from repository root unless noted.
 ./scripts/lean-backtest aggressive_llm_momentum
 ./scripts/import-lean-run latest
 ./scripts/run-full-backtest.sh --skip-alpha-cycle --skip-market-data-ingest --no-download-data
+./scripts/run-local-strategy-smoke
 
 # QuantConnect Cloud / Object Store
 ./scripts/qc-cloud-backtest aggressive_llm_momentum
@@ -181,6 +201,7 @@ Run from repository root unless noted.
 
 # Paper, live-shadow, learning, broker-write preflight
 ./scripts/run-paper-cycle
+./scripts/run-paper-replay
 ./scripts/run-live-shadow
 ./scripts/run-learning-loop
 ./scripts/live-preflight
@@ -199,17 +220,19 @@ Implemented in this branch:
 - LLM semantic feature generation with point-in-time evidence filtering and replayable abstain/flat records when LLM or eligible evidence is unavailable.
 - LEAN replay helper for `llm_event_features.json` with future-`availableAt` rejection.
 - Static meta-alpha and ML artifact replay now ignores records whose `availableAt` is in the simulated future.
-- QuantConnect Cloud backtest/Object Store wrapper commands that record passed/blocked local evidence and block promotion if cloud result artifacts are not imported.
-- Live-shadow would-have-traded ledger with broker writes disabled.
+- QuantConnect Cloud backtest/Object Store wrapper commands that record passed/blocked local evidence and import Cloud REST statistics, insights, orders, and derived order-target evidence when credentials are configured.
+- Split latest-run markers: `.latest`, `.latest-strategy`, `.latest-simulator`, and `.latest-cloud-attempt` so simulator/cloud attempts cannot displace accepted strategy evidence.
+- Current paper cycle remains strict about fresh market data; historical paper replay is explicit `paper-replay` evidence and is ignored by live preflight.
+- Live-shadow would-have-traded ledger with broker writes disabled and explicit `evidenceMode` (`historical_target_replay` vs `current_live_shadow`).
 - Learning loop with outcome labeling from `max(asOf, availableAt)` where market bars are available and promotion decisions that block without Cloud + live-shadow evidence.
 - Legacy live-money command surface that always records blocked evidence and never creates broker-write intents under the active spec.
 
 Known current blockers from direct verification:
 
-- `qc-cloud-backtest aggressive_llm_momentum` is blocked until the cloud project exists or the run is executed with `--push`; even then, imported cloud result artifacts must pass acceptance before promotion.
-- Local LEAN strategy-evidence run currently needs Docker access from the invoking shell and valid data artifacts; sample-data/simulator evidence remains plumbing only.
-- `run-paper-cycle` and `run-live-shadow` remain blocked until a valid imported LEAN target exists.
-- Promotion remains blocked until QuantConnect Cloud evidence and recorded live-shadow evidence are both present.
+- `qc-cloud-backtest aggressive_llm_momentum` needs a Cloud project plus `QC_PROJECT_ID`/`QUANTCONNECT_PROJECT_ID`, `QC_USER_ID`/`QUANTCONNECT_USER_ID`, and `QC_API_TOKEN`/`QUANTCONNECT_API_TOKEN` before REST result import can become promotion evidence.
+- Local LEAN strategy-evidence works on Linux ARM64 through the Docker group fallback when direct socket access is stale in the current shell.
+- `run-paper-cycle` is expected to block on stale historical targets unless a current target snapshot exists; use `run-paper-replay` for plumbing checks that must not satisfy live preflight.
+- Promotion remains blocked until QuantConnect Cloud evidence and `current_live_shadow` evidence are both present.
 
 ## Verification
 
@@ -235,16 +258,16 @@ git diff --check
 Latest direct verification on 2026-05-24 UTC:
 
 - `cd backend && bun run build` passed.
-- Targeted backend tests passed for contracts, live preflight, live-money compatibility blocker, Cloud runner, paper bridge, Stooq mapper, heuristic scorer, meta-alpha combiner, and control-plane broker-write readiness.
-- `cd frontend && bun run typecheck`, `cd frontend && bun run build`, and `cd frontend && bun run test:run -- src/components/ControlPlaneDashboard.test.tsx` passed.
-- `.venv-ml/bin/python -m pytest engines/lean/aggressive_llm_momentum/tests` and Python `py_compile` for touched LEAN alpha/export/risk modules passed.
-- `./scripts/run-paper-cycle` returned exit code `2` with `status: blocked` because the latest LEAN run did not pass import gates.
-- `./scripts/live-pilot-10usd --confirm-real-money` returned exit code `2`, `submitted: false`, and the active-spec live-money out-of-scope blocker.
+- Targeted backend Jest passed: repo env loader, LEAN import, paper bridge, live preflight, Cloud runner, and learning loop.
+- `./scripts/run-local-strategy-smoke` passed on Linux ARM64 through the in-process `sg docker` fallback. Latest accepted local strategy run: `bt-20260524104630-4495ff89`.
+- `./scripts/import-lean-run latest` reads `.latest-strategy` and still imports `bt-20260524104630-4495ff89` even after a blocked Cloud attempt moves `.latest`.
+- `./scripts/run-paper-cycle` returned exit code `2` with stale market data and paper approval blockers. This is the expected strict current-market behavior for historical LEAN targets.
+- `./scripts/run-paper-replay` returned exit code `0` and created a reconciled paper replay plan for historical target plumbing.
+- `./scripts/run-live-shadow` returned exit code `0` with `evidenceMode: historical_target_replay`.
+- `./scripts/run-learning-loop` returned exit code `2` because the latest LEAN run is local, not QuantConnect Cloud, and live-shadow evidence is historical replay rather than `current_live_shadow`.
+- `./scripts/live-preflight` returned exit code `2`; it ignored paper replay evidence and stayed blocked on missing current paper cycle, simulated broker snapshot, broker flags, and credentials.
 - `./scripts/qc-cloud-backtest aggressive_llm_momentum` returned exit code `2` with missing QuantConnect Cloud project blocker.
-
-- `ALLOW_SYNTHETIC_FEATURES=true ./scripts/run-alpha-cycle` passed as feature plumbing evidence.
-- `./scripts/run-live-shadow` and `./scripts/run-learning-loop` are expected to stay blocked until an accepted LEAN run and target snapshot exist.
-- On Linux ARM64, direct local LEAN invocation may require a shell with Docker group membership (`sg docker`) even when the user is listed in the `docker` group.
+- `./scripts/run-v1-cycle --skip-alpha-cycle --skip-market-data-ingest --no-download-data` returned exit code `0`: local backtest passed, paper cycle blocked by explicit gates, and live preflight recorded blocked evidence.
 
 ## Documentation
 

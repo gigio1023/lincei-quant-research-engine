@@ -6,7 +6,7 @@ Status: operator readiness snapshot. The active scope is defined by [../SPEC.md]
 
 Not ready for real money, and real-money execution is not in active scope.
 
-The repo can exercise meaningful parts of the alpha/control-plane stack, including local LEAN runs, result import, point-in-time LLM semantic feature replay, paper ledgers, broker read-only evidence, risk gates, and dashboard visibility. The current readiness gap is accepted QuantConnect Cloud or historical LEAN strategy evidence plus paper/live-shadow reconciliation, not another dashboard or a small broker-write pilot.
+The repo can exercise meaningful parts of the alpha/control-plane stack, including accepted local LEAN runs, result import, point-in-time LLM semantic feature replay, historical paper replay ledgers, live-shadow evidence, broker read-only evidence, risk gates, and dashboard visibility. The current readiness gap is QuantConnect Cloud promotion evidence plus current-market paper/live-shadow evidence, not another dashboard or a small broker-write pilot.
 
 ## Runnable Now
 
@@ -38,16 +38,16 @@ These can prove plumbing. They cannot prove strategy quality or broker readiness
 
 ## Current Blockers
 
-| Area | Status | Blocker |
-|---|---|---|
-| QuantConnect Cloud | Blocked/partial | Cloud wrappers exist and record blocked evidence, but the current verified run is blocked by missing cloud project. Command success alone is blocked unless imported cloud result artifacts pass strategy-evidence gates. |
-| Local LEAN strategy evidence | Partial | Linux ARM can run LEAN, but local QC data access and Security Master licensing can block real local historical evidence. Simulator runs are plumbing only. |
-| Numeric alpha | Partial | LEAN skeleton exists, but promotion-quality cloud evidence and ablation history are still missing. |
-| LLM semantic alpha | Partial | Point-in-time semantic feature export and LEAN replay exist, but richer source ingestion, Object Store workflow, and ablation evidence are still needed. |
-| Paper execution | Partial | Paper ledgers and cycles exist, but current direct execution is blocked until an accepted LEAN target snapshot exists. |
-| Live-shadow | Partial | Would-have-traded mode exists and never writes broker orders, but current direct execution is blocked until an accepted LEAN target snapshot exists. |
-| Broker writes | Out of scope | Real submit/cancel/flatten paths require a separate user-approved live-money spec. |
-| Reconciliation | Partial | Paper and read-only reconciliation exist, but broker-backed live reconciliation is intentionally absent. |
+| Area                         | Status                 | Blocker                                                                                                                                                                                                                        |
+| ---------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| QuantConnect Cloud           | Blocked/partial        | Cloud wrappers exist and record blocked evidence, but the current verified run is blocked by missing cloud project. Command success alone is blocked unless REST-imported cloud result artifacts pass strategy-evidence gates. |
+| Local LEAN strategy evidence | Passed for local smoke | Linux ARM local LEAN strategy smoke passed through `sg docker` fallback with run `bt-20260524104630-4495ff89`. This is local strategy evidence, not Cloud promotion evidence.                                                  |
+| Numeric alpha                | Partial                | LEAN skeleton exists, but promotion-quality cloud evidence and ablation history are still missing.                                                                                                                             |
+| LLM semantic alpha           | Partial                | Point-in-time semantic feature export and LEAN replay exist, but richer source ingestion, Object Store workflow, and ablation evidence are still needed.                                                                       |
+| Paper execution              | Partial                | Historical paper replay can create a reconciled plan, but strict `run-paper-cycle` correctly blocks stale historical targets. Current-market target evidence is still missing.                                                 |
+| Live-shadow                  | Partial                | Would-have-traded mode records `historical_target_replay`; promotion still requires `current_live_shadow`.                                                                                                                     |
+| Broker writes                | Out of scope           | Real submit/cancel/flatten paths require a separate user-approved live-money spec.                                                                                                                                             |
+| Reconciliation               | Partial                | Paper and read-only reconciliation exist, but broker-backed live reconciliation is intentionally absent.                                                                                                                       |
 
 ## Required Gates For Active Scope
 

@@ -50,13 +50,13 @@ QuantConnect Cloud is required for:
 
 Use QuantConnect's Algorithm Framework as the normal strategy structure:
 
-| LEAN model | Project responsibility |
-|---|---|
-| `UniverseSelectionModel` | choose the tradable liquid universe |
-| `AlphaModel` | convert numeric and LLM alpha features into `Insight` objects |
-| `PortfolioConstructionModel` | convert insights into target weights under concentration rules |
-| `RiskManagementModel` | clip or liquidate targets that violate risk policy |
-| `ExecutionModel` | translate adjusted targets into runtime orders in the selected mode |
+| LEAN model                   | Project responsibility                                              |
+| ---------------------------- | ------------------------------------------------------------------- |
+| `UniverseSelectionModel`     | choose the tradable liquid universe                                 |
+| `AlphaModel`                 | convert numeric and LLM alpha features into `Insight` objects       |
+| `PortfolioConstructionModel` | convert insights into target weights under concentration rules      |
+| `RiskManagementModel`        | clip or liquidate targets that violate risk policy                  |
+| `ExecutionModel`             | translate adjusted targets into runtime orders in the selected mode |
 
 The control plane must not reimplement these LEAN runtime responsibilities in NestJS.
 
@@ -82,11 +82,13 @@ Expected automation:
 
 - push or synchronize the LEAN project;
 - run cloud compile/backtest jobs;
-- read backtest statistics, orders, charts, and insights;
+- read backtest statistics, orders, charts, and insights through the QuantConnect REST API;
 - upload/read Object Store artifacts;
 - later start/stop paper or live-shadow deployments if the spec allows it.
 
 Every cloud action must produce a local run record. The record must include command/API call, project id or name, backtest id if available, source hash, parameter hash, artifact refs, status, and blocker reasons.
+
+Cloud command success is not strategy-promotion evidence by itself. Promotion requires imported result artifacts from QuantConnect API endpoints such as `/backtests/read`, `/backtests/read/insights`, and `/backtests/orders/read`, then the same local strategy-evidence acceptance gates.
 
 ## Required Run Contract
 
@@ -123,4 +125,7 @@ Simulator records may satisfy plumbing tests only. They must never be labeled as
 - Object Store docs: https://www.quantconnect.com/docs/v2/writing-algorithms/object-store
 - Importing data key concepts: https://www.quantconnect.com/docs/v2/writing-algorithms/importing-data/key-concepts
 - QuantConnect API reference: https://www.quantconnect.com/docs/v2/cloud-platform/api-reference
+- Read Backtest statistics: https://www.quantconnect.com/docs/v2/cloud-platform/api-reference/backtest-management/read-backtest/backtest-statistics
+- Read Backtest insights: https://www.quantconnect.com/docs/v2/cloud-platform/api-reference/backtest-management/read-backtest/insights
+- Read Backtest orders: https://www.quantconnect.com/docs/v2/cloud-platform/api-reference/backtest-management/read-backtest/orders
 - LEAN CLI cloud backtest: https://www.quantconnect.com/docs/v2/lean-cli/api-reference/lean-cloud-backtest

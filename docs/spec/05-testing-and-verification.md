@@ -55,13 +55,17 @@ bun run test:e2e
 .venv-ml/bin/python -m pytest engines/lean/aggressive_llm_momentum/tests
 
 ./scripts/run-full-backtest.sh --skip-alpha-cycle --skip-market-data-ingest --no-download-data
+./scripts/run-local-strategy-smoke
 ./scripts/import-lean-run latest
 ./scripts/run-alpha-cycle
 ./scripts/run-paper-cycle
+./scripts/run-paper-replay
 ./scripts/live-preflight
 ```
 
 Use the command that matches the touched surface. Do not run broad slow suites just to create noise if a narrower direct verification proves the change.
+
+`run-paper-cycle` and `run-paper-replay` prove different things. `run-paper-cycle` is current-market strict and should block stale historical targets. `run-paper-replay` is historical plumbing evidence and must not satisfy live preflight or promotion.
 
 ## Evidence Reporting
 

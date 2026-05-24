@@ -41,10 +41,10 @@ These documents explain subsystem intent. If they conflict with `SPEC.md`, `SPEC
 
 ## Current Implementation Surface
 
-- QuantConnect Cloud wrappers: `scripts/qc-cloud-backtest`, `scripts/qc-cloud-push`, `scripts/qc-object-store-sync`.
+- QuantConnect Cloud wrappers: `scripts/qc-cloud-backtest`, `scripts/qc-cloud-push`, `scripts/qc-object-store-sync`; Cloud promotion evidence requires REST result import, not only CLI command success.
 - LLM semantic alpha feature export: `artifacts/llm-features/latest.json` and LEAN input `llm_event_features.json`.
 - LEAN point-in-time semantic feature replay with `availableAt` rejection.
-- Paper/live-shadow evidence commands: `scripts/run-paper-cycle`, `scripts/run-live-shadow`.
+- Paper/live-shadow evidence commands: `scripts/run-paper-cycle`, `scripts/run-paper-replay`, `scripts/run-live-shadow`; replay evidence is historical plumbing only.
 - Learning/promotion ledger command: `scripts/run-learning-loop`.
 - Broker-write preflight remains blocked for real money; the legacy `scripts/live-pilot-10usd` command is a blocked compatibility surface only.
 

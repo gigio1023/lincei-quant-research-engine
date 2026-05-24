@@ -94,10 +94,11 @@ Full local orchestration:
 
 ```bash
 ./scripts/run-full-backtest.sh --skip-alpha-cycle --skip-market-data-ingest --no-download-data
+./scripts/run-local-strategy-smoke
 ./scripts/import-lean-run latest
 ```
 
-Local simulator/sample-data runs prove plumbing only. Strategy promotion requires QuantConnect Cloud evidence when account access allows it.
+Local simulator/sample-data runs prove plumbing only. `run-local-strategy-smoke` is useful local LEAN strategy evidence, but strategy promotion still requires QuantConnect Cloud REST-imported evidence when account access allows it.
 
 ## Testing Policy
 

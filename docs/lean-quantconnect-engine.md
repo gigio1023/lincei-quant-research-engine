@@ -44,13 +44,13 @@ Local simulator and sample-data results prove plumbing only. They must not be de
 
 Use QuantConnect's Algorithm Framework as the normal strategy boundary:
 
-| LEAN model | Project role |
-|---|---|
-| `UniverseSelectionModel` | Select tradable assets for the current strategy |
-| `AlphaModel` | Emit `Insight` objects from numeric and LLM alpha decisions |
-| `PortfolioConstructionModel` | Convert insights into target weights or quantities |
-| `RiskManagementModel` | Cut or liquidate targets that violate risk constraints |
-| `ExecutionModel` | Convert adjusted targets into runtime orders in the selected mode |
+| LEAN model                   | Project role                                                      |
+| ---------------------------- | ----------------------------------------------------------------- |
+| `UniverseSelectionModel`     | Select tradable assets for the current strategy                   |
+| `AlphaModel`                 | Emit `Insight` objects from numeric and LLM alpha decisions       |
+| `PortfolioConstructionModel` | Convert insights into target weights or quantities                |
+| `RiskManagementModel`        | Cut or liquidate targets that violate risk constraints            |
+| `ExecutionModel`             | Convert adjusted targets into runtime orders in the selected mode |
 
 Official docs: https://www.quantconnect.com/docs/v2/writing-algorithms/algorithm-framework/overview
 
@@ -79,6 +79,8 @@ Use Lean CLI for local runs. The repo wrapper should own paths and metadata:
 ./scripts/import-lean-run latest
 ./scripts/qc-cloud-backtest aggressive_llm_momentum --push
 ./scripts/qc-object-store-sync lincei/llm-features/latest.json
+./scripts/run-local-strategy-smoke
+./scripts/run-paper-replay
 ./scripts/run-live-shadow
 ./scripts/run-learning-loop
 ```
@@ -108,11 +110,14 @@ Use QuantConnect API, CLI, and MCP to automate platform workflows:
 
 Every cloud action must create a local evidence record with source hash, parameter hash, cloud ids, artifact refs, status, and blockers.
 
-Current repo wrappers record QuantConnect Cloud credential, paid-tier, project-lock, and dataset blockers as `blocked` evidence instead of treating policy/account access as a crash.
+Current repo wrappers record QuantConnect Cloud credential, paid-tier, project-lock, dataset, and REST result-import blockers as `blocked` evidence instead of treating policy/account access as a crash.
 
 Official docs:
 
 - API reference: https://www.quantconnect.com/docs/v2/cloud-platform/api-reference
+- Read Backtest statistics: https://www.quantconnect.com/docs/v2/cloud-platform/api-reference/backtest-management/read-backtest/backtest-statistics
+- Read Backtest insights: https://www.quantconnect.com/docs/v2/cloud-platform/api-reference/backtest-management/read-backtest/insights
+- Read Backtest orders: https://www.quantconnect.com/docs/v2/cloud-platform/api-reference/backtest-management/read-backtest/orders
 - Cloud backtest CLI: https://www.quantconnect.com/docs/v2/lean-cli/api-reference/lean-cloud-backtest
 - MCP server: https://github.com/QuantConnect/mcp-server
 

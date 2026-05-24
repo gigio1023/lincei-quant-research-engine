@@ -8,6 +8,9 @@ Use official documentation where possible. Product behavior, pricing, dataset av
 
 - Pricing: https://www.quantconnect.com/pricing/?billing=mo
 - API Reference: https://www.quantconnect.com/docs/v2/cloud-platform/api-reference
+- Read Backtest statistics: https://www.quantconnect.com/docs/v2/cloud-platform/api-reference/backtest-management/read-backtest/backtest-statistics
+- Read Backtest insights: https://www.quantconnect.com/docs/v2/cloud-platform/api-reference/backtest-management/read-backtest/insights
+- Read Backtest orders: https://www.quantconnect.com/docs/v2/cloud-platform/api-reference/backtest-management/read-backtest/orders
 - Research Environment: https://www.quantconnect.com/docs/v2/research-environment
 - Algorithm Framework overview: https://www.quantconnect.com/docs/v2/writing-algorithms/algorithm-framework/overview
 - Object Store: https://www.quantconnect.com/docs/v2/writing-algorithms/object-store
