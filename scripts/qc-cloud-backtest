@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Runs QuantConnect Cloud backtest through Lean CLI and records passed/blocked evidence locally.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PROJECT="${1:-aggressive_llm_momentum}"
+shift || true
+cd "$ROOT/backend"
+bun run v1:cli -- qc-cloud-backtest "$PROJECT" "$@"

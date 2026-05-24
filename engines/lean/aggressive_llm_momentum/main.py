@@ -1,4 +1,4 @@
-"""Aggressive LLM momentum V1 — LEAN Algorithm Framework entrypoint.
+"""Aggressive LLM momentum algorithm — LEAN Algorithm Framework entrypoint.
 
 OpenAI is intentionally not called here; meta decisions are read from JSON produced by the
 NestJS alpha cycle so backtests remain deterministic and network-free.
@@ -58,7 +58,7 @@ class AggressiveLlmMomentum(QCAlgorithm):
         self.SetUniverseSelection(ManualUniverseSelectionModel(universe_symbols))
 
         self._artifact_exporter = LinceiArtifactExporter(self)
-        self._artifact_exporter.log("Initialized aggressive_llm_momentum V1")
+        self._artifact_exporter.log("Initialized aggressive_llm_momentum")
 
         max_single_name_pct = float(self.GetParameter("max-single-name-pct") or "0.35")
         top_k = int(float(self.GetParameter("top-k") or "2"))
@@ -67,6 +67,10 @@ class AggressiveLlmMomentum(QCAlgorithm):
         max_gross_exposure_pct = float(self.GetParameter("max-gross-exposure-pct") or "1.0")
         stale_data_hours = int(float(self.GetParameter("stale-data-hours") or "48"))
         meta_decisions_path = self.GetParameter("meta-decisions-path") or "input/meta_decisions.json"
+        llm_event_features_path = (
+            self.GetParameter("llm-event-features-path")
+            or "input/llm_event_features.json"
+        )
         validation_mode = self.GetParameter("validation-mode") or ""
         uses_static_meta_overlay = self._parse_bool(
             self.GetParameter("uses-static-meta-overlay"),
@@ -94,6 +98,7 @@ class AggressiveLlmMomentum(QCAlgorithm):
             "max-gross-exposure-pct": max_gross_exposure_pct,
             "stale-data-hours": stale_data_hours,
             "meta-decisions-path": meta_decisions_path,
+            "llm-event-features-path": llm_event_features_path,
             "run-id": self.run_id,
             "validation-mode": validation_mode,
             "uses-static-meta-overlay": uses_static_meta_overlay,

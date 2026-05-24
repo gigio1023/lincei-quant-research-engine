@@ -1,0 +1,31 @@
+{
+  "generatedAt": "2026-05-24T00:00:00.000Z",
+  "promptVersion": "semantic-alpha-v1",
+  "features": [
+    {
+      "id": "llm-feature-event-SPY-2026-05-24",
+      "symbol": "SPY",
+      "eventId": "event-SPY-2026-05-24",
+      "eventTime": "2026-05-24T00:00:00.000Z",
+      "availableAt": "2026-05-24T00:00:00.000Z",
+      "processedAt": "2026-05-24T00:01:00.000Z",
+      "horizonHours": 504,
+      "eventType": "event",
+      "direction": "flat",
+      "sentimentScore": 0.5,
+      "catalystStrength": 0,
+      "noveltyScore": 0,
+      "uncertainty": 1,
+      "downsideRisk": 0.5,
+      "confidence": 0,
+      "thesis": "Example flat semantic feature.",
+      "counterThesis": "No point-in-time evidence has been processed.",
+      "evidenceRefs": ["example"],
+      "model": "example",
+      "promptVersion": "semantic-alpha-v1",
+      "inputHash": "sha256:example-input",
+      "outputHash": "sha256:example-output",
+      "abstainReason": "Example fixture only."
+    }
+  ]
+}

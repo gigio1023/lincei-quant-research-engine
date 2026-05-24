@@ -1,7 +1,7 @@
-"""Meta alpha: numeric score + precomputed LLM committee output (meta_decisions.json).
+"""Meta alpha: numeric score + precomputed LLM semantic-alpha features.
 
-Weights match docs/v1-live-pilot-spec/06-lean-alpha-implementation.md. V1 does not short;
-conflict handling reduces conviction when numeric and LLM disagree.
+The static JSON overlay is replay evidence only; it is not historical LLM validation.
+Conflict handling reduces conviction when numeric and LLM-derived signals disagree.
 """
 
 from __future__ import annotations
@@ -17,6 +17,10 @@ from alpha.meta_alpha_combiner import (
     resolve_component_scores,
 )
 from alpha.numeric_alpha import LinceiNumericAlphaModel
+from alpha.semantic_features import (
+    load_semantic_feature_records,
+    semantic_record_for_time,
+)
 from shared.history_frame import insight_direction_label
 
 if TYPE_CHECKING:
@@ -51,6 +55,13 @@ class LinceiMetaAlphaModel(AlphaModel):
         self._meta_by_symbol = self._load_meta_decisions(
             meta_decisions_path or self._default_meta_path(algorithm),
         )
+        semantic_features_path = (
+            algorithm.GetParameter("llm-event-features-path")
+            or "input/llm_event_features.json"
+        )
+        self._semantic_features_by_symbol = load_semantic_feature_records(
+            semantic_features_path,
+        )
         self._last_final_scores: dict[str, float] = {}
         self._last_component_scores: dict[str, dict[str, float]] = {}
 
@@ -72,7 +83,14 @@ class LinceiMetaAlphaModel(AlphaModel):
             if numeric_score is None:
                 continue
 
-            meta_record = self._meta_by_symbol.get(symbol_value.upper())
+            meta_record = (
+                semantic_record_for_time(
+                    self._semantic_features_by_symbol,
+                    symbol_value,
+                    algorithm.UtcTime,
+                )
+                or self._meta_by_symbol.get(symbol_value.upper())
+            )
             final_score, conflict_notes, component_scores = self._combine_scores(
                 numeric_score,
                 meta_record,
