@@ -263,7 +263,7 @@ const mockControlPlaneStatus = {
         "Live order endpoint is not implemented",
       ],
       notes: [
-        "Live pilot readiness is evidence only. No broker order endpoint was called.",
+        "Broker-write preflight readiness is evidence only. No broker order endpoint was called.",
       ],
     },
     blockers: [
@@ -271,7 +271,7 @@ const mockControlPlaneStatus = {
       "Live order endpoint is not implemented",
     ],
     notes: [
-      "Live pilot readiness is evidence only. No broker order endpoint was called.",
+      "Broker-write preflight readiness is evidence only. No broker order endpoint was called.",
     ],
     brokerExecutionEnabled: false,
     liveTradingEnabled: false,
@@ -433,13 +433,13 @@ const mockControlPlaneStatus = {
     {
       key: "livePilotReadinessLedgerReady",
       ready: true,
-      detail: "1 live pilot readiness records",
+      detail: "1 broker-write preflight readiness records",
     },
     {
       key: "livePilotReady",
       ready: false,
       detail:
-        "Latest live pilot readiness is blocked: broker write preflight gates are not ready",
+        "Latest broker-write preflight readiness is blocked: broker write gates are not ready",
     },
     {
       key: "brokerOrderCommandLedgerReady",
@@ -1631,7 +1631,9 @@ describe("ControlPlaneDashboard", () => {
       screen.getByText("expected deposit matches read-only broker truth"),
     ).toBeInTheDocument();
     expect(screen.getByText("Broker Write Readiness")).toBeInTheDocument();
-    expect(screen.getByText("API live pilot readiness")).toBeInTheDocument();
+    expect(
+      screen.getByText("API broker-write preflight readiness"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Broker write blockers")).toBeInTheDocument();
     expect(
       screen.getAllByText("Live order endpoint is not implemented").length,
@@ -1742,7 +1744,7 @@ describe("ControlPlaneDashboard", () => {
     expect(screen.getByText("자금 준비 상태")).toBeInTheDocument();
     expect(screen.getByText("API 자금 준비")).toBeInTheDocument();
     expect(screen.getByText("브로커 쓰기 준비 상태")).toBeInTheDocument();
-    expect(screen.getByText("API 실거래 파일럿 준비")).toBeInTheDocument();
+    expect(screen.getByText("API 브로커 쓰기 사전 점검")).toBeInTheDocument();
     expect(screen.getByText("브로커 주문 명령 원장")).toBeInTheDocument();
     expect(screen.getByText("API 브로커 주문 명령")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "한국어" })).toHaveAttribute(

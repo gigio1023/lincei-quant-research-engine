@@ -51,7 +51,7 @@ stateDiagram-v2
     Blocked --> CloudAttempt
 ```
 
-Local simulator and sample-data paths prove plumbing only. Promotion evidence requires QuantConnect Cloud evidence when account access allows it, plus paper/live-shadow evidence and reconciliation.
+Local simulator and sample-data paths prove plumbing only. Promotion evidence requires imported QuantConnect Cloud or accepted historical LEAN artifacts, plus paper/live-shadow evidence and reconciliation. A successful `lean cloud backtest` command is not enough unless result artifacts are imported and pass strategy-evidence gates.
 
 ## Repository Map
 
@@ -184,9 +184,11 @@ Run from repository root unless noted.
 ./scripts/run-live-shadow
 ./scripts/run-learning-loop
 ./scripts/live-preflight
+# Legacy compatibility command; always blocked under active SPEC.md.
+./scripts/live-pilot-10usd --confirm-real-money
 ```
 
-Exit code `2` means policy/account/platform `blocked` evidence, not a crash. Examples: missing QuantConnect Cloud project, missing Cloud account tier, failed strategy-evidence gates, blocked live-money preflight.
+Exit code `2` means policy/account/platform `blocked` evidence, not a crash. Examples: missing QuantConnect Cloud project, missing Cloud account tier, failed strategy-evidence gates, missing paper target evidence, or blocked live-money preflight.
 
 ## Current Implementation Status
 
@@ -194,23 +196,26 @@ Implemented in this branch:
 
 - Canonical typed contracts around `availableAt`, `horizonHours`, LEAN runtime/mode/status, LLM feature refs, live-shadow records, outcome labels, and promotion decisions.
 - Raw evidence archive from existing news records into point-in-time evidence rows.
-- LLM semantic feature generation with replayable abstain/flat records when LLM or evidence is unavailable.
+- LLM semantic feature generation with point-in-time evidence filtering and replayable abstain/flat records when LLM or eligible evidence is unavailable.
 - LEAN replay helper for `llm_event_features.json` with future-`availableAt` rejection.
-- QuantConnect Cloud backtest/Object Store wrapper commands that record passed/blocked local evidence.
+- Static meta-alpha and ML artifact replay now ignores records whose `availableAt` is in the simulated future.
+- QuantConnect Cloud backtest/Object Store wrapper commands that record passed/blocked local evidence and block promotion if cloud result artifacts are not imported.
 - Live-shadow would-have-traded ledger with broker writes disabled.
-- Learning loop with outcome labeling where market bars are available and promotion decisions that block without Cloud + live-shadow evidence.
+- Learning loop with outcome labeling from `max(asOf, availableAt)` where market bars are available and promotion decisions that block without Cloud + live-shadow evidence.
+- Legacy live-money command surface that always records blocked evidence and never creates broker-write intents under the active spec.
 
 Known current blockers from direct verification:
 
-- `qc-cloud-backtest aggressive_llm_momentum` is blocked until the cloud project exists or the run is executed with `--push`.
-- Local LEAN strategy-evidence run is blocked by failed data requests in LEAN data monitor.
+- `qc-cloud-backtest aggressive_llm_momentum` is blocked until the cloud project exists or the run is executed with `--push`; even then, imported cloud result artifacts must pass acceptance before promotion.
+- Local LEAN strategy-evidence run currently needs Docker access from the invoking shell and valid data artifacts; sample-data/simulator evidence remains plumbing only.
+- `run-paper-cycle` and `run-live-shadow` remain blocked until a valid imported LEAN target exists.
 - Promotion remains blocked until QuantConnect Cloud evidence and recorded live-shadow evidence are both present.
 
 ## Verification
 
 Primary proof is direct execution. Unit tests support that proof but do not replace it.
 
-Validated on the latest branch state:
+Complete gate before merging broad changes:
 
 ```bash
 cd backend && bun run build
@@ -227,13 +232,19 @@ python3 -m py_compile engines/lean/aggressive_llm_momentum/alpha/semantic_featur
 git diff --check
 ```
 
-Direct command outcomes:
+Latest direct verification on 2026-05-24 UTC:
+
+- `cd backend && bun run build` passed.
+- Targeted backend tests passed for contracts, live preflight, live-money compatibility blocker, Cloud runner, paper bridge, Stooq mapper, heuristic scorer, meta-alpha combiner, and control-plane broker-write readiness.
+- `cd frontend && bun run typecheck`, `cd frontend && bun run build`, and `cd frontend && bun run test:run -- src/components/ControlPlaneDashboard.test.tsx` passed.
+- `.venv-ml/bin/python -m pytest engines/lean/aggressive_llm_momentum/tests` and Python `py_compile` for touched LEAN alpha/export/risk modules passed.
+- `./scripts/run-paper-cycle` returned exit code `2` with `status: blocked` because the latest LEAN run did not pass import gates.
+- `./scripts/live-pilot-10usd --confirm-real-money` returned exit code `2`, `submitted: false`, and the active-spec live-money out-of-scope blocker.
+- `./scripts/qc-cloud-backtest aggressive_llm_momentum` returned exit code `2` with missing QuantConnect Cloud project blocker.
 
 - `ALLOW_SYNTHETIC_FEATURES=true ./scripts/run-alpha-cycle` passed as feature plumbing evidence.
-- `./scripts/qc-cloud-backtest aggressive_llm_momentum` produced `blocked` Cloud evidence for missing cloud project.
-- `./scripts/run-live-shadow` produced `blocked` evidence because latest LEAN run was not valid strategy evidence.
-- `./scripts/run-learning-loop` produced `blocked` promotion evidence because Cloud/live-shadow gates are not yet satisfied.
-- `./scripts/run-full-backtest.sh --skip-alpha-cycle --skip-market-data-ingest --no-download-data` attempted local LEAN and was rejected by strategy-evidence gates due failed data requests.
+- `./scripts/run-live-shadow` and `./scripts/run-learning-loop` are expected to stay blocked until an accepted LEAN run and target snapshot exist.
+- On Linux ARM64, direct local LEAN invocation may require a shell with Docker group membership (`sg docker`) even when the user is listed in the `docker` group.
 
 ## Documentation
 

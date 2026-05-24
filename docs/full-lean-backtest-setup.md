@@ -11,7 +11,7 @@ This document separates **what each path proves**. QuantConnect Cloud backtests 
 | **LEAN flow validation** | `lean-backtest` with `LEAN_ALLOW_SIMULATOR=true`, or simulator fallback | End-to-end artifact export, import, paper bridge wiring | No |
 | **Historical numeric backtest** | `run-full-backtest` / `LeanCliRunner` | Bar-by-bar numeric alpha inside LEAN on historical data | Strategy evidence when data gates pass |
 | **Rolling ML / meta research** | `run-alpha-cycle`, external baselines, `LIVE_PREFLIGHT_ALLOW_RESEARCH=true` | Nest feature snapshots, LightGBM scores, LLM committee, static `meta_decisions.json` | No (research only) |
-| **QuantConnect Cloud evidence** | `qc-cloud-backtest`, `qc-object-store-sync` | Cloud project push/backtest attempt, Object Store feature artifact upload, account-tier blockers | Promotion evidence when cloud run passes |
+| **QuantConnect Cloud evidence** | `qc-cloud-backtest`, `qc-object-store-sync` | Cloud project push/backtest attempt, Object Store feature artifact upload, account-tier blockers, imported-result acceptance | Promotion evidence only when cloud artifacts are imported and accepted |
 | **Paper / live-shadow readiness** | `run-paper-cycle`, `run-live-shadow`, `live-preflight` | Policy gates, would-have-traded evidence, broker snapshot reconciliation, blocked preflight evidence | No real broker writes under active spec |
 
 **Static LLM / meta overlay is not historical alpha validation.** `meta_decisions.json` is a single committee snapshot per run (QuantConnect “precomputed overlay” pattern). It does not walk forward through time and must not be treated as proof that LLM alpha worked historically.
@@ -168,6 +168,8 @@ Cloud commands use Lean CLI and always create local evidence records:
 
 If credentials, paid organization tier, project lock, or dataset access block the run, the command records a `quantconnect-cloud` LEAN run with `status: blocked` and actionable blocker reasons.
 
+If the Lean CLI cloud command exits successfully but this repo has not imported real cloud result artifacts, the local evidence record is still changed to `status: blocked`. Command success is not promotion evidence by itself.
+
 ---
 
 ## Paper / live-shadow readiness
@@ -216,13 +218,15 @@ Uses Lean CLI when `engines/lean/lean.json` exists; with `LEAN_ALLOW_SIMULATOR=t
 
 Runs `lean cloud backtest`. `--push` pushes the local project before the cloud backtest. Exit code **2** means account/platform policy blocked the cloud run and a local evidence record was written.
 
+The wrapper applies the same strategy-evidence gates to the local cloud artifact directory. Placeholder artifacts, missing result files, zero insights/orders/fills, simulator markers, static overlays, and missing data-monitor evidence keep the run blocked.
+
 ### `run-live-shadow`
 
 Creates a live-shadow record from the latest imported LEAN target snapshot. It never submits broker orders.
 
 ### `run-learning-loop`
 
-Creates alpha outcome labels when future market bars are available and records a promotion decision. Promotion remains `blocked` unless QuantConnect Cloud and live-shadow evidence are both present.
+Creates alpha outcome labels when future market bars are available and records a promotion decision. Labels start from `max(asOf, availableAt)` to avoid training on outcomes before the decision was tradable. Promotion remains `blocked` unless QuantConnect Cloud and live-shadow evidence are both present.
 
 Exit code **2** = blocked by policy (not a crash).
 
@@ -257,10 +261,11 @@ Exit code **2** = blocked by policy (not a crash).
 | Symptom | Fix |
 |---------|-----|
 | `Missing lean.json` | `./scripts/setup-lean-workspace.sh` |
-| `Docker is not running` | Start Docker Desktop |
+| `Docker is not running` or `Docker is unavailable to the current process` | Start Docker/Podman and ensure the invoking shell can access the Docker socket; on Linux ARM64 this may require a new login shell or `sg docker` |
 | `Insufficient market data for SPY` | Run ingest or `ALLOW_SYNTHETIC_FEATURES=true` (tests only) |
 | `lean: command not found` | `./scripts/setup-lean-cli.sh` |
 | Missing QC data | `lean data download` per ticker |
+| `run-paper-cycle` exits 2 with `Latest LEAN run did not pass import gates` | Import an accepted strategy-evidence LEAN run before paper execution |
 | Live preflight: simulator | Re-run with Lean CLI, not simulator |
 | Live preflight: reconciliation | `reconcileBrokerSnapshot` / paper reconcile until `matched` |
 | Meta overlay static | Expected for the current static overlay path; not historical LLM validation |

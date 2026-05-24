@@ -923,7 +923,9 @@ export const DOCUMENTED_LIVE_PILOT_READINESS: LivePilotReadinessRecord[] = [
         "Broker cancel/flatten/open-order emergency controls are not ready",
         "Live order endpoint is not implemented",
       ],
-      notes: ["Documented live pilot readiness sample is evidence only."],
+      notes: [
+        "Documented broker-write preflight readiness sample is evidence only.",
+      ],
     },
     blockers: [
       "Production broker credential custody is not ready",
@@ -931,7 +933,9 @@ export const DOCUMENTED_LIVE_PILOT_READINESS: LivePilotReadinessRecord[] = [
       "Broker cancel/flatten/open-order emergency controls are not ready",
       "Live order endpoint is not implemented",
     ],
-    notes: ["Documented live pilot readiness sample is evidence only."],
+    notes: [
+      "Documented broker-write preflight readiness sample is evidence only.",
+    ],
     brokerExecutionEnabled: false,
     liveTradingEnabled: false,
     createdAt: "2026-05-22T09:09:00.000Z",
@@ -971,7 +975,7 @@ export const DOCUMENTED_BROKER_ORDER_COMMANDS: BrokerOrderCommand[] = [
       brokerExecutionEnabled: false,
       liveTradingEnabled: false,
       blockers: [
-        "No ready live pilot readiness record",
+        "No ready broker-write preflight readiness record",
         "Live broker order endpoint is not implemented",
         "Broker write access is disabled",
       ],
@@ -986,12 +990,12 @@ export const DOCUMENTED_BROKER_ORDER_COMMANDS: BrokerOrderCommand[] = [
         orderType: "MARKET",
         requestedNotional: 499_800,
         status: "blocked",
-        blockedReason: "No ready live pilot readiness record",
+        blockedReason: "No ready broker-write preflight readiness record",
       },
     ],
     emergencyActions: [],
     blockedReasons: [
-      "No ready live pilot readiness record",
+      "No ready broker-write preflight readiness record",
       "Live broker order endpoint is not implemented",
       "Broker write access is disabled",
       "Broker order command is dry-run only",

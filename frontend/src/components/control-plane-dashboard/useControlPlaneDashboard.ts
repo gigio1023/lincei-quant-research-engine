@@ -715,7 +715,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           setLivePilotReadinessError(null);
         } else {
           setLivePilotReadinessError(
-            "Live pilot readiness API is unavailable. Showing documented live pilot sample.",
+            "Broker-write preflight readiness API is unavailable. Showing documented preflight sample.",
           );
         }
         if (brokerOrderCommandsStatus.status === "fulfilled") {
@@ -825,7 +825,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
             "Funding readiness API is unavailable. Showing documented funding sample.",
           );
           setLivePilotReadinessError(
-            "Live pilot readiness API is unavailable. Showing documented live pilot sample.",
+            "Broker-write preflight readiness API is unavailable. Showing documented preflight sample.",
           );
           setBrokerOrderCommandsError(
             "Broker order command API is unavailable. Showing documented broker command sample.",
@@ -1165,7 +1165,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       setLivePilotReadinessError(null);
     } else {
       setLivePilotReadinessError(
-        "Live pilot readiness refresh failed after automation action.",
+        "Broker-write preflight readiness refresh failed after automation action.",
       );
     }
 
@@ -1505,10 +1505,10 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           ? "Loading funding readiness"
           : "Documented funding sample",
       livePilotReadiness: livePilotReadiness
-        ? "API live pilot readiness"
+        ? "API broker-write preflight readiness"
         : loadingLivePilotReadiness
-          ? "Loading live pilot readiness"
-          : "Documented live pilot sample",
+          ? "Loading broker-write preflight readiness"
+          : "Documented broker-write preflight sample",
       brokerOrderCommands: brokerOrderCommands
         ? "API broker order commands"
         : loadingBrokerOrderCommands

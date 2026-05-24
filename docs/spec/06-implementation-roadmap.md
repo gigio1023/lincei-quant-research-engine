@@ -32,6 +32,7 @@ Acceptance:
 - cloud backtest can run when account access allows it;
 - blocked cloud backtests produce actionable status;
 - imported cloud results are stored separately from local/simulator results.
+- a successful cloud CLI command is still blocked until real cloud result artifacts are imported and pass strategy-evidence acceptance.
 
 ## Phase 3: Numeric Alpha Baseline
 

@@ -46,6 +46,7 @@ These documents explain subsystem intent. If they conflict with `SPEC.md`, `SPEC
 - LEAN point-in-time semantic feature replay with `availableAt` rejection.
 - Paper/live-shadow evidence commands: `scripts/run-paper-cycle`, `scripts/run-live-shadow`.
 - Learning/promotion ledger command: `scripts/run-learning-loop`.
+- Broker-write preflight remains blocked for real money; the legacy `scripts/live-pilot-10usd` command is a blocked compatibility surface only.
 
 ## Decision Records
 

@@ -1,4 +1,4 @@
-/** Read-only V1 pilot status for operators — does not trigger execution. */
+/** Read-only V1 validation-loop status for operators; does not trigger execution. */
 import { useEffect, useState } from "react";
 import { v1PilotApi } from "../../services/api";
 import type {
@@ -28,7 +28,7 @@ export const V1PilotPanel = () => {
 
   return (
     <section className="rounded-xl border border-[#2b3139] bg-[#181a20] p-4">
-      <h3 className="text-base font-bold text-white">V1 Live Pilot</h3>
+      <h3 className="text-base font-bold text-white">V1 Validation Loop</h3>
       {error ? <p className="mt-2 text-sm text-red-400">{error}</p> : null}
       {status ? (
         <div className="mt-3 space-y-3 text-sm text-[#b7bdc6]">
@@ -118,7 +118,9 @@ export const V1PilotPanel = () => {
           </div>
         </div>
       ) : (
-        <p className="mt-2 text-sm text-[#707a8a]">Loading V1 pilot status…</p>
+        <p className="mt-2 text-sm text-[#707a8a]">
+          Loading V1 validation status...
+        </p>
       )}
     </section>
   );

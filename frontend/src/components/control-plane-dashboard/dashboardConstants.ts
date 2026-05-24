@@ -307,7 +307,7 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
     {
       key: "livePilotReadinessLedgerReady",
       ready: true,
-      detail: "Documented live pilot readiness sample is available",
+      detail: "Documented broker-write preflight readiness sample is available",
     },
     {
       key: "brokerOrderCommandLedgerReady",
@@ -323,7 +323,7 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
       key: "livePilotReady",
       ready: false,
       detail:
-        "Latest live pilot readiness is blocked: broker write preflight gates are not ready",
+        "Latest broker-write preflight readiness is blocked: broker write gates are not ready",
     },
     {
       key: "liveTradingReady",
@@ -507,9 +507,9 @@ export const CONTROL_PLANE_STAGES: ControlPlaneStage[] = [
   },
   {
     phase: "Phase 5",
-    title: "Tiny live pilot",
+    title: "Future broker-write canary",
     status: "blocked",
     description:
-      "Separate design review, tiny budget cap, explicit approval, and immediate broker-order kill switch.",
+      "Out of active scope until a future user-approved live-money spec defines budget, approval, and broker-order kill-switch requirements.",
   },
 ];

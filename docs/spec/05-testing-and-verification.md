@@ -54,7 +54,7 @@ bun run test:e2e
 
 .venv-ml/bin/python -m pytest engines/lean/aggressive_llm_momentum/tests
 
-./scripts/run-full-backtest --skip-alpha-cycle --skip-market-data-ingest --no-download-data
+./scripts/run-full-backtest.sh --skip-alpha-cycle --skip-market-data-ingest --no-download-data
 ./scripts/import-lean-run latest
 ./scripts/run-alpha-cycle
 ./scripts/run-paper-cycle

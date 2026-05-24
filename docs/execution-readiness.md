@@ -6,7 +6,7 @@ Status: operator readiness snapshot. The active scope is defined by [../SPEC.md]
 
 Not ready for real money, and real-money execution is not in active scope.
 
-The repo can exercise meaningful parts of the alpha/control-plane stack, including local LEAN runs, result import, paper ledgers, broker read-only evidence, risk gates, and dashboard visibility. The current readiness gap is QuantConnect Cloud promotion evidence plus point-in-time LLM semantic alpha replay, not another dashboard or a small broker-write pilot.
+The repo can exercise meaningful parts of the alpha/control-plane stack, including local LEAN runs, result import, point-in-time LLM semantic feature replay, paper ledgers, broker read-only evidence, risk gates, and dashboard visibility. The current readiness gap is accepted QuantConnect Cloud or historical LEAN strategy evidence plus paper/live-shadow reconciliation, not another dashboard or a small broker-write pilot.
 
 ## Runnable Now
 
@@ -40,18 +40,19 @@ These can prove plumbing. They cannot prove strategy quality or broker readiness
 
 | Area | Status | Blocker |
 |---|---|---|
-| QuantConnect Cloud | Blocked/partial | Cloud push/backtest/import loop is not yet first-class. Account tier, credentials, and dataset access may block automation. |
+| QuantConnect Cloud | Blocked/partial | Cloud wrappers exist and record blocked evidence, but the current verified run is blocked by missing cloud project. Command success alone is blocked unless imported cloud result artifacts pass strategy-evidence gates. |
 | Local LEAN strategy evidence | Partial | Linux ARM can run LEAN, but local QC data access and Security Master licensing can block real local historical evidence. Simulator runs are plumbing only. |
 | Numeric alpha | Partial | LEAN skeleton exists, but promotion-quality cloud evidence and ablation history are still missing. |
-| LLM semantic alpha | Partial | LLM committee exists as control-plane/research logic, but point-in-time semantic feature feed and replay into LEAN are not complete. |
-| Paper execution | Partial | Paper ledgers and cycles exist, but they need imported LEAN target integration and reconciliation evidence from the current strategy path. |
-| Live-shadow | Not complete | Need a mode that records would-have-traded decisions without broker writes. |
+| LLM semantic alpha | Partial | Point-in-time semantic feature export and LEAN replay exist, but richer source ingestion, Object Store workflow, and ablation evidence are still needed. |
+| Paper execution | Partial | Paper ledgers and cycles exist, but current direct execution is blocked until an accepted LEAN target snapshot exists. |
+| Live-shadow | Partial | Would-have-traded mode exists and never writes broker orders, but current direct execution is blocked until an accepted LEAN target snapshot exists. |
 | Broker writes | Out of scope | Real submit/cancel/flatten paths require a separate user-approved live-money spec. |
 | Reconciliation | Partial | Paper and read-only reconciliation exist, but broker-backed live reconciliation is intentionally absent. |
 
 ## Required Gates For Active Scope
 
 - cloud backtest attempt with actionable blocked/passed status;
+- cloud command success must not count as promotion evidence until cloud result artifacts are imported and pass acceptance;
 - imported cloud or local LEAN run with source/config/data hashes;
 - non-zero insight/target/order evidence for strategy-validation claims;
 - no-lookahead feature and alpha records keyed by `availableAt`;
@@ -63,11 +64,11 @@ These can prove plumbing. They cannot prove strategy quality or broker readiness
 
 Build toward this order:
 
-1. make QuantConnect Cloud project sync/backtest/import first-class;
+1. create or push the QuantConnect Cloud project, then import real cloud result artifacts;
 2. stabilize numeric-only LEAN backtests before LLM overlay;
-3. create the LLM semantic feature archive with `eventTime`, `availableAt`, hashes, model, and prompt version;
+3. expand LLM semantic source ingestion while preserving `eventTime`, `availableAt`, hashes, model, and prompt version;
 4. consume those features in LEAN through custom data or Object Store artifacts;
-5. run paper and live-shadow cycles from LEAN targets;
+5. run paper and live-shadow cycles from accepted LEAN targets;
 6. join outcomes back to feature/alpha versions for learning.
 
 Do not implement real broker writes under the active spec.

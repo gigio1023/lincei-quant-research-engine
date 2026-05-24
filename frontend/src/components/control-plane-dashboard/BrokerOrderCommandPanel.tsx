@@ -18,7 +18,7 @@ export const BrokerOrderCommandPanel = ({
     "No broker order command dry-run has been recorded.",
   ];
   const readinessRows: Array<[string, boolean]> = [
-    ["live pilot", snapshot?.livePilotReady ?? false],
+    ["broker-write preflight", snapshot?.livePilotReady ?? false],
     ["signed approval", snapshot?.signedPaperApprovalReady ?? false],
     ["schema", snapshot?.brokerSchemaVerified ?? false],
     ["sandbox", snapshot?.brokerSandboxVerified ?? false],
@@ -66,7 +66,7 @@ export const BrokerOrderCommandPanel = ({
             ["checked", formatDateTime(command.checkedAt)],
             ["paper plan", command.paperOrderPlanId ?? "none"],
             ["approval", command.orderPlanApprovalId ?? "none"],
-            ["live pilot", command.livePilotReadinessId ?? "none"],
+            ["preflight", command.livePilotReadinessId ?? "none"],
             ["hash", command.commandHash],
           ].map(([label, value]) => (
             <div
