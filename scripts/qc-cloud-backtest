@@ -4,5 +4,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROJECT="${1:-aggressive_llm_momentum}"
 shift || true
+
+if printf '%s\n' "$@" | rg -q -- '--push'; then
+  if [[ "${SKIP_LEAN_CLOUD_PACKAGE_PREFLIGHT:-false}" != "true" ]]; then
+    "$ROOT/scripts/verify-lean-cloud-package" "$PROJECT"
+  fi
+fi
+
 cd "$ROOT/backend"
 bun run v1:cli -- qc-cloud-backtest "$PROJECT" "$@"

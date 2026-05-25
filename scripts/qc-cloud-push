@@ -3,5 +3,5 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROJECT="${1:-aggressive_llm_momentum}"
-cd "$ROOT/backend"
-bun run v1:cli -- qc-cloud-backtest "$PROJECT" --push
+shift || true
+"$ROOT/scripts/qc-cloud-backtest" "$PROJECT" --push "$@"

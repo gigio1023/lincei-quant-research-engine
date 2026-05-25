@@ -6,11 +6,24 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 export LEAN_DOWNLOAD_DATA="${LEAN_DOWNLOAD_DATA:-false}"
-export V1_UNIVERSE_SYMBOLS="${V1_UNIVERSE_SYMBOLS:-SPY,QQQ,IWM}"
+# Default to local benchmark data for no-download smoke. Set
+# USE_QUALITY_UNIVERSE=true only when local quality-universe data already exists.
+# Full quality-universe validation should use run-cloud-quality-backtest to avoid
+# local QuantConnect data-download charges.
+if [[ "${USE_QUALITY_UNIVERSE:-false}" != "true" ]]; then
+  export V1_UNIVERSE_SYMBOLS="${V1_UNIVERSE_SYMBOLS:-SPY,QQQ,IWM}"
+fi
+
+ARG_SKIP_ALPHA_CYCLE=false
+for arg in "$@"; do
+  if [[ "$arg" == "--skip-alpha-cycle" ]]; then
+    ARG_SKIP_ALPHA_CYCLE=true
+  fi
+done
 
 ./scripts/run-full-backtest.sh "$@"
 
-if [[ "${SKIP_ALPHA_CYCLE:-false}" != "true" ]]; then
+if [[ "${SKIP_ALPHA_CYCLE:-false}" != "true" && "$ARG_SKIP_ALPHA_CYCLE" != "true" ]]; then
   set +e
   ./scripts/run-alpha-cycle
   ALPHA_STATUS=$?

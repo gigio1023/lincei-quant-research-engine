@@ -82,6 +82,7 @@ fi
 
 echo ""
 echo "Bootstrap finished."
-echo "  Next: edit .env, accept QC data terms, download universe bars — see README.md § Clone on a new machine"
+echo "  Next: edit .env, configure QuantConnect Cloud credentials, and run no-download smoke checks — see README.md § Clone on a new machine"
 echo "  Smoke:  cd backend && bun run v1:cli -- run-alpha-cycle"
-echo "  LEAN:   ./scripts/run-full-backtest.sh   (Docker required; see docs/full-lean-backtest-setup.md)"
+echo "  LEAN:   ./scripts/run-local-strategy-smoke   (Docker required; see docs/full-lean-backtest-setup.md)"
+echo "  Cloud:  ./scripts/run-cloud-quality-backtest   (full quality-gated universe; avoids local QCC data-download charges)"

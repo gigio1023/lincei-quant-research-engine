@@ -69,11 +69,12 @@ Do not buy subscriptions or datasets by default.
 
 Current posture:
 
-- Free QuantConnect access is enough for manual exploration and early cloud checks where available.
-- Quant Researcher monthly may become worthwhile when repo-driven CLI/API/MCP cloud automation is actively blocked by account tier.
-- Team, Trading Firm, Institution, annual Security Master downloads, QCC credit packs, and alternative-data add-ons are deferred until a specific implementation blocker requires them.
+- Free QuantConnect Cloud access is the preferred first validation path because hosted backtests and Research can use cloud datasets without local data-download QCC charges where the dataset license allows it.
+- Full quality-gated universe validation should run in QuantConnect Cloud before buying local data.
+- Quant Researcher monthly may become worthwhile only when repo-driven CLI/API/MCP cloud automation is actively blocked by account tier and the user approves that platform subscription.
+- Team, Trading Firm, Institution, annual Security Master downloads, local US Equities downloads, QCC credit packs, bulk data, and alternative-data add-ons are deferred until a specific implementation blocker requires them and the user approves the cost.
 
-Local data-purchase decisions must be treated separately from platform subscription decisions. A cloud backtest blocker does not automatically justify buying local dataset licenses.
+Local data-purchase decisions must be treated separately from platform subscription decisions. A cloud backtest blocker does not automatically justify buying local dataset licenses. Local QuantConnect `--download-data` is disabled by default in repo scripts and requires `ALLOW_PAID_QC_LOCAL_DATA_DOWNLOAD=true` after explicit user approval.
 
 ## Superseded Live-Pilot Language
 

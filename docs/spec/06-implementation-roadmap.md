@@ -39,16 +39,20 @@ Acceptance:
 Deliver:
 
 - deterministic feature snapshots;
+- quality-gated universe manifest and profile loader;
+- local LEAN daily data preparation and coverage blocker reporting;
 - numeric alpha model;
 - LEAN `AlphaModel` integration;
-- top-k portfolio construction;
-- stale-data and exposure risk cuts.
+- top-k portfolio construction with symbol/sleeve caps;
+- stale-data, universe-policy, and exposure risk cuts.
 
 Acceptance:
 
 - local LEAN backtest runs with numeric alpha;
 - cloud backtest/import runs when available;
 - benchmark comparison and risk cuts are visible;
+- universe-selection report is exported with every run;
+- `prepare-lean-local-data` reports ready/exportable/missing symbols before full quality universe runs;
 - simulator-only runs cannot pass promotion gates.
 
 ## Phase 4: LLM Semantic Feature Feed

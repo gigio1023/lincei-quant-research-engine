@@ -175,8 +175,8 @@ describe('lean run acceptance', () => {
     });
 
     const report = assessLeanRunArtifacts(tempDir, 'strategy-backtest');
-    expect(report.blockers).toContain(
-      'LEAN data monitor reports 4 failed data requests.',
+    expect(report.blockers).toContainEqual(
+      expect.stringContaining('LEAN data monitor reports 4 failed data requests'),
     );
   });
 });

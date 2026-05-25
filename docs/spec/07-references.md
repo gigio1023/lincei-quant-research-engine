@@ -7,6 +7,7 @@ Use official documentation where possible. Product behavior, pricing, dataset av
 ## QuantConnect Platform
 
 - Pricing: https://www.quantconnect.com/pricing/?billing=mo
+- Organization tier features: https://www.quantconnect.com/docs/v2/cloud-platform/organizations/tier-features
 - API Reference: https://www.quantconnect.com/docs/v2/cloud-platform/api-reference
 - Read Backtest statistics: https://www.quantconnect.com/docs/v2/cloud-platform/api-reference/backtest-management/read-backtest/backtest-statistics
 - Read Backtest insights: https://www.quantconnect.com/docs/v2/cloud-platform/api-reference/backtest-management/read-backtest/insights
@@ -23,6 +24,7 @@ Use official documentation where possible. Product behavior, pricing, dataset av
 ## QuantConnect Data
 
 - US equities cloud data: https://www.quantconnect.com/docs/v2/cloud-platform/datasets/quantconnect/us-equities
+- LEAN CLI data download: https://www.quantconnect.com/docs/v2/lean-cli/api-reference/lean-data-download
 - Local data download costs: https://www.quantconnect.com/docs/v2/lean-cli/datasets/quantconnect/download-by-ticker/costs
 - Tiingo News Feed: https://www.quantconnect.com/docs/v2/writing-algorithms/datasets/tiingo/tiingo-news-feed
 - Benzinga News Feed: https://www.quantconnect.com/docs/v2/writing-algorithms/datasets/benzinga/benzinga-news-feed
@@ -31,6 +33,27 @@ Use official documentation where possible. Product behavior, pricing, dataset av
 - EODHD Upcoming Earnings: https://www.quantconnect.com/docs/v2/writing-algorithms/datasets/eod-historical-data/upcoming-earnings
 - Alternative Data overview: https://www.quantconnect.com/docs/v2/cloud-platform/datasets/quantconnect/alternative-data
 - Custom Data history: https://www.quantconnect.com/docs/v2/writing-algorithms/historical-data/custom-data
+- ETF constituents: https://www.quantconnect.com/docs/v2/writing-algorithms/datasets/quantconnect/us-etf-constituents
+- Stooq historical database: https://stooq.com/db/h/
+- Stooq CSV API key flow example: https://stooq.com/q/d/?s=smh.us&get_apikey
+
+## Universe Research Sources
+
+- VanEck SMH: https://www.vaneck.com/us/en/investments/semiconductor-etf-smh/
+- iShares SOXX: https://www.ishares.com/us/products/239705/ishares-phlx-semiconductor-etf
+- Direxion SOXL/SOXS: https://www.direxion.com/product/daily-semiconductor-bull-bear-3x-etfs
+- iShares IGV: https://www.blackrock.com/us/individual/products/239771/ishares-expanded-tech-software-sector-etf
+- First Trust CIBR: https://www.ftportfolios.com/retail/etf/EtfSummary.aspx?Ticker=CIBR
+- First Trust GRID: https://www.ftportfolios.com/Retail/Etf/EtfSummary.aspx?Ticker=GRID
+- State Street XLU: https://www.ssga.com/us/en/etfs/the-utilities-select-sector-spdr-fund-xlu
+- State Street XAR: https://www.ssga.com/us/en/etfs/spdr-sp-aerospace-defense-etf-xar
+- Tema NASA: https://temaetfs.com/nasa
+- Tema NASA AUM release: https://temaetfs.com/press/space-innovators-etf-exceeds-1-billion-aum
+
+## Tax Context
+
+- Korea National Tax Service foreign stock tax guide: https://s.nts.go.kr/nts/cm/cntnts/cntntsView.do?cntntsId=8800&mi=12274
+- U.S.-Korea income tax treaty: https://www.irs.gov/pub/irs-trty/korea.pdf
 
 ## QuantConnect Paper And Live Operations
 

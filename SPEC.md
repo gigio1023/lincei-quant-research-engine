@@ -45,6 +45,7 @@ Read these documents in order when implementing core behavior:
 7. [Testing And Verification Policy](docs/spec/05-testing-and-verification.md): narrow Detroit-style tests plus direct runnable verification.
 8. [Implementation Roadmap](docs/spec/06-implementation-roadmap.md): current phase sequence and acceptance criteria.
 9. [References](docs/spec/07-references.md): official docs and research references used by this spec.
+10. [Quality-Gated Universe](docs/spec/08-quality-gated-universe.md): active universe policy, ETF redundancy rules, symbol caps, profiles, and exclusion rationale.
 
 Supporting project docs may provide runbooks and implementation detail, but they must be interpreted through the active spec:
 
@@ -63,6 +64,7 @@ The old [V1 Autonomous Live Pilot Working Spec](docs/archive/v1-live-pilot-spec-
 Market/news/filing/macro data
   -> point-in-time feature snapshots
   -> numeric alpha + LLM semantic alpha
+  -> quality-gated universe profile
   -> meta alpha combiner
   -> LEAN AlphaModel Insights
   -> portfolio construction

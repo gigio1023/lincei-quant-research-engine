@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Runs the full quality-gated universe in QuantConnect Cloud.
+# This path avoids local QuantConnect data downloads and therefore avoids QCC
+# charges for `lean data download` / `lean backtest --download-data`.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PROJECT="${1:-aggressive_llm_momentum}"
+shift || true
+
+cd "$ROOT"
+export V1_UNIVERSE_SYMBOLS=
+./scripts/qc-cloud-backtest "$PROJECT" --push "$@"

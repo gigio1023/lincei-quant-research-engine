@@ -1,13 +1,11 @@
-"""Aggressive LLM momentum algorithm — LEAN Algorithm Framework entrypoint.
+"""Aggressive LLM momentum algorithm - LEAN Algorithm Framework entrypoint.
 
 OpenAI is intentionally not called here; meta decisions are read from JSON produced by the
 NestJS alpha cycle so backtests remain deterministic and network-free.
 """
 
-from __future__ import annotations
-
 import os
-from datetime import timedelta
+from datetime import date, timedelta
 
 from AlgorithmImports import *
 
@@ -16,12 +14,11 @@ from alpha.numeric_alpha import LinceiNumericAlphaModel
 from export.artifact_exporter import LinceiArtifactExporter
 from portfolio.aggressive_top_k import AggressiveTopKPortfolioConstructionModel
 from risk.lincei_risk import LinceiRiskManagementModel
+from shared.universe_policy import UniversePolicy, resolve_universe_policy
 
 
 class AggressiveLlmMomentum(QCAlgorithm):
     """Framework-based momentum strategy with numeric + meta alpha overlay."""
-
-    DEFAULT_UNIVERSE = ("SPY", "QQQ", "IWM", "TLT", "GLD")
 
     @staticmethod
     def _parse_bool(value: str | None, *, default: bool = False) -> bool:
@@ -40,13 +37,20 @@ class AggressiveLlmMomentum(QCAlgorithm):
 
     def Initialize(self) -> None:
         self.run_id = self.GetParameter("run-id") or "local-run"
-        start = self._parse_date_param("backtest-start-date", 2024, 1, 1)
-        end = self._parse_date_param("backtest-end-date", 2025, 12, 31)
+        universe_policy = self._resolve_universe_policy()
+        start = self._effective_start_date(
+            self._parse_date_param("backtest-start-date", 2024, 1, 1),
+            universe_policy,
+        )
+        end = self._effective_end_date(
+            start,
+            self._parse_date_param("backtest-end-date", 2025, 12, 31),
+        )
         self.SetStartDate(start[0], start[1], start[2])
         self.SetEndDate(end[0], end[1], end[2])
         self.SetCash(100_000)
         self.SetBenchmark("SPY")
-        universe = self._parse_universe_param()
+        universe = universe_policy.active_symbols
 
         for ticker in universe:
             equity = self.AddEquity(ticker, Resolution.Daily)
@@ -60,8 +64,8 @@ class AggressiveLlmMomentum(QCAlgorithm):
         self._artifact_exporter = LinceiArtifactExporter(self)
         self._artifact_exporter.log("Initialized aggressive_llm_momentum")
 
-        max_single_name_pct = float(self.GetParameter("max-single-name-pct") or "0.35")
-        top_k = int(float(self.GetParameter("top-k") or "2"))
+        max_single_name_pct = float(self.GetParameter("max-single-name-pct") or "0.08")
+        top_k = int(float(self.GetParameter("top-k") or "3"))
         vol_target = float(self.GetParameter("vol-target-annual") or "0.15")
         max_drawdown_pct = float(self.GetParameter("max-drawdown-pct") or "0.12")
         max_gross_exposure_pct = float(self.GetParameter("max-gross-exposure-pct") or "1.0")
@@ -107,6 +111,11 @@ class AggressiveLlmMomentum(QCAlgorithm):
             "no-static-ml": no_static_ml,
             "alpha-mode": alpha_mode,
             "universe-symbols": ",".join(universe),
+            "universe-profile": universe_policy.profile,
+            "universe-manifest-id": universe_policy.manifest_id,
+            "universe-manifest-source": universe_policy.source_path,
+            "sleeve-caps": universe_policy.sleeve_caps,
+            "symbol-caps": universe_policy.symbol_caps,
         }
 
         if no_static_meta or alpha_mode == "numeric-only":
@@ -130,6 +139,11 @@ class AggressiveLlmMomentum(QCAlgorithm):
                 top_k=top_k,
                 max_single_name_pct=max_single_name_pct,
                 vol_target_annual=vol_target,
+                max_gross_exposure_pct=max_gross_exposure_pct,
+                symbol_caps=universe_policy.symbol_caps,
+                sleeve_by_symbol=universe_policy.sleeve_by_symbol,
+                sleeve_caps=universe_policy.sleeve_caps,
+                etf_symbols=universe_policy.etf_symbols,
                 artifact_exporter=self._artifact_exporter,
             ),
         )
@@ -139,6 +153,11 @@ class AggressiveLlmMomentum(QCAlgorithm):
                 max_gross_exposure_pct=max_gross_exposure_pct,
                 max_drawdown_pct=max_drawdown_pct,
                 stale_data_hours=stale_data_hours,
+                symbol_caps=universe_policy.symbol_caps,
+                sleeve_by_symbol=universe_policy.sleeve_by_symbol,
+                sleeve_caps=universe_policy.sleeve_caps,
+                blocked_symbols=universe_policy.blocked_symbols,
+                investable_symbols=set(universe_policy.active_symbols),
                 artifact_exporter=self._artifact_exporter,
             ),
         )
@@ -148,9 +167,46 @@ class AggressiveLlmMomentum(QCAlgorithm):
     def _parse_universe_param(self) -> tuple[str, ...]:
         raw = self.GetParameter("universe-symbols")
         if not raw:
-            return self.DEFAULT_UNIVERSE
+            return ()
         symbols = tuple(symbol.strip().upper() for symbol in raw.split(",") if symbol.strip())
-        return symbols or self.DEFAULT_UNIVERSE
+        return symbols
+
+    def _resolve_universe_policy(self) -> UniversePolicy:
+        return resolve_universe_policy(
+            manifest_path=self.GetParameter("universe-manifest-path"),
+            profile_name=self.GetParameter("universe-profile"),
+            override_symbols=self._parse_universe_param(),
+            allow_leveraged_etf=self._parse_bool(
+                self.GetParameter("allow-leveraged-etf"),
+                default=False,
+            ),
+        )
+
+    def _effective_start_date(
+        self,
+        requested: tuple[int, int, int],
+        universe_policy: UniversePolicy,
+    ) -> tuple[int, int, int]:
+        if universe_policy.minimum_start_date is None:
+            return requested
+        requested_date = date(requested[0], requested[1], requested[2])
+        if requested_date >= universe_policy.minimum_start_date:
+            return requested
+        minimum = universe_policy.minimum_start_date
+        return minimum.year, minimum.month, minimum.day
+
+    def _effective_end_date(
+        self,
+        start: tuple[int, int, int],
+        requested: tuple[int, int, int],
+    ) -> tuple[int, int, int]:
+        start_date = date(start[0], start[1], start[2])
+        requested_date = date(requested[0], requested[1], requested[2])
+        if requested_date >= start_date:
+            return requested
+        today = date.today()
+        fallback = today if today >= start_date else start_date
+        return fallback.year, fallback.month, fallback.day
 
     def OnOrderEvent(self, orderEvent: OrderEvent) -> None:
         self._artifact_exporter.record_order_event(orderEvent)

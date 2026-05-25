@@ -98,7 +98,7 @@ Gaps and risks:
 
 1. Update docs to reflect current reality: LEAN skeleton exists, but QuantConnect cloud validation is incomplete.
 2. Add first-class commands for `lean cloud push`, `lean cloud backtest`, cloud result import, and later paper/live deployment.
-3. Resolve QuantConnect data access and Security Master requirements.
+3. Run full-universe validation in QuantConnect Cloud first; resolve local Security Master/data-download access only after a concrete blocker justifies the cost.
 4. Stabilize numeric-only cloud backtests before LLM overlay.
 5. Convert LLM alpha from static snapshot to point-in-time replay records keyed by `symbol`, `asOf`, `availableAt`, `modelVersion`, and `evidenceHash`.
 6. Use QuantConnect paper live with real-time data before real-money broker writes.

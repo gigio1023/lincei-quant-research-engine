@@ -1,7 +1,5 @@
 """Pure meta-alpha combiner shared by LEAN replay and parity tests."""
 
-from __future__ import annotations
-
 NUMERIC_WEIGHT = 0.50
 EVENT_WEIGHT = 0.25
 MACRO_WEIGHT = 0.15

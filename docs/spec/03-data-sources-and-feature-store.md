@@ -42,6 +42,8 @@ Direct ingestion can include:
 
 Direct raw data must be stored with source URL, retrieval time, event time, availability time, content hash, and parser version.
 
+The active collection map starts from the quality-gated universe manifest. Active and watchlist symbols can collect raw evidence, but only active profile symbols can become portfolio targets. This prevents watchlist research or excluded turnaround ideas from leaking into execution.
+
 ## Point-In-Time Rules
 
 Every market-moving input needs separate timestamps:
@@ -80,6 +82,21 @@ LEAN should consume structured feature records through one of these paths:
 
 Raw articles, filings, or transcripts should usually be processed outside LEAN. LEAN consumes the typed features and evidence refs, not full text dumps.
 
+## Local Market Data Preparation
+
+Local LEAN daily data is a first-class debugging path, but it is not promotion evidence by itself and must not become the default full-universe validation path when it requires paid QuantConnect downloads. The required local data contract is:
+
+- LEAN daily zip under `engines/lean/data/equity/usa/daily/<symbol>.zip`;
+- matching map file under `engines/lean/data/equity/usa/map_files/<symbol>.csv`;
+- matching factor file under `engines/lean/data/equity/usa/factor_files/<symbol>.csv`;
+- at least two point-in-time daily bars in `market_data_bars` before exporting a missing local file.
+
+`./scripts/prepare-lean-local-data` is the canonical preflight for this path. It must report `ready`, `exportable`, and `missing` symbols rather than letting a full LEAN run fail later with an opaque data error.
+
+Stooq CSV ingestion is allowed for local research data preparation when `STOOQ_API_KEY` is configured. The key is obtained through Stooq's interactive `get_apikey` page, so the agent must not try to bypass the captcha flow. If Stooq is unavailable or the key is absent, the data state is blocked unless local data already exists or QuantConnect Cloud validation is available.
+
+QuantConnect local `--download-data` can spend QCC and is disabled by default. It requires explicit user approval plus `ALLOW_PAID_QC_LOCAL_DATA_DOWNLOAD=true`. Prefer Cloud backtests for full quality universe validation so hosted QuantConnect datasets are used without local download charges where the cloud license permits it.
+
 ## References
 
 - Tiingo News Feed: https://www.quantconnect.com/docs/v2/writing-algorithms/datasets/tiingo/tiingo-news-feed
@@ -90,3 +107,6 @@ Raw articles, filings, or transcripts should usually be processed outside LEAN. 
 - QuantConnect alternative data overview: https://www.quantconnect.com/docs/v2/cloud-platform/datasets/quantconnect/alternative-data
 - Custom data history: https://www.quantconnect.com/docs/v2/writing-algorithms/historical-data/custom-data
 - Importing data key concepts: https://www.quantconnect.com/docs/v2/writing-algorithms/importing-data/key-concepts
+- Stooq historical database: https://stooq.com/db/h/
+- Stooq CSV API key flow example: https://stooq.com/q/d/?s=smh.us&get_apikey
+- Quality-gated universe manifest: ../../config/universes/quality-gated-v2.json

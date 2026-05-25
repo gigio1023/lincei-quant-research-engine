@@ -10,8 +10,7 @@ import { FeatureSnapshotContract } from '../contracts/v1-pilot.contracts';
 import { validateFeatureSnapshot } from '../contracts/v1-pilot.validators';
 import { hashObject } from '../../../shared/hash.util';
 import { MarketDataBar } from '../../../entities/market-data-bar.entity';
-
-const DEFAULT_V1_UNIVERSE = ['SPY', 'QQQ', 'IWM', 'TLT', 'GLD'] as const;
+import { activeUniverseSymbols } from '../universe/universe-manifest';
 
 @Injectable()
 export class FeatureSnapshotService {
@@ -32,7 +31,7 @@ export class FeatureSnapshotService {
     const asOf = new Date().toISOString();
     const snapshots: FeatureSnapshotContract[] = [];
 
-    for (const symbol of v1UniverseSymbols()) {
+    for (const symbol of activeUniverseSymbols()) {
       const bars = await this.marketDataRepository.find({
         where: { datasetId, symbol },
         order: { timestamp: 'DESC' },
@@ -136,16 +135,4 @@ export class FeatureSnapshotService {
       market_regime_score: Number((0.5 + returnFor(63) * 2).toFixed(6)),
     };
   }
-}
-
-function v1UniverseSymbols(): string[] {
-  const configured = process.env.V1_UNIVERSE_SYMBOLS;
-  if (!configured) {
-    return [...DEFAULT_V1_UNIVERSE];
-  }
-  const symbols = configured
-    .split(',')
-    .map((symbol) => symbol.trim().toUpperCase())
-    .filter(Boolean);
-  return symbols.length > 0 ? symbols : [...DEFAULT_V1_UNIVERSE];
 }

@@ -32,6 +32,7 @@ import { MetaAlphaService } from './alpha/meta-alpha.service';
 import { RawEvidenceArchiveService } from './alpha/raw-evidence-archive.service';
 import { LeanLocalSimulatorService } from './lean/lean-local-simulator.service';
 import { LeanDailyDataExportService } from './lean/lean-daily-data-export.service';
+import { LeanDataPreparationService } from './lean/lean-data-preparation.service';
 import { LeanCloudRunner } from './lean/lean-cloud.runner';
 import { LeanRunImportService } from './lean/lean-run-import.service';
 import { LeanPaperBridgeService } from './paper/lean-paper-bridge.service';
@@ -87,6 +88,7 @@ import { LeanCliRunner } from './lean/lean-cli.runner';
     MetaAlphaService,
     LeanLocalSimulatorService,
     LeanDailyDataExportService,
+    LeanDataPreparationService,
     LeanCloudRunner,
     LeanCliRunner,
     LeanRunImportService,

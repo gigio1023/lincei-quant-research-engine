@@ -1,18 +1,13 @@
 """Normalize LEAN History results to a pandas DataFrame with close/volume columns."""
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pandas as pd
 from AlgorithmImports import Resolution, Symbol
 
-if TYPE_CHECKING:
-    from AlgorithmImports import QCAlgorithm
-
 
 def history_frame(
-    algorithm: QCAlgorithm | Any,
+    algorithm: Any,
     symbol: Symbol,
     bar_count: int,
     resolution: Resolution = Resolution.Daily,

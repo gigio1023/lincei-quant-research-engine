@@ -1,7 +1,5 @@
 """Point-in-time LLM semantic-alpha feature replay helpers."""
 
-from __future__ import annotations
-
 from datetime import datetime, timezone
 import json
 import os

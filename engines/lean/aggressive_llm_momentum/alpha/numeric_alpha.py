@@ -5,8 +5,6 @@ Prefers NestJS-exported LightGBM scores (ml_predictions.json). Falls back to
 in-algorithm rank features only when that file is missing (degraded replay).
 """
 
-from __future__ import annotations
-
 import json
 import os
 from datetime import datetime, timezone
@@ -33,7 +31,7 @@ class LinceiNumericAlphaModel(AlphaModel):
 
     def __init__(
         self,
-        artifact_exporter: LinceiArtifactExporter | None = None,
+        artifact_exporter: "LinceiArtifactExporter | None" = None,
         *,
         use_ml_predictions: bool = True,
     ) -> None:

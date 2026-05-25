@@ -9,7 +9,7 @@ This document separates **what each path proves**. QuantConnect Cloud backtests 
 | Path                              | Command / trigger                                                           | What it validates                                                                                                                                | Live-ready?                                                            |
 | --------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
 | **LEAN flow validation**          | `lean-backtest` with `LEAN_ALLOW_SIMULATOR=true`, or simulator fallback     | End-to-end artifact export, import, paper bridge wiring                                                                                          | No                                                                     |
-| **Historical numeric backtest**   | `run-full-backtest` / `LeanCliRunner`                                       | Bar-by-bar numeric alpha inside LEAN on historical data                                                                                          | Strategy evidence when data gates pass                                 |
+| **Historical numeric backtest**   | `run-full-backtest` / `LeanCliRunner`                                       | Bar-by-bar numeric alpha inside LEAN on local historical data                                                                                    | Debug/supporting evidence when local data gates pass                   |
 | **Rolling ML / meta research**    | `run-alpha-cycle`, external baselines, `LIVE_PREFLIGHT_ALLOW_RESEARCH=true` | Nest feature snapshots, LightGBM scores, LLM committee, static `meta_decisions.json`                                                             | No (research only)                                                     |
 | **QuantConnect Cloud evidence**   | `qc-cloud-backtest`, `qc-object-store-sync`                                 | Cloud project push/backtest attempt, Object Store feature artifact upload, account-tier blockers, REST result import, imported-result acceptance | Promotion evidence only when cloud artifacts are imported and accepted |
 | **Paper / live-shadow readiness** | `run-paper-cycle`, `run-paper-replay`, `run-live-shadow`, `live-preflight`  | Policy gates, historical replay plumbing, would-have-traded evidence, broker snapshot reconciliation, blocked preflight evidence                 | No real broker writes under active spec                                |
@@ -32,7 +32,7 @@ Artifacts include `config.json` with `"simulator": "lean-local-simulator-v1"`. *
 
 ---
 
-## Historical numeric backtest (strategy evidence)
+## Historical numeric backtest (local debug/supporting evidence)
 
 ### What runs inside LEAN
 
@@ -46,7 +46,7 @@ Artifacts include `config.json` with `"simulator": "lean-local-simulator-v1"`. *
 
 Numeric features are computed **bar-by-bar inside LEAN** (200+ day warm-up). Nest `market_data_bars` (Stooq ingest) feeds **ML alpha in Nest only**, not the LEAN engine bar stream.
 
-Default window: **2024-01-01 → 2025-12-31** daily, universe `SPY, QQQ, IWM, TLT, GLD` — see `engines/lean/aggressive_llm_momentum/main.py`.
+Default local no-download window: **2020-01-01 → 2021-03-31** daily for bundled/local smoke data. Full quality-gated universe validation should run in QuantConnect Cloud first to avoid local QCC data-download charges.
 
 ### One-time setup
 
@@ -95,19 +95,51 @@ If that works, local LEAN commands are run through the same `sg docker` wrapper.
 2. API token: https://www.quantconnect.com/account
 3. `./scripts/setup-lean-workspace.sh` → `engines/lean/lean.json` and `engines/lean/data/`
 
-#### QC market data (required for real backtest)
+#### QC local market data (paid, not default)
+
+Local `lean data download` can spend QCC and is disabled by default in repo wrappers. Do not use this path for the full quality universe unless the user explicitly accepts local data costs.
+
+Use QuantConnect Cloud first:
 
 ```bash
-cd engines/lean
-export LEAN_CLI_PATH=../../.venv-lean-cli/bin/lean
-
-$LEAN_CLI_PATH data download \
-  --dataset "USA Equities" \
-  --data-type Trade \
-  --ticker SPY \
-  --resolution Daily
-# Repeat for QQQ, IWM, TLT, GLD
+./scripts/run-cloud-quality-backtest
 ```
+
+Only after cost approval, local QC downloads require:
+
+```bash
+export ALLOW_PAID_QC_LOCAL_DATA_DOWNLOAD=true
+export LEAN_DOWNLOAD_DATA=true
+
+cd engines/lean
+../../.venv-lean-cli/bin/lean data download --dataset "US Equity Security Master"
+../../.venv-lean-cli/bin/lean data download \
+  --dataset "US Equities" \
+  --data-type Trade \
+  --ticker "SMH,NVDA,AVGO,TSM,ASML,AMAT,AMD,MU,LRCX,KLAC,MRVL,IGV,CIBR,MSFT,ORCL,NOW,PANW,CRWD,PLTR,ANET,DDOG,GRID,ETN,PWR,VRT,GEV,CEG,VST,XAR,UFO,RKLB,LMT,NOC,LHX,SPY" \
+  --resolution Daily \
+  --start 20230101 \
+  --end 20251231
+```
+
+If QuantConnect `--download-data` fails with a Security Master/map-factor entitlement blocker, do not buy the dataset by default. Use Cloud. `prepare-lean-local-data` remains available for no-charge local coverage checks and Stooq-backed research data when `STOOQ_API_KEY` is already available.
+
+#### Cloud package preflight
+
+Run this before a QuantConnect Cloud push:
+
+```bash
+./scripts/verify-lean-cloud-package aggressive_llm_momentum
+```
+
+This command proves the local package against the failure class that is most likely to appear only after a manual Web IDE run:
+
+- source Python files compile, excluding generated `backtests/` snapshots;
+- focused LEAN tests pass;
+- a Docker LEAN backtest boots and completes with `universe-manifest-path` pointing at a deliberately missing file;
+- the backtest uses local sample symbols `SPY,QQQ,IWM`, so it does not trigger QuantConnect local data downloads.
+
+`qc-cloud-backtest --push`, `qc-cloud-push`, and `run-cloud-quality-backtest` run this preflight automatically. `SKIP_LEAN_CLOUD_PACKAGE_PREFLIGHT=true` is available only for a documented platform blocker or emergency Cloud-only check.
 
 #### Secrets in `backend/.env`
 
@@ -127,13 +159,13 @@ OPENAI_API_KEY=sk-...         # optional; LLM committee in alpha cycle
 ### Run historical backtest
 
 ```bash
-./scripts/run-full-backtest.sh
+./scripts/run-full-backtest.sh --skip-alpha-cycle --skip-market-data-ingest --no-download-data
 ```
 
 Equivalent:
 
 ```bash
-cd backend && bun run v1:cli -- run-full-backtest
+cd backend && bun run v1:cli -- run-full-backtest --skip-alpha-cycle --skip-market-data-ingest --no-download-data
 ```
 
 Does **not** fall back to the local simulator.
@@ -144,7 +176,7 @@ Validated local smoke path for Linux ARM64:
 ./scripts/run-local-strategy-smoke
 ```
 
-That wrapper pins the practical local evidence path: skip Nest alpha cycle, skip Stooq ingest, use bundled/local LEAN data only, and run `SPY,QQQ,IWM`.
+That wrapper pins the practical local evidence path: skip Nest alpha cycle, skip Stooq ingest, use bundled/local LEAN data only, and run the benchmark override `SPY,QQQ,IWM`. It proves plumbing and local LEAN behavior, not the full quality-gated universe.
 
 ---
 
@@ -161,7 +193,7 @@ Requires ingested bars in SQLite (`datasetId: v1-lean-universe`) **or** test-onl
 | ------------------------------- | ----------------------------------------------------------------------------- |
 | `ALLOW_SYNTHETIC_FEATURES=true` | Allow placeholder features when &lt; 2 bars per symbol (tests/simulator only) |
 
-Production `run-full-backtest` ingests Stooq bars first; if ingestion fails, alpha may still run only when bars exist.
+Local `run-full-backtest` can ingest Stooq bars first; if ingestion fails, alpha may still run only when bars exist. It is a local debugging/supporting path, not production or promotion evidence by itself.
 
 Outputs under `engines/lean/aggressive_llm_momentum/input/`:
 
@@ -179,8 +211,11 @@ Cloud commands use Lean CLI and always create local evidence records:
 
 ```bash
 ./scripts/qc-cloud-backtest aggressive_llm_momentum --push
+./scripts/run-cloud-quality-backtest
 ./scripts/qc-object-store-sync lincei/llm-features/latest.json
 ```
+
+Cloud push wrappers run the Cloud package preflight first. This is intentionally stricter than a normal syntax check because QuantConnect Cloud can compile a project and still fail at `Initialize()` when external input/config files are missing from the Web IDE runtime package.
 
 If credentials, paid organization tier, project lock, or dataset access block the run, the command records a `quantconnect-cloud` LEAN run with `status: blocked` and actionable blocker reasons.
 
@@ -255,6 +290,7 @@ Research escape hatch (does **not** enable broker writes):
 | --------------------------- | -------------------------------------------------------------------- |
 | `--skip-alpha-cycle`        | Reuse existing `input/meta_decisions.json`                           |
 | `--no-download-data`        | Do not pass `--download-data` to Lean CLI                            |
+| `--download-data`           | Pass `--download-data`; blocked unless `ALLOW_PAID_QC_LOCAL_DATA_DOWNLOAD=true` |
 | `--skip-market-data-ingest` | Skip Stooq → SQLite ingest                                           |
 | `--with-static-meta`        | Enable static `meta_decisions.json` overlay; disabled by default     |
 | `--with-static-ml`          | Enable static `ml_predictions.json` overlay; disabled by default     |
@@ -294,10 +330,13 @@ Exit code **2** = blocked by policy (not a crash).
 | `LEAN_CLI_PATH`                                  | Path to `lean` binary (default `.venv-lean-cli/bin/lean`) |
 | `LEAN_ALLOW_SIMULATOR=true`                      | Force smoke simulator for `lean-backtest`                 |
 | `LEAN_STRICT_CLI=false`                          | Fall back to simulator if CLI fails                       |
+| `LEAN_DOWNLOAD_DATA=true`                        | Request local QC `--download-data`; blocked unless paid-download guard is enabled |
+| `ALLOW_PAID_QC_LOCAL_DATA_DOWNLOAD=true`         | Explicitly allow local QCC-consuming QuantConnect data downloads |
 | `ALLOW_SYNTHETIC_FEATURES=true`                  | Test/simulator: synthetic Nest features without bars      |
 | `LIVE_PREFLIGHT_ALLOW_RESEARCH=true`             | Waive flow-validation / static-meta preflight blockers    |
 | `QUANTCONNECT_USER_ID`, `QUANTCONNECT_API_TOKEN` | Lean CLI login (see `lean-login-from-env.sh`)             |
 | `QC_PROJECT_ID`, `QC_USER_ID`, `QC_API_TOKEN`    | QuantConnect REST result import aliases                   |
+| `STOOQ_API_KEY`                                  | Stooq CSV ingestion for local LEAN daily data preparation |
 | `OPENAI_API_KEY`                                 | LLM committee in alpha cycle                              |
 | `DATABASE_PATH`                                  | SQLite (default `backend/data/investment.db`)             |
 
@@ -320,7 +359,10 @@ Exit code **2** = blocked by policy (not a crash).
 | `Docker is not running` or `Docker is unavailable to the current process` | Start Docker/Podman and ensure the invoking shell can access the Docker socket; on Linux ARM64 this may require a new login shell. The runner falls back to `sg docker` when that works. |
 | `Insufficient market data for SPY`                                        | Run ingest or `ALLOW_SYNTHETIC_FEATURES=true` (tests only)                                                                                                                               |
 | `lean: command not found`                                                 | `./scripts/setup-lean-cli.sh`                                                                                                                                                            |
-| Missing QC data                                                           | `lean data download` per ticker                                                                                                                                                          |
+| Missing QC data                                                           | Prefer `./scripts/run-cloud-quality-backtest`; local downloads require explicit cost approval and `ALLOW_PAID_QC_LOCAL_DATA_DOWNLOAD=true`                                                 |
+| `Paid local QC data download is disabled`                                  | This is intentional cost control. Use QuantConnect Cloud, or explicitly approve local data cost before setting `ALLOW_PAID_QC_LOCAL_DATA_DOWNLOAD=true`.                                  |
+| `ApiDataProvider(): Must be subscribed to map and factor files`            | Local QuantConnect Security Master/map-factor entitlement is missing for `--download-data`; use Cloud before buying local datasets.                                                        |
+| Stooq says `Get your apikey`                                               | Open `https://stooq.com/q/d/?s=smh.us&get_apikey`, complete captcha, and set `STOOQ_API_KEY` in `backend/.env`                                                                            |
 | `run-paper-cycle` exits 2 with stale market data                          | This is correct for historical targets. Use `run-paper-replay` for plumbing evidence; use current targets for real paper readiness.                                                      |
 | Live preflight: simulator                                                 | Re-run with Lean CLI, not simulator                                                                                                                                                      |
 | Live preflight: reconciliation                                            | `reconcileBrokerSnapshot` / paper reconcile until `matched`                                                                                                                              |

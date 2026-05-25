@@ -26,6 +26,7 @@ Use narrow Detroit/classicist tests for high-value behavior:
 - feature timestamp and lookahead rejection;
 - portfolio sizing math;
 - risk policy;
+- universe manifest validation and hard-exclusion fail-closed behavior;
 - idempotency and duplicate replay;
 - cap enforcement;
 - kill switch behavior;
@@ -55,7 +56,9 @@ bun run test:e2e
 .venv-ml/bin/python -m pytest engines/lean/aggressive_llm_momentum/tests
 
 ./scripts/run-full-backtest.sh --skip-alpha-cycle --skip-market-data-ingest --no-download-data
+./scripts/prepare-lean-local-data
 ./scripts/run-local-strategy-smoke
+./scripts/run-cloud-quality-backtest
 ./scripts/import-lean-run latest
 ./scripts/run-alpha-cycle
 ./scripts/run-paper-cycle
@@ -66,6 +69,10 @@ bun run test:e2e
 Use the command that matches the touched surface. Do not run broad slow suites just to create noise if a narrower direct verification proves the change.
 
 `run-paper-cycle` and `run-paper-replay` prove different things. `run-paper-cycle` is current-market strict and should block stale historical targets. `run-paper-replay` is historical plumbing evidence and must not satisfy live preflight or promotion.
+
+`prepare-lean-local-data` is the direct data-path proof before a full quality universe local backtest. A blocked result is acceptable evidence when it identifies missing Stooq API key, missing QuantConnect Security Master/map-factor entitlement, missing LEAN daily zip, missing map/factor file, or insufficient ingested bars per symbol.
+
+To minimize billing, full quality-gated universe validation should prefer `run-cloud-quality-backtest` over local `--download-data`. Local QuantConnect data downloads are not a default verification path because they can spend QCC; they require explicit user approval and `ALLOW_PAID_QC_LOCAL_DATA_DOWNLOAD=true`.
 
 ## Evidence Reporting
 
