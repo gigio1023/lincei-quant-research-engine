@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Prepares local LEAN daily data for the active universe without running LEAN.
+# Exit code 2 means data is blocked by missing Stooq/API/QC inputs, not a crash.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT/backend"
+
+bun run v1:cli -- prepare-lean-local-data "$@"

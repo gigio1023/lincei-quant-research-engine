@@ -18,7 +18,7 @@ QuantConnect does not ship a public pretrained model zoo; community practice is 
 | Type | LightGBM regressor, `boosters/live.txt` + `config.json` |
 | Format | Text booster only — **no pickle** (`lgb.Booster(model_file=...)`) |
 | Features | 47 OHLCV / regime / cross-section columns (earnings fields neutral when unknown) |
-| Caveat | Trained on ~150 US names; the initial ETF universe is `SPY, QQQ, IWM, TLT, GLD` — baseline signal only |
+| Caveat | Trained on ~150 US names; the active quality-gated universe is different from the training universe, so this remains a baseline signal only |
 
 ## Rejected (security)
 

@@ -22,6 +22,8 @@ Portfolio construction converts `Insight` objects into target weights. The first
 
 LLM output may provide conviction and risk hints. Final sizing must be deterministic and replayable.
 
+The active implementation uses the quality-gated universe manifest for symbol caps, sleeve caps, ETF flags, and blocked symbols. Portfolio construction must zero old holdings that drop out of top-k so stale positions do not persist silently.
+
 ## Risk Management
 
 Risk models must fail closed. Unknown state is blocked state.
@@ -37,6 +39,7 @@ Required risk cuts:
 - liquidity below threshold;
 - unresolved open-order or reconciliation mismatch;
 - unsupported asset class or broker capability.
+- hard-excluded or disabled tactical universe symbol.
 
 Risk code should explain the safety invariant in comments where the failure mode is not obvious.
 

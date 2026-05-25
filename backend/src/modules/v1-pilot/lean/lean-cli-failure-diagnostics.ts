@@ -40,8 +40,14 @@ export function summarizeLeanCliFailure(input: {
     uniqueTail.length > 0
       ? uniqueTail.join(' | ')
       : 'no diagnostic output captured from LEAN';
+  const classified = classifyLeanCliFailure(text);
+  const withClassification = classified
+    ? `${classified} | ${summary}`
+    : summary;
 
-  return summary.length > 1800 ? `${summary.slice(0, 1800)}...` : summary;
+  return withClassification.length > 1800
+    ? `${withClassification.slice(0, 1800)}...`
+    : withClassification;
 }
 
 export function writeLeanCliFailureDiagnostics(
@@ -71,4 +77,15 @@ export function writeLeanCliFailureDiagnostics(
 
 function tailText(text: string, maxChars = 6000): string {
   return text.length > maxChars ? text.slice(-maxChars) : text;
+}
+
+function classifyLeanCliFailure(text: string): string | undefined {
+  if (/Must be subscribed to map and factor files/i.test(text)) {
+    return [
+      'QuantConnect data entitlement blocker:',
+      'local --download-data requires Security Master/map-factor access.',
+      'Use QuantConnect Cloud validation first, or use STOOQ_API_KEY with ./scripts/prepare-lean-local-data and LEAN_DOWNLOAD_DATA=false. Enable paid local QuantConnect dataset access only after explicit cost approval.',
+    ].join(' ');
+  }
+  return undefined;
 }

@@ -1,7 +1,5 @@
 """Risk model: stale data, drawdown, vol spike, and exposure caps cut targets before execution."""
 
-from __future__ import annotations
-
 from datetime import timedelta, timezone
 from typing import TYPE_CHECKING
 
@@ -18,18 +16,28 @@ class LinceiRiskManagementModel(RiskManagementModel):
 
     def __init__(
         self,
-        max_single_name_pct: float = 0.35,
+        max_single_name_pct: float = 0.08,
         max_gross_exposure_pct: float = 1.0,
         max_drawdown_pct: float = 0.12,
         vol_spike_threshold: float = 0.35,
         stale_data_hours: int = 48,
-        artifact_exporter: LinceiArtifactExporter | None = None,
+        symbol_caps: dict[str, float] | None = None,
+        sleeve_by_symbol: dict[str, str] | None = None,
+        sleeve_caps: dict[str, float] | None = None,
+        blocked_symbols: set[str] | None = None,
+        investable_symbols: set[str] | None = None,
+        artifact_exporter: "LinceiArtifactExporter | None" = None,
     ) -> None:
         self._max_single_name_pct = max_single_name_pct
         self._max_gross_exposure_pct = max_gross_exposure_pct
         self._max_drawdown_pct = max_drawdown_pct
         self._vol_spike_threshold = vol_spike_threshold
         self._stale_data_hours = stale_data_hours
+        self._symbol_caps = symbol_caps or {}
+        self._sleeve_by_symbol = sleeve_by_symbol or {}
+        self._sleeve_caps = sleeve_caps or {}
+        self._blocked_symbols = blocked_symbols or set()
+        self._investable_symbols = investable_symbols or set()
         self._artifact_exporter = artifact_exporter
         self._peak_equity = 0.0
         self._kill_switch_tripped = False
@@ -107,6 +115,11 @@ class LinceiRiskManagementModel(RiskManagementModel):
 
     def _is_data_stale(self, algorithm: QCAlgorithm) -> bool:
         for security in algorithm.ActiveSecurities.Values:
+            if (
+                self._investable_symbols
+                and str(security.Symbol.Value) not in self._investable_symbols
+            ):
+                continue
             if not security.HasData:
                 return True
             last_bar = security.GetLastData()
@@ -158,13 +171,18 @@ class LinceiRiskManagementModel(RiskManagementModel):
     ) -> list[PortfolioTarget]:
         percents: list[float] = []
         for target in targets:
+            symbol = str(target.Symbol.Value)
             weight = self._target_percent(algorithm, target)
-            if abs(weight) > self._max_single_name_pct:
+            if symbol in self._blocked_symbols:
+                risk_notes.append("blocked_universe_symbol")
+                weight = 0.0
+            cap = self._symbol_cap(symbol)
+            if abs(weight) > cap:
                 risk_notes.append("single_name_cap")
-                weight = (
-                    self._max_single_name_pct if weight > 0 else -self._max_single_name_pct
-                )
+                weight = cap if weight > 0 else -cap
             percents.append(weight)
+
+        percents = self._enforce_sleeve_caps(targets, percents, risk_notes)
 
         gross = sum(abs(weight) for weight in percents)
         if gross > self._max_gross_exposure_pct:
@@ -176,6 +194,38 @@ class LinceiRiskManagementModel(RiskManagementModel):
             PortfolioTarget.Percent(algorithm, target.Symbol, weight)
             for target, weight in zip(targets, percents)
         ]
+
+    def _symbol_cap(self, symbol: str) -> float:
+        return self._symbol_caps.get(symbol, self._max_single_name_pct)
+
+    def _enforce_sleeve_caps(
+        self,
+        targets: list[PortfolioTarget],
+        percents: list[float],
+        risk_notes: list[str],
+    ) -> list[float]:
+        sleeve_totals: dict[str, float] = {}
+        for target, percent in zip(targets, percents):
+            sleeve = self._sleeve_by_symbol.get(
+                str(target.Symbol.Value),
+                "unclassified",
+            )
+            sleeve_totals[sleeve] = sleeve_totals.get(sleeve, 0.0) + abs(percent)
+
+        adjusted = list(percents)
+        for index, target in enumerate(targets):
+            sleeve = self._sleeve_by_symbol.get(
+                str(target.Symbol.Value),
+                "unclassified",
+            )
+            sleeve_cap = self._sleeve_caps.get(sleeve)
+            sleeve_total = sleeve_totals.get(sleeve, 0.0)
+            if sleeve_cap is None or sleeve_total <= sleeve_cap or sleeve_cap <= 0:
+                continue
+            if "sleeve_cap" not in risk_notes:
+                risk_notes.append("sleeve_cap")
+            adjusted[index] = adjusted[index] * (sleeve_cap / sleeve_total)
+        return adjusted
 
     @staticmethod
     def _target_percent(algorithm: QCAlgorithm, target: PortfolioTarget) -> float:

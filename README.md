@@ -13,6 +13,7 @@ Read [SPEC.md](SPEC.md) first. It is the canonical long-term spec index. If any 
 - LEAN / QuantConnect owns executable strategy semantics: universe selection, `AlphaModel`, `Insight`, portfolio construction, risk management, execution, orders, and fills.
 - The NestJS control plane owns orchestration, run manifests, LLM feature jobs, imports, paper/live-shadow ledgers, preflight, reconciliation, and operator visibility.
 - LLMs are semantic alpha engines. They convert natural-language evidence into typed point-in-time features. They do not place broker orders, see credentials, or choose final order quantity.
+- Universe selection is quality-gated by [config/universes/quality-gated-v2.json](config/universes/quality-gated-v2.json). Weak, redundant, hard-excluded, or disabled tactical instruments cannot leak into LEAN targets.
 - Real broker writes remain blocked. `submit`, `cancel`, `replace`, `flatten`, transfer, and margin/account mutation require a future user-approved live-money spec.
 
 ## System Flow
@@ -20,6 +21,8 @@ Read [SPEC.md](SPEC.md) first. It is the canonical long-term spec index. If any 
 ```mermaid
 flowchart LR
     RAW["Market bars<br/>news / filings / macro"] --> FS["Point-in-time<br/>feature snapshots"]
+    MANIFEST["Quality-gated<br/>universe manifest"] --> FS
+    MANIFEST --> LEAN
     RAW --> LLMFEAT["LLM semantic<br/>alpha features"]
     FS --> NUM["Numeric alpha"]
     LLMFEAT --> META["Meta alpha<br/>AlphaDecision"]
@@ -72,6 +75,30 @@ flowchart TB
 
 The marker split prevents a blocked Cloud attempt or simulator smoke from overwriting the latest accepted strategy evidence. `run-paper-replay` can prove historical target plumbing, but only current paper/live-shadow evidence can satisfy live preflight and promotion gates.
 
+## Quality-Gated Universe
+
+The default active profile is `quality_core_backtest_safe`. It is intentionally narrower than an idea list:
+
+```mermaid
+flowchart TB
+    MANIFEST["config/universes/quality-gated-v2.json"] --> PROFILE["quality_core_backtest_safe"]
+    PROFILE --> SEMI["Semiconductor / AI compute<br/>SMH + vetted single names"]
+    PROFILE --> SW["Software / Cybersecurity<br/>IGV, CIBR + vetted single names"]
+    PROFILE --> POWER["Power / Electrification<br/>GRID + infrastructure names"]
+    PROFILE --> SPACE["Space / Aerospace<br/>XAR, UFO + vetted primes/RKLB"]
+    PROFILE --> CAPS["symbol caps<br/>sleeve caps<br/>ETF redundancy rules"]
+    CAPS --> LEAN["LEAN portfolio/risk models"]
+```
+
+| Sleeve                     | Active instruments                                                                |
+| -------------------------- | --------------------------------------------------------------------------------- |
+| Semiconductor / AI compute | `SMH`, `NVDA`, `AVGO`, `TSM`, `ASML`, `AMAT`, `AMD`, `MU`, `LRCX`, `KLAC`, `MRVL` |
+| Software / Cybersecurity   | `IGV`, `CIBR`, `MSFT`, `ORCL`, `NOW`, `PANW`, `CRWD`, `PLTR`, `ANET`, `DDOG`      |
+| Power / Electrification    | `GRID`, `ETN`, `PWR`, `VRT`, `GEV`, `CEG`, `VST`                                  |
+| Space / Aerospace          | `XAR`, `UFO`, `RKLB`, `LMT`, `NOC`, `LHX`                                         |
+
+`SPY`, `QQQ`, `IWM`, `SOXX`, `XLU`, and `ITA` are benchmark or smoke-test symbols, not default active alpha targets. `NASA` is forward-only from 2026-03-31. `SOXL` remains disabled unless `V1_ALLOW_LEVERAGED_ETF=true` and a tactical profile are explicitly selected; this is research-only, not live-money approval.
+
 ## Repository Map
 
 | Path                                                                          | Purpose                                                                 |
@@ -80,6 +107,7 @@ The marker split prevents a blocked Cloud attempt or simulator smoke from overwr
 | [terminology.md](terminology.md)                                              | Required terminology and banned AI-slop expressions                     |
 | [AGENTS.md](AGENTS.md)                                                        | Agent/contributor rules for this repo                                   |
 | [docs/spec/](docs/spec)                                                       | Normative split spec documents                                          |
+| [config/universes/](config/universes)                                         | Quality-gated universe manifests and instrument policy                  |
 | [docs/](docs)                                                                 | Supporting design docs, runbooks, API reference, decisions, archive     |
 | [backend/](backend)                                                           | NestJS control plane, ledgers, CLI orchestration, API                   |
 | [engines/lean/aggressive_llm_momentum/](engines/lean/aggressive_llm_momentum) | LEAN Algorithm Framework strategy                                       |
@@ -178,7 +206,7 @@ cd backend && bun install
 cd ../frontend && bun install
 ```
 
-QuantConnect local data is not downloaded by bootstrap. See [docs/full-lean-backtest-setup.md](docs/full-lean-backtest-setup.md) for ticker data commands and costs.
+QuantConnect local data is not downloaded by bootstrap. Full quality-gated universe validation should run in QuantConnect Cloud first to avoid local QCC data-download charges.
 
 ## Command Cheat Sheet
 
@@ -191,10 +219,13 @@ Run from repository root unless noted.
 # Local LEAN and import
 ./scripts/lean-backtest aggressive_llm_momentum
 ./scripts/import-lean-run latest
+./scripts/prepare-lean-local-data
 ./scripts/run-full-backtest.sh --skip-alpha-cycle --skip-market-data-ingest --no-download-data
 ./scripts/run-local-strategy-smoke
+./scripts/verify-lean-cloud-package aggressive_llm_momentum
 
 # QuantConnect Cloud / Object Store
+./scripts/run-cloud-quality-backtest
 ./scripts/qc-cloud-backtest aggressive_llm_momentum
 ./scripts/qc-cloud-push aggressive_llm_momentum
 ./scripts/qc-object-store-sync lincei/llm-features/latest.json
@@ -226,10 +257,17 @@ Implemented in this branch:
 - Live-shadow would-have-traded ledger with broker writes disabled and explicit `evidenceMode` (`historical_target_replay` vs `current_live_shadow`).
 - Learning loop with outcome labeling from `max(asOf, availableAt)` where market bars are available and promotion decisions that block without Cloud + live-shadow evidence.
 - Legacy live-money command surface that always records blocked evidence and never creates broker-write intents under the active spec.
+- Quality-gated universe manifest with backend and LEAN loaders, hard-exclusion validation, symbol caps, sleeve caps, ETF redundancy policy, and per-run `universe-selection-report.json`.
+- LEAN portfolio construction applies manifest caps and emits zero targets for old holdings that drop out of top-k.
+- Local LEAN data preparation command that ingests Stooq daily bars when `STOOQ_API_KEY` is present, exports LEAN daily zip/map/factor files, hydrates the feature DB from existing LEAN data, and reports per-symbol coverage before a full universe backtest.
+- Cost-control guard for local QuantConnect data downloads: `run-full-backtest` defaults to `--no-download-data`, and `--download-data` is blocked unless `ALLOW_PAID_QC_LOCAL_DATA_DOWNLOAD=true`.
+- Cloud package preflight command that compiles LEAN source, runs focused LEAN tests, and executes a local Docker LEAN backtest with the universe manifest path intentionally missing. `qc-cloud-backtest --push`, `qc-cloud-push`, and `run-cloud-quality-backtest` run this preflight before pushing unless `SKIP_LEAN_CLOUD_PACKAGE_PREFLIGHT=true` is explicitly set.
 
 Known current blockers from direct verification:
 
-- `qc-cloud-backtest aggressive_llm_momentum` needs a Cloud project plus `QC_PROJECT_ID`/`QUANTCONNECT_PROJECT_ID`, `QC_USER_ID`/`QUANTCONNECT_USER_ID`, and `QC_API_TOKEN`/`QUANTCONNECT_API_TOKEN` before REST result import can become promotion evidence.
+- `run-cloud-quality-backtest` can push and compile the QuantConnect Cloud project, but the current account blocks CLI/API Cloud backtest execution with a paid-organization-tier requirement. Manual web-IDE Cloud backtesting may still be useful, but repo-imported promotion evidence remains blocked until CLI/API result access is available.
+- Cloud REST result import still needs `QC_PROJECT_ID`/`QUANTCONNECT_PROJECT_ID`, `QC_USER_ID`/`QUANTCONNECT_USER_ID`, and `QC_API_TOKEN`/`QUANTCONNECT_API_TOKEN` when account tier permits API access.
+- Full quality-gated local backtests need paid/local data access and are intentionally not the default path. Use `./scripts/run-cloud-quality-backtest` first.
 - Local LEAN strategy-evidence works on Linux ARM64 through the Docker group fallback when direct socket access is stale in the current shell.
 - `run-paper-cycle` is expected to block on stale historical targets unless a current target snapshot exists; use `run-paper-replay` for plumbing checks that must not satisfy live preflight.
 - Promotion remains blocked until QuantConnect Cloud evidence and `current_live_shadow` evidence are both present.
@@ -251,23 +289,31 @@ cd frontend && bun run lint
 cd frontend && bun run test:run
 
 .venv-ml/bin/python -m pytest engines/lean/aggressive_llm_momentum/tests
+./scripts/verify-lean-cloud-package aggressive_llm_momentum
 python3 -m py_compile engines/lean/aggressive_llm_momentum/alpha/semantic_features.py
 git diff --check
 ```
 
-Latest direct verification on 2026-05-24 UTC:
+Latest direct verification on 2026-05-25 UTC, Linux aarch64:
 
 - `cd backend && bun run build` passed.
-- Targeted backend Jest passed: repo env loader, LEAN import, paper bridge, live preflight, Cloud runner, and learning loop.
-- `./scripts/run-local-strategy-smoke` passed on Linux ARM64 through the in-process `sg docker` fallback. Latest accepted local strategy run: `bt-20260524104630-4495ff89`.
-- `./scripts/import-lean-run latest` reads `.latest-strategy` and still imports `bt-20260524104630-4495ff89` even after a blocked Cloud attempt moves `.latest`.
+- Targeted backend Jest passed: Stooq API-key blocker handling, local LEAN data export/coverage, universe manifest validation, LEAN CLI runner, Cloud runner, and LEAN run acceptance.
+- `.venv-ml/bin/python -m pytest engines/lean/aggressive_llm_momentum/tests` passed.
+- `python3 -m py_compile` passed for the touched LEAN Python modules.
+- `./scripts/verify-lean-cloud-package aggressive_llm_momentum` passed. It compiled source Python files excluding generated `backtests/`, ran the focused LEAN test suite, and completed a Docker LEAN backtest with `universe-manifest-path` set to a deliberately missing Cloud-package path. Latest preflight run id: `cloud-package-preflight-20260525070732`.
+- `./scripts/run-full-backtest.sh --download-data --skip-alpha-cycle --skip-market-data-ingest` returned exit code `2` before LEAN/Docker execution because paid local QuantConnect data downloads are disabled by default.
+- `bash -n scripts/run-full-backtest.sh scripts/run-cloud-quality-backtest scripts/run-local-strategy-smoke scripts/run-v1-cycle scripts/setup-lean-workspace.sh scripts/bootstrap-dev.sh scripts/qc-cloud-backtest` passed.
+- `./scripts/run-local-strategy-smoke` passed on Linux ARM64 through the in-process `sg docker` fallback. Latest accepted local strategy run: `bt-20260525055106-0a291ac7`.
+- `./scripts/run-v1-cycle --skip-alpha-cycle --skip-market-data-ingest --no-download-data` previously returned exit code `0`: accepted local strategy run `bt-20260524172437-5f504408`, paper cycle blocked by stale market data and missing approval, and live preflight recorded explicit broker/credential blockers. The script now respects the `--skip-alpha-cycle` argument directly.
+- The latest smoke exported `universe-selection-report.json` with `quality_core_backtest_safe`, benchmark override `SPY,QQQ,IWM`, hard exclusions, symbol caps, sleeve caps, and Korea/US tax context notes.
+- Full quality-gated local `--download-data` execution is no longer a default verification path because it can spend QCC. It is blocked unless `ALLOW_PAID_QC_LOCAL_DATA_DOWNLOAD=true` is explicitly set after cost approval.
+- `./scripts/run-cloud-quality-backtest` pushed and compiled the full quality-gated QuantConnect Cloud project, then returned exit code `2` because the current account requires a paid tier for CLI/API Cloud backtest execution. Latest blocked Cloud attempt: `qc-20260525060040-919f3120`.
+- `./scripts/import-lean-run latest` reads `.latest-strategy` and imports the latest accepted strategy run even after blocked simulator or Cloud attempts move `.latest`.
 - `./scripts/run-paper-cycle` returned exit code `2` with stale market data and paper approval blockers. This is the expected strict current-market behavior for historical LEAN targets.
 - `./scripts/run-paper-replay` returned exit code `0` and created a reconciled paper replay plan for historical target plumbing.
 - `./scripts/run-live-shadow` returned exit code `0` with `evidenceMode: historical_target_replay`.
 - `./scripts/run-learning-loop` returned exit code `2` because the latest LEAN run is local, not QuantConnect Cloud, and live-shadow evidence is historical replay rather than `current_live_shadow`.
 - `./scripts/live-preflight` returned exit code `2`; it ignored paper replay evidence and stayed blocked on missing current paper cycle, simulated broker snapshot, broker flags, and credentials.
-- `./scripts/qc-cloud-backtest aggressive_llm_momentum` returned exit code `2` with missing QuantConnect Cloud project blocker.
-- `./scripts/run-v1-cycle --skip-alpha-cycle --skip-market-data-ingest --no-download-data` returned exit code `0`: local backtest passed, paper cycle blocked by explicit gates, and live preflight recorded blocked evidence.
 
 ## Documentation
 

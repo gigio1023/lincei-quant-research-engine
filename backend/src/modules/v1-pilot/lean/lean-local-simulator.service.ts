@@ -15,8 +15,11 @@ import {
   LeanPortfolioTargetsPayload,
   LeanRunResult,
 } from './lean-run.types';
+import {
+  resolveUniverseSelection,
+  writeUniverseSelectionReport,
+} from '../universe/universe-manifest';
 
-const DEFAULT_UNIVERSE = ['SPY', 'QQQ', 'IWM', 'TLT', 'GLD'] as const;
 const DEFAULT_PROJECT = 'aggressive_llm_momentum';
 const ALGORITHM_VERSION = 'v1';
 
@@ -50,6 +53,9 @@ export class LeanLocalSimulatorService {
     );
     const resultDirectory = join(resultRoot, runId);
     mkdirSync(resultDirectory, { recursive: true });
+    const universeSelection = resolveUniverseSelection();
+    const universe = universeSelection.activeSymbols;
+    writeUniverseSelectionReport(resultDirectory, universeSelection);
 
     const parameters = this.resolveParameters(request.parameters);
     const metaPath =
@@ -59,6 +65,7 @@ export class LeanLocalSimulatorService {
       existsSync(metaPath)
         ? metaPath
         : join(workspaceRoot, 'input/meta_decisions.json.example'),
+      universe,
     );
     const insights = this.buildInsights(metaDecisions);
     const targets = this.buildPortfolioTargets(insights, parameters);
@@ -97,7 +104,7 @@ export class LeanLocalSimulatorService {
       logsRef,
       [
         `[${startedAt.toISOString()}] lean-local-simulator started`,
-        `[${startedAt.toISOString()}] universe=${DEFAULT_UNIVERSE.join(',')}`,
+        `[${startedAt.toISOString()}] universe=${universe.join(',')}`,
         `[${startedAt.toISOString()}] generated ${insights.length} insights`,
         `[${startedAt.toISOString()}] generated ${targets.length} portfolio targets`,
         `[${startedAt.toISOString()}] lean-local-simulator completed`,
@@ -112,7 +119,7 @@ export class LeanLocalSimulatorService {
     ]);
     const configHash = this.hashObject(configPayload);
     const dataManifestHash = this.hashObject({
-      universe: DEFAULT_UNIVERSE,
+      universe,
       metaDecisionCount: metaDecisions.length,
       simulator: ALGORITHM_VERSION,
     });
@@ -143,8 +150,8 @@ export class LeanLocalSimulatorService {
     overrides: LeanLocalSimulatorRequest['parameters'] = {},
   ): Record<string, string | number | boolean> {
     return {
-      'max-single-name-pct': 0.35,
-      'top-k': 2,
+      'max-single-name-pct': 0.08,
+      'top-k': 3,
       'live-pilot-max-notional-usd': 10,
       'meta-decisions-path': 'input/meta_decisions.json',
       'vol-target-annual': 0.15,
@@ -155,9 +162,9 @@ export class LeanLocalSimulatorService {
     };
   }
 
-  private loadMetaDecisions(path: string): MetaDecisionRecord[] {
+  private loadMetaDecisions(path: string, universe: string[]): MetaDecisionRecord[] {
     if (!existsSync(path)) {
-      return DEFAULT_UNIVERSE.map((symbol, index) => ({
+      return universe.map((symbol, index) => ({
         symbol,
         direction: index < 2 ? 'up' : 'flat',
         confidence: index < 2 ? 0.7 : 0.45,

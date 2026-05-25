@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Verifies the LEAN project in the same failure class as a manual QuantConnect
+# Cloud/Web IDE run: source syntax must compile, focused LEAN tests must pass,
+# and the algorithm must boot even when Cloud omits external input/config JSON.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PROJECT="${1:-aggressive_llm_momentum}"
+LEAN_ROOT="$ROOT/engines/lean"
+PROJECT_DIR="$LEAN_ROOT/$PROJECT"
+LEAN_BIN="${LEAN_BIN:-$ROOT/.venv-lean-cli/bin/lean}"
+PYTEST_BIN="${PYTEST_BIN:-$ROOT/.venv-ml/bin/python}"
+RUN_ID="cloud-package-preflight-$(date -u +%Y%m%d%H%M%S)"
+
+if [[ ! -d "$PROJECT_DIR" ]]; then
+  echo "Blocked: LEAN project not found: $PROJECT_DIR" >&2
+  exit 2
+fi
+
+if [[ ! -x "$LEAN_BIN" ]]; then
+  echo "Blocked: Lean CLI not found or not executable: $LEAN_BIN" >&2
+  exit 2
+fi
+
+if [[ ! -x "$PYTEST_BIN" ]]; then
+  echo "Blocked: Python test runner not found or not executable: $PYTEST_BIN" >&2
+  exit 2
+fi
+
+echo "Platform: $(uname -s) $(uname -m)"
+echo "Lean CLI: $("$LEAN_BIN" --version)"
+echo "Python: $(python3 --version)"
+
+PYTHON_FILES=()
+while IFS= read -r file; do
+  PYTHON_FILES+=("$file")
+done < <(rg --files "$PROJECT_DIR" -g '*.py' -g '!backtests/**' -g '!__pycache__/**')
+if [[ "${#PYTHON_FILES[@]}" -eq 0 ]]; then
+  echo "Blocked: no Python files found under $PROJECT_DIR" >&2
+  exit 2
+fi
+
+python3 -m py_compile "${PYTHON_FILES[@]}"
+"$PYTEST_BIN" -m pytest "$PROJECT_DIR/tests" -q
+
+cd "$LEAN_ROOT"
+"$LEAN_BIN" backtest "$PROJECT" \
+  --data-provider-historical Local \
+  --parameter run-id "$RUN_ID" \
+  --parameter artifact-output-dir "/Results/lincei-artifacts/$RUN_ID" \
+  --parameter universe-manifest-path input/cloud-package-missing-manifest.json \
+  --parameter universe-symbols SPY,QQQ,IWM \
+  --parameter backtest-start-date 2020-01-01 \
+  --parameter backtest-end-date 2021-03-31 \
+  --parameter no-static-meta true \
+  --parameter no-static-ml true \
+  --parameter alpha-mode numeric-only
+
+echo "Cloud package preflight passed: $RUN_ID"

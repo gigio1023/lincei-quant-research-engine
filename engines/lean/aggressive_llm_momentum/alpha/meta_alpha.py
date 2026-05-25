@@ -4,8 +4,6 @@ The static JSON overlay is replay evidence only; it is not historical LLM valida
 Conflict handling reduces conviction when numeric and LLM-derived signals disagree.
 """
 
-from __future__ import annotations
-
 import json
 import os
 from datetime import datetime, timezone
@@ -43,7 +41,7 @@ class LinceiMetaAlphaModel(AlphaModel):
         self,
         algorithm: QCAlgorithm,
         meta_decisions_path: str | None = None,
-        artifact_exporter: LinceiArtifactExporter | None = None,
+        artifact_exporter: "LinceiArtifactExporter | None" = None,
         *,
         use_ml_predictions: bool = True,
     ) -> None:

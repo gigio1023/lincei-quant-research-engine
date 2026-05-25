@@ -112,20 +112,63 @@ async function bootstrap(): Promise<void> {
       case 'run-full-backtest': {
         const skipAlphaCycle = args.includes('--skip-alpha-cycle');
         const noDownloadData = args.includes('--no-download-data');
+        const downloadData = args.includes('--download-data');
         const skipIngest = args.includes('--skip-market-data-ingest');
         const noStaticMeta =
           args.includes('--no-static-meta') ||
           !args.includes('--with-static-meta');
         const noStaticMl =
           args.includes('--no-static-ml') || !args.includes('--with-static-ml');
-        const result = await orchestrator.runFullBacktest({
-          skipAlphaCycle,
-          downloadData: !noDownloadData,
+        try {
+          const result = await orchestrator.runFullBacktest({
+            skipAlphaCycle,
+            downloadData: downloadData && !noDownloadData,
+            ingestUniverseBars: !skipIngest,
+            noStaticMeta,
+            noStaticMl,
+          });
+          console.log(JSON.stringify(result, null, 2));
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : 'Full LEAN backtest prerequisites are missing.';
+          if (isFullBacktestBlocked(message)) {
+            console.log(
+              JSON.stringify(
+                { status: 'blocked', blockers: [message] },
+                null,
+                2,
+              ),
+            );
+            process.exitCode = 2;
+            break;
+          }
+          throw error;
+        }
+        break;
+      }
+      case 'prepare-lean-local-data': {
+        const skipIngest = args.includes('--skip-market-data-ingest');
+        const result = await orchestrator.prepareLeanLocalData({
           ingestUniverseBars: !skipIngest,
-          noStaticMeta,
-          noStaticMl,
         });
-        console.log(JSON.stringify(result, null, 2));
+        console.log(
+          JSON.stringify(
+            {
+              status: result.status,
+              datasetId: result.datasetId,
+              universeProfile: result.universeSelection.profile,
+              activeSymbols: result.universeSelection.activeSymbols,
+              requiredDataSymbols: result.requiredDataSymbols,
+              blockers: result.blockers,
+              steps: result.steps,
+            },
+            null,
+            2,
+          ),
+        );
+        process.exitCode = result.status === 'ready' ? 0 : 2;
         break;
       }
       case 'run-alpha-cycle': {
@@ -247,7 +290,7 @@ async function bootstrap(): Promise<void> {
       }
       default:
         throw new Error(
-          `Unknown command: ${command ?? '(missing)'}. Expected run-full-backtest, lean-backtest, qc-cloud-backtest, qc-object-store-set, import-lean-run, download-external-baselines, train-ml-baseline, run-alpha-cycle, run-paper-cycle, run-paper-replay, run-live-shadow, run-learning-loop, live-preflight, live-pilot-10usd.`,
+          `Unknown command: ${command ?? '(missing)'}. Expected run-full-backtest, prepare-lean-local-data, lean-backtest, qc-cloud-backtest, qc-object-store-set, import-lean-run, download-external-baselines, train-ml-baseline, run-alpha-cycle, run-paper-cycle, run-paper-replay, run-live-shadow, run-learning-loop, live-preflight, live-pilot-10usd.`,
         );
     }
   } finally {
@@ -268,5 +311,16 @@ function isLeanImportBlocked(message: string): boolean {
     message.includes('No .latest-strategy LEAN run marker found') ||
     message.includes('No .latest LEAN run marker found') ||
     message.includes('Missing statistics.json')
+  );
+}
+
+function isFullBacktestBlocked(message: string): boolean {
+  return (
+    message.includes('Must be subscribed to map and factor files') ||
+    message.includes('QuantConnect data entitlement blocker') ||
+    message.includes('Local LEAN daily data is blocked') ||
+    message.includes('Paid local QC data download is disabled') ||
+    message.includes('Stooq CSV download requires STOOQ_API_KEY') ||
+    message.includes('Docker is unavailable to the current process')
   );
 }

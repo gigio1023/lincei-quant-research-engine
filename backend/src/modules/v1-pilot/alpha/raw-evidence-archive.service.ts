@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { NewsSource } from '../../../entities/news-source.entity';
 import { RawEvidenceRecord } from '../../../entities/raw-evidence-record.entity';
 import { hashObject, hashString } from '../../../shared/hash.util';
+import { resolveUniverseSelection } from '../universe/universe-manifest';
 
 const PARSER_VERSION = 'raw-evidence-news-rss-v1';
 
@@ -17,6 +18,11 @@ export class RawEvidenceArchiveService {
   ) {}
 
   async archiveRecentNews(limit = 40): Promise<RawEvidenceRecord[]> {
+    const universeSelection = resolveUniverseSelection();
+    const evidenceSymbols = [
+      ...universeSelection.activeSymbols,
+      ...universeSelection.watchlistSymbols,
+    ];
     const news = await this.newsRepository.find({
       order: { publishedAt: 'DESC' },
       take: limit,
@@ -36,6 +42,7 @@ export class RawEvidenceArchiveService {
       const record = this.evidenceRepository.create({
         id,
         sourceType: 'news',
+        symbol: this.matchEvidenceSymbol(item, evidenceSymbols),
         sourceUrl: item.url,
         title: item.title,
         content: item.content,
@@ -50,6 +57,8 @@ export class RawEvidenceArchiveService {
           source: item.source,
           category: item.category ?? null,
           tagsHash: hashObject(item.tags ?? []),
+          universeProfile: universeSelection.profile,
+          universeManifestId: universeSelection.manifestId,
         },
         status: 'parsed',
         blockerReasons: [],
@@ -58,6 +67,26 @@ export class RawEvidenceArchiveService {
     }
 
     return archived;
+  }
+
+  private matchEvidenceSymbol(
+    item: NewsSource,
+    symbols: string[],
+  ): string | undefined {
+    const haystack = `${item.title} ${item.content} ${(item.tags ?? []).join(' ')}`;
+    for (const symbol of symbols) {
+      if (this.containsTicker(haystack, symbol)) {
+        return symbol;
+      }
+    }
+    return undefined;
+  }
+
+  private containsTicker(text: string, symbol: string): boolean {
+    if (symbol.length <= 2) {
+      return text.includes(`$${symbol}`) || text.includes(` ${symbol} `);
+    }
+    return new RegExp(`(^|[^A-Z0-9])${symbol}([^A-Z0-9]|$)`, 'i').test(text);
   }
 
   async listRecentEvidence(limit = 80): Promise<RawEvidenceRecord[]> {

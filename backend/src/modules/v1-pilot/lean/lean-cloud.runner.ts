@@ -11,6 +11,12 @@ import { LeanCliRunner } from './lean-cli.runner';
 import { assessLeanRunArtifacts } from './lean-run-acceptance';
 import { LeanCloudArtifactWriter } from './lean-cloud-artifact-writer';
 import { QuantConnectCloudRestImporter } from './lean-cloud-rest-importer';
+import {
+  leanRuntimeUniverseManifestParameter,
+  prepareLeanRuntimeUniverseManifest,
+  resolveUniverseSelection,
+  writeUniverseSelectionReport,
+} from '../universe/universe-manifest';
 
 export type LeanCloudBacktestRequest = {
   projectName?: string;
@@ -42,6 +48,9 @@ export class LeanCloudRunner {
     const resultDirectory = join(this.repoRoot, 'artifacts/lean-runs', runId);
     const artifactsRoot = join(this.repoRoot, 'artifacts/lean-runs');
     mkdirSync(resultDirectory, { recursive: true });
+    const universeSelection = resolveUniverseSelection();
+    prepareLeanRuntimeUniverseManifest();
+    writeUniverseSelectionReport(resultDirectory, universeSelection);
     this.cloudArtifactWriter.writeLatestMarker(artifactsRoot, '.latest', runId);
     this.cloudArtifactWriter.writeLatestMarker(
       artifactsRoot,
@@ -55,6 +64,10 @@ export class LeanCloudRunner {
       'no-static-meta': true,
       'no-static-ml': true,
       'alpha-mode': 'numeric-only',
+      'universe-profile': universeSelection.profile,
+      'universe-manifest-path': leanRuntimeUniverseManifestParameter(),
+      'allow-leveraged-etf': universeSelection.allowLeveragedEtf,
+      'universe-symbols': universeSelection.activeSymbols.join(','),
       ...(request.parameters ?? {}),
     };
     const args = [
@@ -251,8 +264,17 @@ export class LeanCloudRunner {
   private classifyBlockers(output: string): string[] {
     const normalized = output.toLowerCase();
     const blockers: string[] = [];
-    if (normalized.includes('paid tier')) {
+    if (
+      normalized.includes('paid tier') ||
+      normalized.includes('paid account') ||
+      normalized.includes('upgrade to paid')
+    ) {
       blockers.push('QuantConnect paid organization tier is required.');
+    }
+    if (normalized.includes('invalid character')) {
+      blockers.push(
+        'QuantConnect Cloud project push rejected an unsupported project file or metadata character.',
+      );
     }
     if (
       normalized.includes('not logged in') ||
@@ -269,7 +291,12 @@ export class LeanCloudRunner {
         'QuantConnect Cloud project is missing; rerun with --push or create/pull the project.',
       );
     }
-    if (normalized.includes('dataset') || normalized.includes('data')) {
+    if (
+      normalized.includes('dataset') ||
+      normalized.includes('data access') ||
+      normalized.includes('must be subscribed') ||
+      normalized.includes('security master')
+    ) {
       blockers.push('QuantConnect dataset access may be blocked.');
     }
     return blockers;
@@ -280,6 +307,12 @@ export class LeanCloudRunner {
   }
 
   private extractBacktestId(output: string): string | undefined {
-    return output.match(/[a-f0-9]{32}/i)?.[0];
+    const explicitId = output.match(
+      /backtest(?:\s+id|\sid|ID)?[:\s]+([a-f0-9-]{24,})/i,
+    )?.[1];
+    if (explicitId) {
+      return explicitId;
+    }
+    return output.match(/\/backtests\/([a-f0-9-]{24,})/i)?.[1];
   }
 }

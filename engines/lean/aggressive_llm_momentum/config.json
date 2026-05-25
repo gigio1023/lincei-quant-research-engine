@@ -1,16 +1,19 @@
 {
   "algorithm-language": "Python",
   "parameters": {
-    "max-single-name-pct": "0.35",
-    "top-k": "2",
+    "max-single-name-pct": "0.08",
+    "top-k": "3",
     "meta-decisions-path": "input/meta_decisions.json",
     "llm-event-features-path": "input/llm_event_features.json",
     "vol-target-annual": "0.15",
     "max-drawdown-pct": "0.12",
     "max-gross-exposure-pct": "1.0",
-    "stale-data-hours": "48"
+    "stale-data-hours": "48",
+    "universe-profile": "quality_core_backtest_safe",
+    "universe-manifest-path": "input/universe_manifest.runtime.json",
+    "allow-leveraged-etf": "false"
   },
-  "description": "Aggressive LLM momentum — liquid ETF universe with numeric + meta alpha",
+  "description": "Aggressive LLM momentum quality gated universe with numeric and semantic alpha",
   "local-id": 987654321,
   "organization-id": "lincei-local",
   "algorithm-type-name": "AggressiveLlmMomentum"

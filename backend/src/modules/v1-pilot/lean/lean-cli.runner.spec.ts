@@ -50,6 +50,25 @@ describe('LeanCliRunner environment', () => {
   });
 });
 
+describe('LeanCliRunner cost guards', () => {
+  const originalEnv = { ...process.env };
+
+  afterEach(() => {
+    process.env = { ...originalEnv };
+  });
+
+  it('blocks local QuantConnect data download before checking LEAN prerequisites', () => {
+    process.env = { ...originalEnv };
+    delete process.env.ALLOW_PAID_QC_LOCAL_DATA_DOWNLOAD;
+
+    expect(() =>
+      new LeanCliRunner().runBacktest({
+        downloadData: true,
+      }),
+    ).toThrow('Paid local QC data download is disabled');
+  });
+});
+
 describe('summarizeLeanCliFailure', () => {
   it('extracts actionable LEAN errors from buffered output', () => {
     const summary = summarizeLeanCliFailure({
@@ -62,6 +81,7 @@ describe('summarizeLeanCliFailure', () => {
     });
 
     expect(summary).toContain('Must be subscribed to map and factor files');
+    expect(summary).toContain('QuantConnect data entitlement blocker');
     expect(summary).not.toContain('pkg_resources');
   });
 });

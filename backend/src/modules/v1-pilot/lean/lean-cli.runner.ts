@@ -1,5 +1,7 @@
 /**
- * Runs official `lean backtest` in Docker. Requires lean.json, Docker, and QC data (see docs/full-lean-backtest-setup.md).
+ * Runs official `lean backtest` in Docker. Local QuantConnect data downloads can
+ * spend QCC, so this runner defaults to repo-local data and requires an
+ * explicit cost guard before it passes `--download-data`.
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { execFileSync, spawnSync } from 'child_process';
@@ -26,6 +28,12 @@ import {
   prepareRunLeanConfig,
   readLeanLog,
 } from './lean-cli-backtest-files';
+import {
+  leanRuntimeUniverseManifestParameter,
+  prepareLeanRuntimeUniverseManifest,
+  resolveUniverseSelection,
+  writeUniverseSelectionReport,
+} from '../universe/universe-manifest';
 
 const REQUIRED_ARTIFACTS = [
   'statistics.json',
@@ -51,6 +59,8 @@ export type LeanCliBacktestRequest = {
   noStaticMl?: boolean;
   alphaMode?: string;
   universeSymbols?: string[];
+  universeProfile?: string;
+  allowLeveragedEtf?: boolean;
   allowSummaryHydration?: boolean;
   requireStrategyEvidence?: boolean;
 };
@@ -152,6 +162,10 @@ export class LeanCliRunner {
   }
 
   runBacktest(request: LeanCliBacktestRequest = {}): LeanCliBacktestResult {
+    const shouldDownloadData = request.downloadData === true;
+    if (shouldDownloadData) {
+      this.assertPaidLocalDataDownloadAllowed();
+    }
     const { leanBin, processEnv, dockerMode } = this.assertPrerequisites();
     const projectName = request.projectName ?? 'aggressive_llm_momentum';
     const runId =
@@ -162,12 +176,19 @@ export class LeanCliRunner {
         .slice(0, 14)}-${randomBytes(4).toString('hex')}`;
     const outputDirectory = join(this.repoRoot, 'artifacts/lean-runs', runId);
     mkdirSync(outputDirectory, { recursive: true });
+    const universeSelection = resolveUniverseSelection({
+      profile: request.universeProfile,
+      overrideSymbols: request.universeSymbols,
+      allowLeveragedEtf: request.allowLeveragedEtf,
+    });
+    prepareLeanRuntimeUniverseManifest();
+    writeUniverseSelectionReport(outputDirectory, universeSelection);
     const artifactRelativeDir = `lincei-artifacts/${runId}`;
     const artifactOutputDir = `/Results/${artifactRelativeDir}`;
     const runLeanConfigPath = prepareRunLeanConfig({
       leanWorkspace: this.leanWorkspace,
       runId,
-      downloadData: request.downloadData !== false,
+      downloadData: shouldDownloadData,
     });
     const projectArtifactDir = join(
       this.leanWorkspace,
@@ -209,19 +230,40 @@ export class LeanCliRunner {
     this.appendParameter(args, 'no-static-meta', request.noStaticMeta);
     this.appendParameter(args, 'no-static-ml', request.noStaticMl);
     this.appendParameter(args, 'alpha-mode', request.alphaMode);
+    this.appendParameter(args, 'universe-profile', universeSelection.profile);
+    this.appendParameter(
+      args,
+      'universe-manifest-path',
+      leanRuntimeUniverseManifestParameter(),
+    );
+    this.appendParameter(
+      args,
+      'allow-leveraged-etf',
+      universeSelection.allowLeveragedEtf,
+    );
     this.appendParameter(
       args,
       'universe-symbols',
-      request.universeSymbols?.join(','),
+      universeSelection.activeSymbols.join(','),
     );
-    if (request.downloadData === false) {
+    if (!shouldDownloadData) {
       args.push('--data-provider-historical', 'Local');
-      this.appendParameter(args, 'backtest-start-date', '2020-01-01');
-      this.appendParameter(args, 'backtest-end-date', '2021-03-31');
+      const window = this.resolveBacktestWindow(
+        '2020-01-01',
+        '2021-03-31',
+        universeSelection.minimumStartDate,
+      );
+      this.appendParameter(args, 'backtest-start-date', window.startDate);
+      this.appendParameter(args, 'backtest-end-date', window.endDate);
     } else {
       args.push('--download-data');
-      this.appendParameter(args, 'backtest-start-date', '2024-01-01');
-      this.appendParameter(args, 'backtest-end-date', '2025-12-31');
+      const window = this.resolveBacktestWindow(
+        '2024-01-01',
+        '2025-12-31',
+        universeSelection.minimumStartDate,
+      );
+      this.appendParameter(args, 'backtest-start-date', window.startDate);
+      this.appendParameter(args, 'backtest-end-date', window.endDate);
     }
 
     this.logger.log(`Starting lean backtest ${runId} (Docker)...`);
@@ -457,6 +499,20 @@ export class LeanCliRunner {
     args.push('--parameter', name, String(value));
   }
 
+  private resolveBacktestWindow(
+    defaultStartDate: string,
+    defaultEndDate: string,
+    minimumStartDate?: string,
+  ): { startDate: string; endDate: string } {
+    const startDate =
+      minimumStartDate && minimumStartDate > defaultStartDate
+        ? minimumStartDate
+        : defaultStartDate;
+    const today = new Date().toISOString().slice(0, 10);
+    const endDate = startDate > defaultEndDate ? today : defaultEndDate;
+    return { startDate, endDate };
+  }
+
   private runLeanCommand(
     leanBin: string,
     args: string[],
@@ -490,5 +546,18 @@ export class LeanCliRunner {
 
   private shellQuote(value: string): string {
     return `'${value.replace(/'/g, `'\\''`)}'`;
+  }
+
+  private assertPaidLocalDataDownloadAllowed(): void {
+    if (process.env.ALLOW_PAID_QC_LOCAL_DATA_DOWNLOAD === 'true') {
+      return;
+    }
+    throw new Error(
+      [
+        'Paid local QC data download is disabled.',
+        'Cloud backtests should be used for the full quality universe to minimize billing.',
+        'Set ALLOW_PAID_QC_LOCAL_DATA_DOWNLOAD=true only when the user explicitly accepts QCC/local dataset costs.',
+      ].join(' '),
+    );
   }
 }

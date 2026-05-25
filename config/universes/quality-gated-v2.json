@@ -1,0 +1,789 @@
+{
+  "schemaVersion": "quality-gated-universe-v2",
+  "id": "quality-gated-v2",
+  "status": "active normative universe manifest",
+  "asOf": "2026-05-24",
+  "defaultProfile": "quality_core_backtest_safe",
+  "rules": {
+    "defaultAllowLeveragedEtf": false,
+    "blockedBeatsReady": true,
+    "activeProfileMustExcludeHardExcluded": true,
+    "debugOverrideAllowedStatuses": [
+      "active",
+      "benchmark",
+      "watchlist"
+    ]
+  },
+  "sleeveCaps": {
+    "semiconductor_ai_compute": 0.35,
+    "software_cybersecurity": 0.3,
+    "power_electrification": 0.3,
+    "space_aerospace": 0.12,
+    "cash_risk_off": 1.0,
+    "benchmark": 1.0
+  },
+  "profiles": [
+    {
+      "name": "quality_core_backtest_safe",
+      "description": "Default backtest-safe quality universe. It excludes forward-only launches and daily leveraged ETFs.",
+      "activeSymbols": [
+        "SMH",
+        "NVDA",
+        "AVGO",
+        "TSM",
+        "ASML",
+        "AMAT",
+        "AMD",
+        "MU",
+        "LRCX",
+        "KLAC",
+        "MRVL",
+        "IGV",
+        "CIBR",
+        "MSFT",
+        "ORCL",
+        "NOW",
+        "PANW",
+        "CRWD",
+        "PLTR",
+        "ANET",
+        "DDOG",
+        "GRID",
+        "ETN",
+        "PWR",
+        "VRT",
+        "GEV",
+        "CEG",
+        "VST",
+        "XAR",
+        "UFO",
+        "RKLB",
+        "LMT",
+        "NOC",
+        "LHX"
+      ],
+      "benchmarkSymbols": [
+        "SPY",
+        "QQQ",
+        "IWM",
+        "SOXX",
+        "XLU",
+        "ITA"
+      ],
+      "watchlistSymbols": [
+        "NASA",
+        "SGOV",
+        "NET",
+        "CRM",
+        "ADBE",
+        "SNOW",
+        "IRDM",
+        "PL",
+        "HUBB",
+        "NEE",
+        "SO",
+        "DUK"
+      ]
+    },
+    {
+      "name": "forward_nasa",
+      "description": "Forward-only space profile for NASA ETF after its 2026 launch.",
+      "extends": "quality_core_backtest_safe",
+      "activeAdd": [
+        "NASA"
+      ],
+      "minimumStartDate": "2026-03-31"
+    },
+    {
+      "name": "tactical_leverage_disabled",
+      "description": "Research-only tactical profile for SOXL. Disabled unless V1_ALLOW_LEVERAGED_ETF=true.",
+      "extends": "quality_core_backtest_safe",
+      "activeAdd": [
+        "SOXL"
+      ],
+      "requiresAllowLeveragedEtf": true
+    }
+  ],
+  "instruments": [
+    {
+      "symbol": "SMH",
+      "name": "VanEck Semiconductor ETF",
+      "assetType": "etf",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "semiconductor_ai_compute",
+      "maxPositionPct": 0.25,
+      "startDate": "2011-12-20",
+      "rationale": "Semiconductor ETF anchor with broad AI compute, foundry, memory, and equipment exposure.",
+      "sourceRefs": [
+        "https://www.vaneck.com/us/en/investments/semiconductor-etf-smh/"
+      ]
+    },
+    {
+      "symbol": "NVDA",
+      "name": "NVIDIA",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "semiconductor_ai_compute",
+      "maxPositionPct": 0.08,
+      "rationale": "Primary AI compute accelerator exposure."
+    },
+    {
+      "symbol": "AVGO",
+      "name": "Broadcom",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "semiconductor_ai_compute",
+      "maxPositionPct": 0.08,
+      "rationale": "Custom AI silicon and networking complement to NVIDIA."
+    },
+    {
+      "symbol": "TSM",
+      "name": "Taiwan Semiconductor Manufacturing",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "semiconductor_ai_compute",
+      "maxPositionPct": 0.08,
+      "rationale": "Foundry bottleneck exposure."
+    },
+    {
+      "symbol": "ASML",
+      "name": "ASML",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "semiconductor_ai_compute",
+      "maxPositionPct": 0.08,
+      "rationale": "Lithography bottleneck exposure."
+    },
+    {
+      "symbol": "AMAT",
+      "name": "Applied Materials",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "semiconductor_ai_compute",
+      "maxPositionPct": 0.08,
+      "rationale": "Broad process equipment and advanced-packaging exposure."
+    },
+    {
+      "symbol": "AMD",
+      "name": "Advanced Micro Devices",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "include",
+      "sleeve": "semiconductor_ai_compute",
+      "maxPositionPct": 0.07,
+      "rationale": "Main AI accelerator challenger."
+    },
+    {
+      "symbol": "MU",
+      "name": "Micron Technology",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "include",
+      "sleeve": "semiconductor_ai_compute",
+      "maxPositionPct": 0.06,
+      "rationale": "HBM and memory-cycle exposure; capped for cyclicality."
+    },
+    {
+      "symbol": "LRCX",
+      "name": "Lam Research",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "include",
+      "sleeve": "semiconductor_ai_compute",
+      "maxPositionPct": 0.06,
+      "rationale": "High-quality wafer fabrication equipment exposure."
+    },
+    {
+      "symbol": "KLAC",
+      "name": "KLA",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "include",
+      "sleeve": "semiconductor_ai_compute",
+      "maxPositionPct": 0.06,
+      "rationale": "Process-control equipment exposure."
+    },
+    {
+      "symbol": "MRVL",
+      "name": "Marvell Technology",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "include",
+      "sleeve": "semiconductor_ai_compute",
+      "maxPositionPct": 0.05,
+      "rationale": "AI interconnect and custom silicon satellite exposure."
+    },
+    {
+      "symbol": "IGV",
+      "name": "iShares Expanded Tech-Software Sector ETF",
+      "assetType": "etf",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "software_cybersecurity",
+      "maxPositionPct": 0.25,
+      "rationale": "Broad software ETF anchor.",
+      "sourceRefs": [
+        "https://www.blackrock.com/us/individual/products/239771/ishares-expanded-tech-software-sector-etf"
+      ]
+    },
+    {
+      "symbol": "CIBR",
+      "name": "First Trust Nasdaq Cybersecurity ETF",
+      "assetType": "etf",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "software_cybersecurity",
+      "maxPositionPct": 0.2,
+      "rationale": "Cybersecurity ETF anchor with liquid direct cyber exposure.",
+      "sourceRefs": [
+        "https://www.ftportfolios.com/retail/etf/EtfSummary.aspx?Ticker=CIBR"
+      ]
+    },
+    {
+      "symbol": "MSFT",
+      "name": "Microsoft",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "software_cybersecurity",
+      "maxPositionPct": 0.08,
+      "rationale": "Highest-quality AI, software, and cloud anchor.",
+      "sourceRefs": [
+        "https://www.microsoft.com/en-us/investor/earnings/fy-2026-q3/press-release-webcast"
+      ]
+    },
+    {
+      "symbol": "ORCL",
+      "name": "Oracle",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "software_cybersecurity",
+      "maxPositionPct": 0.08,
+      "rationale": "AI infrastructure and OCI demand signal."
+    },
+    {
+      "symbol": "NOW",
+      "name": "ServiceNow",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "software_cybersecurity",
+      "maxPositionPct": 0.08,
+      "rationale": "Enterprise AI workflow compounder.",
+      "sourceRefs": [
+        "https://investor.servicenow.com/news/news-details/2026/ServiceNow-Reports-First-Quarter-2026-Financial-Results/default.aspx"
+      ]
+    },
+    {
+      "symbol": "PANW",
+      "name": "Palo Alto Networks",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "software_cybersecurity",
+      "maxPositionPct": 0.08,
+      "rationale": "Cyber platform leader."
+    },
+    {
+      "symbol": "CRWD",
+      "name": "CrowdStrike",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "software_cybersecurity",
+      "maxPositionPct": 0.08,
+      "rationale": "Pure-play cyber momentum exposure."
+    },
+    {
+      "symbol": "PLTR",
+      "name": "Palantir",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "core_capped",
+      "sleeve": "software_cybersecurity",
+      "maxPositionPct": 0.05,
+      "rationale": "Strong AI platform momentum but valuation-sensitive."
+    },
+    {
+      "symbol": "ANET",
+      "name": "Arista Networks",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "software_cybersecurity",
+      "maxPositionPct": 0.08,
+      "rationale": "AI networking exposure."
+    },
+    {
+      "symbol": "DDOG",
+      "name": "Datadog",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "include",
+      "sleeve": "software_cybersecurity",
+      "maxPositionPct": 0.06,
+      "rationale": "Observability and security platform exposure."
+    },
+    {
+      "symbol": "GRID",
+      "name": "First Trust NASDAQ Clean Edge Smart Grid Infrastructure Index Fund",
+      "assetType": "etf",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "power_electrification",
+      "maxPositionPct": 0.25,
+      "rationale": "Best ETF fit for grid and electrification infrastructure.",
+      "sourceRefs": [
+        "https://www.ftportfolios.com/Retail/Etf/EtfSummary.aspx?Ticker=GRID"
+      ]
+    },
+    {
+      "symbol": "ETN",
+      "name": "Eaton",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "power_electrification",
+      "maxPositionPct": 0.08,
+      "rationale": "Electrification and power-management compounder.",
+      "sourceRefs": [
+        "https://www.eaton.com/us/en-us/company/news-insights/news-releases/2026/eaton-reports-record-first-quarter-2026-results.html"
+      ]
+    },
+    {
+      "symbol": "PWR",
+      "name": "Quanta Services",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "power_electrification",
+      "maxPositionPct": 0.08,
+      "rationale": "Grid, transmission, generation, and large-load construction.",
+      "sourceRefs": [
+        "https://investors.quantaservices.com/news-events/press-releases/detail/396/quanta-services-reports-first-quarter-2026-results"
+      ]
+    },
+    {
+      "symbol": "VRT",
+      "name": "Vertiv",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "power_electrification",
+      "maxPositionPct": 0.06,
+      "rationale": "Direct data-center power and cooling infrastructure exposure."
+    },
+    {
+      "symbol": "GEV",
+      "name": "GE Vernova",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "power_electrification",
+      "maxPositionPct": 0.08,
+      "rationale": "Power and electrification equipment exposure."
+    },
+    {
+      "symbol": "CEG",
+      "name": "Constellation Energy",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "power_electrification",
+      "maxPositionPct": 0.07,
+      "rationale": "Dispatchable nuclear/power exposure to data-center load growth."
+    },
+    {
+      "symbol": "VST",
+      "name": "Vistra",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "include_capped",
+      "sleeve": "power_electrification",
+      "maxPositionPct": 0.05,
+      "rationale": "Power scarcity exposure; capped for commodity/power-price sensitivity."
+    },
+    {
+      "symbol": "XAR",
+      "name": "SPDR S&P Aerospace & Defense ETF",
+      "assetType": "etf",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "space_aerospace",
+      "maxPositionPct": 0.12,
+      "rationale": "Aerospace and defense factor ETF anchor.",
+      "sourceRefs": [
+        "https://www.ssga.com/us/en/etfs/spdr-sp-aerospace-defense-etf-xar"
+      ]
+    },
+    {
+      "symbol": "UFO",
+      "name": "Procure Space ETF",
+      "assetType": "etf",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "space_aerospace",
+      "maxPositionPct": 0.08,
+      "rationale": "Historical pure-space ETF proxy while newer NASA ETF lacks backtest history.",
+      "sourceRefs": [
+        "https://procureetfs.com/etfs/ufo.html"
+      ]
+    },
+    {
+      "symbol": "RKLB",
+      "name": "Rocket Lab",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "core_capped",
+      "sleeve": "space_aerospace",
+      "maxPositionPct": 0.05,
+      "rationale": "Pure-play launch and space systems exposure; capped for volatility.",
+      "sourceRefs": [
+        "https://www.sec.gov/Archives/edgar/data/1819994/000181999426000027/rklb-05072026ex991.htm"
+      ]
+    },
+    {
+      "symbol": "LMT",
+      "name": "Lockheed Martin",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "space_aerospace",
+      "maxPositionPct": 0.05,
+      "rationale": "Defense/space prime for durable government demand."
+    },
+    {
+      "symbol": "NOC",
+      "name": "Northrop Grumman",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "space_aerospace",
+      "maxPositionPct": 0.05,
+      "rationale": "Defense/space prime exposure."
+    },
+    {
+      "symbol": "LHX",
+      "name": "L3Harris",
+      "assetType": "equity",
+      "status": "active",
+      "tier": "core",
+      "sleeve": "space_aerospace",
+      "maxPositionPct": 0.05,
+      "rationale": "Defense electronics and space systems exposure."
+    },
+    {
+      "symbol": "SPY",
+      "name": "SPDR S&P 500 ETF Trust",
+      "assetType": "etf",
+      "status": "benchmark",
+      "tier": "benchmark",
+      "sleeve": "benchmark",
+      "maxPositionPct": 0.35,
+      "rationale": "Broad market benchmark and legacy smoke-test symbol."
+    },
+    {
+      "symbol": "QQQ",
+      "name": "Invesco QQQ Trust",
+      "assetType": "etf",
+      "status": "benchmark",
+      "tier": "benchmark",
+      "sleeve": "benchmark",
+      "maxPositionPct": 0.35,
+      "rationale": "Growth/technology benchmark and legacy smoke-test symbol."
+    },
+    {
+      "symbol": "IWM",
+      "name": "iShares Russell 2000 ETF",
+      "assetType": "etf",
+      "status": "benchmark",
+      "tier": "benchmark",
+      "sleeve": "benchmark",
+      "maxPositionPct": 0.35,
+      "rationale": "Legacy small-cap smoke-test benchmark."
+    },
+    {
+      "symbol": "SOXX",
+      "name": "iShares Semiconductor ETF",
+      "assetType": "etf",
+      "status": "benchmark",
+      "tier": "alternate_etf",
+      "sleeve": "semiconductor_ai_compute",
+      "maxPositionPct": 0.25,
+      "rationale": "Clean semiconductor benchmark/alternate; redundant with SMH for active exposure.",
+      "sourceRefs": [
+        "https://www.ishares.com/us/products/239705/ishares-phlx-semiconductor-etf"
+      ]
+    },
+    {
+      "symbol": "XLU",
+      "name": "Utilities Select Sector SPDR Fund",
+      "assetType": "etf",
+      "status": "benchmark",
+      "tier": "defensive_beta",
+      "sleeve": "power_electrification",
+      "maxPositionPct": 0.25,
+      "rationale": "Utility beta and defensive benchmark, not aggressive default.",
+      "sourceRefs": [
+        "https://www.ssga.com/us/en/etfs/the-utilities-select-sector-spdr-fund-xlu"
+      ]
+    },
+    {
+      "symbol": "ITA",
+      "name": "iShares U.S. Aerospace & Defense ETF",
+      "assetType": "etf",
+      "status": "benchmark",
+      "tier": "benchmark",
+      "sleeve": "space_aerospace",
+      "maxPositionPct": 0.25,
+      "rationale": "Aerospace/defense liquidity benchmark; redundant with XAR as active exposure."
+    },
+    {
+      "symbol": "NASA",
+      "name": "Tema Space Innovators ETF",
+      "assetType": "etf",
+      "status": "watchlist",
+      "tier": "forward_only",
+      "sleeve": "space_aerospace",
+      "maxPositionPct": 0.08,
+      "startDate": "2026-03-31",
+      "rationale": "Forward-only space ETF with SpaceX SPV exposure; excluded from historical default due short history and private-security valuation risk.",
+      "sourceRefs": [
+        "https://temaetfs.com/nasa",
+        "https://temaetfs.com/press/space-innovators-etf-exceeds-1-billion-aum"
+      ]
+    },
+    {
+      "symbol": "SGOV",
+      "name": "iShares 0-3 Month Treasury Bond ETF",
+      "assetType": "etf",
+      "status": "watchlist",
+      "tier": "cash_proxy",
+      "sleeve": "cash_risk_off",
+      "maxPositionPct": 1.0,
+      "rationale": "Optional cash/risk-off proxy only when data exists for the tested window."
+    },
+    {
+      "symbol": "NET",
+      "assetType": "equity",
+      "status": "watchlist",
+      "tier": "include_candidate",
+      "sleeve": "software_cybersecurity",
+      "maxPositionPct": 0.05,
+      "rationale": "Relevant edge/security platform, but lower quality than CRWD/PANW for default active exposure."
+    },
+    {
+      "symbol": "CRM",
+      "assetType": "equity",
+      "status": "watchlist",
+      "tier": "mature_candidate",
+      "sleeve": "software_cybersecurity",
+      "maxPositionPct": 0.05,
+      "rationale": "Relevant AI CRM/data platform, but growth quality is less clean than NOW/PLTR/MSFT."
+    },
+    {
+      "symbol": "ADBE",
+      "assetType": "equity",
+      "status": "watchlist",
+      "tier": "mature_candidate",
+      "sleeve": "software_cybersecurity",
+      "maxPositionPct": 0.05,
+      "rationale": "High-quality business but less clean AI-platform exposure until durable reacceleration is visible."
+    },
+    {
+      "symbol": "SNOW",
+      "assetType": "equity",
+      "status": "watchlist",
+      "tier": "event_pending",
+      "sleeve": "software_cybersecurity",
+      "maxPositionPct": 0.05,
+      "rationale": "Data-cloud/AI candidate; wait for next event before upgrading."
+    },
+    {
+      "symbol": "IRDM",
+      "assetType": "equity",
+      "status": "watchlist",
+      "tier": "mature_space_candidate",
+      "sleeve": "space_aerospace",
+      "maxPositionPct": 0.04,
+      "rationale": "Mature satellite communications candidate, not launch-focused enough for default active exposure."
+    },
+    {
+      "symbol": "PL",
+      "assetType": "equity",
+      "status": "watchlist",
+      "tier": "space_data_candidate",
+      "sleeve": "space_aerospace",
+      "maxPositionPct": 0.04,
+      "rationale": "Space-data candidate; default excludes until liquidity and thesis quality are rechecked."
+    },
+    {
+      "symbol": "HUBB",
+      "assetType": "equity",
+      "status": "watchlist",
+      "tier": "redundant_quality_candidate",
+      "sleeve": "power_electrification",
+      "maxPositionPct": 0.05,
+      "rationale": "Good grid/electrical supplier but partially redundant with GRID, ETN, and PWR."
+    },
+    {
+      "symbol": "NEE",
+      "assetType": "equity",
+      "status": "watchlist",
+      "tier": "regulated_utility_candidate",
+      "sleeve": "power_electrification",
+      "maxPositionPct": 0.04,
+      "rationale": "Regulated utility/load-growth candidate, not aggressive default."
+    },
+    {
+      "symbol": "SO",
+      "assetType": "equity",
+      "status": "watchlist",
+      "tier": "regulated_utility_candidate",
+      "sleeve": "power_electrification",
+      "maxPositionPct": 0.04,
+      "rationale": "Regulated utility/load-growth candidate, not aggressive default."
+    },
+    {
+      "symbol": "DUK",
+      "assetType": "equity",
+      "status": "watchlist",
+      "tier": "regulated_utility_candidate",
+      "sleeve": "power_electrification",
+      "maxPositionPct": 0.04,
+      "rationale": "Regulated utility/load-growth candidate, not aggressive default."
+    },
+    {
+      "symbol": "SOXL",
+      "name": "Direxion Daily Semiconductor Bull 3X Shares",
+      "assetType": "etf",
+      "status": "tactical_disabled",
+      "tier": "leveraged_tactical",
+      "sleeve": "semiconductor_ai_compute",
+      "maxPositionPct": 0.08,
+      "requiresAllowLeveragedEtf": true,
+      "exclusionReason": "Daily 3x leveraged ETF; not suitable for default historical portfolio backtests.",
+      "sourceRefs": [
+        "https://www.direxion.com/product/daily-semiconductor-bull-bear-3x-etfs"
+      ]
+    },
+    {
+      "symbol": "INTC",
+      "assetType": "equity",
+      "status": "hard_excluded",
+      "sleeve": "semiconductor_ai_compute",
+      "exclusionReason": "Excluded despite index presence due weak operating evidence and foundry losses versus stronger alternatives."
+    },
+    {
+      "symbol": "WCLD",
+      "assetType": "etf",
+      "status": "hard_excluded",
+      "sleeve": "software_cybersecurity",
+      "exclusionReason": "Cloud ETF is too weak/redundant versus IGV and vetted single names."
+    },
+    {
+      "symbol": "SKYY",
+      "assetType": "etf",
+      "status": "hard_excluded",
+      "sleeve": "software_cybersecurity",
+      "exclusionReason": "Cloud ETF is liquid but redundant with MSFT, ORCL, ANET, and IGV."
+    },
+    {
+      "symbol": "DRIV",
+      "assetType": "etf",
+      "status": "hard_excluded",
+      "sleeve": "power_electrification",
+      "exclusionReason": "EV/autonomous exposure dilutes the intended grid and data-center power signal."
+    },
+    {
+      "symbol": "ICLN",
+      "assetType": "etf",
+      "status": "hard_excluded",
+      "sleeve": "power_electrification",
+      "exclusionReason": "Clean-energy ETF is less pure and weaker than GRID for this thesis."
+    },
+    {
+      "symbol": "TAN",
+      "assetType": "etf",
+      "status": "hard_excluded",
+      "sleeve": "power_electrification",
+      "exclusionReason": "Solar-cycle exposure is not the intended grid/data-center infrastructure signal."
+    },
+    {
+      "symbol": "LIT",
+      "assetType": "etf",
+      "status": "hard_excluded",
+      "sleeve": "power_electrification",
+      "exclusionReason": "Lithium/storage cycle is not a clean grid/data-center infrastructure proxy."
+    },
+    {
+      "symbol": "PPA",
+      "assetType": "etf",
+      "status": "hard_excluded",
+      "sleeve": "space_aerospace",
+      "exclusionReason": "Redundant with XAR/ITA for default universe."
+    },
+    {
+      "symbol": "ROKT",
+      "assetType": "etf",
+      "status": "hard_excluded",
+      "sleeve": "space_aerospace",
+      "exclusionReason": "Less liquid and less pure than XAR/UFO/NASA profiles."
+    },
+    {
+      "symbol": "ARKX",
+      "assetType": "etf",
+      "status": "hard_excluded",
+      "sleeve": "space_aerospace",
+      "exclusionReason": "Active innovation basket is less theme-pure and overlaps tech/defense."
+    },
+    {
+      "symbol": "ASTS",
+      "assetType": "equity",
+      "status": "hard_excluded",
+      "sleeve": "space_aerospace",
+      "exclusionReason": "Popular but still pre-scale commercial execution for this engine's default universe."
+    },
+    {
+      "symbol": "LUNR",
+      "assetType": "equity",
+      "status": "hard_excluded",
+      "sleeve": "space_aerospace",
+      "exclusionReason": "Too small-cap/high-execution-risk for the first default universe."
+    },
+    {
+      "symbol": "RDW",
+      "assetType": "equity",
+      "status": "hard_excluded",
+      "sleeve": "space_aerospace",
+      "exclusionReason": "Real space infrastructure exposure, but too volatile/execution-sensitive for default."
+    },
+    {
+      "symbol": "SPIR",
+      "assetType": "equity",
+      "status": "hard_excluded",
+      "sleeve": "space_aerospace",
+      "exclusionReason": "Revenue decline and negative adjusted EBITDA keep it out of default universe."
+    },
+    {
+      "symbol": "SIDU",
+      "assetType": "equity",
+      "status": "hard_excluded",
+      "sleeve": "space_aerospace",
+      "exclusionReason": "Too speculative and low operating scale for this engine."
+    }
+  ],
+  "sourceRefs": [
+    "https://www.quantconnect.com/docs/v2/cloud-platform/datasets/quantconnect/us-equities",
+    "https://www.quantconnect.com/docs/v2/writing-algorithms/datasets/quantconnect/us-etf-constituents",
+    "https://s.nts.go.kr/nts/cm/cntnts/cntntsView.do?cntntsId=8800&mi=12274",
+    "https://www.irs.gov/pub/irs-trty/korea.pdf"
+  ]
+}

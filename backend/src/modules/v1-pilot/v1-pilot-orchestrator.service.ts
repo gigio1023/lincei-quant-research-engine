@@ -26,8 +26,11 @@ import { MlPythonRunner } from './ml/ml-python.runner';
 import { MlModelRegistryService } from './ml/ml-model-registry.service';
 import { LeanCloudRunner } from './lean/lean-cloud.runner';
 import { LeanCliRunner } from './lean/lean-cli.runner';
-import { LeanDailyDataExportService } from './lean/lean-daily-data-export.service';
-import { MarketDataIngestionService } from '../control-plane/market-data-ingestion.service';
+import {
+  LeanDataPreparationService,
+  LeanLocalDataPreparationResult,
+} from './lean/lean-data-preparation.service';
+import { resolveUniverseSelection } from './universe/universe-manifest';
 
 @Injectable()
 export class V1PilotOrchestratorService {
@@ -50,8 +53,7 @@ export class V1PilotOrchestratorService {
     private readonly mlModelRegistryService: MlModelRegistryService,
     private readonly leanCloudRunner: LeanCloudRunner,
     private readonly leanCliRunner: LeanCliRunner,
-    private readonly leanDailyDataExportService: LeanDailyDataExportService,
-    private readonly marketDataIngestionService: MarketDataIngestionService,
+    private readonly leanDataPreparationService: LeanDataPreparationService,
   ) {}
 
   async trainMlBaseline(): Promise<Record<string, unknown>> {
@@ -63,8 +65,9 @@ export class V1PilotOrchestratorService {
   }
 
   /**
-   * End-to-end production backtest: optional Stooq ingest → alpha → Lean CLI → DB import.
-   * Does not fall back to the local simulator.
+   * End-to-end local LEAN evidence path: optional Stooq ingest, alpha export,
+   * Lean CLI execution, and DB import. This is a debugging/supporting path;
+   * Cloud-imported QuantConnect artifacts remain promotion evidence.
    */
   async runFullBacktest(
     options: {
@@ -80,7 +83,8 @@ export class V1PilotOrchestratorService {
     const steps: Record<string, unknown> = {};
     const noStaticMeta = options.noStaticMeta ?? true;
     const noStaticMl = options.noStaticMl ?? true;
-    const universeSymbols = this.v1UniverseSymbols();
+    const universeSelection = resolveUniverseSelection();
+    const universeSymbols = universeSelection.activeSymbols;
     const shouldRunAlphaCycle =
       options.skipAlphaCycle !== true && (!noStaticMeta || !noStaticMl);
     const validationMode =
@@ -90,43 +94,18 @@ export class V1PilotOrchestratorService {
     const usesStaticMlPredictions = !noStaticMl;
     const alphaMode = noStaticMeta ? 'numeric-only' : 'meta-overlay';
 
-    if (options.ingestUniverseBars !== false) {
-      const windowEnd = new Date();
-      const windowStart = new Date('2019-01-01T00:00:00.000Z');
-      try {
-        steps.marketDataIngestion = await this.marketDataIngestionService.poll(
-          {
-            force: true,
-            datasetId: 'v1-lean-universe',
-            symbols: universeSymbols,
-            provider: 'stooq',
-            timeframe: '1d',
-            currency: 'USD',
-            windowStart: windowStart.toISOString(),
-            windowEnd: windowEnd.toISOString(),
-          },
-          'v1-full-backtest',
-        );
-      } catch (error) {
-        steps.marketDataIngestion = {
-          status: 'skipped',
-          reason: error instanceof Error ? error.message : 'ingestion failed',
-        };
-      }
-      steps.leanDailyDataExport =
-        await this.leanDailyDataExportService.exportMissingDailyEquityData({
-          repoRoot,
-          datasetId: 'v1-lean-universe',
-          symbols: universeSymbols,
-        });
-      steps.leanDailyDataHydration =
-        await this.leanDailyDataExportService.hydrateMarketDataFromLeanDailyData(
-          {
-            repoRoot,
-            datasetId: 'v1-lean-universe',
-            symbols: universeSymbols,
-          },
-        );
+    const localDataPreparation =
+      await this.leanDataPreparationService.prepareLocalDailyData({
+        ingestUniverseBars: options.ingestUniverseBars,
+      });
+    steps.localLeanDataPreparation = localDataPreparation;
+    if (
+      options.downloadData === false &&
+      localDataPreparation.status !== 'ready'
+    ) {
+      throw new Error(
+        `Local LEAN daily data is blocked: ${localDataPreparation.blockers.join('; ')}`,
+      );
     }
 
     if (shouldRunAlphaCycle) {
@@ -148,9 +127,11 @@ export class V1PilotOrchestratorService {
       noStaticMl,
       alphaMode,
       universeSymbols,
+      universeProfile: universeSelection.profile,
       requireStrategyEvidence: true,
     });
     steps.leanBacktest = leanResult;
+    steps.universeSelection = universeSelection;
 
     const artifactsRoot = join(repoRoot, 'artifacts/lean-runs');
     this.writeLeanLatestMarker(artifactsRoot, '.latest', leanResult.runId);
@@ -190,6 +171,14 @@ export class V1PilotOrchestratorService {
     };
   }
 
+  async prepareLeanLocalData(
+    options: {
+      ingestUniverseBars?: boolean;
+    } = {},
+  ): Promise<LeanLocalDataPreparationResult> {
+    return this.leanDataPreparationService.prepareLocalDailyData(options);
+  }
+
   async runAlphaCycle(): Promise<{
     featureCount: number;
     numericCount: number;
@@ -220,18 +209,6 @@ export class V1PilotOrchestratorService {
       llmCount: llm.length,
       metaCount: meta.length,
     };
-  }
-
-  private v1UniverseSymbols(): string[] {
-    const configured = process.env.V1_UNIVERSE_SYMBOLS;
-    if (!configured) {
-      return ['SPY', 'QQQ', 'IWM', 'TLT', 'GLD'];
-    }
-    const symbols = configured
-      .split(',')
-      .map((symbol) => symbol.trim().toUpperCase())
-      .filter(Boolean);
-    return symbols.length > 0 ? symbols : ['SPY', 'QQQ', 'IWM', 'TLT', 'GLD'];
   }
 
   async runLeanBacktest(

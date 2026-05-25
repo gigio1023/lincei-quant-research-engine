@@ -42,12 +42,9 @@ export class StooqMarketDataService implements MarketDataProviderService {
     const baseUrl =
       process.env.STOOQ_DAILY_CSV_BASE_URL ?? 'https://stooq.com/q/d/l/';
     const timeoutMs = Number(process.env.MARKET_DATA_HTTP_TIMEOUT_MS ?? 10_000);
-    const url = `${baseUrl}?s=${encodeURIComponent(
-      request.symbol.toLowerCase(),
-    )}&d1=${formatStooqDate(request.windowStart)}&d2=${formatStooqDate(
-      request.windowEnd,
-    )}&i=d`;
+    const url = this.buildUrl(baseUrl, request);
     const csv = await this.requester(url, timeoutMs);
+    this.assertCsvDownloadAvailable(csv, request);
     const bars = parseStooqDailyCsv(csv, request.symbol).filter((bar) => {
       const timestamp = new Date(bar.timestamp).getTime();
       return (
@@ -70,6 +67,45 @@ export class StooqMarketDataService implements MarketDataProviderService {
       currency: request.currency,
       bars,
     };
+  }
+
+  buildUrl(baseUrl: string, request: FetchMarketDataBarsRequest): string {
+    const params = new URLSearchParams({
+      s: this.stooqSymbol(request),
+      d1: formatStooqDate(request.windowStart),
+      d2: formatStooqDate(request.windowEnd),
+      i: 'd',
+    });
+    const apiKey = process.env.STOOQ_API_KEY?.trim();
+    if (apiKey) {
+      params.set('apikey', apiKey);
+    }
+    return `${baseUrl}?${params.toString()}`;
+  }
+
+  private stooqSymbol(request: FetchMarketDataBarsRequest): string {
+    const symbol = request.symbol.toLowerCase();
+    if (request.currency === 'USD' && !symbol.includes('.')) {
+      return `${symbol}.us`;
+    }
+    return symbol;
+  }
+
+  private assertCsvDownloadAvailable(
+    csv: string,
+    request: FetchMarketDataBarsRequest,
+  ): void {
+    if (!/get your apikey/i.test(csv)) {
+      return;
+    }
+
+    const stooqSymbol = this.stooqSymbol(request);
+    throw new BadRequestException(
+      [
+        `Stooq CSV download requires STOOQ_API_KEY for ${request.symbol}.`,
+        `Open https://stooq.com/q/d/?s=${stooqSymbol}&get_apikey, complete the captcha, and set STOOQ_API_KEY in backend/.env.`,
+      ].join(' '),
+    );
   }
 }
 

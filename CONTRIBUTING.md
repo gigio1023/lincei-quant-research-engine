@@ -120,12 +120,15 @@ cd frontend && bun run test:run
 
 ./scripts/run-alpha-cycle
 ./scripts/run-full-backtest.sh --skip-alpha-cycle --skip-market-data-ingest --no-download-data
+./scripts/verify-lean-cloud-package aggressive_llm_momentum
 ./scripts/qc-cloud-backtest aggressive_llm_momentum
 ./scripts/run-paper-cycle
 ./scripts/run-live-shadow
 ./scripts/run-learning-loop
 ./scripts/live-preflight
 ```
+
+Before a QuantConnect Cloud push, run `./scripts/verify-lean-cloud-package aggressive_llm_momentum`. The `qc-cloud-backtest --push`, `qc-cloud-push`, and `run-cloud-quality-backtest` wrappers run it automatically. Only set `SKIP_LEAN_CLOUD_PACKAGE_PREFLIGHT=true` when documenting an explicit platform blocker or emergency Cloud-only check.
 
 If a direct command cannot pass because credentials, account tier, dataset licensing, Docker/Podman, market data, broker schema, or reconciliation evidence is missing, record the blocker exactly.
 

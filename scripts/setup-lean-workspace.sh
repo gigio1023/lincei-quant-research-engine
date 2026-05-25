@@ -21,7 +21,6 @@ cd "$LEAN_ROOT"
 "$LEAN_BIN" init -l python
 
 echo ""
-echo "Next: download US equity data for the initial ETF universe (requires QuantConnect login):"
-echo "  cd engines/lean"
-echo "  $LEAN_BIN data download --dataset \"USA Equities\" --data-type Trade --ticker SPY --resolution Daily"
-echo "  (repeat for QQQ, IWM, TLT, GLD — or use bulk download in docs/full-lean-backtest-setup.md)"
+echo "Next: use ./scripts/run-local-strategy-smoke for local no-download validation."
+echo "For the full quality-gated universe, prefer ./scripts/run-cloud-quality-backtest to avoid local QCC data-download charges."
+echo "Local QuantConnect data downloads require explicit cost approval plus ALLOW_PAID_QC_LOCAL_DATA_DOWNLOAD=true."
