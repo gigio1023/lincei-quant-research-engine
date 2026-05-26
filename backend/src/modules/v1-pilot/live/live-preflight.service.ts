@@ -82,11 +82,22 @@ export class LivePreflightService {
         ? await this.findLatestPaperPlanForEvidence(
             latestLeanRun.runId,
             latestTarget.id,
+            'current-paper-cycle',
           )
         : null;
     if (!latestPaperPlan) {
+      const latestPaperReplayPlan =
+        latestLeanRun && latestTarget
+          ? await this.findLatestPaperPlanForEvidence(
+              latestLeanRun.runId,
+              latestTarget.id,
+              'historical-target-replay',
+            )
+          : null;
       blockers.push(
-        'Latest paper cycle has not produced a filled plan for the latest LEAN target.',
+        latestPaperReplayPlan
+          ? `Only historical paper replay plan ${latestPaperReplayPlan.id} exists for the latest LEAN target; current paper cycle evidence is required for live readiness.`
+          : 'Latest paper cycle has not produced a filled plan for the latest LEAN target.',
       );
     } else {
       blockers.push(...this.assessPaperReconciliation(latestPaperPlan));
@@ -153,7 +164,7 @@ export class LivePreflightService {
 
     const hasExternalBrokerSecret = Boolean(
       process.env.BROKER_CREDENTIAL_SECRET_REF ??
-        process.env.TOSS_OPEN_API_SECRET_REF,
+      process.env.TOSS_OPEN_API_SECRET_REF,
     );
     const hasLocalBrokerCredential = Boolean(
       process.env.TOSS_OPEN_API_CLIENT_ID ?? process.env.TOSS_CLIENT_ID,
@@ -293,6 +304,7 @@ export class LivePreflightService {
   private async findLatestPaperPlanForEvidence(
     leanRunId: string,
     targetSnapshotId: string,
+    mode: 'current-paper-cycle' | 'historical-target-replay',
   ): Promise<PaperOrderPlan | null> {
     const candidates = await this.paperPlanRepository.find({
       where: { status: In(['filled', 'reconciled']) },
@@ -304,7 +316,13 @@ export class LivePreflightService {
         where: { id: plan.proposalId },
       });
       const evidenceRefs = new Set(proposal?.evidenceRefs ?? []);
-      if ([...evidenceRefs].some((ref) => ref.startsWith('paper-replay:'))) {
+      const isReplay = [...evidenceRefs].some((ref) =>
+        ref.startsWith('paper-replay:'),
+      );
+      if (mode === 'current-paper-cycle' && isReplay) {
+        continue;
+      }
+      if (mode === 'historical-target-replay' && !isReplay) {
         continue;
       }
       if (

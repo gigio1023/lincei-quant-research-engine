@@ -42,6 +42,10 @@ export interface V1PilotSystemStatus {
     status: string;
     reconciliationStatus?: string;
     fillCount: number;
+    replayPlanId?: number | string;
+    replayStatus?: string;
+    replayReconciliationStatus?: string;
+    replayFillCount?: number;
   };
   broker: {
     snapshotId?: number | string;

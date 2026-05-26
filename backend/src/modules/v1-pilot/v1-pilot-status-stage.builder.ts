@@ -90,11 +90,22 @@ export function buildV1SystemStages(
           : 'missing',
       input.paper.planId
         ? `plan=${input.paper.planId}, status=${input.paper.status}, reconciliation=${input.paper.reconciliationStatus ?? 'unknown'}`
-        : 'No paper plan exists for the latest LEAN target.',
+        : input.paper.replayPlanId
+          ? `historical replay plan=${input.paper.replayPlanId}, status=${input.paper.replayStatus ?? 'unknown'}, reconciliation=${input.paper.replayReconciliationStatus ?? 'unknown'}`
+          : 'No paper plan exists for the latest LEAN target.',
       input.paper.reconciliationStatus === 'matched'
         ? []
-        : ['Latest matching paper plan is not reconciled.'],
-      input.paper.planId ? [String(input.paper.planId)] : [],
+        : input.paper.replayReconciliationStatus === 'matched'
+          ? [
+              'Historical paper replay is reconciled, but current paper cycle evidence is still missing for live readiness.',
+            ]
+          : ['Latest matching paper plan is not reconciled.'],
+      [
+        input.paper.planId ? String(input.paper.planId) : undefined,
+        input.paper.replayPlanId
+          ? `replay:${input.paper.replayPlanId}`
+          : undefined,
+      ].filter((ref): ref is string => Boolean(ref)),
     ),
     stage(
       'broker_read_only',

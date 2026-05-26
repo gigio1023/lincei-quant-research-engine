@@ -14,6 +14,10 @@ import { assessLeanRunArtifacts } from '../lean/lean-run-acceptance';
 
 type PaperBridgeMode = 'current-paper-cycle' | 'historical-target-replay';
 
+const PAPER_BRIDGE_EQUITY = 10_000;
+const PAPER_BRIDGE_MAX_SINGLE_POSITION_PCT = 40;
+const PAPER_BRIDGE_MAX_GROSS_EXPOSURE_PCT = 80;
+
 @Injectable()
 export class LeanPaperBridgeService {
   private readonly logger = new Logger(LeanPaperBridgeService.name);
@@ -128,17 +132,7 @@ export class LeanPaperBridgeService {
         start: latestRun.startedAt.toISOString(),
         end: latestRun.completedAt.toISOString(),
       },
-      backtestMetrics: {
-        totalReturnPct:
-          Number(latestRun.statistics['Compounding Annual Return'] ?? 0) * 100,
-        benchmarkReturnPct: 0,
-        maxDrawdownPct: Math.abs(
-          Number(latestRun.statistics['Maximum Drawdown'] ?? 0) * 100,
-        ),
-        sharpeRatio: Number(latestRun.statistics['Sharpe Ratio'] ?? 0),
-        turnoverPct: 10,
-        tradeCount: Number(latestRun.statistics['Total Orders'] ?? 0),
-      },
+      backtestMetrics: this.buildBacktestMetrics(latestRun.statistics),
       artifactRefs: [latestRun.resultDirectory],
       artifactHashes: {
         [latestRun.resultDirectory]: latestRun.configHash,
@@ -165,10 +159,11 @@ export class LeanPaperBridgeService {
       generatedAt: now,
       marketDataTimestamp,
       portfolioSnapshot: {
-        currency: 'USD',
-        equity: 10_000,
-        cash: 10_000,
-        grossExposurePct: snapshot.grossExposurePct,
+        currency: paperAccount.currency ?? 'USD',
+        equity: paperAccount.equity,
+        cash: paperAccount.cash,
+        grossExposurePct: paperAccount.grossExposurePct,
+        positions: paperAccount.positions ?? [],
       },
       orders,
       thesis:
@@ -300,13 +295,94 @@ export class LeanPaperBridgeService {
   }
 
   private buildOrders(targets: PortfolioTargetItemContract[]) {
-    return targets.slice(0, 2).map((target) => ({
-      symbol: target.symbol,
-      assetClass: 'foreign_etf' as const,
-      side: target.targetWeight >= 0 ? ('BUY' as const) : ('SELL' as const),
-      orderType: 'MARKET' as const,
-      notional: Math.max(100, Math.round(Math.abs(target.targetWeight) * 1000)),
-      targetPositionPct: target.targetWeight * 100,
-    }));
+    const selectedTargets = targets
+      .filter((target) => Number.isFinite(target.targetWeight))
+      .slice(0, 2);
+    const cappedPercents = selectedTargets.map((target) =>
+      Math.min(
+        Math.abs(target.targetWeight) * 100,
+        PAPER_BRIDGE_MAX_SINGLE_POSITION_PCT,
+      ),
+    );
+    const rawGrossPct = cappedPercents.reduce((sum, pct) => sum + pct, 0);
+    const grossScale =
+      rawGrossPct > PAPER_BRIDGE_MAX_GROSS_EXPOSURE_PCT
+        ? PAPER_BRIDGE_MAX_GROSS_EXPOSURE_PCT / rawGrossPct
+        : 1;
+
+    return selectedTargets.map((target, index) => {
+      const targetPositionPct = this.roundPercent(
+        cappedPercents[index] * grossScale,
+      );
+      return {
+        symbol: target.symbol,
+        assetClass: 'foreign_etf' as const,
+        side: target.targetWeight >= 0 ? ('BUY' as const) : ('SELL' as const),
+        orderType: 'MARKET' as const,
+        notional: Math.max(
+          100,
+          Math.round((targetPositionPct / 100) * PAPER_BRIDGE_EQUITY),
+        ),
+        targetPositionPct:
+          target.targetWeight >= 0 ? targetPositionPct : -targetPositionPct,
+      };
+    });
+  }
+
+  private roundPercent(value: number): number {
+    return Number(value.toFixed(2));
+  }
+
+  private buildBacktestMetrics(statistics: Record<string, string | number>) {
+    return {
+      startValue: this.parseLeanNumber(statistics['Start Equity']),
+      endValue: this.parseLeanNumber(statistics['End Equity']),
+      totalReturnPct: this.parseLeanPercent(
+        statistics['Compounding Annual Return'] ?? statistics.Return,
+      ),
+      benchmarkReturnPct: 0,
+      maxDrawdownPct: Math.abs(
+        this.parseLeanPercent(
+          statistics['Maximum Drawdown'] ?? statistics.Drawdown,
+        ),
+      ),
+      sharpeRatio: this.parseLeanNumber(statistics['Sharpe Ratio']),
+      sortinoRatio: this.parseLeanNumber(statistics['Sortino Ratio']),
+      informationRatio: this.parseLeanNumber(statistics['Information Ratio']),
+      turnoverPct: this.parseLeanPercent(statistics['Portfolio Turnover']),
+      totalFees: this.parseLeanNumber(statistics['Total Fees']),
+      tradeCount: this.parseLeanNumber(statistics['Total Orders']),
+      winRatePct: this.parseLeanPercent(statistics['Win Rate']),
+      profitFactor: this.parseLeanNumber(statistics['Profit-Loss Ratio']),
+    };
+  }
+
+  private parseLeanPercent(value: string | number | undefined): number {
+    if (typeof value === 'number') {
+      if (!Number.isFinite(value)) {
+        return 0;
+      }
+      return Math.abs(value) <= 1 ? value * 100 : value;
+    }
+    if (typeof value !== 'string') {
+      return 0;
+    }
+    const parsed = this.parseLeanNumber(value);
+    return value.includes('%')
+      ? parsed
+      : Math.abs(parsed) <= 1
+        ? parsed * 100
+        : parsed;
+  }
+
+  private parseLeanNumber(value: string | number | undefined): number {
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : 0;
+    }
+    if (typeof value !== 'string') {
+      return 0;
+    }
+    const parsed = Number(value.replace(/[$%,\s]/g, ''));
+    return Number.isFinite(parsed) ? parsed : 0;
   }
 }

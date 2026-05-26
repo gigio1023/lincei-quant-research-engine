@@ -128,6 +128,13 @@ export class V1PilotStatusService {
             where: {},
             order: { updatedAt: 'DESC' },
           });
+    const paperReplayPlan =
+      latestLeanRun && latestTarget
+        ? await this.findPaperReplayPlanForEvidence(
+            latestLeanRun.runId,
+            latestTarget.id,
+          )
+        : null;
     const latestOrderStatus = await this.brokerOrderStatusRepository.findOne({
       where: {},
       order: { asOf: 'DESC' },
@@ -159,6 +166,10 @@ export class V1PilotStatusService {
       status: paperPlan?.status ?? 'missing',
       reconciliationStatus: paperPlan?.reconciliation?.status,
       fillCount: paperPlan?.fills.length ?? 0,
+      replayPlanId: paperReplayPlan?.id,
+      replayStatus: paperReplayPlan?.status,
+      replayReconciliationStatus: paperReplayPlan?.reconciliation?.status,
+      replayFillCount: paperReplayPlan?.fills.length,
     };
     const broker = {
       snapshotId: latestBrokerSnapshot?.id,
@@ -230,6 +241,29 @@ export class V1PilotStatusService {
     leanRunId: string,
     targetSnapshotId: string,
   ): Promise<PaperOrderPlan | null> {
+    return this.findPaperPlanForEvidenceMode(
+      leanRunId,
+      targetSnapshotId,
+      'current-paper-cycle',
+    );
+  }
+
+  private async findPaperReplayPlanForEvidence(
+    leanRunId: string,
+    targetSnapshotId: string,
+  ): Promise<PaperOrderPlan | null> {
+    return this.findPaperPlanForEvidenceMode(
+      leanRunId,
+      targetSnapshotId,
+      'historical-target-replay',
+    );
+  }
+
+  private async findPaperPlanForEvidenceMode(
+    leanRunId: string,
+    targetSnapshotId: string,
+    mode: 'current-paper-cycle' | 'historical-target-replay',
+  ): Promise<PaperOrderPlan | null> {
     const candidates = await this.paperPlanRepository.find({
       where: { status: In(['filled', 'reconciled']) },
       order: { updatedAt: 'DESC' },
@@ -240,7 +274,13 @@ export class V1PilotStatusService {
         where: { id: plan.proposalId },
       });
       const evidenceRefs = new Set(proposal?.evidenceRefs ?? []);
-      if ([...evidenceRefs].some((ref) => ref.startsWith('paper-replay:'))) {
+      const isReplay = [...evidenceRefs].some((ref) =>
+        ref.startsWith('paper-replay:'),
+      );
+      if (mode === 'current-paper-cycle' && isReplay) {
+        continue;
+      }
+      if (mode === 'historical-target-replay' && !isReplay) {
         continue;
       }
       if (
