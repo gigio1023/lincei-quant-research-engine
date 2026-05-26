@@ -6,9 +6,9 @@ Status: 전체 프로젝트를 이해하기 위한 supporting review note.
 
 ## 1. 한 문장으로 말하면
 
-이 프로젝트는 "투자 근거를 읽고, alpha를 만들고, QuantConnect/LEAN에서 검증하고, portfolio와 risk rule을 통과시킨 뒤, paper 또는 live-shadow evidence로 기록하고, 결과를 reconciliation해서 다시 학습하는 시스템"입니다.
+이 프로젝트는 궁극적으로 실제 capital allocation과 live-money trading까지 가기 위한 autonomous investment research system입니다. 다만 아무 근거 없이 broker write를 켜는 시스템이 아니라, "투자 근거를 읽고, alpha를 만들고, QuantConnect/LEAN에서 검증하고, portfolio와 risk rule을 통과시킨 뒤, paper 또는 live-shadow evidence로 기록하고, 결과를 reconciliation해서 다시 학습하는" 검증 loop를 먼저 세웁니다.
 
-여기서 중요한 점은 자동으로 실제 돈을 거래하는 것이 아닙니다. 현재 milestone의 목표는 검증 가능한 alpha/execution evidence loop를 만드는 것입니다.
+방점은 실제 돈을 거래할 수 있는 수준까지 가는 것입니다. 현재 milestone은 그 전 단계로, real broker writes를 켜기 전에 Cloud backtest, paper/live-shadow, preflight, reconciliation evidence를 충분히 쌓는 구간입니다.
 
 ## 2. 먼저 봐야 하는 핵심 loop
 
@@ -35,7 +35,7 @@ flowchart LR
 4. alpha decision은 LEAN의 `Insight`로 변환됩니다.
 5. LEAN이 portfolio target을 만듭니다.
 6. risk model이 너무 큰 exposure나 stale data 같은 위험을 줄이거나 막습니다.
-7. 현재 scope에서는 실제 broker order가 아니라 paper trading 또는 live-shadow evidence를 남깁니다.
+7. 현재 validation milestone에서는 실제 broker order가 아니라 paper trading 또는 live-shadow evidence를 먼저 남깁니다.
 8. 결과를 import하고 reconciliation합니다.
 9. 그 결과를 다음 alpha 판단과 promotion review에 씁니다.
 
@@ -150,9 +150,16 @@ flowchart TB
 | preflight | execution-like action 전에 통과해야 하는 deterministic gate입니다. | unknown state는 blocked가 되어야 합니다. |
 | reconciliation | 의도한 상태와 관측된 상태를 비교합니다. | duplicate submit, stale fill, mismatch를 잡습니다. |
 
-## 6. 현재 scope와 아닌 것
+## 6. 최종 목표와 현재 milestone
 
-현재 active scope:
+최종 목표:
+
+- 실제 capital allocation을 지원할 수 있는 autonomous investment system
+- 충분한 evidence와 safety gate를 갖춘 live-money trading
+- broker-write behavior가 typed, auditable contract를 통해서만 일어나는 구조
+- LLM, numeric alpha, LEAN runtime, risk, execution, reconciliation이 함께 작동하는 end-to-end loop
+
+현재 validation milestone:
 
 - QuantConnect Cloud와 LEAN 중심의 alpha validation runtime
 - local LEAN smoke/debug run
@@ -162,7 +169,7 @@ flowchart TB
 - fail-closed preflight
 - reconciliation과 learning loop
 
-현재 scope가 아닌 것:
+현재 milestone에서 아직 켜지 않는 것:
 
 - automatic production/live trading
 - real broker writes
@@ -173,7 +180,7 @@ flowchart TB
 
 한 문장으로 정리하면:
 
-> 지금 목표는 "실제 돈을 움직이는 시스템"이 아니라 "나중에 capital allocation을 판단할 수 있을 만큼 evidence loop를 엄격하게 만드는 시스템"입니다.
+> 최종 목표는 실제 돈을 움직일 수 있는 시스템입니다. 현재 milestone은 그 목표를 안전하게 가능하게 만들기 위해 evidence loop와 fail-closed boundary를 먼저 증명하는 단계입니다.
 
 ## 7. 세 가지 실행 경로
 
@@ -289,7 +296,7 @@ flowchart TD
 - historical replay evidence는 current live readiness가 아닙니다.
 - LLM output은 final order quantity가 아닙니다.
 - frontend는 broker credential을 보면 안 됩니다.
-- real broker writes는 현재 scope가 아닙니다.
+- real broker writes는 최종 목표에 포함되지만, 현재 milestone에서는 user-approved broker-write spec과 readiness evidence 전에는 켜지지 않습니다.
 - local simulator output은 Cloud promotion evidence가 아닙니다.
 - preflight에서 unknown state는 ready가 아니라 blocked입니다.
 
@@ -400,7 +407,7 @@ Preflight blocked
 ### Documentation
 
 - 문서가 command, acceptance criteria, blocker를 구체적으로 말하는가?
-- live-money scope를 은근히 넓히지 않는가?
+- live-money goal을 숨기지 않되, 현재 milestone에서 broker write를 켜는 것처럼 과장하지 않는가?
 
 ## 15. 이 문서 기준의 현재 결론
 
@@ -410,4 +417,4 @@ Preflight blocked
 
 다만 아직 real Cloud promotion evidence가 완성된 것은 아닙니다. 정확한 상태는 아래입니다.
 
-> Import path와 typed boundary는 구현되고 테스트됐습니다. 하지만 실제 Cloud promotion evidence는 operator가 QuantConnect REST credentials, `projectId`, `backtestId`를 제공하고 import command를 실행한 뒤에 생깁니다. Live preflight는 현재 scope에서 계속 fail closed입니다.
+> 최종 목표는 live-money trading까지 포함합니다. 이번 branch는 그 목표로 가기 위해 import path와 typed boundary를 구현하고 테스트한 단계입니다. 실제 Cloud promotion evidence는 operator가 QuantConnect REST credentials, `projectId`, `backtestId`를 제공하고 import command를 실행한 뒤에 생깁니다. Live preflight는 현재 milestone에서 계속 fail closed입니다.
