@@ -43,6 +43,8 @@ flowchart LR
 
 ## 3. 왜 이렇게 복잡한가
 
+돈을 버는 것이 중요하기 때문에 복잡합니다. 실제 capital allocation으로 가려면 "수익을 낼 가능성이 있다"와 "그 수익이 우연, 미래 정보, simulator 착시, 또는 통제되지 않은 broker write에서 나온 것이 아니다"를 같이 증명해야 합니다.
+
 투자 시스템에서 가장 위험한 착시는 "좋아 보이는 backtest"입니다. 특히 아래 문제가 있으면 결과가 그럴듯해도 믿기 어렵습니다.
 
 - 미래 정보를 과거 시점에서 사용한 lookahead bias
@@ -70,6 +72,8 @@ flowchart TD
 ```
 
 LLM은 중요한 역할을 합니다. 다만 LLM은 broker credential을 보거나, 최종 주문 수량을 정하거나, raw broker payload를 만들면 안 됩니다. LLM의 역할은 typed semantic alpha feature와 risk judgment를 만드는 데 제한됩니다.
+
+구현도 이 방향입니다. 예를 들어 `LearningLoopService`는 alpha decision을 forward return과 benchmark-relative return으로 label하고, promotion decision은 QuantConnect Cloud evidence와 current live-shadow evidence가 없으면 blocked로 남깁니다. 즉 구현은 profitability를 무시하지 않습니다. 다만 현재 단계에서는 "수익을 냈다"는 주장보다 "수익을 검증 가능한 방식으로 재현하고, 위험 경계를 통과했는가"를 먼저 강제합니다.
 
 ## 4. 큰 구성 요소
 
@@ -308,6 +312,8 @@ flowchart TD
 - frontend dashboard tests와 typecheck/build가 통과했습니다.
 - Cloud import path는 code와 tests로 구현되어 있습니다.
 - paper replay evidence와 live readiness가 분리됐습니다.
+- alpha outcome labeling은 forward return과 benchmark-relative return을 기록하는 구조입니다.
+- promotion decision은 Cloud evidence와 current live-shadow evidence가 없으면 blocked로 남는 구조입니다.
 - documentation은 current direction을 설명하도록 업데이트됐습니다.
 
 아직 직접 evidence가 필요한 것:

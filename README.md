@@ -4,7 +4,7 @@ Status: active QuantConnect/LEAN + LLM validation system.
 
 Last aligned: 2026-05-26.
 
-Lincei Quant Research Engine is a personal aggressive alpha research system. The active milestone is **not** automatic live trading. The current system is built around QuantConnect Cloud, local LEAN, typed LLM semantic alpha features, paper/live-shadow evidence, reconciliation, and a learning/promotion ledger.
+Lincei Quant Research Engine is a personal aggressive alpha research system whose long-term objective is real capital allocation and live-money trading. The active milestone is **not yet** automatic live trading: the current system is building the evidence loop that must exist before broker writes are allowed. That loop is built around QuantConnect Cloud, local LEAN, typed LLM semantic alpha features, paper/live-shadow evidence, reconciliation, and a learning/promotion ledger.
 
 Read [SPEC.md](SPEC.md) first. It is the canonical long-term spec index. If any document conflicts with `SPEC.md`, `SPEC.md` wins.
 
@@ -14,7 +14,8 @@ Read [SPEC.md](SPEC.md) first. It is the canonical long-term spec index. If any 
 - The NestJS control plane owns orchestration, run manifests, LLM feature jobs, imports, paper/live-shadow ledgers, preflight, reconciliation, and operator visibility.
 - LLMs are semantic alpha engines. They convert natural-language evidence into typed point-in-time features. They do not place broker orders, see credentials, or choose final order quantity.
 - Universe selection is quality-gated by [config/universes/quality-gated-v2.json](config/universes/quality-gated-v2.json). Weak, redundant, hard-excluded, or disabled tactical instruments cannot leak into LEAN targets.
-- Real broker writes remain blocked. `submit`, `cancel`, `replace`, `flatten`, transfer, and margin/account mutation require a future user-approved live-money spec.
+- Profitability matters: alpha decisions are labeled against forward returns and benchmark-relative returns, Cloud/paper/live-shadow evidence feeds promotion decisions, and the strategy is expected to earn its way toward capital allocation.
+- Real broker writes remain blocked until the evidence and broker-readiness gates are complete. `submit`, `cancel`, `replace`, `flatten`, transfer, and margin/account mutation require a future user-approved live-money spec.
 
 ## System Flow
 
