@@ -37,6 +37,13 @@ Use official documentation where possible. Product behavior, pricing, dataset av
 - Stooq historical database: https://stooq.com/db/h/
 - Stooq CSV API key flow example: https://stooq.com/q/d/?s=smh.us&get_apikey
 
+## External Semantic Evidence
+
+- Hugging Face FOMC statements/minutes: https://huggingface.co/datasets/vtasca/fomc-statements-minutes
+- Hugging Face earnings-call data candidate: https://huggingface.co/datasets/RudrakshNanavaty/earnings-call-data
+- Hugging Face SEC filings index candidate: https://huggingface.co/datasets/kapilrao/SEC_filings_1994_2024
+- Hugging Face financial news with price candidate: https://huggingface.co/datasets/oliverwang15/us_stock_news_with_price
+
 ## Universe Research Sources
 
 - VanEck SMH: https://www.vaneck.com/us/en/investments/semiconductor-etf-smh/

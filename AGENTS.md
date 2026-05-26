@@ -11,6 +11,21 @@ These rules apply to the whole repository unless a narrower `AGENTS.md` override
 - Older dated handoffs, prompts, and archived documents are historical context only. They cannot override `SPEC.md`.
 - `terminology.md` is normative. New code, docs, comments, UI copy, prompts, and run reports must use its canonical terms and avoid its banned AI-slop expressions. If a legacy API/entity/script name violates terminology, label it as a legacy identifier rather than spreading the term into new surfaces.
 
+## Research And Reasoning Discipline
+
+These rules adapt the Karpathy-style caution against common LLM coding mistakes to this repository. They apply when researching, planning, coding, reviewing, refactoring, or updating docs.
+
+- Think before coding. Read the relevant spec, code, runbook, and recent artifacts before making changes. State assumptions, uncertainty, and tradeoffs explicitly instead of hiding confusion.
+- If multiple interpretations are plausible, name them. Pick only when the local context or user direction makes the choice defensible; otherwise ask a concise question.
+- Define the core gap before implementation. For this repository, the gap should usually map to the alpha/execution evidence loop, not to a cosmetic or speculative surface.
+- Use verifiable success criteria. For multi-step work, keep a short plan where each step has a concrete verification command, artifact, run id, or blocker.
+- Prefer the simplest working implementation. Do not add speculative features, single-use abstractions, premature configurability, broad frameworks, or defensive branches for impossible states.
+- If an implementation grows much larger than the problem warrants, stop and simplify. A senior engineer should be able to trace the design back to the user request, the spec, or a real blocker.
+- Make surgical changes. Touch only files needed for the task, match existing style, and avoid adjacent refactors. If unrelated dead code or stale docs are discovered, mention them rather than deleting them unless the user asked for cleanup.
+- Clean up only the mess created by the current change: unused imports, orphaned helpers, obsolete local comments, and test fixtures introduced by the change.
+- Loop until verified. A task is not done because code was written; it is done when the relevant direct execution, build, unit test, smoke test, or explicit blocker has been reported.
+- Direct execution evidence is preferred over test theater. Unit tests matter for pure scoring, schema, idempotency, cap, timestamp, and fail-closed behavior, but they do not replace a meaningful LEAN backtest, QuantConnect Cloud import, alpha replay, paper/live-shadow cycle, preflight, or reconciliation check when that path is affected.
+
 ## Scope And Shape
 
 - Infer useful implicit requirements from the user's goal. This is good and expected. However, implicit work is valuable only when it serves the project's core objective first. For this repository, the core objective is an executable Lean/QuantConnect + LLM autonomous alpha system that can research, decide, backtest, size, execute, reconcile, and learn.

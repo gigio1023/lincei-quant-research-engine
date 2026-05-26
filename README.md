@@ -2,7 +2,7 @@
 
 Status: active QuantConnect/LEAN + LLM validation system.
 
-Last aligned: 2026-05-24.
+Last aligned: 2026-05-26.
 
 Lincei Quant Research Engine is a personal aggressive alpha research system. The active milestone is **not** automatic live trading. The current system is built around QuantConnect Cloud, local LEAN, typed LLM semantic alpha features, paper/live-shadow evidence, reconciliation, and a learning/promotion ledger.
 
@@ -148,6 +148,247 @@ flowchart TB
     QCLOUD --> EVIDENCE
 ```
 
+## Detailed Architecture Views
+
+The diagrams below are implementation maps for the active spec. They do not expand live-money scope.
+
+### Subsystem Ownership
+
+```mermaid
+flowchart TB
+    OP["Operator"] --> SCRIPTS["scripts/* wrappers"]
+    SCRIPTS --> CLI["backend v1 CLI"]
+    CLI --> ORCH["V1PilotOrchestratorService"]
+
+    subgraph CONTROL["NestJS control plane"]
+        ORCH --> SNAP["FeatureSnapshotService"]
+        ORCH --> RAWARCHIVE["RawEvidenceArchiveService"]
+        ORCH --> HFINGEST["HuggingFaceSemanticEvidenceIngestService"]
+        ORCH --> LLMFEATSVC["LlmEventFeatureService"]
+        ORCH --> CLOUDIMPORT["LeanCloudManualImporter"]
+        ORCH --> CLOUDRUN["LeanCloudRunner"]
+        ORCH --> LEANIMPORT["LeanRunImportService"]
+        ORCH --> PAPERBRIDGE["LeanPaperBridgeService"]
+        ORCH --> SHADOWSVC["LiveShadowService"]
+        ORCH --> LEARNING["LearningLoopService"]
+        DB[("SQLite evidence store")]
+    end
+
+    subgraph LEANRT["LEAN / QuantConnect runtime"]
+        LOCALLEAN["Local LEAN<br/>debug and smoke"]
+        QCLOUD["QuantConnect Cloud<br/>promotion runtime"]
+        QCAPI["QuantConnect REST API"]
+        OBJECTSTORE["QuantConnect Object Store"]
+    end
+
+    subgraph EXTERNAL["External semantic sources"]
+        HF["Hugging Face datasets"]
+        NEWS["RSS/news records"]
+        OPENAI["OpenAI-compatible LLM API"]
+    end
+
+    HF --> HFINGEST --> DB
+    NEWS --> RAWARCHIVE --> DB
+    DB --> LLMFEATSVC
+    OPENAI --> LLMFEATSVC
+    LLMFEATSVC --> OBJECTSTORE
+    LLMFEATSVC --> LOCALLEAN
+    CLOUDRUN --> QCLOUD
+    QCLOUD --> QCAPI --> CLOUDIMPORT
+    LOCALLEAN --> LEANIMPORT --> DB
+    CLOUDIMPORT --> DB
+    DB --> PAPERBRIDGE --> DB
+    DB --> SHADOWSVC --> DB
+    DB --> LEARNING --> DB
+```
+
+### Evidence Data Model
+
+```mermaid
+erDiagram
+    RAW_EVIDENCE_RECORD ||--o{ LLM_EVENT_FEATURE : "evidenceRefs"
+    FEATURE_SNAPSHOT ||--o{ ALPHA_DECISION : "numericFeatureRefs"
+    LLM_EVENT_FEATURE ||--o{ ALPHA_DECISION : "llmFeatureRefs"
+    LEAN_RUN ||--o{ PORTFOLIO_TARGET_SNAPSHOT : "exports"
+    PORTFOLIO_TARGET_SNAPSHOT ||--o{ PAPER_ORDER_PLAN : "paper/live-shadow input"
+    PAPER_ORDER_PLAN ||--o{ LIVE_SHADOW_RECORD : "would-have-traded"
+    ALPHA_DECISION ||--o{ ALPHA_OUTCOME_LABEL : "labeled by horizon"
+    LEAN_RUN ||--o{ PROMOTION_DECISION : "evidenceRefs"
+    LIVE_SHADOW_RECORD ||--o{ PROMOTION_DECISION : "evidenceRefs"
+
+    RAW_EVIDENCE_RECORD {
+        string id
+        string sourceType
+        string symbol
+        string eventTime
+        string publishedAt
+        string retrievedAt
+        string availableAt
+        string contentHash
+    }
+
+    LLM_EVENT_FEATURE {
+        string id
+        string symbol
+        string eventType
+        string availableAt
+        string model
+        string promptVersion
+        float confidence
+    }
+
+    LEAN_RUN {
+        string runId
+        string runtime
+        string mode
+        string status
+        string cloudBacktestId
+        boolean promotionEligible
+    }
+
+    PROMOTION_DECISION {
+        string id
+        string status
+        string targetRef
+        json evidenceRefs
+        json blockerReasons
+    }
+```
+
+### QuantConnect Cloud Import Loop
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant O as Operator
+    participant CLI as import-cloud-backtest
+    participant QC as QuantConnect REST
+    participant Mapper as CloudArtifactMapper
+    participant Gate as StrategyEvidenceGate
+    participant DB as SQLite evidence store
+
+    O->>CLI: project id + backtest id
+    CLI->>QC: /backtests/read
+    QC-->>CLI: statistics + completed status
+    loop paginated insights
+        CLI->>QC: /backtests/read/insights start/end
+        QC-->>CLI: insights page
+    end
+    loop paginated orders with retry
+        CLI->>QC: /backtests/orders/read start/end
+        alt page still preparing
+            QC-->>CLI: progress/status only
+            CLI->>QC: retry same page
+        else page ready
+            QC-->>CLI: orders + order events
+        end
+    end
+    CLI->>Mapper: normalize insights/orders/fills/targets
+    Mapper-->>CLI: artifacts/lean-runs/qc-import-*
+    CLI->>Gate: assess strategy-backtest evidence
+    alt accepted
+        Gate-->>CLI: passed
+        CLI->>DB: save quantconnect-cloud LeanRun
+        CLI->>CLI: update .latest-strategy
+    else blocked
+        Gate-->>CLI: blocker reasons
+        CLI->>DB: save blocked LeanRun
+    end
+```
+
+### Semantic Alpha Feed
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant HF as Hugging Face FOMC dataset
+    participant Ingest as ingest-semantic-evidence
+    participant Raw as RawEvidenceRecord
+    participant Alpha as run-alpha-cycle
+    participant LLM as LLM semantic feature engine
+    participant LeanInput as LEAN input artifacts
+    participant Lean as LEAN AlphaModel
+
+    HF-->>Ingest: communications.csv
+    Ingest->>Raw: macro evidence with eventTime/publishedAt/retrievedAt/availableAt
+    Alpha->>Raw: load recent point-in-time evidence
+    Alpha->>LLM: snapshots + numeric alpha + eligible evidence refs
+    alt LLM available
+        LLM-->>Alpha: typed LlmEventFeature records
+    else missing key or failed call
+        LLM-->>Alpha: flat abstain features
+    end
+    Alpha->>LeanInput: llm_event_features.json
+    LeanInput->>Lean: replay only records with availableAt <= algorithm time
+    Lean-->>Lean: emit Insights from numeric + semantic alpha
+```
+
+### LEAN Strategy Runtime
+
+```mermaid
+flowchart LR
+    DATA["QuantConnect market data"] --> UNIVERSE["UniverseSelectionModel<br/>quality-gated profile"]
+    MANIFEST["quality-gated-v2.json"] --> UNIVERSE
+    MANIFEST --> PORTFOLIO
+    MANIFEST --> RISK
+    LLMJSON["llm_event_features.json<br/>point-in-time replay"] --> ALPHA
+    METAJSON["meta_decisions.json<br/>optional static overlay"] --> ALPHA
+    UNIVERSE --> ALPHA["AlphaModel<br/>numeric + semantic inputs"]
+    ALPHA --> INSIGHTS["Insight objects"]
+    INSIGHTS --> PORTFOLIO["PortfolioConstructionModel<br/>top-k + caps + zero stale holdings"]
+    PORTFOLIO --> TARGETS["PortfolioTarget artifacts"]
+    TARGETS --> RISK["RiskManagementModel<br/>stale data / drawdown / blocked symbols"]
+    RISK --> EXEC["Backtest execution model"]
+    EXEC --> ORDERS["Orders / fills"]
+    ORDERS --> EXPORT["artifact_exporter.py<br/>statistics / insights / targets / fills"]
+```
+
+### Verification Ladder
+
+```mermaid
+flowchart TB
+    UNIT["Focused unit tests<br/>schemas, policy, idempotency"] --> BUILD["Build/type checks"]
+    BUILD --> LEANPY["LEAN Python tests<br/>semantic/universe helpers"]
+    LEANPY --> PACKAGE["verify-lean-cloud-package<br/>compile + Docker LEAN smoke"]
+    PACKAGE --> LOCAL["Local LEAN smoke<br/>debug/supporting evidence"]
+    LOCAL --> CLOUD["QuantConnect Cloud backtest/import<br/>promotion evidence"]
+    CLOUD --> PAPER["Paper cycle<br/>current-market strict"]
+    PAPER --> SHADOW["Live-shadow<br/>current_live_shadow required"]
+    SHADOW --> LEARN["Learning loop<br/>labels + promotion decision"]
+    LEARN --> PREFLIGHT["Live preflight<br/>blocked under active scope"]
+
+    SIM["Local simulator"] -. "plumbing only" .-> LOCAL
+    REPLAY["run-paper-replay"] -. "historical target plumbing only" .-> PAPER
+```
+
+### Broker Boundary
+
+```mermaid
+flowchart TB
+    LLM["LLM semantic alpha"] --> FEATURES["Typed feature records"]
+    FEATURES --> LEAN["LEAN Insights"]
+    LEAN --> TARGETS["Portfolio targets"]
+    TARGETS --> RISK["Deterministic risk gates"]
+    RISK --> PAPER["Paper/live-shadow intents"]
+    PAPER --> RECON["Reconciliation"]
+    RECON --> PREFLIGHT["Live preflight"]
+
+    subgraph FORBIDDEN["Forbidden without future approved live-money spec"]
+        WRITEBLOCK["broker write boundary"]
+        SUBMIT["submit real order"]
+        CANCEL["cancel/replace real order"]
+        FLATTEN["flatten real account"]
+        MARGIN["change margin/account settings"]
+    end
+
+    WRITEBLOCK --> SUBMIT
+    WRITEBLOCK --> CANCEL
+    WRITEBLOCK --> FLATTEN
+    WRITEBLOCK --> MARGIN
+    PREFLIGHT -. "active spec blocks" .-> WRITEBLOCK
+    LLM -. "no credentials / no order payloads / no final quantity" .-> WRITEBLOCK
+```
+
 ## Platform Support
 
 This repo is actively moved between Apple Silicon macOS and Linux ARM64. Before platform-sensitive commands, check:
@@ -214,6 +455,7 @@ Run from repository root unless noted.
 
 ```bash
 # Alpha and feature generation
+./scripts/ingest-semantic-evidence --source hf-fomc-statements-minutes --limit 80
 ./scripts/run-alpha-cycle
 
 # Local LEAN and import
@@ -227,6 +469,7 @@ Run from repository root unless noted.
 # QuantConnect Cloud / Object Store
 ./scripts/run-cloud-quality-backtest
 ./scripts/qc-cloud-backtest aggressive_llm_momentum
+./scripts/import-cloud-backtest --project-id 32097697 --backtest-id <backtest-id>
 ./scripts/qc-cloud-push aggressive_llm_momentum
 ./scripts/qc-object-store-sync lincei/llm-features/latest.json
 
@@ -248,10 +491,12 @@ Implemented in this branch:
 
 - Canonical typed contracts around `availableAt`, `horizonHours`, LEAN runtime/mode/status, LLM feature refs, live-shadow records, outcome labels, and promotion decisions.
 - Raw evidence archive from existing news records into point-in-time evidence rows.
+- Hugging Face FOMC semantic evidence ingest into point-in-time macro `RawEvidenceRecord` rows.
 - LLM semantic feature generation with point-in-time evidence filtering and replayable abstain/flat records when LLM or eligible evidence is unavailable.
 - LEAN replay helper for `llm_event_features.json` with future-`availableAt` rejection.
 - Static meta-alpha and ML artifact replay now ignores records whose `availableAt` is in the simulated future.
-- QuantConnect Cloud backtest/Object Store wrapper commands that record passed/blocked local evidence and import Cloud REST statistics, insights, orders, and derived order-target evidence when credentials are configured.
+- QuantConnect Cloud backtest/Object Store wrapper commands that record passed/blocked local evidence and import Cloud REST statistics, paginated insights, paginated orders, and derived order-target evidence when credentials are configured.
+- Manual QuantConnect Cloud Web IDE backtest import by project id and backtest id, so Web IDE runs no longer need copy/paste metrics to become local evidence.
 - Split latest-run markers: `.latest`, `.latest-strategy`, `.latest-simulator`, and `.latest-cloud-attempt` so simulator/cloud attempts cannot displace accepted strategy evidence.
 - Current paper cycle remains strict about fresh market data; historical paper replay is explicit `paper-replay` evidence and is ignored by live preflight.
 - Live-shadow would-have-traded ledger with broker writes disabled and explicit `evidenceMode` (`historical_target_replay` vs `current_live_shadow`).
@@ -265,8 +510,8 @@ Implemented in this branch:
 
 Known current blockers from direct verification:
 
-- `run-cloud-quality-backtest` can push and compile the QuantConnect Cloud project, but the current account blocks CLI/API Cloud backtest execution with a paid-organization-tier requirement. Manual web-IDE Cloud backtesting may still be useful, but repo-imported promotion evidence remains blocked until CLI/API result access is available.
-- Cloud REST result import still needs `QC_PROJECT_ID`/`QUANTCONNECT_PROJECT_ID`, `QC_USER_ID`/`QUANTCONNECT_USER_ID`, and `QC_API_TOKEN`/`QUANTCONNECT_API_TOKEN` when account tier permits API access.
+- `run-cloud-quality-backtest` can push and compile the QuantConnect Cloud project, but the current account blocks CLI/API Cloud backtest execution with a paid-organization-tier requirement. Manual Web IDE Cloud backtests can now be imported with `./scripts/import-cloud-backtest --project-id <id> --backtest-id <id>` when REST credentials can read the result.
+- Cloud REST result import needs `QC_PROJECT_ID`/`QUANTCONNECT_PROJECT_ID` unless `--project-id` is passed, plus `QC_USER_ID`/`QUANTCONNECT_USER_ID` and `QC_API_TOKEN`/`QUANTCONNECT_API_TOKEN`.
 - Full quality-gated local backtests need paid/local data access and are intentionally not the default path. Use `./scripts/run-cloud-quality-backtest` first.
 - Local LEAN strategy-evidence works on Linux ARM64 through the Docker group fallback when direct socket access is stale in the current shell.
 - `run-paper-cycle` is expected to block on stale historical targets unless a current target snapshot exists; use `run-paper-replay` for plumbing checks that must not satisfy live preflight.
@@ -310,10 +555,12 @@ Latest direct verification on 2026-05-25 UTC, Linux aarch64:
 - `./scripts/run-cloud-quality-backtest` pushed and compiled the full quality-gated QuantConnect Cloud project, then returned exit code `2` because the current account requires a paid tier for CLI/API Cloud backtest execution. Latest blocked Cloud attempt: `qc-20260525060040-919f3120`.
 - `./scripts/import-lean-run latest` reads `.latest-strategy` and imports the latest accepted strategy run even after blocked simulator or Cloud attempts move `.latest`.
 - `./scripts/run-paper-cycle` returned exit code `2` with stale market data and paper approval blockers. This is the expected strict current-market behavior for historical LEAN targets.
-- `./scripts/run-paper-replay` returned exit code `0` and created a reconciled paper replay plan for historical target plumbing.
+- `./scripts/run-paper-replay` returned exit code `0` and created reconciled paper replay plan `2` for historical target plumbing. Cloud string statistics are parsed into finite research metrics, and cumulative Cloud order-derived target weights are capped before paper replay so risk policy stays meaningful.
 - `./scripts/run-live-shadow` returned exit code `0` with `evidenceMode: historical_target_replay`.
-- `./scripts/run-learning-loop` returned exit code `2` because the latest LEAN run is local, not QuantConnect Cloud, and live-shadow evidence is historical replay rather than `current_live_shadow`.
-- `./scripts/live-preflight` returned exit code `2`; it ignored paper replay evidence and stayed blocked on missing current paper cycle, simulated broker snapshot, broker flags, and credentials.
+- `./scripts/import-cloud-backtest --project-id 32097697 --backtest-id ecd033aae81ec9f98e1c24b4c5a58d4c` passed and imported Cloud run `qc-import-ecd033aae81e` with 2382 insights, 1062 orders, and 2122 order events/fills.
+- `./scripts/ingest-semantic-evidence --source hf-fomc-statements-minutes --limit 80` passed and archived 80 FOMC macro evidence rows.
+- `./scripts/run-learning-loop` returned exit code `2` after recognizing Cloud evidence because live-shadow evidence is still historical replay rather than `current_live_shadow`.
+- `./scripts/live-preflight` returned exit code `2`; it ignored paper replay evidence and stayed blocked on missing current paper cycle, simulated broker snapshot, broker flags, and credentials. The status API now reports historical paper replay separately from current paper-cycle evidence.
 
 ## Documentation
 

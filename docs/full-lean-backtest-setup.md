@@ -182,6 +182,14 @@ That wrapper pins the practical local evidence path: skip Nest alpha cycle, skip
 
 ## Rolling ML / meta research (Nest alpha cycle)
 
+Ingest approved semantic evidence first when the run should include fresh macro text:
+
+```bash
+./scripts/ingest-semantic-evidence --source hf-fomc-statements-minutes --limit 80
+```
+
+This stores Hugging Face FOMC statements/minutes as `macro` `RawEvidenceRecord` rows with `eventTime`, `publishedAt`, `retrievedAt`, and `availableAt`. These records are inputs to the LLM semantic feature engine; they are not market-price data and do not replace QuantConnect bars.
+
 ```bash
 ./scripts/run-alpha-cycle
 # or: cd backend && bun run v1:cli -- run-alpha-cycle
@@ -215,6 +223,52 @@ Cloud commands use Lean CLI and always create local evidence records:
 ./scripts/qc-object-store-sync lincei/llm-features/latest.json
 ```
 
+Manual Web IDE backtests can be imported directly when the backtest already exists:
+
+```bash
+./scripts/list-cloud-projects
+./scripts/list-cloud-backtests aggressive_llm_momentum --limit 10
+
+./scripts/import-cloud-backtest \
+  --project-id 32097697 \
+  --backtest-id ecd033aae81ec9f98e1c24b4c5a58d4c
+```
+
+### Backtest result handoff
+
+The preferred handoff to an agent is **not** a screenshot or copied summary
+statistics. Provide the QuantConnect `projectId` and `backtestId`, then run the
+repo importer above. The importer uses QuantConnect REST endpoints to fetch the
+statistics, insights, orders, order events, fills, logs, and portfolio-target
+artifacts into `artifacts/lean-runs/<run-id>/`, then imports that evidence into
+the local database.
+
+If you cannot find the ids in the Web IDE, use the repo REST wrappers:
+
+```bash
+./scripts/list-cloud-projects
+./scripts/list-cloud-backtests --project-id 32097697 --limit 10
+```
+
+Lean CLI itself can run a cloud backtest and print a results link, but it does
+not provide a dedicated command for listing all prior backtest ids. The wrappers
+use QuantConnect's `/projects/read` and `/backtests/list` REST endpoints for
+that missing lookup step.
+
+If REST import is unavailable, use the Web IDE result page:
+
+1. Open the backtest result in QuantConnect Web IDE.
+2. Click **Download Results** on the Overview tab and keep the JSON file.
+3. Click **Orders** -> **Download Orders** if order details are needed.
+4. Click **Logs** -> **Download Logs** if initialization/runtime diagnostics are
+   needed.
+5. Give the downloaded files or their local paths to the agent.
+
+For local Lean CLI backtests, the useful handoff is the artifact directory, not
+the terminal summary. In this repo that directory is
+`artifacts/lean-runs/<run-id>/`; in a raw Lean workspace it is the project's
+`backtests/<timestamp>/` folder.
+
 Cloud push wrappers run the Cloud package preflight first. This is intentionally stricter than a normal syntax check because QuantConnect Cloud can compile a project and still fail at `Initialize()` when external input/config files are missing from the Web IDE runtime package.
 
 If credentials, paid organization tier, project lock, or dataset access block the run, the command records a `quantconnect-cloud` LEAN run with `status: blocked` and actionable blocker reasons.
@@ -222,8 +276,10 @@ If credentials, paid organization tier, project lock, or dataset access block th
 If the Lean CLI cloud command exits successfully, the runner attempts QuantConnect REST import for:
 
 - `/backtests/read` — statistics and status;
-- `/backtests/read/insights` — Cloud insights;
-- `/backtests/orders/read` — Cloud orders and order events.
+- `/backtests/read/insights` — paginated Cloud insights;
+- `/backtests/orders/read` — paginated Cloud orders and order events.
+
+The orders endpoint can temporarily return progress/status without an `orders` page. The importer retries each page before treating it as empty, because otherwise a completed Web IDE run can be misclassified as having no fills.
 
 Required env:
 
@@ -248,7 +304,7 @@ Command success is not promotion evidence by itself. Missing REST credentials, m
 
 `run-paper-cycle` is current-market strict. If the latest LEAN target snapshot is historical, the risk gate blocks instead of pretending the target is fresh.
 
-`run-paper-replay` is different: it replays historical targets through paper plumbing and tags the proposal with `paper-replay:historical-target`. Live preflight ignores that evidence.
+`run-paper-replay` is different: it replays historical targets through paper plumbing and tags the proposal with `paper-replay:historical-target`. Live preflight ignores that evidence. Imported QuantConnect Cloud statistics may be strings such as `11.128%` or `$1143.98`; the paper bridge parses those into finite research metrics before proposal creation. Cloud order-derived target weights are cumulative replay evidence, so the paper bridge caps the generated replay orders to the paper budget policy rather than weakening risk gates.
 
 ```mermaid
 flowchart LR
@@ -307,9 +363,19 @@ Runs `lean cloud backtest`. `--push` pushes the local project before the cloud b
 
 The wrapper applies the same strategy-evidence gates to the local cloud artifact directory. Placeholder artifacts, missing result files, zero insights/orders/fills, simulator markers, static overlays, and missing Cloud REST import evidence keep the run blocked.
 
+### `import-cloud-backtest`
+
+Imports an existing QuantConnect Cloud/Web IDE backtest through REST. This is the preferred no-copy/paste path after a manual Web IDE run:
+
+```bash
+./scripts/import-cloud-backtest --project-id <project-id> --backtest-id <backtest-id>
+```
+
+The command writes `artifacts/lean-runs/qc-import-<backtest-prefix>/`, updates `.latest`, `.latest-cloud-import`, and `.latest-strategy` when acceptance passes, and persists a `quantconnect-cloud` `LeanRun` record. Exit code **2** means REST credentials, completion status, pagination, or strategy-evidence acceptance blocked the import.
+
 ### `run-paper-replay`
 
-Runs the paper execution plumbing against the latest accepted LEAN strategy target while explicitly marking the proposal as historical replay. This command is useful after local backtests because historical target timestamps are stale by design. It must not be counted as live-readiness evidence.
+Runs the paper execution plumbing against the latest accepted LEAN strategy target while explicitly marking the proposal as historical replay. This command is useful after local or Cloud historical backtests because historical target timestamps are stale by design. It must not be counted as live-readiness evidence.
 
 ### `run-live-shadow`
 

@@ -33,6 +33,7 @@ Dataset availability and costs can change, so implementation work must verify cu
 Direct ingestion can include:
 
 - SEC EDGAR;
+- Hugging Face research datasets when licensing and point-in-time fields are usable;
 - company investor-relations feeds;
 - press-release feeds;
 - earnings-call transcripts;
@@ -43,6 +44,12 @@ Direct ingestion can include:
 Direct raw data must be stored with source URL, retrieval time, event time, availability time, content hash, and parser version.
 
 The active collection map starts from the quality-gated universe manifest. Active and watchlist symbols can collect raw evidence, but only active profile symbols can become portfolio targets. This prevents watchlist research or excluded turnaround ideas from leaking into execution.
+
+Initial approved Hugging Face usage is semantic evidence, not price data replacement:
+
+- `vtasca/fomc-statements-minutes` may feed macro `RawEvidenceRecord` rows for FOMC statements/minutes.
+- Earnings-call, SEC-index, and financial-news datasets may be added only when the ingest preserves `eventTime`, `publishedAt` or equivalent, `retrievedAt`, `availableAt`, source URL, parser version, and source hash.
+- Hugging Face stock-price datasets are research-only unless they provide enough adjusted OHLCV, corporate-action, ETF, and universe coverage to match the intended LEAN validation path.
 
 ## Point-In-Time Rules
 
@@ -109,4 +116,5 @@ QuantConnect local `--download-data` can spend QCC and is disabled by default. I
 - Importing data key concepts: https://www.quantconnect.com/docs/v2/writing-algorithms/importing-data/key-concepts
 - Stooq historical database: https://stooq.com/db/h/
 - Stooq CSV API key flow example: https://stooq.com/q/d/?s=smh.us&get_apikey
+- Hugging Face FOMC statements/minutes dataset: https://huggingface.co/datasets/vtasca/fomc-statements-minutes
 - Quality-gated universe manifest: ../../config/universes/quality-gated-v2.json

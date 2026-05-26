@@ -24,6 +24,7 @@ Deliver:
 - repo command for cloud project sync or push;
 - cloud compile/backtest command;
 - cloud result importer;
+- manual Web IDE cloud result importer by project id and backtest id;
 - run manifest with source/config/data hashes;
 - blocker reporting for account tier, credentials, and dataset licensing.
 
@@ -32,6 +33,7 @@ Acceptance:
 - cloud backtest can run when account access allows it;
 - blocked cloud backtests produce actionable status;
 - imported cloud results are stored separately from local/simulator results.
+- paginated insights and orders are imported before a cloud run can become promotion evidence.
 - a successful cloud CLI command is still blocked until real cloud result artifacts are imported and pass strategy-evidence acceptance.
 
 ## Phase 3: Numeric Alpha Baseline
@@ -60,6 +62,7 @@ Acceptance:
 Deliver:
 
 - raw text ingestion for selected news/filing/macro sources;
+- Hugging Face FOMC macro evidence ingestion as the first no-key semantic source;
 - LLM feature schema and validator;
 - point-in-time archive with `availableAt`;
 - Object Store or custom-data export;
