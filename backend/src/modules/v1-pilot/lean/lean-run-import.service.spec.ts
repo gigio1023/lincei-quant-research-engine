@@ -78,4 +78,67 @@ describe('LeanRunImportService', () => {
       'Unsafe LEAN run id in marker',
     );
   });
+
+  it('preserves_quantconnect_cloud_runtime_when_importing_cloud_artifacts', async () => {
+    const dir = join(tempRoot, 'qc-import-test');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, 'statistics.json'),
+      JSON.stringify({
+        'Total Orders': 1,
+        'End Equity': 100100,
+        cloudProjectId: 32077023,
+        cloudBacktestId: 'ecd033aae81ec9f98e1c24b4c5a58d4c',
+      }),
+      'utf8',
+    );
+    writeFileSync(
+      join(dir, 'config.json'),
+      JSON.stringify({
+        projectName: 'aggressive_llm_momentum',
+        algorithmVersion: 'v1',
+        runtime: 'quantconnect-cloud',
+        mode: 'backtest',
+        parameters: { 'run-id': 'qc-import-test' },
+      }),
+      'utf8',
+    );
+    writeFileSync(join(dir, 'logs.txt'), 'imported\n', 'utf8');
+    writeFileSync(
+      join(dir, 'insights.json'),
+      JSON.stringify({ runId: 'qc-import-test', insights: [] }),
+      'utf8',
+    );
+    writeFileSync(
+      join(dir, 'portfolio_targets.json'),
+      JSON.stringify({
+        id: 'targets-qc-import-test',
+        leanRunId: 'qc-import-test',
+        asOf: '2024-12-31T00:00:00Z',
+        targets: [],
+        grossExposurePct: 0,
+        maxSingleNamePct: 0,
+        riskNotes: [],
+      }),
+      'utf8',
+    );
+    writeFileSync(
+      join(dir, 'order_events.json'),
+      JSON.stringify({ events: [] }),
+      'utf8',
+    );
+    writeFileSync(
+      join(dir, 'fills.json'),
+      JSON.stringify({ fills: [] }),
+      'utf8',
+    );
+
+    const imported = await service.importFromDirectory(dir, undefined, {
+      acceptanceMode: 'schema-import',
+    });
+
+    expect(imported.runtime).toBe('quantconnect-cloud');
+    expect(imported.cloudProjectId).toBe('32077023');
+    expect(imported.cloudBacktestId).toBe('ecd033aae81ec9f98e1c24b4c5a58d4c');
+  });
 });

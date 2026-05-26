@@ -41,11 +41,8 @@ export class LlmEventFeatureService {
     snapshots: FeatureSnapshotContract[],
     numeric: AlphaDecisionContract[],
   ): Promise<LlmEventFeatureContract[]> {
-    const archivedEvidence = await this.rawEvidenceArchive.archiveRecentNews();
-    const evidence =
-      archivedEvidence.length > 0
-        ? archivedEvidence
-        : await this.rawEvidenceArchive.listRecentEvidence();
+    await this.rawEvidenceArchive.archiveRecentNews();
+    const evidence = await this.rawEvidenceArchive.listRecentEvidence();
     const generated = await this.generateFeatures(snapshots, numeric, evidence);
     const saved = await this.saveFeatures(generated);
     this.exportLatestFeatures(saved);

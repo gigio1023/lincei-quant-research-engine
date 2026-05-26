@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Lists QuantConnect Cloud backtests through REST so operators can copy backtest ids.
+# Exit code 2 means credentials, project id, or REST access are blocked.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT/backend"
+
+bun run v1:cli -- list-cloud-backtests "$@"

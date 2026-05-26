@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Lists QuantConnect Cloud projects through REST so operators can find project ids.
+# Exit code 2 means credentials or REST access are blocked.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT/backend"
+
+bun run v1:cli -- list-cloud-projects "$@"

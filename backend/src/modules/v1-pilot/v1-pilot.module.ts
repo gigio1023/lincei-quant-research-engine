@@ -30,10 +30,12 @@ import { NumericAlphaService } from './alpha/numeric-alpha.service';
 import { LlmAlphaService } from './alpha/llm-alpha.service';
 import { MetaAlphaService } from './alpha/meta-alpha.service';
 import { RawEvidenceArchiveService } from './alpha/raw-evidence-archive.service';
+import { HuggingFaceSemanticEvidenceIngestService } from './alpha/huggingface-semantic-evidence-ingest.service';
 import { LeanLocalSimulatorService } from './lean/lean-local-simulator.service';
 import { LeanDailyDataExportService } from './lean/lean-daily-data-export.service';
 import { LeanDataPreparationService } from './lean/lean-data-preparation.service';
 import { LeanCloudRunner } from './lean/lean-cloud.runner';
+import { LeanCloudManualImporter } from './lean/lean-cloud-manual-importer';
 import { LeanRunImportService } from './lean/lean-run-import.service';
 import { LeanPaperBridgeService } from './paper/lean-paper-bridge.service';
 import { LearningLoopService } from './learning/learning-loop.service';
@@ -79,6 +81,7 @@ import { LeanCliRunner } from './lean/lean-cli.runner';
   providers: [
     FeatureSnapshotService,
     RawEvidenceArchiveService,
+    HuggingFaceSemanticEvidenceIngestService,
     LlmEventFeatureService,
     NumericAlphaService,
     MlModelRegistryService,
@@ -90,6 +93,7 @@ import { LeanCliRunner } from './lean/lean-cli.runner';
     LeanDailyDataExportService,
     LeanDataPreparationService,
     LeanCloudRunner,
+    LeanCloudManualImporter,
     LeanCliRunner,
     LeanRunImportService,
     LeanPaperBridgeService,
