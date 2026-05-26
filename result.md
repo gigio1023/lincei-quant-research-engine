@@ -1,351 +1,413 @@
-# 리뷰 가이드: Semantic Evidence And Cloud Backtest Import
+# Lincei Quant Research Engine 이해 가이드
 
-Status: PR #23 리뷰를 돕기 위한 supporting review note.
+Status: 전체 프로젝트를 이해하기 위한 supporting review note.
 
-이 문서는 프로젝트를 처음 보는 사람이 현재 PR을 이해할 수 있도록 만든 설명서입니다. 정식 specification은 `SPEC.md`와 `docs/spec/` 아래 문서들이고, 이 파일은 리뷰용 안내문입니다.
+이 문서는 프로젝트를 처음 보는 사람이 큰 그림부터 잡을 수 있도록 만든 설명서입니다. 정식 specification은 `SPEC.md`와 `docs/spec/` 아래 문서들이며, 이 파일은 그 내용을 더 쉽게 읽기 위한 안내문입니다.
 
-## 1. 이 프로젝트는 무엇을 만들고 있나
+## 1. 한 문장으로 말하면
 
-이 프로젝트는 단순한 투자 대시보드가 아닙니다. 목표는 "투자 아이디어가 실제로 검증 가능한 절차를 따라 움직일 수 있는가"를 확인하는 autonomous alpha research system입니다.
+이 프로젝트는 "투자 근거를 읽고, alpha를 만들고, QuantConnect/LEAN에서 검증하고, portfolio와 risk rule을 통과시킨 뒤, paper 또는 live-shadow evidence로 기록하고, 결과를 reconciliation해서 다시 학습하는 시스템"입니다.
 
-가장 중요한 핵심 loop는 아래입니다.
+여기서 중요한 점은 자동으로 실제 돈을 거래하는 것이 아닙니다. 현재 milestone의 목표는 검증 가능한 alpha/execution evidence loop를 만드는 것입니다.
+
+## 2. 먼저 봐야 하는 핵심 loop
+
+이 프로젝트를 이해할 때는 파일 이름이나 내부 모듈 이름부터 보면 헷갈립니다. 먼저 아래 loop만 잡으면 됩니다.
 
 ```mermaid
 flowchart LR
-    A["그 시점에 사용할 수 있었던 evidence"] --> B["alpha decision"]
-    B --> C["LEAN Insight"]
-    C --> D["portfolio target"]
-    D --> E["risk cut"]
-    E --> F["paper/live-shadow intent"]
-    F --> G["fill 또는 would-have-traded evidence"]
-    G --> H["reconciliation"]
-    H --> I["learning loop"]
+    A["1. Evidence<br/>그 시점에 알 수 있었던 근거"] --> B["2. Feature snapshot<br/>point-in-time 입력"]
+    B --> C["3. Alpha decision<br/>수익 방향성 판단"]
+    C --> D["4. LEAN Insight<br/>전략 runtime으로 전달"]
+    D --> E["5. Portfolio target<br/>목표 비중"]
+    E --> F["6. Risk cut<br/>위험 제한"]
+    F --> G["7. Paper/live-shadow intent<br/>실제 broker write 없이 기록"]
+    G --> H["8. Fill 또는 would-have-traded evidence"]
+    H --> I["9. Reconciliation<br/>의도와 결과 비교"]
+    I --> J["10. Learning loop<br/>다음 판단 개선"]
 ```
 
-쉽게 말하면:
+쉽게 풀면 이렇습니다.
 
-1. 시스템이 어떤 근거를 읽고,
-2. 그 근거로 투자 방향성인 alpha를 만들고,
-3. QuantConnect/LEAN에서 backtest하거나 실행 가능 형태로 바꾸고,
-4. portfolio sizing과 risk rule을 통과시키고,
-5. 실제 주문이 아니라 paper 또는 live-shadow evidence로 기록하고,
-6. 결과를 reconciliation해서 다음 학습에 반영하는 구조입니다.
+1. 시스템은 뉴스, filing, macro data, market data 같은 evidence를 읽습니다.
+2. 그 evidence가 특정 시점에 정말 사용 가능했는지 point-in-time으로 정리합니다.
+3. numeric model과 LLM semantic alpha가 alpha decision을 만듭니다.
+4. alpha decision은 LEAN의 `Insight`로 변환됩니다.
+5. LEAN이 portfolio target을 만듭니다.
+6. risk model이 너무 큰 exposure나 stale data 같은 위험을 줄이거나 막습니다.
+7. 현재 scope에서는 실제 broker order가 아니라 paper trading 또는 live-shadow evidence를 남깁니다.
+8. 결과를 import하고 reconciliation합니다.
+9. 그 결과를 다음 alpha 판단과 promotion review에 씁니다.
 
-이 loop가 이어져야 프로젝트가 의미가 있습니다. 대시보드, 문서, ledger는 이 loop를 보여주고 검증하기 위한 보조 수단입니다.
+이 loop가 프로젝트의 중심입니다. Dashboard, README, runbook, ledger는 이 loop를 설명하거나 검증하기 위한 보조 수단입니다.
 
-## 2. 이번 PR이 해결하려는 핵심 문제
+## 3. 왜 이렇게 복잡한가
 
-이번 branch가 집중한 문제는 두 가지입니다.
+투자 시스템에서 가장 위험한 착시는 "좋아 보이는 backtest"입니다. 특히 아래 문제가 있으면 결과가 그럴듯해도 믿기 어렵습니다.
 
-### 문제 1: LLM이 읽은 텍스트 근거가 point-in-time인지 확인해야 함
+- 미래 정보를 과거 시점에서 사용한 lookahead bias
+- local simulator 결과를 QuantConnect Cloud promotion evidence처럼 취급하는 문제
+- LLM이 자유 텍스트로 trade를 말하고, 그 말이 broker order처럼 흐르는 문제
+- historical replay evidence를 current live readiness로 착각하는 문제
+- risk gate가 unknown state를 ready로 처리하는 문제
 
-LLM은 뉴스, FOMC statement, minutes 같은 텍스트를 읽고 semantic alpha feature를 만들 수 있습니다. 하지만 여기서 가장 위험한 것은 lookahead bias입니다.
-
-예를 들어 2024년 1월 1일 시점의 backtest를 한다면서, 실제로는 2024년 1월 10일에 공개된 정보를 LLM이 읽으면 안 됩니다. 그래서 evidence에는 `availableAt`이 필요합니다.
-
-- `asOf`: 이 evidence가 다루는 기준 시점
-- `availableAt`: 전략이 이 evidence를 사용할 수 있게 된 가장 이른 시점
-- `evidenceRefs`: 나중에 다시 추적할 수 있는 근거 참조
-
-이번 PR은 Hugging Face의 FOMC statement/minutes 데이터를 가져와 이런 point-in-time evidence로 저장하는 길을 추가합니다.
-
-### 문제 2: QuantConnect Cloud backtest 결과를 repo로 가져와야 함
-
-Local LEAN run은 빠른 디버깅에는 유용합니다. 하지만 local simulator 결과만으로는 promotion evidence라고 부르기 어렵습니다.
-
-이 프로젝트의 현재 방향은 QuantConnect Cloud와 LEAN을 strategy validation runtime으로 쓰는 것입니다. 따라서 Cloud에서 돌린 backtest 결과를 repo control plane으로 가져와야 합니다.
-
-이번 PR은 QuantConnect Cloud에서:
-
-- project 목록을 보고,
-- backtest 목록을 보고,
-- 특정 `projectId`와 `backtestId`를 골라,
-- insights, orders, stats 같은 artifact를 import하는 경로를 추가합니다.
-
-## 3. 이번 PR의 전체 흐름
-
-이번 PR을 한 장으로 보면 아래 흐름입니다.
+그래서 이 프로젝트는 alpha를 만드는 부분과 broker-write path를 강하게 분리합니다.
 
 ```mermaid
 flowchart TD
-    S["Hugging Face FOMC dataset"] --> R["RawEvidenceRecord"]
-    R --> P["point-in-time fields<br/>asOf + availableAt + evidenceRefs"]
-    P --> L["LLM semantic alpha feature input"]
+    L["LLM semantic alpha<br/>텍스트 evidence 해석"] --> A["Typed alpha/risk feature"]
+    A --> B["LEAN Insight"]
+    B --> C["Portfolio construction"]
+    C --> D["Risk management"]
+    D --> E["Paper/live-shadow evidence"]
 
-    Q["QuantConnect Cloud"] --> J["project list"]
-    J --> K["backtest list"]
-    K --> M["manual backtest import<br/>projectId + backtestId"]
-    M --> N["Cloud artifacts"]
-    N --> O["insights, orders, stats,<br/>preserved Cloud ids"]
+    L -. "금지" .-> X["broker credentials"]
+    L -. "금지" .-> Y["raw broker payload"]
+    L -. "금지" .-> Z["final order quantity"]
 
-    L --> X["alpha/backtest evidence review"]
-    O --> X
-    X --> Y["paper replay evidence"]
-    Y --> Z["live preflight remains blocked<br/>unless current readiness evidence exists"]
+    D --> P["preflight"]
+    P -->|"unknown 또는 stale이면"| Q["blocked"]
 ```
 
-두 입력이 같은 review path로 들어온다고 보면 됩니다.
+LLM은 중요한 역할을 합니다. 다만 LLM은 broker credential을 보거나, 최종 주문 수량을 정하거나, raw broker payload를 만들면 안 됩니다. LLM의 역할은 typed semantic alpha feature와 risk judgment를 만드는 데 제한됩니다.
 
-- 왼쪽: "전략이 그 시점에 무엇을 알고 있었나?"
-- 오른쪽: "QuantConnect Cloud backtest에서 전략이 무엇을 했다고 기록됐나?"
+## 4. 큰 구성 요소
 
-이 둘을 합치면 alpha decision을 더 나중에 replay하고 audit하기 쉬워집니다.
+아래 그림은 프로젝트 전체를 레이어별로 본 것입니다.
 
-## 4. 용어를 순서대로 이해하기
+```mermaid
+flowchart TB
+    subgraph DATA["Data and evidence layer"]
+        D1["Market data"]
+        D2["News / filings"]
+        D3["Macro evidence<br/>예: FOMC statements/minutes"]
+        D4["QuantConnect Cloud artifacts"]
+    end
 
-처음부터 용어가 한꺼번에 나오면 이해하기 어렵습니다. 이번 PR을 볼 때는 아래 순서로 이해하면 됩니다.
+    subgraph FEATURES["Feature layer"]
+        F1["point-in-time feature snapshots"]
+        F2["semantic evidence records"]
+        F3["quality-gated universe"]
+    end
 
-| 용어 | 이 PR에서의 의미 | 왜 중요한가 |
+    subgraph ALPHA["Alpha layer"]
+        A1["numeric alpha"]
+        A2["LLM semantic alpha"]
+        A3["meta alpha combiner"]
+    end
+
+    subgraph LEAN["LEAN / QuantConnect runtime"]
+        L1["AlphaModel Insights"]
+        L2["PortfolioConstructionModel"]
+        L3["RiskManagementModel"]
+        L4["ExecutionModel semantics"]
+    end
+
+    subgraph CONTROL["Repo control plane"]
+        C1["backend import/orchestration"]
+        C2["paper/live-shadow evidence"]
+        C3["preflight"]
+        C4["reconciliation"]
+        C5["dashboard"]
+    end
+
+    DATA --> FEATURES
+    FEATURES --> ALPHA
+    ALPHA --> LEAN
+    LEAN --> CONTROL
+    CONTROL --> FEATURES
+```
+
+각 레이어를 더 쉽게 설명하면:
+
+| 레이어 | 하는 일 | 보면 좋은 질문 |
 |---|---|---|
-| evidence | 전략이나 LLM이 참고할 원천 근거입니다. 예: FOMC statement, minutes. | alpha가 어디서 나왔는지 추적해야 합니다. |
-| `availableAt` | evidence를 사용할 수 있게 된 가장 이른 시각입니다. | lookahead bias를 막습니다. |
-| semantic alpha feature | 텍스트 evidence에서 LLM이 만든 구조화된 alpha 입력입니다. | LLM을 alpha loop 안에 넣되 broker order와 분리합니다. |
-| QuantConnect Cloud | QuantConnect의 managed backtest/research 환경입니다. | local run보다 강한 backtest evidence를 만들 수 있습니다. |
-| LEAN | QuantConnect의 open-source algorithmic trading engine입니다. | backtest, Insight, portfolio, risk, execution semantics를 담당합니다. |
-| Insight | LEAN에서 alpha forecast를 표현하는 객체입니다. | alpha decision이 portfolio target으로 넘어가는 중간 형태입니다. |
-| paper replay evidence | 과거 backtest나 import 결과를 paper-like evidence로 재구성한 것입니다. | 리뷰에는 유용하지만 현재 live readiness와는 다릅니다. |
-| preflight | execution-like action 전에 통과해야 하는 deterministic gate입니다. | unknown 또는 stale 상태는 blocked가 되어야 합니다. |
-| live-shadow | live data로 decision을 기록하지만 broker write는 하지 않는 모드입니다. | 실제 주문 없이 현재성 있는 evidence를 쌓을 수 있습니다. |
-
-## 5. 실제로 바뀐 것
-
-### 5.1 Semantic evidence ingestion
-
-새 command:
-
-```bash
-./scripts/ingest-semantic-evidence --source hf-fomc-statements-minutes --limit 80
-```
-
-이 command는 Hugging Face의 FOMC statement/minutes 데이터를 가져와 raw semantic evidence record로 저장합니다.
-
-리뷰할 때 볼 핵심은 "이 데이터가 나중에 LLM semantic alpha replay에 쓰여도 lookahead bias를 만들지 않는가"입니다.
-
-### 5.2 QuantConnect Cloud project/backtest 조회
-
-새 command:
-
-```bash
-./scripts/list-cloud-projects
-./scripts/list-cloud-backtests --project-id <project-id> --limit 10
-```
-
-operator가 Cloud project와 backtest를 직접 확인할 수 있게 합니다.
-
-여기서 중요한 점은 자동으로 임의의 winning backtest를 고르는 구조가 아니라는 것입니다. operator가 명시적으로 `projectId`와 `backtestId`를 선택해야 합니다.
-
-### 5.3 QuantConnect Cloud backtest import
-
-새 command:
-
-```bash
-./scripts/import-cloud-backtest --project-id <project-id> --backtest-id <backtest-id>
-```
-
-이 command는 선택한 Cloud backtest의 artifacts를 repo로 가져옵니다. 특히 다음이 중요합니다.
-
-- Cloud `projectId`와 `backtestId`를 보존합니다.
-- insights와 orders를 import합니다.
-- paginated result를 처리합니다.
-- page retry를 합니다.
-- Cloud stats가 string으로 오는 경우도 parse합니다.
-- artifact count를 기록합니다.
-
-리뷰 포인트는 "Cloud evidence를 일부만 가져오거나, 실패한 page를 숨기거나, 원본 Cloud id를 잃어버리지 않는가"입니다.
-
-### 5.4 Paper replay evidence와 live readiness 분리
-
-이번 PR에서 가장 중요한 safety boundary 중 하나입니다.
-
-Historical paper replay evidence는 과거 backtest나 import 결과를 바탕으로 "그때라면 이렇게 했을 것"을 보여줍니다. 하지만 이것은 "지금 live로 해도 된다"는 뜻이 아닙니다.
-
-```mermaid
-flowchart LR
-    A["historical Cloud/paper replay"] --> B["review에 유용한 evidence"]
-    B --> C["과거 행동을 설명"]
-    C -. "자동 승격 금지" .-> D["current live readiness"]
-
-    E["current paper/live-shadow cycle"] --> F["fresh readiness evidence"]
-    F --> G["preflight가 참고 가능"]
-```
-
-따라서 live preflight는 여전히 fail closed입니다. 현재 paper-cycle evidence나 live-shadow evidence가 없으면 blocked가 맞습니다.
-
-### 5.5 Read-only dashboard
-
-frontend root route는 backtest-cycle dashboard를 보여주도록 바뀌었습니다.
-
-이 dashboard는 broker control panel이 아닙니다. operator가 다음 흐름을 한눈에 보기 위한 read-only review surface입니다.
-
-```text
-semantic evidence -> alpha -> Cloud/LEAN backtest evidence -> portfolio targets
--> paper/live-shadow -> preflight -> learning
-```
-
-리뷰할 때는 dashboard가 policy gate를 우회하지 않는지 보면 됩니다. 보여주는 것은 괜찮지만, preflight나 broker-write boundary를 느슨하게 만들면 안 됩니다.
-
-### 5.6 Documentation
-
-README, runbook, spec-linked docs가 현재 workflow에 맞게 업데이트됐습니다.
-
-문서가 설명하는 것은:
-
-- FOMC semantic evidence ingestion
-- manual QuantConnect Cloud backtest import
-- Cloud import에는 실제 credential env와 `projectId/backtestId`가 필요하다는 점
-- live preflight는 계속 fail closed라는 점
-
-문서가 말하면 안 되는 것은:
-
-- real-money trading이 준비됐다는 주장
-- broker write가 가능하다는 주장
-- local simulator result가 promotion evidence라는 주장
-
-## 6. 이번 PR이 하지 않는 것
-
-이번 PR은 아래를 하지 않습니다.
-
-- real-money trading 활성화
-- broker write permission 추가
-- leverage, derivatives, capital limit 변경
-- LLM이 final order quantity를 결정
-- LLM이 broker credential을 봄
-- historical paper replay를 current live readiness로 취급
-- local simulator result를 promotion evidence로 주장
-
-즉, alpha/backtest evidence path를 보강하지만 broker-write scope는 넓히지 않습니다.
-
-## 7. 리뷰는 어떤 순서로 하면 좋은가
-
-### Step 1: Evidence boundary
-
-먼저 Hugging Face FOMC 데이터가 typed evidence로 들어오는지 봅니다.
-
-체크할 질문:
-
-- `asOf`와 `availableAt`이 구분되는가?
-- source ref를 나중에 추적할 수 있는가?
-- LLM semantic alpha replay에서 미래 정보를 잘못 읽을 가능성을 줄였는가?
-
-### Step 2: Cloud import boundary
-
-그다음 QuantConnect Cloud importer를 봅니다.
-
-체크할 질문:
-
-- `projectId`와 `backtestId`가 보존되는가?
-- insights, orders, stats를 가져오는가?
-- pagination과 retry가 있는가?
-- partial import가 숨겨지지 않는가?
-
-### Step 3: Readiness boundary
-
-paper replay와 current readiness가 섞이지 않는지 봅니다.
-
-체크할 질문:
-
-- historical replay evidence는 evidence로만 표시되는가?
-- current paper/live-shadow evidence가 없으면 preflight가 blocked를 유지하는가?
-- unknown state가 ready로 취급되지 않는가?
-
-### Step 4: Dashboard
-
-dashboard는 loop와 blocker를 설명하는 surface로만 동작해야 합니다.
-
-체크할 질문:
-
-- dashboard가 operator에게 어떤 evidence가 있고 무엇이 blocked인지 설명하는가?
-- dashboard가 backend policy gate를 우회하지 않는가?
-
-### Step 5: Docs
-
-문서가 scope를 정확히 설명하는지 봅니다.
-
-체크할 질문:
-
-- command와 acceptance criteria가 명확한가?
-- Cloud import가 credential/project/backtest에 의존한다는 blocker를 숨기지 않는가?
-- live readiness를 과장하지 않는가?
-
-## 8. 먼저 읽을 파일
-
-전체 diff를 처음부터 다 읽기보다 아래 순서가 이해하기 쉽습니다.
-
-| 목적 | 파일 |
-|---|---|
-| semantic evidence ingestion 이해 | `backend/src/modules/v1-pilot/alpha/huggingface-semantic-evidence-ingest.service.ts` |
-| Cloud REST import 이해 | `backend/src/modules/v1-pilot/lean/lean-cloud-rest-importer.ts` |
-| manual Cloud import 이해 | `backend/src/modules/v1-pilot/lean/lean-cloud-manual-importer.ts` |
-| paper replay와 readiness 분리 이해 | `backend/src/modules/v1-pilot/paper/lean-paper-bridge.service.ts` |
-| live preflight boundary 확인 | `backend/src/modules/v1-pilot/live/live-preflight.service.ts` |
-| dashboard가 무엇을 보여주는지 이해 | `frontend/src/components/backtest-cycle-dashboard/cycleModel.ts` |
-| operator command 확인 | `scripts/ingest-semantic-evidence`, `scripts/list-cloud-projects`, `scripts/list-cloud-backtests`, `scripts/import-cloud-backtest` |
-| operator runbook 확인 | `docs/full-lean-backtest-setup.md` |
-
-## 9. 검증된 것과 아직 검증되지 않은 것
-
-### 검증된 것
-
-Linux aarch64, Bun 1.3.14 환경에서 packaging 전에 다음이 통과했습니다.
-
-```text
-git diff --check
-backend targeted tests: 4 suites, 12 tests passed
-backend build
-frontend lint
-frontend targeted tests: 2 files, 5 tests passed
-frontend typecheck
-frontend build
-targeted Prettier check over changed TS/TSX files
-```
-
-현재 Mac 환경에서도 spot-check했습니다.
-
-```text
-platform: Darwin arm64
-Bun: 1.3.5
-git diff --check origin/main...HEAD
-backend targeted tests: 4 suites, 12 tests passed
-backend build
-frontend lint
-frontend targeted tests: 2 files, 5 tests passed
-frontend typecheck
-frontend build
-```
-
-frontend build에서는 기존 Browserslist data-age warning이 나오지만 build 자체는 통과합니다.
-
-### 아직 검증되지 않은 것
-
-실제 QuantConnect Cloud import는 이번 packaging 단계에서 다시 돌리지 않았습니다. 이유는 실제 QuantConnect REST credential env와 접근 가능한 `projectId/backtestId`가 필요하기 때문입니다.
-
-Unit test가 importer의 동작을 보호하지만, Cloud promotion evidence 자체는 operator가 실제 credential과 backtest를 제공한 뒤에만 생깁니다.
-
-## 10. 다음에 실제 evidence를 만들려면
-
-operator가 credential과 Cloud backtest 정보를 준비한 뒤 아래 흐름을 실행해야 합니다.
+| Data and evidence | 시장 데이터, 뉴스, filing, macro text, Cloud artifact를 가져옵니다. | 이 데이터가 언제 사용 가능했는가? |
+| Feature layer | raw evidence를 point-in-time feature로 바꿉니다. | backtest 시점에 미래 정보를 읽지 않는가? |
+| Alpha layer | numeric model과 LLM이 alpha forecast를 만듭니다. | output이 typed contract인가? |
+| LEAN runtime | alpha를 `Insight`, portfolio target, risk adjustment로 실행 가능한 전략 흐름에 넣습니다. | LEAN이 strategy semantics를 소유하는가? |
+| Repo control plane | import, evidence 기록, paper/live-shadow, preflight, dashboard를 담당합니다. | broker-write boundary가 fail closed인가? |
+
+## 5. 주요 용어를 필요한 순서로 이해하기
+
+처음부터 모든 용어를 외울 필요는 없습니다. 아래 순서로 이해하면 됩니다.
+
+| 용어 | 쉬운 설명 | 이 프로젝트에서 중요한 이유 |
+|---|---|---|
+| evidence | 판단의 근거가 되는 원천 자료입니다. 예: 가격, filing, FOMC statement. | alpha가 어디서 나왔는지 추적해야 합니다. |
+| point-in-time | 그 시점에 실제로 알 수 있었던 정보만 쓰는 방식입니다. | lookahead bias를 막습니다. |
+| `availableAt` | evidence를 전략이 사용할 수 있게 된 가장 이른 시각입니다. | backtest에서 미래 정보 사용을 막는 기준입니다. |
+| feature snapshot | 특정 decision time에 사용 가능한 입력 묶음입니다. | alpha replay의 재료입니다. |
+| alpha | 수익 방향성이나 edge에 대한 forecast입니다. | 전략의 출발점입니다. |
+| semantic alpha feature | LLM이 텍스트 evidence에서 만든 구조화된 alpha 입력입니다. | LLM을 쓰되 free-form trade text를 막습니다. |
+| AlphaDecision | alpha source가 내는 typed decision입니다. | symbol, horizon, direction, confidence, evidenceRefs 등을 고정합니다. |
+| LEAN | QuantConnect의 algorithmic trading engine입니다. | backtest와 strategy runtime의 중심입니다. |
+| Insight | LEAN에서 forecast를 표현하는 객체입니다. | alpha가 portfolio sizing으로 넘어가는 다리입니다. |
+| portfolio target | 어떤 symbol을 어느 비중으로 가질지에 대한 목표입니다. | alpha를 position으로 바꾸는 단계입니다. |
+| risk cut | 위험 규칙에 따라 target을 줄이거나 막는 조치입니다. | concentration, stale data, cap bypass를 막습니다. |
+| paper trading | simulated account semantics로 주문 의도를 검증합니다. | 실제 broker write 없이 execution path를 봅니다. |
+| live-shadow | live data로 decision을 기록하지만 broker write는 하지 않습니다. | 현재성 있는 evidence를 안전하게 쌓습니다. |
+| preflight | execution-like action 전에 통과해야 하는 deterministic gate입니다. | unknown state는 blocked가 되어야 합니다. |
+| reconciliation | 의도한 상태와 관측된 상태를 비교합니다. | duplicate submit, stale fill, mismatch를 잡습니다. |
+
+## 6. 현재 scope와 아닌 것
+
+현재 active scope:
+
+- QuantConnect Cloud와 LEAN 중심의 alpha validation runtime
+- local LEAN smoke/debug run
+- Cloud backtest/import evidence
+- point-in-time semantic alpha replay
+- paper 또는 live-shadow evidence
+- fail-closed preflight
+- reconciliation과 learning loop
+
+현재 scope가 아닌 것:
+
+- automatic production/live trading
+- real broker writes
+- unrestricted margin, leverage, derivatives, shorts, HFT
+- LLM이 직접 broker order를 만드는 구조
+- local simulator result를 promotion evidence로 주장하는 것
+- UI polish가 core alpha/execution loop보다 앞서는 것
+
+한 문장으로 정리하면:
+
+> 지금 목표는 "실제 돈을 움직이는 시스템"이 아니라 "나중에 capital allocation을 판단할 수 있을 만큼 evidence loop를 엄격하게 만드는 시스템"입니다.
+
+## 7. 세 가지 실행 경로
+
+프로젝트에는 latency와 목적이 다른 세 가지 path가 있습니다.
 
 ```mermaid
 flowchart TD
-    A["QuantConnect REST credentials 준비"] --> B["list Cloud projects"]
-    B --> C["projectId 선택"]
-    C --> D["list Cloud backtests"]
-    D --> E["backtestId 선택"]
-    E --> F["import Cloud backtest"]
-    F --> G["imported insights/orders/stats review"]
-    G --> H["paper/live-shadow/learning/preflight command 실행"]
-    H --> I["unit-test evidence와 direct evidence를 분리해서 보고"]
+    A["Fast path"] --> A1["numeric/precomputed alpha"]
+    A --> A2["fresh LLM call 없음"]
+    A --> A3["stale-data block, de-risking, validated rule"]
+
+    B["Slow path"] --> B1["numeric features + LLM semantic alpha"]
+    B --> B2["news, filing, macro, portfolio context"]
+    B --> B3["new position 또는 event-driven decision"]
+
+    C["Research path"] --> C1["model training"]
+    C --> C2["walk-forward validation"]
+    C --> C3["QuantConnect Cloud backtest"]
+    C --> C4["failure review"]
 ```
 
-사용할 command:
+Fast path는 빠른 방어적 판단에 가깝고, slow path는 LLM semantic alpha를 포함하는 판단입니다. Research path는 새로운 전략과 promotion evidence를 만드는 긴 흐름입니다.
+
+## 8. 이 repository 안에서 각 폴더가 맡는 역할
+
+| 위치 | 역할 |
+|---|---|
+| `SPEC.md` | active specification index입니다. 프로젝트 방향의 기준입니다. |
+| `docs/spec/` | long-term spec입니다. scope, runtime, LLM boundary, testing policy를 정의합니다. |
+| `backend/` | repo control plane입니다. ingestion, import, status, paper/live-shadow, preflight, reconciliation을 담당합니다. |
+| `frontend/` | operator dashboard입니다. state와 blocker를 보여주는 read-only operational surface입니다. |
+| `engines/lean/` | LEAN strategy runtime code입니다. backtest와 algorithm behavior가 여기에 있습니다. |
+| `scripts/` | operator command wrappers입니다. backtest, import, paper/live-shadow, preflight 등을 실행합니다. |
+| `data/` | local evidence나 fixture성 데이터가 위치할 수 있습니다. promotion evidence와 구분해야 합니다. |
+| `artifacts/` | run 결과물이 쌓이는 위치입니다. 무엇을 증명하는 artifact인지 분리해서 봐야 합니다. |
+| `result.md` | 지금 읽고 있는 전체 프로젝트 이해용 review note입니다. |
+
+주의할 점: `backend/src/modules/v1-pilot/**` 같은 이름의 `v1-pilot`은 legacy identifier에 가깝습니다. 현재 active direction은 old live-pilot scope가 아니라 QuantConnect Cloud + LEAN validation runtime입니다.
+
+## 9. 이번 PR은 전체 구조에서 어디를 보강하나
+
+현재 PR #23은 전체 프로젝트 중 아래 부분을 보강합니다.
+
+```mermaid
+flowchart LR
+    A["Macro text evidence<br/>FOMC statements/minutes"] --> B["point-in-time semantic evidence"]
+    B --> C["LLM semantic alpha replay input"]
+
+    D["QuantConnect Cloud backtest"] --> E["manual import by projectId/backtestId"]
+    E --> F["insights / orders / stats artifacts"]
+
+    C --> G["alpha evidence review"]
+    F --> G
+    G --> H["paper replay evidence"]
+    H -. "current readiness로 자동 승격 금지" .-> I["live preflight"]
+```
+
+즉, 이번 PR은 전체 시스템의 두 약한 부분을 메우는 작업입니다.
+
+첫째, LLM이 읽는 text evidence를 point-in-time으로 저장합니다. 그래야 나중에 LLM alpha가 미래 정보를 읽지 않았는지 확인할 수 있습니다.
+
+둘째, QuantConnect Cloud backtest 결과를 repo로 import합니다. 그래야 Cloud에서 실제로 나온 insights, orders, stats를 control plane이 evidence로 다룰 수 있습니다.
+
+셋째, historical paper replay evidence와 current live readiness를 분리합니다. 과거 replay가 있다고 해서 지금 live preflight가 통과되면 안 됩니다.
+
+## 10. 이번 PR에서 추가된 operator flow
+
+이번 PR이 추가한 흐름은 아래처럼 이해하면 됩니다.
+
+```mermaid
+flowchart TD
+    A["semantic evidence ingest"] --> B["RawEvidenceRecord 저장"]
+    B --> C["LLM semantic alpha replay 준비"]
+
+    D["list Cloud projects"] --> E["operator가 projectId 선택"]
+    E --> F["list Cloud backtests"]
+    F --> G["operator가 backtestId 선택"]
+    G --> H["import Cloud backtest"]
+    H --> I["insights/orders/stats 저장"]
+
+    C --> J["evidence review"]
+    I --> J
+```
+
+사용하는 command는 다음입니다.
 
 ```bash
+./scripts/ingest-semantic-evidence --source hf-fomc-statements-minutes --limit 80
 ./scripts/list-cloud-projects
 ./scripts/list-cloud-backtests --project-id <project-id> --limit 10
 ./scripts/import-cloud-backtest --project-id <project-id> --backtest-id <backtest-id>
-./scripts/ingest-semantic-evidence --source hf-fomc-statements-minutes --limit 80
 ```
 
-현재 정확한 상태를 한 문장으로 말하면:
+여기서 operator가 `projectId`와 `backtestId`를 명시적으로 고르는 이유는 중요합니다. 시스템이 좋은 결과만 몰래 고르면 promotion evidence가 왜곡될 수 있습니다.
 
-> Import path와 typed boundary는 구현되고 테스트됐지만, Cloud promotion evidence는 아직 operator가 제공하는 QuantConnect credential, `projectId`, `backtestId`에 의존합니다. Live preflight는 여전히 fail closed입니다.
+## 11. 안전 경계
+
+이 프로젝트의 safety model은 "unknown이면 blocked"입니다.
+
+```mermaid
+flowchart TD
+    A["execution-like action 요청"] --> B["preflight"]
+    B --> C{"필수 evidence가 현재성 있고 검증됐나?"}
+    C -->|"yes"| D["paper/live-shadow path 검토 가능"]
+    C -->|"no / unknown / stale"| E["blocked"]
+
+    F["historical replay evidence"] --> G["review에는 사용"]
+    G -. "직접 통과 근거 아님" .-> B
+```
+
+핵심 원칙:
+
+- historical replay evidence는 current live readiness가 아닙니다.
+- LLM output은 final order quantity가 아닙니다.
+- frontend는 broker credential을 보면 안 됩니다.
+- real broker writes는 현재 scope가 아닙니다.
+- local simulator output은 Cloud promotion evidence가 아닙니다.
+- preflight에서 unknown state는 ready가 아니라 blocked입니다.
+
+## 12. 현재 무엇이 검증됐고, 무엇은 아직 아닌가
+
+검증된 것:
+
+- targeted backend tests가 semantic evidence ingestion, Cloud import, run import, paper bridge behavior를 보호합니다.
+- frontend dashboard tests와 typecheck/build가 통과했습니다.
+- Cloud import path는 code와 tests로 구현되어 있습니다.
+- paper replay evidence와 live readiness가 분리됐습니다.
+- documentation은 current direction을 설명하도록 업데이트됐습니다.
+
+아직 직접 evidence가 필요한 것:
+
+- 실제 QuantConnect REST credentials로 Cloud project를 조회하는 것
+- 실제 `projectId`와 `backtestId`를 골라 Cloud backtest를 import하는 것
+- import된 Cloud artifacts를 바탕으로 paper/live-shadow/learning/preflight command를 이어서 실행하는 것
+- unit-test evidence와 direct execution evidence를 분리해서 보고하는 것
+
+중요한 구분:
+
+```text
+Unit test passed
+  = code contract가 보호됨
+
+QuantConnect Cloud import succeeded with real projectId/backtestId
+  = 실제 Cloud evidence가 repo control plane으로 들어옴
+
+Preflight blocked
+  = 정책이 실패한 것이 아니라, unknown/stale/live-scope 위험을 막은 것일 수 있음
+```
+
+## 13. 처음 읽는 사람을 위한 코드 읽기 순서
+
+전체 diff를 무작정 읽기보다 이 순서가 좋습니다.
+
+1. `SPEC.md`
+
+   프로젝트가 무엇을 목표로 하고 무엇을 금지하는지 먼저 봅니다.
+
+2. `docs/spec/01-quantconnect-lean-runtime.md`
+
+   QuantConnect Cloud, local LEAN, repo control plane의 역할 분담을 봅니다.
+
+3. `docs/spec/02-llm-semantic-alpha-engine.md`
+
+   LLM이 alpha loop 안에서 무엇을 할 수 있고, broker boundary를 왜 넘으면 안 되는지 봅니다.
+
+4. `docs/spec/04-risk-execution-and-broker-boundary.md`
+
+   paper/live-shadow, preflight, broker-write boundary를 봅니다.
+
+5. `backend/src/modules/v1-pilot/alpha/huggingface-semantic-evidence-ingest.service.ts`
+
+   이번 PR의 semantic evidence ingestion이 어떻게 생겼는지 봅니다.
+
+6. `backend/src/modules/v1-pilot/lean/lean-cloud-rest-importer.ts`
+
+   QuantConnect Cloud import가 어떤 artifact를 가져오는지 봅니다.
+
+7. `backend/src/modules/v1-pilot/paper/lean-paper-bridge.service.ts`
+
+   replay evidence가 paper budget policy와 어떻게 연결되는지 봅니다.
+
+8. `backend/src/modules/v1-pilot/live/live-preflight.service.ts`
+
+   current readiness가 없을 때 왜 blocked가 유지되는지 봅니다.
+
+9. `frontend/src/components/backtest-cycle-dashboard/cycleModel.ts`
+
+   dashboard가 전체 loop를 어떻게 읽기 쉽게 보여주는지 봅니다.
+
+10. `docs/full-lean-backtest-setup.md`
+
+    operator가 어떤 command를 실행하고, 각 command가 무엇을 증명하는지 봅니다.
+
+## 14. 리뷰할 때의 체크리스트
+
+전체 프로젝트 관점에서 리뷰할 질문은 아래입니다.
+
+### Core loop
+
+- data -> alpha -> LEAN Insight -> portfolio target -> risk -> paper/live-shadow -> reconciliation 흐름이 더 강해졌는가?
+- UI나 문서가 core loop를 대신하는 척하지 않는가?
+
+### Point-in-time discipline
+
+- evidence에 `asOf`와 `availableAt`이 구분되는가?
+- semantic alpha replay가 lookahead bias를 줄이는 방향인가?
+
+### QuantConnect Cloud evidence
+
+- Cloud `projectId`와 `backtestId`를 보존하는가?
+- insights, orders, stats가 누락되거나 일부 page만 import되는 위험을 줄였는가?
+- operator가 어떤 Cloud run을 가져왔는지 추적할 수 있는가?
+
+### LLM boundary
+
+- LLM은 typed semantic alpha feature를 만들 뿐인가?
+- LLM이 broker credential, raw broker payload, final order quantity로 넘어가지 않는가?
+
+### Preflight and readiness
+
+- historical replay evidence가 current live readiness로 승격되지 않는가?
+- unknown, stale, missing evidence가 blocked로 남는가?
+
+### Documentation
+
+- 문서가 command, acceptance criteria, blocker를 구체적으로 말하는가?
+- live-money scope를 은근히 넓히지 않는가?
+
+## 15. 이 문서 기준의 현재 결론
+
+현재 branch는 전체 프로젝트의 core loop 중에서 "point-in-time semantic evidence"와 "QuantConnect Cloud backtest import evidence"를 보강합니다.
+
+이것은 dashboard polish보다 중요한 작업입니다. 이유는 프로젝트의 현재 핵심 gap이 UI가 아니라 Cloud promotion evidence와 LLM semantic-alpha replay이기 때문입니다.
+
+다만 아직 real Cloud promotion evidence가 완성된 것은 아닙니다. 정확한 상태는 아래입니다.
+
+> Import path와 typed boundary는 구현되고 테스트됐습니다. 하지만 실제 Cloud promotion evidence는 operator가 QuantConnect REST credentials, `projectId`, `backtestId`를 제공하고 import command를 실행한 뒤에 생깁니다. Live preflight는 현재 scope에서 계속 fail closed입니다.
