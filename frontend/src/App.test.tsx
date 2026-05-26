@@ -286,7 +286,7 @@ vi.mock("./services/api", () => ({
 }));
 
 describe("App", () => {
-  it("should_render_without_crashing", async () => {
+  it("should_render_backtest_cycle_as_the_root_page", async () => {
     render(
       <MemoryRouter>
         <App />
@@ -296,7 +296,9 @@ describe("App", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("선택한 필터에 해당하는 리포트가 없습니다."),
+        screen.getByRole("heading", {
+          name: "Backtest-Based Architecture Cycle",
+        }),
       ).toBeInTheDocument();
     });
   });
@@ -310,9 +312,7 @@ describe("App", () => {
     expect(document.querySelector(".min-h-screen")).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(
-        screen.getByText("선택한 필터에 해당하는 리포트가 없습니다."),
-      ).toBeInTheDocument();
+      expect(screen.getByText("One-Cycle Runbook")).toBeInTheDocument();
     });
   });
 
@@ -329,6 +329,24 @@ describe("App", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Live API status")).toBeInTheDocument();
+    });
+  });
+
+  it("should_render_backtest_cycle_route", async () => {
+    render(
+      <MemoryRouter initialEntries={["/backtest-cycle"]}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByRole("heading", {
+        name: "Backtest-Based Architecture Cycle",
+      }),
+    ).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByText("One-Cycle Runbook")).toBeInTheDocument();
     });
   });
 });

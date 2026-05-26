@@ -1,69 +1,43 @@
-# React + TypeScript + Vite
+# Frontend Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Status: supporting operator surface.
 
-Currently, two official plugins are available:
+This Vite/React app is a read-only observability surface for the research
+engine. It must not hold broker credentials or trigger real-money broker
+writes. The backend scripts and LEAN/QuantConnect remain the execution and
+evidence paths.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Operator Scenario
 
-## Expanding the ESLint configuration
+1. Open `/` to review the current backtest-based architecture cycle.
+2. Check the run id, alpha counts, portfolio targets, current paper status,
+   historical paper replay status, broker boundary, preflight blockers, and
+   next safe action.
+3. Run the listed CLI command outside the browser.
+4. Refresh the page and verify that the blocker/evidence changed.
+5. Open `/control-plane` only when a detailed drill-down is needed.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Primary Routes
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- `/` and `/backtest-cycle`: compact backtest-based architecture cycle view. It
+  reads `/v1-pilot/status` and shows how Cloud/LEAN backtest evidence connects
+  to alpha, portfolio targets, current paper/live-shadow evidence, historical
+  replay evidence, fail-closed preflight, and learning.
+- `/control-plane`: detailed drill-down for control-plane, paper, broker
+  read-only, and readiness ledgers.
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+Legacy report, analytics, and testing pages are intentionally not routed in the
+main app because they do not advance the current backtest-to-evidence workflow.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Local Commands
+
+```bash
+bun install
+bun run dev
+bun run typecheck
+bun run test:run
+bun run build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Use the backend `VITE_API_URL` target when the API is not running on
+`http://localhost:3001`.

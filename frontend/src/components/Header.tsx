@@ -1,45 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { NavLink } from "react-router-dom";
-import ThemeToggle from "./ThemeToggle";
 
 const navItems = [
-  ["/", "Home"],
-  ["/reports", "Reports"],
-  ["/analytics", "Analytics"],
-  ["/control-plane", "Control Plane"],
-  ["/testing", "Testing"],
+  ["/", "Cycle"],
+  ["/control-plane", "Details"],
 ];
 
 const Header: React.FC = () => {
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  useEffect(() => {
-    const prefersDark = window.matchMedia(
-      "(prefers-color-scheme: dark)",
-    ).matches;
-    const savedTheme = localStorage.getItem("theme");
-
-    if (savedTheme) {
-      setIsDarkMode(savedTheme === "dark");
-    } else {
-      setIsDarkMode(prefersDark);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    }
-  }, [isDarkMode]);
-
-  const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-  };
-
   return (
     <header className="sticky top-0 z-50 border-b border-[#2b3139] bg-[#0b0e11] text-[#eaecef]">
       <nav className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-4 sm:px-5 lg:px-6">
@@ -76,7 +43,9 @@ const Header: React.FC = () => {
           ))}
         </div>
 
-        <ThemeToggle isDark={isDarkMode} onToggle={toggleTheme} />
+        <span className="rounded-md border border-[#2b3139] bg-[#181a20] px-3 py-2 text-[11px] font-bold uppercase text-[#929aa5]">
+          read-only
+        </span>
       </nav>
     </header>
   );
