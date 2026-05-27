@@ -92,6 +92,7 @@ Read these documents in order before changing core behavior:
 10. [Quality-Gated Universe](docs/spec/08-quality-gated-universe.md): active universe policy and caps.
 11. [Dual Monetization And Operations](docs/spec/09-dual-monetization-and-operations.md): own-capital priority, Oracle Cloud ARM operations, Darwinex/Zero posture, strategy corpus, and vintage-data rules.
 12. [Parallel Research Factory](docs/spec/10-parallel-research-factory.md): parallel job boundaries, idempotency, selected-run-bias controls, and single-writer execution gates.
+13. [Full Implementation Plan](docs/spec/11-full-implementation-plan.md): workstreams, dependencies, acceptance criteria, and verification evidence needed to complete the full spec.
 
 Supporting docs:
 
@@ -137,6 +138,26 @@ flowchart TB
 ```
 
 The control plane orchestrates jobs, persists evidence, and enforces promotion policy. LEAN owns strategy runtime semantics. LLMs produce typed semantic features and risk judgments. Broker-write paths remain blocked until a user-approved broker-write implementation spec exists.
+
+## Implementation Plan Index
+
+The full implementation plan lives in [Full Implementation Plan](docs/spec/11-full-implementation-plan.md). `SPEC.md` intentionally stays thin: it states direction, core contracts, and gates; detailed workstreams, dependencies, acceptance criteria, and verification commands belong under `docs/spec/`.
+
+Implementation priority:
+
+```text
+research factory
+  -> data/vintage foundation
+  -> simple baselines
+  -> LLM semantic ablations
+  -> QuantConnect Cloud evidence
+  -> paper/live-shadow and reconciliation
+  -> Oracle Cloud ARM continuous operation
+  -> broker-read-only reconciliation
+  -> user-approved broker-write spec
+  -> own-capital allocation
+  -> later Darwinex/Zero track-record path
+```
 
 ## Core Contracts
 

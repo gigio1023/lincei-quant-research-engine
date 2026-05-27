@@ -19,6 +19,7 @@ Read [../SPEC.md](../SPEC.md) first. It is the authority document for project di
 - [Quality-Gated Universe](spec/08-quality-gated-universe.md)
 - [Dual Monetization And Operations](spec/09-dual-monetization-and-operations.md)
 - [Parallel Research Factory](spec/10-parallel-research-factory.md)
+- [Full Implementation Plan](spec/11-full-implementation-plan.md)
 
 ## Supporting Design Docs
 
