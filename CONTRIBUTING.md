@@ -2,7 +2,7 @@
 
 Status: active contribution guide.
 
-This repository is a QuantConnect/LEAN + LLM autonomous alpha system with two long-term monetization tracks: own-capital allocation and Darwinex/Zero track-record monetization. Contributions must serve the active spec in [SPEC.md](SPEC.md). Do not treat this project as a generic dashboard or report app.
+This repository is an own-capital-first QuantConnect/LEAN + LLM autonomous alpha system. Darwinex/Zero is a later track-record monetization path, not the first architecture driver. Contributions must serve the active spec in [SPEC.md](SPEC.md). Do not treat this project as a generic dashboard or report app.
 
 ## Required Reading
 
@@ -31,8 +31,10 @@ flowchart LR
 Prefer vertical slices that advance:
 
 ```text
-data -> alpha -> LEAN Insight -> portfolio target -> risk -> paper/live-shadow evidence -> reconciliation -> learning
+research hypothesis -> point-in-time data -> alpha -> LEAN Insight -> portfolio target -> risk -> paper/live-shadow evidence -> reconciliation -> learning
 ```
+
+Maximize bounded parallelism before promotion: corpus ingest, hypothesis extraction, data ingest, feature generation, LLM semantic feature jobs, ablations, backtest sweeps, and Cloud artifact imports. Keep portfolio/risk/execution/reconciliation/preflight single-writer and fail closed.
 
 Do not spend major effort on UI polish while the executable alpha-to-evidence loop is missing or broken.
 
@@ -179,4 +181,4 @@ LLMs may generate typed semantic alpha features and risk judgments. They must no
 - bypass deterministic risk gates;
 - create non-replayable live-only decisions.
 
-Real broker writes require a separate user-approved live-money spec.
+Real broker writes require a separate user-approved broker-write implementation spec.

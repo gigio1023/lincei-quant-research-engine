@@ -52,7 +52,7 @@ bun run v1:cli -- run-paper-cycle
 bun run v1:cli -- live-preflight
 ```
 
-`live-preflight` is evidence only under the active spec. It should remain blocked for real broker writes until a separate user-approved live-money spec exists.
+`live-preflight` is evidence only under the active spec. It should remain blocked for real broker writes until a separate user-approved broker-write implementation spec exists.
 
 ## Frontend
 

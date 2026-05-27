@@ -4,10 +4,10 @@ Status: active normative spec.
 
 ## Direction Lock
 
-The active long-term direction is a dual monetization system:
+The active long-term direction is an own-capital-first monetization system:
 
 1. Own-capital allocation after the alpha, risk, execution, preflight, and reconciliation gates pass.
-2. Darwinex/Zero external-capital fee path after the same strategy has a compatible signal, instrument mapping, and observed track record.
+2. Darwinex/Zero external-capital fee path only after the own-capital-grade strategy has a compatible signal, instrument mapping, and observed track record.
 
 The active implementation milestone is still a QuantConnect Cloud and LEAN validation system for aggressive alpha research. It is not an automatic production/live-trading system.
 
@@ -18,6 +18,8 @@ research -> typed alpha -> LEAN validation -> paper/live-shadow evidence -> reco
 ```
 
 Real broker writes are blocked by default. Any code path that could submit, cancel, flatten, or otherwise mutate a real brokerage account needs a separate user-approved broker-write implementation spec before implementation.
+
+Parallelization is required where it improves evidence throughput: corpus ingest, hypothesis extraction, data ingest, feature generation, LLM semantic feature jobs, ablations, backtest sweeps, and Cloud artifact imports. Portfolio target consolidation, risk cuts, execution intent, reconciliation, and preflight remain single-writer.
 
 ## Why This Lock Exists
 
@@ -39,8 +41,9 @@ Those are different risk levels. The current spec keeps live-money and Darwinex 
 - Result import into the control plane.
 - Narrow unit tests plus direct runnable verification.
 - Oracle Cloud ARM as an always-on control plane for scheduled ingestion, alpha generation, live-shadow, imports, reconciliation, and alerts.
+- Bounded parallel research jobs for hypothesis extraction, feature generation, ablation, backtest, and Cloud import work.
 - Strategy research corpus and hypothesis registry work that feeds testable alpha candidates.
-- Darwinex/Zero feasibility analysis, instrument mapping, signal bridge design, and track-record evidence.
+- Darwinex/Zero feasibility analysis after own-capital evidence exists.
 
 ## Scope Out
 
@@ -50,6 +53,7 @@ Those are different risk levels. The current spec keeps live-money and Darwinex 
 - margin, leverage, options, futures, shorting, or derivatives;
 - HFT or market making;
 - treating simulator or local sample-data runs as promotion evidence;
+- selected-run-bias from only storing winning parallel backtests;
 - using LLM free text as an order instruction;
 - storing credentials in prompts, frontend state, logs, or research artifacts;
 - Darwinex/Zero performance-fee claims without a compatible account, mapped instruments, observed track record, and allocated-capital profit under Darwinex rules.

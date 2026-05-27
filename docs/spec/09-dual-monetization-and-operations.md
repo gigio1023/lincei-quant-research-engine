@@ -13,24 +13,34 @@ The long-term product objective has two monetization tracks:
 
 This document approves the long-term direction. It does not approve immediate broker writes, exact capital limits, leverage, derivatives, or a specific broker adapter. Those still require a dedicated implementation spec before code can mutate a real account.
 
+Own-capital allocation has priority over Darwinex/Zero work. Darwinex/Zero is a downstream monetization venue, not a blocker for building the operator's own validated capital-allocation loop.
+
 ## Primary Hypothesis
 
 The project hypothesis is:
 
-> A point-in-time alpha engine that combines numeric/ML features with LLM semantic alpha features can produce after-cost, benchmark-relative returns that survive QuantConnect Cloud validation, paper/live-shadow evidence, reconciliation, and later transfer to own-capital and Darwinex/Zero execution paths.
+> A point-in-time parallel research factory that combines durable numeric baselines, ML features, and LLM semantic alpha features can produce after-cost, benchmark-relative returns that survive QuantConnect Cloud validation, paper/live-shadow evidence, reconciliation, and later own-capital execution.
 
 This is a testable claim, not a product slogan. Every promotion review must be able to answer which part of the hypothesis passed or failed.
+
+The Alpha Architect corpus review changes the near-term priority:
+
+- first prove simple liquid trend-following, defensive allocation, momentum, and daily-return baselines;
+- then test whether LLM semantic alpha improves those baselines;
+- defer factor crowding, factor valuation, macro regime, and filing-language strategies until the project has broad data and vintage controls;
+- defer Darwinex/Zero until own-capital-grade evidence exists.
 
 ## Hypothesis Stack
 
 | ID | Hypothesis | Required comparison |
 | --- | --- | --- |
-| H1 | The numeric/ML baseline has positive edge after costs on the quality-gated universe. | Baseline vs benchmark, with drawdown, turnover, and slippage assumptions reported. |
+| H1 | A simple numeric baseline has positive edge after costs on a liquid, testable universe. | Trend/momentum/defensive baseline vs benchmark, with drawdown, turnover, and slippage assumptions reported. |
 | H2 | LLM semantic alpha adds incremental edge beyond numeric/ML features. | Numeric-only vs LLM-only vs combined ablations. |
 | H3 | Point-in-time and vintage-data controls remove false alpha caused by future information or restated data. | Replay using `availableAt`, source hashes, and raw snapshot versions. |
 | H4 | The combined alpha survives QuantConnect Cloud evidence and current paper/live-shadow evidence. | Imported Cloud artifacts plus current paper/live-shadow records and reconciliation. |
-| H5 | The strategy remains usable after operational costs, latency, missed fills, and reconciliation blockers. | Live-shadow dwell-time reports, execution-cost assumptions, and failure-case logs. |
-| H6 | The same signal can be monetized through two separate paths: own-capital allocation and Darwinex/Zero track record. | Broker-specific adapter proof for own capital; Darwinex/Zero instrument mapping and track-record proof for fee path. |
+| H5 | Parallel hypothesis/backtest search does not create selected-run bias. | Complete run registry, failed/blocked/losing variants, parameter search space, and out-of-sample/live-shadow windows. |
+| H6 | The strategy remains usable after operational costs, taxes, latency, missed fills, and reconciliation blockers. | Live-shadow dwell-time reports, execution-cost assumptions, tax-context notes, and failure-case logs. |
+| H7 | The own-capital signal can later support Darwinex/Zero track-record monetization. | Own-capital-grade evidence first; Darwinex/Zero instrument mapping and track-record proof second. |
 
 No hypothesis can be marked accepted from a single lucky backtest, a selected winning run, or a local simulator artifact.
 
@@ -39,7 +49,7 @@ No hypothesis can be marked accepted from a single lucky backtest, a selected wi
 ```text
 data and research evidence
   -> point-in-time and vintage feature store
-  -> numeric/ML alpha + LLM semantic alpha
+  -> parallel numeric/ML/LLM feature jobs and ablations
   -> LEAN Insights
   -> portfolio construction
   -> risk cuts
@@ -52,11 +62,28 @@ data and research evidence
 
 The core loop remains data -> alpha -> backtest -> portfolio sizing -> risk -> execution evidence -> reconciliation -> learning. Dashboards, reports, and research notes support that loop; they do not replace it.
 
+## Parallel Research Factory
+
+The Oracle Cloud ARM control plane should coordinate a bounded parallel research factory:
+
+```text
+research articles || data ingest || feature jobs || LLM jobs || ablations || backtests || Cloud imports
+```
+
+Those jobs may run concurrently. They must write durable job records and output hashes. The final portfolio/risk/execution path must remain single-writer:
+
+```text
+promotion ledger -> portfolio targets -> risk cuts -> execution intent -> reconciliation -> preflight
+```
+
+Parallelization is useful only when it improves evidence quality. It must not create hidden winning-run selection, duplicate artifacts, or multiple competing account states.
+
 ## Oracle Cloud ARM Operations
 
 The operator's Oracle Cloud ARM server is the preferred always-on control plane for low-cost continuous operation. Its responsibilities are:
 
 - schedule evidence ingestion, feature generation, alpha cycles, live-shadow runs, imports, reconciliation, and alerts;
+- schedule parallel hypothesis extraction, feature generation, ablation, and backtest jobs under resource and cost caps;
 - maintain point-in-time raw evidence, feature snapshots, run manifests, and promotion ledgers;
 - call QuantConnect Cloud or local LEAN commands when the platform and credentials allow it;
 - run lightweight model scoring and LLM semantic feature jobs within configured cost limits;
@@ -69,12 +96,15 @@ The Oracle server is not automatically the strategy execution venue. QuantConnec
 Own-capital trading is a long-term goal. The required progression is:
 
 1. Research and data collection with point-in-time and vintage controls.
-2. Numeric/ML baseline and LLM semantic alpha ablation evidence.
-3. QuantConnect Cloud backtest/import evidence.
-4. Current paper/live-shadow evidence with reconciliation.
-5. Broker-write implementation spec for the selected broker and account type.
-6. Bounded initial live-money deployment with explicit maximum notional, loss limits, kill switch, cancel/flatten drills, and reconciliation fail-closed behavior.
-7. Ongoing learning loop that keeps failed, flat, blocked, and winning decisions.
+2. Hypothesis registry with accepted, rejected, blocked, and deferred candidates.
+3. Simple numeric baselines for liquid trend, defensive allocation, momentum, and daily-return features.
+4. LLM semantic alpha ablations against those baselines.
+5. QuantConnect Cloud backtest/import evidence.
+6. Current paper/live-shadow evidence with reconciliation.
+7. Broker-read-only reconciliation.
+8. Broker-write implementation spec for the selected broker and account type.
+9. Bounded initial live-money deployment with explicit maximum notional, loss limits, kill switch, cancel/flatten drills, and reconciliation fail-closed behavior.
+10. Ongoing learning loop that keeps failed, flat, blocked, and winning decisions.
 
 The system must not skip from a backtest to real orders. A green unit-test suite does not authorize own-capital deployment.
 
@@ -111,6 +141,13 @@ Research articles, papers, and practitioner notes are useful alpha idea sources,
 
 The LLM may use this corpus to propose hypotheses and counter-theses. It must not convert a research article directly into a broker order.
 
+The initial stored corpus is `references/alphaarchitect/`. Its strategy register identifies the first own-capital backlog:
+
+- liquid trend-following and defensive allocation;
+- momentum, skip-month, volatility-conditioned, and daily-return features;
+- factor crowding, factor valuation, and macro regime features after broad data/vintage support exists;
+- filing/news/LLM semantic alpha after numeric baselines are stable.
+
 ## Vintage Data And Restatements
 
 For macro, fundamentals, filings, estimates, index membership, and any source that can be revised, corrected, or restated, the system must preserve vintage data:
@@ -138,7 +175,9 @@ unit/schema tests
 
 Every promotion decision must report:
 
+- hypothesis id, research refs, and strategy variant;
 - data vintage and point-in-time status;
+- attempted variants, failed runs, and selected-run-bias status;
 - benchmark-relative and absolute returns;
 - after-cost assumptions;
 - drawdown, volatility, turnover, liquidity, and slippage;
@@ -164,3 +203,7 @@ Every promotion decision must report:
 - Darwinex Zero trading accounts and assets: https://www.darwinexzero.com/docs/en/trading-accounts-assets
 - Alpha Architect research blog: https://alphaarchitect.com/blog/
 - Alpha Architect factor research article: https://alphaarchitect.com/factor-strategies/
+- Alpha Architect stored corpus: ../../references/alphaarchitect/README.md
+- Alpha Architect strategy register: ../../references/alphaarchitect/strategy-register.md
+- Own-capital corpus review: ../own-capital-alphaarchitect-corpus-review.md
+- Parallel research factory spec: 10-parallel-research-factory.md

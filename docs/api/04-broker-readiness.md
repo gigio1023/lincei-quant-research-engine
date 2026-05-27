@@ -65,7 +65,7 @@ Status: operator API reference for broker snapshots, funding readiness, blocked 
 
 #### `POST /control-plane/funding-readiness/:id/assess-live-pilot-readiness`
 
-- **Description**: Historical endpoint name for broker-write preflight evidence. This endpoint is a readiness ledger only. It rejects credentials, raw account/order refs, and order intent fields, then combines funding readiness, active budget policy, broker adapter status, schema migration policy, read-only/fill polling, and broker emergency-control evidence. Under the active spec, status must remain `blocked` for real broker writes because no live-money scope is approved.
+- **Description**: Historical endpoint name for broker-write preflight evidence. This endpoint is a readiness ledger only. It rejects credentials, raw account/order refs, and order intent fields, then combines funding readiness, active budget policy, broker adapter status, schema migration policy, read-only/fill polling, and broker emergency-control evidence. Under the active spec, status must remain `blocked` for real broker writes until a broker-write implementation spec is approved.
 - **Example Request**:
   ```json
   {
@@ -78,7 +78,7 @@ Status: operator API reference for broker snapshots, funding readiness, blocked 
   ```
 - **Response Notes**:
   - returns a `LivePilotReadinessRecord`;
-  - `status` remains `blocked` under the active spec. A future live-money spec would need funding readiness, explicit budget limits, production schema migrations, production credential custody, verified broker schema/sandbox/read-only/fill polling, broker cancel/flatten/open-order polling, and a separate approved live order path;
+  - `status` remains `blocked` under the active spec. A broker-write implementation spec would need funding readiness, explicit budget limits, production schema migrations, production credential custody, verified broker schema/sandbox/read-only/fill polling, broker cancel/flatten/open-order polling, and a separate approved live order path;
   - `brokerWriteEnabled`, `orderEndpointImplemented`, `brokerExecutionEnabled`, and `liveTradingEnabled` are always `false` in the current slice;
   - explicit idempotency keys replay the prior time-sensitive readiness result.
 

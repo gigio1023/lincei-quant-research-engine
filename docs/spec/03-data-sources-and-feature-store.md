@@ -93,6 +93,22 @@ Feature records must include:
 - blocker or abstain reason where applicable.
 - vintage status where the source can be restated or corrected.
 
+## Parallel Feature Generation
+
+Feature generation should be parallelized by source, symbol, asset id, time window, feature family, and hypothesis id when the job does not mutate shared account state.
+
+Parallel feature jobs must record:
+
+- job id and run id;
+- partition key;
+- input refs and input hash;
+- output refs and output hash;
+- feature version or model version;
+- cost ref when an external API or LLM was used;
+- blocker reasons.
+
+The feature store must support idempotent writes. Retrying a job with the same partition key and input hash must not create duplicate features. Unknown idempotency state blocks promotion.
+
 The feature store may start as files plus database records. It should preserve enough metadata to replay an alpha decision without re-calling external APIs.
 
 ## LEAN Consumption

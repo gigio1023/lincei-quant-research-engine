@@ -8,6 +8,8 @@ LLMs and broker write paths must not touch. The LLM can produce semantic alpha a
 
 Current implementation permits paper and live-shadow evidence. The long-term spec includes own-capital broker writes and Darwinex/Zero monetization, but both remain blocked until adapter-specific implementation specs approve the exact methods, capital limits, credentials, deployment process, and reconciliation behavior.
 
+Research and alpha jobs may run in parallel before promotion. Portfolio construction, risk cuts, paper/live-shadow execution intent, reconciliation, preflight, and future broker writes must remain single-writer for each account, strategy version, and evidence mode.
+
 ## Portfolio Construction
 
 Portfolio construction converts `Insight` objects into target weights. The first production-shaped design should support:

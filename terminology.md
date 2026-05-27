@@ -85,6 +85,9 @@ podman info
 | `fill` | executed order event | completion when order-specific |
 | `broker adapter` | provider-specific broker boundary implementation | broker connector |
 | `own-capital allocation` | allocating the operator's own pre-funded capital after evidence gates pass | live pilot, tiny live order |
+| `parallel research factory` | bounded concurrent jobs that generate hypotheses, features, ablations, and backtest evidence | uncontrolled parallel trading |
+| `single-writer execution gate` | one canonical path for portfolio, risk, execution intent, reconciliation, and preflight | many agents writing orders |
+| `selected-run bias` | promoting a variant because it looked best after many attempts | choosing the winner casually |
 | `Darwinex/Zero` | external-capital track-record and performance-fee venue considered by this project | backtest platform when referring to Darwinex |
 | `DARWIN` | Darwinex investable track-record product/index derived from a trader's signals and Darwinex risk management | Darwin strategy if ambiguous |
 | `Darwinex Risk Engine` | Darwinex risk-standardization layer that can resize risk independently of our portfolio target | our risk model when referring to Darwinex |

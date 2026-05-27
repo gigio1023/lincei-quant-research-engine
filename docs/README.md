@@ -18,6 +18,7 @@ Read [../SPEC.md](../SPEC.md) first. It is the authority document for project di
 - [References](spec/07-references.md)
 - [Quality-Gated Universe](spec/08-quality-gated-universe.md)
 - [Dual Monetization And Operations](spec/09-dual-monetization-and-operations.md)
+- [Parallel Research Factory](spec/10-parallel-research-factory.md)
 
 ## Supporting Design Docs
 
@@ -52,6 +53,7 @@ These documents explain subsystem intent. If they conflict with `SPEC.md`, `SPEC
 - Broker-write preflight remains blocked for real money; the legacy `scripts/live-pilot-10usd` command is a blocked compatibility surface only.
 - Long-term own-capital and Darwinex/Zero monetization are approved directions, but their broker/write adapters are not implemented or approved for account mutation yet.
 - Alpha Architect strategy corpus: `references/alphaarchitect/` with 40 sourced articles and a strategy register for own-capital research prioritization.
+- Parallelization rule: maximize bounded parallel research/data/feature/ablation/backtest work, then join into a single promotion ledger and single-writer execution gate.
 
 ## Decision Records
 

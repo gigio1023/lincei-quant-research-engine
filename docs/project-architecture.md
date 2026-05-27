@@ -4,15 +4,17 @@ Status: supporting design. The active normative architecture is split under [spe
 
 ## Product Definition
 
-Lincei is an aggressive autonomous alpha system for a personal account. The system should research, decide, backtest, size, execute, monitor, and learn. It should not stop at investment reports or control-plane ledgers.
+Lincei is an own-capital-first autonomous alpha system for a personal account. The system should research, decide, backtest, size, execute, monitor, and learn. It should not stop at investment reports or control-plane ledgers.
 
 The core loop is:
 
 ```text
-Data -> Features -> Alpha Decisions -> LEAN Insights
+Research Hypotheses -> Data -> Features -> Alpha Decisions -> LEAN Insights
      -> Portfolio Targets -> Risk Cuts -> Paper/Live-Shadow Evidence
      -> Reconciliation -> Model Review
 ```
+
+Research, ingestion, feature generation, LLM semantic feature jobs, ablations, and backtest sweeps should be parallelized where safe. Portfolio target consolidation, risk cuts, execution intent, reconciliation, and broker-write preflight remain single-writer.
 
 ## Runtime Ownership
 
@@ -25,7 +27,7 @@ Data -> Features -> Alpha Decisions -> LEAN Insights
 | Meta alpha | Python / LEAN adapter | Combine numeric and LLM signals into final alpha decisions |
 | LEAN engine | LEAN / QuantConnect | Backtest, paper/live-shadow, and emit framework order events in approved modes |
 | Control plane | NestJS | Store budget, ledgers, approvals, risk state, and execution evidence |
-| Broker adapter | Narrow execution service | Read/reconcile broker state now; submit/cancel/flatten only under a future approved live-money spec |
+| Broker adapter | Narrow execution service | Read/reconcile broker state first; submit/cancel/flatten only under a future approved broker-write implementation spec |
 | Dashboard | React | Show alpha, risk, orders, positions, blockers, and next actions |
 
 ## Target Data Flow
@@ -108,7 +110,7 @@ Broker access must be a separate boundary:
 - no arbitrary generated orders;
 - only signed order plans or LEAN-generated, control-plane-approved targets;
 - read-only polling and reconciliation under the active spec;
-- submit, cancel, and flatten only under a future user-approved live-money spec.
+- submit, cancel, and flatten only under a future user-approved broker-write implementation spec.
 
 ## Agile Rule
 

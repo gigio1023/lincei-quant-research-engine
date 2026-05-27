@@ -77,6 +77,6 @@ Required before any future real-money spec could use Toss:
 5. verify Toss paper/sandbox parity against the locked local paper order-plan interface;
 6. move broker credentials behind an external secret reference and add production signing custody for durable approval records and idempotency keys;
 7. add reconciliation and kill-switch tests;
-8. only then draft a separate live-money spec for user approval.
+8. only then draft a separate broker-write implementation spec for user approval.
 
 No LLM or research process should receive Toss credentials or directly call Toss order endpoints.

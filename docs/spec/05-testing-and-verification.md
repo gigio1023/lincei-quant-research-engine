@@ -82,6 +82,21 @@ Promotion reports must include:
 
 No own-capital or Darwinex/Zero promotion can be based only on a unit-test suite, a local simulator run, or a same-day selected backtest.
 
+## Parallel Research Verification
+
+Parallel research jobs must be verified for idempotency and selected-run-bias controls.
+
+Required evidence:
+
+- job records for attempted variants, not only the winner;
+- deterministic input hashes and output hashes;
+- retry behavior that does not duplicate evidence;
+- search space or parameter range when variants are swept;
+- failed, blocked, and losing runs retained in the promotion ledger;
+- a clear boundary where parallel outputs join into one promotion decision.
+
+If a promoted strategy came from a parallel sweep, the report must say whether the result was selected after seeing the backtest metrics and what out-of-sample or live-shadow evidence offsets that bias.
+
 `run-paper-cycle` and `run-paper-replay` prove different things. `run-paper-cycle` is current-market strict and should block stale historical targets. `run-paper-replay` is historical plumbing evidence and must not satisfy live preflight or promotion.
 
 `prepare-lean-local-data` is the direct data-path proof before a full quality universe local backtest. A blocked result is acceptable evidence when it identifies missing Stooq API key, missing QuantConnect Security Master/map-factor entitlement, missing LEAN daily zip, missing map/factor file, or insufficient ingested bars per symbol.

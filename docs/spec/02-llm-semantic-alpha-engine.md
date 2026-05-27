@@ -102,6 +102,8 @@ raw text evidence -> LLM feature sidecar -> feature store/Object Store
 
 Avoid calling external LLM APIs directly from LEAN backtests. Direct calls make replay, latency, credential custody, and lookahead control harder. If live scheduled LLM calls are ever introduced, they need their own spec change and must write the same feature records used by replay.
 
+LLM semantic feature jobs should run in parallel across independent articles, filings, news events, symbols, or time windows when rate limits and cost caps allow it. Parallel LLM jobs must write structured feature records with input hashes, output hashes, prompt/model versions, abstain reasons, and evidence refs. Their outputs join the alpha loop as features only; they do not create portfolio targets or broker instructions.
+
 ## Bias Controls
 
 LLM alpha can overfit history because modern models may know old market outcomes. Mitigations are mandatory:

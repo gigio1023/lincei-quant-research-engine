@@ -83,6 +83,9 @@ Use official documentation where possible. Product behavior, pricing, dataset av
 
 - Alpha Architect research blog: https://alphaarchitect.com/blog/
 - Alpha Architect factor research article: https://alphaarchitect.com/factor-strategies/
+- Stored Alpha Architect corpus: ../../references/alphaarchitect/README.md
+- Alpha Architect strategy register: ../../references/alphaarchitect/strategy-register.md
+- Own-capital architecture review: ../own-capital-alphaarchitect-corpus-review.md
 
 ## Local Project Context
 

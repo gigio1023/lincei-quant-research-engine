@@ -64,6 +64,13 @@ These rules adapt the Karpathy-style caution against common LLM coding mistakes 
 - If the system cannot yet run a meaningful Lean backtest or paper cycle, do not spend major effort on frontend polish unless explicitly requested.
 - When adding docs, keep them implementation-directive: define contracts, commands, acceptance criteria, and blockers. Avoid vague strategy prose that does not move the engine forward.
 
+## Parallelization Discipline
+
+- Always consider whether research, data ingestion, feature generation, LLM semantic feature jobs, ablations, backtest sweeps, or QuantConnect Cloud artifact imports can run as bounded parallel jobs.
+- Parallelize only before promotion and execution. Portfolio target consolidation, risk cuts, paper/live-shadow execution intents, reconciliation, preflight, and future broker writes must remain single-writer and fail closed.
+- Parallel jobs must be idempotent and replayable: record run id, job id, partition key, input hash, output hash, status, retry relationship, cost ref when applicable, and blocker reasons.
+- Do not let parallel sweeps become selected-run bias. Store failed, blocked, flat, and losing variants alongside winners.
+
 ## Implementation Architecture
 
 - Build scalable vertical slices around typed domain concepts, not loose payload plumbing. The core objects are feature snapshots, LLM event features, alpha decisions, LEAN insights, portfolio targets, risk cuts, execution intents, orders, fills, reconciliations, and readiness states.

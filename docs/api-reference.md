@@ -2,7 +2,7 @@
 
 Status: operator API reference index. The active product direction is defined by [../SPEC.md](../SPEC.md).
 
-Endpoint names may preserve historical `live-pilot` terminology, but the active spec keeps all real broker writes blocked unless a future user-approved live-money spec exists.
+Endpoint names may preserve historical `live-pilot` terminology, but the active spec keeps all real broker writes blocked unless a future user-approved broker-write implementation spec exists.
 
 ## Sections
 
@@ -17,4 +17,4 @@ Endpoint names may preserve historical `live-pilot` terminology, but the active 
 
 ## Boundary
 
-The API reference describes implemented endpoints. It does not grant live-money permission. Broker write, cancel, replace, flatten, or liquidation paths remain out of active scope unless [../SPEC.md](../SPEC.md) is explicitly changed with user approval.
+The API reference describes implemented endpoints. It does not grant broker-write permission. Broker write, cancel, replace, flatten, or liquidation paths remain blocked unless [../SPEC.md](../SPEC.md) and the broker-write implementation spec are explicitly approved.

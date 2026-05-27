@@ -29,7 +29,7 @@ Typical actions:
 - stale data halt;
 - existing numeric alpha continuation;
 - paper/live-shadow cancel/flatten simulation;
-- future broker cancel/flatten emergency only after a separate live-money spec.
+- future broker cancel/flatten emergency only after a separate broker-write implementation spec.
 
 Expected latency:
 
