@@ -58,6 +58,11 @@ vi.mock("../services/api", () => ({
           metaDecisionCount: 0,
           mlModelStatus: "not_promoted",
         },
+        research: {
+          hypothesisCount: 0,
+          p1CandidateCount: 0,
+          outOfScopeCount: 0,
+        },
         portfolioTarget: { targetCount: 0 },
         paper: { status: "missing", fillCount: 0 },
         broker: { snapshotStatus: "missing", openOrderCount: 0 },

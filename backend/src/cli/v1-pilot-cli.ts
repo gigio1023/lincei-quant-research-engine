@@ -266,6 +266,25 @@ async function bootstrap(): Promise<void> {
         process.exitCode = result.status === 'completed' ? 0 : 2;
         break;
       }
+      case 'build-hypothesis-registry': {
+        const result = await orchestrator.buildHypothesisRegistry({
+          indexPath: argValue(args, '--index-path'),
+          strategyRegisterPath: argValue(args, '--strategy-register-path'),
+        });
+        console.log(JSON.stringify(result, null, 2));
+        process.exitCode = result.status === 'completed' ? 0 : 2;
+        break;
+      }
+      case 'run-selected-run-bias-check': {
+        const result = await orchestrator.runSelectedRunBiasCheck({
+          targetRef: argValue(args, '--target-ref'),
+          hypothesisId: argValue(args, '--hypothesis-id'),
+          minVariantCount: numericArgValue(args, '--min-variant-count'),
+        });
+        console.log(JSON.stringify(result, null, 2));
+        process.exitCode = result.status === 'passed' ? 0 : 2;
+        break;
+      }
       case 'run-paper-cycle': {
         try {
           const plan = await orchestrator.runPaperCycle();
@@ -380,7 +399,7 @@ async function bootstrap(): Promise<void> {
       }
       default:
         throw new Error(
-          `Unknown command: ${command ?? '(missing)'}. Expected run-full-backtest, prepare-lean-local-data, lean-backtest, qc-cloud-backtest, import-cloud-backtest, list-cloud-projects, list-cloud-backtests, qc-object-store-set, import-lean-run, download-external-baselines, train-ml-baseline, run-alpha-cycle, ingest-semantic-evidence, run-paper-cycle, run-paper-replay, run-live-shadow, run-learning-loop, live-preflight, live-pilot-10usd.`,
+          `Unknown command: ${command ?? '(missing)'}. Expected run-full-backtest, prepare-lean-local-data, lean-backtest, qc-cloud-backtest, import-cloud-backtest, list-cloud-projects, list-cloud-backtests, qc-object-store-set, import-lean-run, download-external-baselines, train-ml-baseline, run-alpha-cycle, ingest-semantic-evidence, build-hypothesis-registry, run-selected-run-bias-check, run-paper-cycle, run-paper-replay, run-live-shadow, run-learning-loop, live-preflight, live-pilot-10usd.`,
         );
     }
   } finally {

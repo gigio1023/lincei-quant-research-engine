@@ -89,6 +89,17 @@ Required keys:
 
 Unknown idempotency state is blocked state.
 
+## Runnable Ledger Commands
+
+The current implementation exposes the first durable research-factory path:
+
+```bash
+./scripts/build-hypothesis-registry
+./scripts/run-selected-run-bias-check
+```
+
+`build-hypothesis-registry` converts the stored Alpha Architect corpus and strategy register into `research_hypotheses` plus `research_job_records`. `run-selected-run-bias-check` records a `promotion-check` job and blocks promotion until enough ablation/backtest/Cloud-import variants, including rejected or blocked variants, are retained.
+
 ## Allowed Parallel Work
 
 ### Research Corpus And Hypothesis Extraction

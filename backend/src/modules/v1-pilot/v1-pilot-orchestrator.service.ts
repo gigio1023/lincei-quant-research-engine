@@ -28,6 +28,7 @@ import { MlModelRegistryService } from './ml/ml-model-registry.service';
 import { LeanCloudRunner } from './lean/lean-cloud.runner';
 import { LeanCloudManualImporter } from './lean/lean-cloud-manual-importer';
 import { LeanCliRunner } from './lean/lean-cli.runner';
+import { ResearchFactoryService } from './research/research-factory.service';
 import {
   LeanDataPreparationService,
   LeanLocalDataPreparationResult,
@@ -57,6 +58,7 @@ export class V1PilotOrchestratorService {
     private readonly leanCloudRunner: LeanCloudRunner,
     private readonly leanCloudManualImporter: LeanCloudManualImporter,
     private readonly leanCliRunner: LeanCliRunner,
+    private readonly researchFactoryService: ResearchFactoryService,
     private readonly leanDataPreparationService: LeanDataPreparationService,
   ) {}
 
@@ -221,6 +223,21 @@ export class V1PilotOrchestratorService {
     sourcePath?: string;
   }) {
     return this.huggingFaceSemanticEvidenceIngestService.ingest(options);
+  }
+
+  async buildHypothesisRegistry(options: {
+    indexPath?: string;
+    strategyRegisterPath?: string;
+  }) {
+    return this.researchFactoryService.ingestAlphaArchitectCorpus(options);
+  }
+
+  async runSelectedRunBiasCheck(options: {
+    targetRef?: string;
+    hypothesisId?: string;
+    minVariantCount?: number;
+  }) {
+    return this.researchFactoryService.checkSelectedRunBias(options);
   }
 
   async runLeanBacktest(

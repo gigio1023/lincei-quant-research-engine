@@ -42,6 +42,14 @@ export interface V1PilotSystemStatus {
     mlModelName?: string;
     mlBlocker?: string;
   };
+  research: {
+    hypothesisCount: number;
+    p1CandidateCount: number;
+    outOfScopeCount: number;
+    latestJobId?: string;
+    latestJobStatus?: string;
+    latestJobType?: string;
+  };
   portfolioTarget: {
     id?: string;
     leanRunId?: string;

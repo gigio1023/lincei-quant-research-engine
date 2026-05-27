@@ -182,6 +182,14 @@ That wrapper pins the practical local evidence path: skip Nest alpha cycle, skip
 
 ## Rolling ML / meta research (Nest alpha cycle)
 
+Build the hypothesis registry first when starting from the stored strategy research corpus:
+
+```bash
+./scripts/build-hypothesis-registry
+```
+
+This converts `references/alphaarchitect/index.json` and `references/alphaarchitect/strategy-register.md` into durable `research_hypotheses` and `research_job_records` rows. It is research backlog evidence, not strategy performance evidence.
+
 Ingest approved semantic evidence first when the run should include fresh macro text:
 
 ```bash
@@ -210,6 +218,14 @@ Outputs under `engines/lean/aggressive_llm_momentum/input/`:
 - `ml_predictions.json` — optional external LightGBM scores
 
 The same LLM feature payload is exported to `artifacts/llm-features/latest.json` for QuantConnect Object Store upload.
+
+Before treating a backtest as a promotion candidate, run:
+
+```bash
+./scripts/run-selected-run-bias-check
+```
+
+This must see retained ablation/backtest/Cloud-import variants, including rejected or blocked variants. Exit code `2` is expected until enough variant evidence exists.
 
 ---
 
@@ -342,16 +358,16 @@ Research escape hatch (does **not** enable broker writes):
 
 ### `run-full-backtest`
 
-| Flag                        | Effect                                                               |
-| --------------------------- | -------------------------------------------------------------------- |
-| `--skip-alpha-cycle`        | Reuse existing `input/meta_decisions.json`                           |
-| `--no-download-data`        | Do not pass `--download-data` to Lean CLI                            |
+| Flag                        | Effect                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------- |
+| `--skip-alpha-cycle`        | Reuse existing `input/meta_decisions.json`                                      |
+| `--no-download-data`        | Do not pass `--download-data` to Lean CLI                                       |
 | `--download-data`           | Pass `--download-data`; blocked unless `ALLOW_PAID_QC_LOCAL_DATA_DOWNLOAD=true` |
-| `--skip-market-data-ingest` | Skip Stooq → SQLite ingest                                           |
-| `--with-static-meta`        | Enable static `meta_decisions.json` overlay; disabled by default     |
-| `--with-static-ml`          | Enable static `ml_predictions.json` overlay; disabled by default     |
-| `--no-static-meta`          | Explicitly keep static meta disabled; redundant with current default |
-| `--no-static-ml`            | Explicitly keep static ML disabled; redundant with current default   |
+| `--skip-market-data-ingest` | Skip Stooq → SQLite ingest                                                      |
+| `--with-static-meta`        | Enable static `meta_decisions.json` overlay; disabled by default                |
+| `--with-static-ml`          | Enable static `ml_predictions.json` overlay; disabled by default                |
+| `--no-static-meta`          | Explicitly keep static meta disabled; redundant with current default            |
+| `--no-static-ml`            | Explicitly keep static ML disabled; redundant with current default              |
 
 ### `lean-backtest`
 
@@ -391,20 +407,20 @@ Exit code **2** = blocked by policy (not a crash).
 
 ## Environment variables
 
-| Variable                                         | Purpose                                                   |
-| ------------------------------------------------ | --------------------------------------------------------- |
-| `LEAN_CLI_PATH`                                  | Path to `lean` binary (default `.venv-lean-cli/bin/lean`) |
-| `LEAN_ALLOW_SIMULATOR=true`                      | Force smoke simulator for `lean-backtest`                 |
-| `LEAN_STRICT_CLI=false`                          | Fall back to simulator if CLI fails                       |
+| Variable                                         | Purpose                                                                           |
+| ------------------------------------------------ | --------------------------------------------------------------------------------- |
+| `LEAN_CLI_PATH`                                  | Path to `lean` binary (default `.venv-lean-cli/bin/lean`)                         |
+| `LEAN_ALLOW_SIMULATOR=true`                      | Force smoke simulator for `lean-backtest`                                         |
+| `LEAN_STRICT_CLI=false`                          | Fall back to simulator if CLI fails                                               |
 | `LEAN_DOWNLOAD_DATA=true`                        | Request local QC `--download-data`; blocked unless paid-download guard is enabled |
-| `ALLOW_PAID_QC_LOCAL_DATA_DOWNLOAD=true`         | Explicitly allow local QCC-consuming QuantConnect data downloads |
-| `ALLOW_SYNTHETIC_FEATURES=true`                  | Test/simulator: synthetic Nest features without bars      |
-| `LIVE_PREFLIGHT_ALLOW_RESEARCH=true`             | Waive flow-validation / static-meta preflight blockers    |
-| `QUANTCONNECT_USER_ID`, `QUANTCONNECT_API_TOKEN` | Lean CLI login (see `lean-login-from-env.sh`)             |
-| `QC_PROJECT_ID`, `QC_USER_ID`, `QC_API_TOKEN`    | QuantConnect REST result import aliases                   |
-| `STOOQ_API_KEY`                                  | Stooq CSV ingestion for local LEAN daily data preparation |
-| `OPENAI_API_KEY`                                 | LLM committee in alpha cycle                              |
-| `DATABASE_PATH`                                  | SQLite (default `backend/data/investment.db`)             |
+| `ALLOW_PAID_QC_LOCAL_DATA_DOWNLOAD=true`         | Explicitly allow local QCC-consuming QuantConnect data downloads                  |
+| `ALLOW_SYNTHETIC_FEATURES=true`                  | Test/simulator: synthetic Nest features without bars                              |
+| `LIVE_PREFLIGHT_ALLOW_RESEARCH=true`             | Waive flow-validation / static-meta preflight blockers                            |
+| `QUANTCONNECT_USER_ID`, `QUANTCONNECT_API_TOKEN` | Lean CLI login (see `lean-login-from-env.sh`)                                     |
+| `QC_PROJECT_ID`, `QC_USER_ID`, `QC_API_TOKEN`    | QuantConnect REST result import aliases                                           |
+| `STOOQ_API_KEY`                                  | Stooq CSV ingestion for local LEAN daily data preparation                         |
+| `OPENAI_API_KEY`                                 | LLM committee in alpha cycle                                                      |
+| `DATABASE_PATH`                                  | SQLite (default `backend/data/investment.db`)                                     |
 
 ---
 
@@ -425,10 +441,10 @@ Exit code **2** = blocked by policy (not a crash).
 | `Docker is not running` or `Docker is unavailable to the current process` | Start Docker/Podman and ensure the invoking shell can access the Docker socket; on Linux ARM64 this may require a new login shell. The runner falls back to `sg docker` when that works. |
 | `Insufficient market data for SPY`                                        | Run ingest or `ALLOW_SYNTHETIC_FEATURES=true` (tests only)                                                                                                                               |
 | `lean: command not found`                                                 | `./scripts/setup-lean-cli.sh`                                                                                                                                                            |
-| Missing QC data                                                           | Prefer `./scripts/run-cloud-quality-backtest`; local downloads require explicit cost approval and `ALLOW_PAID_QC_LOCAL_DATA_DOWNLOAD=true`                                                 |
-| `Paid local QC data download is disabled`                                  | This is intentional cost control. Use QuantConnect Cloud, or explicitly approve local data cost before setting `ALLOW_PAID_QC_LOCAL_DATA_DOWNLOAD=true`.                                  |
-| `ApiDataProvider(): Must be subscribed to map and factor files`            | Local QuantConnect Security Master/map-factor entitlement is missing for `--download-data`; use Cloud before buying local datasets.                                                        |
-| Stooq says `Get your apikey`                                               | Open `https://stooq.com/q/d/?s=smh.us&get_apikey`, complete captcha, and set `STOOQ_API_KEY` in `backend/.env`                                                                            |
+| Missing QC data                                                           | Prefer `./scripts/run-cloud-quality-backtest`; local downloads require explicit cost approval and `ALLOW_PAID_QC_LOCAL_DATA_DOWNLOAD=true`                                               |
+| `Paid local QC data download is disabled`                                 | This is intentional cost control. Use QuantConnect Cloud, or explicitly approve local data cost before setting `ALLOW_PAID_QC_LOCAL_DATA_DOWNLOAD=true`.                                 |
+| `ApiDataProvider(): Must be subscribed to map and factor files`           | Local QuantConnect Security Master/map-factor entitlement is missing for `--download-data`; use Cloud before buying local datasets.                                                      |
+| Stooq says `Get your apikey`                                              | Open `https://stooq.com/q/d/?s=smh.us&get_apikey`, complete captcha, and set `STOOQ_API_KEY` in `backend/.env`                                                                           |
 | `run-paper-cycle` exits 2 with stale market data                          | This is correct for historical targets. Use `run-paper-replay` for plumbing evidence; use current targets for real paper readiness.                                                      |
 | Live preflight: simulator                                                 | Re-run with Lean CLI, not simulator                                                                                                                                                      |
 | Live preflight: reconciliation                                            | `reconcileBrokerSnapshot` / paper reconcile until `matched`                                                                                                                              |

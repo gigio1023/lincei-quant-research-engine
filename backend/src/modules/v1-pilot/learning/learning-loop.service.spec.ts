@@ -2,6 +2,42 @@ import { AlphaDecision } from '../../../entities/alpha-decision.entity';
 import { LearningLoopService } from './learning-loop.service';
 
 describe('LearningLoopService', () => {
+  it('blocks_promotion_when_selected_run_bias_evidence_is_missing', async () => {
+    const promotionRepository = {
+      create: jest.fn((value) => value),
+      save: jest.fn(async (value) => value),
+    };
+    const service = new LearningLoopService(
+      { getLatestStrategyRun: jest.fn(async () => null) } as never,
+      {} as never,
+      { count: jest.fn(async () => 0) } as never,
+      {} as never,
+      { find: jest.fn(async () => []) } as never,
+      promotionRepository as never,
+      {
+        checkSelectedRunBias: jest.fn(async () => ({
+          status: 'blocked',
+          checkedAt: '2026-05-27T00:00:00.000Z',
+          targetRef: 'strategy:missing-run',
+          attemptedVariantCount: 0,
+          passedVariantCount: 0,
+          failedOrBlockedVariantCount: 0,
+          minVariantCount: 3,
+          jobRefs: ['research-job:promotion-check'],
+          blockers: ['Only 0 variant jobs are recorded.'],
+        })),
+      } as never,
+    );
+
+    const decision = await service.recordStrategyPromotionDecision();
+
+    expect(decision.status).toBe('blocked');
+    expect(decision.evidenceRefs).toContain('research-job:promotion-check');
+    expect(decision.blockerReasons).toContain(
+      'Selected-run-bias check: Only 0 variant jobs are recorded.',
+    );
+  });
+
   it('labels outcomes from availableAt for both symbol and benchmark', async () => {
     const labelRepository = {
       create: jest.fn((value) => value),
@@ -10,6 +46,7 @@ describe('LearningLoopService', () => {
       {} as never,
       {} as never,
       labelRepository as never,
+      {} as never,
       {} as never,
       {} as never,
       {} as never,

@@ -17,6 +17,8 @@ import { NewsSource } from '../../entities/news-source.entity';
 import { PortfolioTargetSnapshot } from '../../entities/portfolio-target-snapshot.entity';
 import { PromotionDecision } from '../../entities/promotion-decision.entity';
 import { RawEvidenceRecord } from '../../entities/raw-evidence-record.entity';
+import { ResearchHypothesis } from '../../entities/research-hypothesis.entity';
+import { ResearchJobRecord } from '../../entities/research-job-record.entity';
 import { PaperOrderPlan } from '../../entities/paper-order-plan.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
 import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
@@ -51,6 +53,7 @@ import { MlModelRegistryService } from './ml/ml-model-registry.service';
 import { MlPythonRunner } from './ml/ml-python.runner';
 import { MlBaselineInferenceService } from './ml/ml-baseline-inference.service';
 import { LeanCliRunner } from './lean/lean-cli.runner';
+import { ResearchFactoryService } from './research/research-factory.service';
 
 @Module({
   imports: [
@@ -69,6 +72,8 @@ import { LeanCliRunner } from './lean/lean-cli.runner';
       PortfolioTargetSnapshot,
       PromotionDecision,
       RawEvidenceRecord,
+      ResearchHypothesis,
+      ResearchJobRecord,
       PaperOrderPlan,
       InvestmentProposal,
       BrokerSnapshot,
@@ -96,6 +101,7 @@ import { LeanCliRunner } from './lean/lean-cli.runner';
     LeanCloudManualImporter,
     LeanCliRunner,
     LeanRunImportService,
+    ResearchFactoryService,
     LeanPaperBridgeService,
     LearningLoopService,
     LiveShadowService,

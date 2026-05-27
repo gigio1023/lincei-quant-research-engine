@@ -7,6 +7,7 @@ import {
 } from './v1-pilot-status.types';
 
 export interface V1SystemStageInput {
+  research: V1PilotSystemStatus['research'];
   alpha: V1PilotSystemStatus['alpha'];
   latestLeanRun: LeanRun | null;
   portfolioTarget: V1PilotSystemStatus['portfolioTarget'];
@@ -20,6 +21,22 @@ export function buildV1SystemStages(
   input: V1SystemStageInput,
 ): V1SystemStage[] {
   return [
+    stage(
+      'hypothesis_registry',
+      'Hypothesis Registry',
+      input.research.hypothesisCount > 0 && input.research.p1CandidateCount > 0
+        ? 'ready'
+        : input.research.hypothesisCount > 0
+          ? 'blocked'
+          : 'missing',
+      `${input.research.p1CandidateCount} P1 candidates / ${input.research.hypothesisCount} hypotheses`,
+      input.research.hypothesisCount > 0 && input.research.p1CandidateCount > 0
+        ? []
+        : [
+            'Build the hypothesis registry from the stored strategy research corpus.',
+          ],
+      input.research.latestJobId ? [input.research.latestJobId] : [],
+    ),
     stage(
       'feature_store',
       'Feature Store',

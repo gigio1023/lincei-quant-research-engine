@@ -22,6 +22,7 @@ import {
   buildV1SystemStages,
 } from './v1-pilot-status-stage.builder';
 import { V1PilotSystemStatus } from './v1-pilot-status.types';
+import { ResearchFactoryService } from './research/research-factory.service';
 
 @Injectable()
 export class V1PilotStatusService {
@@ -49,6 +50,7 @@ export class V1PilotStatusService {
     @InjectRepository(LivePilotStatusRecord)
     private readonly livePilotStatusRepository: Repository<LivePilotStatusRecord>,
     private readonly mlModelRegistryService: MlModelRegistryService,
+    private readonly researchFactoryService: ResearchFactoryService,
   ) {}
 
   async getStatus(): Promise<V1PilotSystemStatus> {
@@ -64,6 +66,7 @@ export class V1PilotStatusService {
       latestIntent,
       latestStatusRecord,
       openOrderCount,
+      research,
     ] = await Promise.all([
       this.featureRepository.findOne({ where: {}, order: { asOf: 'DESC' } }),
       this.featureRepository.count(),
@@ -108,6 +111,7 @@ export class V1PilotStatusService {
           { status: 'mismatch' },
         ],
       }),
+      this.researchFactoryService.getStatus(),
     ]);
     const latestTarget = latestLeanRun
       ? await this.targetRepository.findOne({
@@ -189,6 +193,7 @@ export class V1PilotStatusService {
       realOrderSent: latestStatusRecord?.realOrderSent ?? false,
     };
     const stages = buildV1SystemStages({
+      research,
       alpha,
       latestLeanRun,
       portfolioTarget,
@@ -214,6 +219,7 @@ export class V1PilotStatusService {
           }
         : null,
       alpha,
+      research,
       portfolioTarget,
       paper,
       broker,

@@ -9,6 +9,7 @@ import { PromotionDecision } from '../../../entities/promotion-decision.entity';
 import { hashObject } from '../../../shared/hash.util';
 import { alphaHorizonHours } from '../contracts/spec-contracts';
 import { LeanRunImportService } from '../lean/lean-run-import.service';
+import { ResearchFactoryService } from '../research/research-factory.service';
 
 @Injectable()
 export class LearningLoopService {
@@ -24,6 +25,7 @@ export class LearningLoopService {
     private readonly liveShadowRepository: Repository<LiveShadowRecord>,
     @InjectRepository(PromotionDecision)
     private readonly promotionRepository: Repository<PromotionDecision>,
+    private readonly researchFactoryService: ResearchFactoryService,
   ) {}
 
   async runLearningLoop(): Promise<{
@@ -99,11 +101,26 @@ export class LearningLoopService {
     const targetRef = latestRun
       ? `strategy:${latestRun.projectName}:${latestRun.runId}`
       : 'strategy:missing-run';
+    const selectedRunBias =
+      await this.researchFactoryService.checkSelectedRunBias({
+        targetRef,
+      });
+    if (selectedRunBias.status === 'blocked') {
+      blockers.push(
+        ...selectedRunBias.blockers.map(
+          (blocker) => `Selected-run-bias check: ${blocker}`,
+        ),
+      );
+    }
+    evidenceRefs.push(...selectedRunBias.jobRefs);
     const metrics = {
       labels: await this.labelRepository.count(),
       cloudRuntime: latestRun?.runtime === 'quantconnect-cloud',
       liveShadowRecorded: liveShadow?.status === 'recorded',
       currentLiveShadow: liveShadow?.evidenceMode === 'current_live_shadow',
+      selectedRunBiasStatus: selectedRunBias.status,
+      attemptedVariantCount: selectedRunBias.attemptedVariantCount,
+      failedOrBlockedVariantCount: selectedRunBias.failedOrBlockedVariantCount,
     };
     const payload = {
       scope: 'strategy' as const,

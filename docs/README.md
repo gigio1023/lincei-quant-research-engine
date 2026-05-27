@@ -50,9 +50,10 @@ These documents explain subsystem intent. If they conflict with `SPEC.md`, `SPEC
 - LEAN point-in-time semantic feature replay with `availableAt` rejection.
 - Paper/live-shadow evidence commands: `scripts/run-paper-cycle`, `scripts/run-paper-replay`, `scripts/run-live-shadow`; replay evidence is historical plumbing only.
 - Learning/promotion ledger command: `scripts/run-learning-loop`.
+- Research factory commands: `scripts/build-hypothesis-registry` and `scripts/run-selected-run-bias-check`.
 - Broker-write preflight remains blocked for real money; the legacy `scripts/live-pilot-10usd` command is a blocked compatibility surface only.
 - Long-term own-capital and Darwinex/Zero monetization are approved directions, but their broker/write adapters are not implemented or approved for account mutation yet.
-- Alpha Architect strategy corpus: `references/alphaarchitect/` with 40 sourced articles and a strategy register for own-capital research prioritization.
+- Alpha Architect strategy corpus: `references/alphaarchitect/` with 40 sourced articles, a strategy register, idempotent hypothesis ingestion, and selected-run-bias blocker checks.
 - Parallelization rule: maximize bounded parallel research/data/feature/ablation/backtest work, then join into a single promotion ledger and single-writer execution gate.
 
 ## Decision Records

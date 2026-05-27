@@ -23,6 +23,14 @@ vi.mock("../services/api", () => ({
           mlModelStatus: "ready",
           mlModelName: "lgbm-baseline",
         },
+        research: {
+          hypothesisCount: 40,
+          p1CandidateCount: 15,
+          outOfScopeCount: 6,
+          latestJobId: "research-job-hypothesis-extraction-1",
+          latestJobStatus: "passed",
+          latestJobType: "hypothesis-extraction",
+        },
         portfolioTarget: {
           id: "target-1",
           leanRunId: "qc-import-ecd033aae81e",

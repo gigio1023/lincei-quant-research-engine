@@ -37,6 +37,9 @@ export function loadRepoEnv(): string {
       return;
     }
     const key = trimmed.slice(0, separatorIndex).trim();
+    if (process.env[key] !== undefined) {
+      return;
+    }
     const value = trimmed
       .slice(separatorIndex + 1)
       .trim()

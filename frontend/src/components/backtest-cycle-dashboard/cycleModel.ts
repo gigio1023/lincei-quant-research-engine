@@ -27,6 +27,14 @@ export interface CycleMetric {
 
 export const CYCLE_STAGES: CycleStageDefinition[] = [
   {
+    key: "hypothesis_registry",
+    label: "Hypothesis Registry",
+    lane: "data",
+    sourceStageKey: "hypothesis_registry",
+    detail: "Stored research articles become testable strategy hypotheses.",
+    command: "./scripts/build-hypothesis-registry",
+  },
+  {
     key: "semantic_data",
     label: "Semantic Evidence",
     lane: "data",
@@ -116,7 +124,8 @@ export const CYCLE_RUNBOOK = [
   },
   {
     label: "Replay alpha features",
-    command: "./scripts/ingest-semantic-evidence && ./scripts/run-alpha-cycle",
+    command:
+      "./scripts/build-hypothesis-registry && ./scripts/ingest-semantic-evidence && ./scripts/run-alpha-cycle",
     evidence: "feature snapshots, LLM event features, alpha decisions",
   },
   {
@@ -131,8 +140,9 @@ export const CYCLE_RUNBOOK = [
   },
   {
     label: "Review promotion evidence",
-    command: "./scripts/run-learning-loop",
-    evidence: "promotion decision, blockers, retained failed decisions",
+    command:
+      "./scripts/run-selected-run-bias-check && ./scripts/run-learning-loop",
+    evidence: "promotion decision, blockers, retained variant evidence",
   },
 ];
 
@@ -153,6 +163,11 @@ export const buildCycleStages = (
 export const buildCycleMetrics = (
   status: V1PilotSystemStatus | null,
 ): CycleMetric[] => [
+  {
+    label: "Hypotheses",
+    value: String(status?.research.p1CandidateCount ?? 0),
+    tone: status?.research.p1CandidateCount ? "positive" : "warning",
+  },
   {
     label: "Backtest",
     value: status?.leanRun?.runId ?? "missing",

@@ -100,38 +100,41 @@ The corpus contains 40 sourced articles with metadata and content hashes. It is 
 
 ## Current Architecture
 
-| Layer | Role |
-| --- | --- |
-| Research corpus | Stores articles, papers, source metadata, content hashes, and hypothesis candidates. |
-| Hypothesis registry | Converts research into testable strategy variants and failure modes. |
-| Feature store | Preserves point-in-time and vintage features with `availableAt`, source refs, and hashes. |
-| LLM semantic alpha | Extracts structured features from text evidence; never emits broker instructions. |
-| Numeric/ML alpha | Provides simple baselines and model features for ablation. |
+| Layer               | Role                                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------------------ |
+| Research corpus     | Stores articles, papers, source metadata, content hashes, and hypothesis candidates.                   |
+| Hypothesis registry | Converts research into testable strategy variants and failure modes.                                   |
+| Feature store       | Preserves point-in-time and vintage features with `availableAt`, source refs, and hashes.              |
+| LLM semantic alpha  | Extracts structured features from text evidence; never emits broker instructions.                      |
+| Numeric/ML alpha    | Provides simple baselines and model features for ablation.                                             |
 | LEAN / QuantConnect | Owns strategy runtime semantics: `Insight`, portfolio construction, risk, execution in approved modes. |
-| Control plane | Orchestrates jobs, imports artifacts, records ledgers, reconciliation, preflight, and dashboard state. |
-| Broker boundary | Read-only and preflight first; broker writes require a future approved spec. |
+| Control plane       | Orchestrates jobs, imports artifacts, records ledgers, reconciliation, preflight, and dashboard state. |
+| Broker boundary     | Read-only and preflight first; broker writes require a future approved spec.                           |
 
 ## Repository Map
 
-| Path | Purpose |
-| --- | --- |
-| [SPEC.md](SPEC.md) | Canonical active spec index |
-| [AGENTS.md](AGENTS.md) | Agent/contributor rules |
-| [terminology.md](terminology.md) | Canonical terms |
-| [docs/spec/](docs/spec) | Normative split spec |
-| [docs/own-capital-alphaarchitect-corpus-review.md](docs/own-capital-alphaarchitect-corpus-review.md) | Own-capital architecture review from research corpus |
-| [references/alphaarchitect/](references/alphaarchitect) | Stored Alpha Architect article corpus and strategy register |
-| [config/universes/](config/universes) | Universe manifests and caps |
-| [backend/](backend) | NestJS control plane and ledgers |
-| [engines/lean/aggressive_llm_momentum/](engines/lean/aggressive_llm_momentum) | LEAN Algorithm Framework strategy |
-| [ml/](ml) | Offline feature/model helpers |
-| [frontend/](frontend) | Operational dashboard |
-| [scripts/](scripts) | Operator command wrappers |
+| Path                                                                                                 | Purpose                                                     |
+| ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| [SPEC.md](SPEC.md)                                                                                   | Canonical active spec index                                 |
+| [AGENTS.md](AGENTS.md)                                                                               | Agent/contributor rules                                     |
+| [terminology.md](terminology.md)                                                                     | Canonical terms                                             |
+| [docs/spec/](docs/spec)                                                                              | Normative split spec                                        |
+| [docs/own-capital-alphaarchitect-corpus-review.md](docs/own-capital-alphaarchitect-corpus-review.md) | Own-capital architecture review from research corpus        |
+| [references/alphaarchitect/](references/alphaarchitect)                                              | Stored Alpha Architect article corpus and strategy register |
+| [config/universes/](config/universes)                                                                | Universe manifests and caps                                 |
+| [backend/](backend)                                                                                  | NestJS control plane and ledgers                            |
+| [engines/lean/aggressive_llm_momentum/](engines/lean/aggressive_llm_momentum)                        | LEAN Algorithm Framework strategy                           |
+| [ml/](ml)                                                                                            | Offline feature/model helpers                               |
+| [frontend/](frontend)                                                                                | Operational dashboard                                       |
+| [scripts/](scripts)                                                                                  | Operator command wrappers                                   |
 
 ## Implementation Status
 
 Implemented in the current branch:
 
+- durable research hypothesis registry and parallel research job ledger;
+- Alpha Architect corpus-to-hypothesis ingestion script with idempotent job records;
+- selected-run-bias promotion check that blocks when only winning/no variant evidence exists;
 - point-in-time semantic evidence ingestion, including Hugging Face FOMC evidence;
 - QuantConnect Cloud project/backtest listing and manual Cloud backtest import;
 - paginated Cloud insights/orders import with Cloud id preservation;
@@ -142,12 +145,9 @@ Implemented in the current branch:
 
 Not implemented yet:
 
-- durable parallel job ledger;
-- hypothesis registry as a first-class backend model;
 - broad research universe profiles separate from the current theme universe;
 - complete vintage-data store for restatable sources;
 - simple trend/momentum/daily-return baselines with promotion evidence;
-- selected-run-bias checks in the promotion ledger;
 - broker-read-only reconciliation;
 - broker-write adapter;
 - Darwinex/Zero execution or track-record adapter.
@@ -158,14 +158,14 @@ Not implemented yet:
 
 Prerequisites:
 
-| Tool | Used for |
-| --- | --- |
-| Bun | Backend, frontend, CLI wrappers |
-| Python 3.10+ | ML helpers and Lean CLI venv |
-| Docker or Podman-compatible Docker CLI | Local LEAN container runs |
-| QuantConnect account/API token | Cloud backtests, workspace setup, Object Store |
-| OpenAI-compatible API key | LLM semantic alpha features |
-| Oracle Cloud ARM host | Optional always-on control plane target |
+| Tool                                   | Used for                                       |
+| -------------------------------------- | ---------------------------------------------- |
+| Bun                                    | Backend, frontend, CLI wrappers                |
+| Python 3.10+                           | ML helpers and Lean CLI venv                   |
+| Docker or Podman-compatible Docker CLI | Local LEAN container runs                      |
+| QuantConnect account/API token         | Cloud backtests, workspace setup, Object Store |
+| OpenAI-compatible API key              | LLM semantic alpha features                    |
+| Oracle Cloud ARM host                  | Optional always-on control plane target        |
 
 Bootstrap:
 
@@ -184,6 +184,8 @@ Run from repository root unless noted.
 
 ```bash
 # Research and semantic evidence
+./scripts/build-hypothesis-registry
+./scripts/run-selected-run-bias-check
 ./scripts/ingest-semantic-evidence --source hf-fomc-statements-minutes --limit 80
 ./scripts/run-alpha-cycle
 

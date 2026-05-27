@@ -49,6 +49,10 @@ export const V1PilotPanel = () => {
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-xs">
+            <Metric
+              label="research"
+              value={`${status.research.p1CandidateCount}/${status.research.hypothesisCount}`}
+            />
             <Metric label="alpha" value={alphaSummary(status)} />
             <Metric
               label="targets"

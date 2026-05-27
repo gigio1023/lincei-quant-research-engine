@@ -40,8 +40,11 @@ import { LlmEventFeature } from './entities/llm-event-feature.entity';
 import { LiveShadowRecord } from './entities/live-shadow-record.entity';
 import { PromotionDecision } from './entities/promotion-decision.entity';
 import { RawEvidenceRecord } from './entities/raw-evidence-record.entity';
+import { ResearchHypothesis } from './entities/research-hypothesis.entity';
+import { ResearchJobRecord } from './entities/research-job-record.entity';
 import { AddSpecEvidenceTables1764288000000 } from './migrations/1764288000000-AddSpecEvidenceTables';
 import { AddLiveShadowEvidenceMode1764374400000 } from './migrations/1764374400000-AddLiveShadowEvidenceMode';
+import { AddResearchFactoryTables1764460800000 } from './migrations/1764460800000-AddResearchFactoryTables';
 
 config();
 
@@ -76,6 +79,8 @@ export const databaseEntities = [
   LiveShadowRecord,
   PromotionDecision,
   RawEvidenceRecord,
+  ResearchHypothesis,
+  ResearchJobRecord,
   PortfolioTargetSnapshot,
   ExecutionIntent,
   LivePilotStatusRecord,
@@ -90,6 +95,7 @@ export const databaseMigrations = [
   AddV1PilotTables1764201600000,
   AddSpecEvidenceTables1764288000000,
   AddLiveShadowEvidenceMode1764374400000,
+  AddResearchFactoryTables1764460800000,
 ];
 
 const AppDataSource = new DataSource({
