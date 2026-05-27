@@ -174,6 +174,95 @@ flowchart TB
 | LEAN runtime | alpha를 `Insight`, portfolio target, risk adjustment로 실행 가능한 전략 흐름에 넣습니다. | LEAN이 strategy semantics를 소유하는가? |
 | Repo control plane | import, evidence 기록, paper/live-shadow, preflight, dashboard를 담당합니다. | broker-write boundary가 fail closed인가? |
 
+### 현재 구현 기준 실행 구조
+
+아래 그림이 지금 프로젝트를 가장 정확하게 보여주는 구조입니다. 완전히 병렬화된 agent system은 아직 아닙니다. 현재 구현은 feature snapshot을 만든 뒤 numeric alpha, LLM semantic feature, LLM alpha, meta alpha를 순서대로 만들고, 그 결과를 LEAN과 control plane으로 넘깁니다. 다만 raw evidence 수집, numeric feature 계산, LLM committee 역할은 구조상 병렬화하기 좋은 부분입니다.
+
+```mermaid
+flowchart TD
+    OP["Operator"] --> S["scripts/*"]
+    S --> CLI["backend v1 CLI"]
+    CLI --> ORCH["V1PilotOrchestratorService"]
+
+    ORCH --> SNAP["FeatureSnapshotService<br/>point-in-time numeric inputs"]
+
+    SNAP --> NUM["NumericAlphaService<br/>price/volume/regime alpha"]
+    SNAP --> RAW["RawEvidenceArchiveService<br/>news / filing / macro evidence"]
+    RAW --> LLMFEAT["LlmEventFeatureService<br/>typed semantic alpha features"]
+    NUM --> LLMFEAT
+
+    LLMFEAT --> LLMALPHA["LlmAlphaService<br/>LLM alpha decision"]
+    NUM --> META["MetaAlphaService<br/>numeric + LLM combined"]
+    LLMALPHA --> META
+
+    META --> EXPORT["Alpha artifacts<br/>decisions + feature refs + hashes"]
+    EXPORT --> LEAN["LEAN / QuantConnect<br/>AlphaModel -> Insight"]
+    LEAN --> PORT["PortfolioConstructionModel<br/>target weights"]
+    PORT --> RISK["RiskManagementModel<br/>stale data / caps / drawdown"]
+
+    RISK --> IMPORT["LeanRunImportService<br/>Cloud/local artifacts"]
+    IMPORT --> PAPER["LeanPaperBridgeService<br/>paper cycle or replay"]
+    IMPORT --> SHADOW["LiveShadowService<br/>would-have-traded evidence"]
+
+    PAPER --> LEARN["LearningLoopService<br/>forward return labels + promotion decision"]
+    SHADOW --> LEARN
+    LEARN --> PREFLIGHT["LivePreflightService<br/>current readiness gate"]
+    PREFLIGHT -->|"unknown/stale/missing evidence"| BLOCKED["blocked"]
+    PREFLIGHT -. "future approved broker-write spec only" .-> BROKER["real broker write"]
+```
+
+병렬화해서 생각해도 되는 부분:
+
+```mermaid
+flowchart LR
+    subgraph PARALLEL["병렬화 가능하거나 설계상 병렬 역할인 부분"]
+        A["market data feature calculation"]
+        B["news / filing / macro evidence ingest"]
+        C["LLM committee roles<br/>Technical / News / Macro / Bull / Bear / Risk"]
+        D["baseline model scoring<br/>numeric-only / LLM-only / combined"]
+    end
+
+    A --> E["Meta alpha"]
+    B --> C --> E
+    D --> F["Ablation comparison"]
+    E --> F
+```
+
+주의할 점: 위 병렬 LLM committee는 설계 문서에는 있지만, 현재 구현은 `LlmEventFeatureService` 중심의 단일 structured feature generation에 더 가깝습니다. 즉 "LLM 투자팀"이 완성된 상태가 아니라, 그 방향으로 갈 수 있는 typed feature path가 먼저 생긴 상태입니다.
+
+### QuantConnect와 Darwinex의 위치
+
+QuantConnect와 Darwinex는 같은 역할이 아닙니다.
+
+```mermaid
+flowchart TD
+    ENGINE["우리 프로젝트<br/>LLM + numeric/ML alpha engine"] --> QC["QuantConnect / LEAN<br/>backtest, paper/live validation runtime"]
+    QC --> EVIDENCE["Cloud backtest/import<br/>paper/live-shadow<br/>reconciliation evidence"]
+    EVIDENCE --> DECISION{"capital allocation 후보인가?"}
+
+    DECISION -->|"아직 부족"| RESEARCH["research / improve / retest"]
+    DECISION -->|"충분한 track record"| MONEY["monetization options"]
+
+    MONEY --> OWN["own broker live-money trading<br/>future approved broker-write spec"]
+    MONEY --> DARWINEX["Darwinex / Darwinex Zero<br/>external capital allocation venue"]
+
+    DARWINEX --> SIGNAL["우리 strategy가 buy/sell timing signal 제공"]
+    SIGNAL --> RISKENGINE["Darwinex Risk Engine<br/>risk standardization / sizing"]
+    RISKENGINE --> DARWIN["DARWIN investable index"]
+    DARWIN --> ALLOC["DarwinIA / investor capital allocation"]
+    ALLOC --> FEE["profit 발생 시 performance fee"]
+```
+
+따라서 "전체 flow를 Darwinex에 올린다"는 표현은 정확히는 아닙니다. Darwinex에 올릴 수 있는 것은 전체 repo나 QuantConnect project가 아니라, 이 프로젝트가 만든 최종 trading signal과 track record입니다. QuantConnect는 검증 runtime이고, Darwinex는 검증된 signal을 외부 capital allocation으로 수익화할 수 있는 후보 venue입니다.
+
+Darwinex로 performance fee를 받는 경로는 원칙적으로 가능합니다. 다만 조건이 있습니다.
+
+- Darwinex/Zero 계정과 지원 상품 범위가 우리 strategy의 거래 대상과 맞아야 합니다.
+- 우리 엔진의 signal을 Darwinex 계정에서 실제로 실행할 adapter가 필요합니다.
+- Darwinex는 자체 Risk Engine으로 sizing/risk를 표준화하므로, 우리 portfolio target이 그대로 반영된다고 보면 안 됩니다.
+- fee는 좋은 backtest가 아니라 Darwinex 쪽 track record와 allocated capital에서 실제 profit이 나야 발생합니다.
+- 따라서 Darwinex는 현재 단계의 검증 도구가 아니라, 나중에 성과 있는 strategy를 수익화하는 경로입니다.
+
 ## 6. 프로젝트 내부 용어를 필요한 순서로 이해하기
 
 처음부터 모든 용어를 외울 필요는 없습니다. 아래 순서로 이해하면 됩니다.
