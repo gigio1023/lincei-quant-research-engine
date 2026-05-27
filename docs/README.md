@@ -31,6 +31,7 @@ These documents explain subsystem intent. If they conflict with `SPEC.md`, `SPEC
 - [Model Training Plan](model-training-plan.md)
 - [ML External Baselines Research](ml-external-baselines-research.md)
 - [Toss Securities Open API Readiness](toss-open-api-readiness.md)
+- [Own-Capital Architecture Review From Alpha Architect Corpus](own-capital-alphaarchitect-corpus-review.md)
 
 ## Operator Runbooks
 
@@ -50,6 +51,7 @@ These documents explain subsystem intent. If they conflict with `SPEC.md`, `SPEC
 - Learning/promotion ledger command: `scripts/run-learning-loop`.
 - Broker-write preflight remains blocked for real money; the legacy `scripts/live-pilot-10usd` command is a blocked compatibility surface only.
 - Long-term own-capital and Darwinex/Zero monetization are approved directions, but their broker/write adapters are not implemented or approved for account mutation yet.
+- Alpha Architect strategy corpus: `references/alphaarchitect/` with 40 sourced articles and a strategy register for own-capital research prioritization.
 
 ## Decision Records
 

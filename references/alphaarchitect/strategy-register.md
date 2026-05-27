@@ -1,0 +1,69 @@
+# Alpha Architect Strategy Register
+
+Status: supporting research register.
+
+This register maps the ingested Alpha Architect corpus to testable strategy hypotheses for Lincei. It is not trading advice and it is not promotion evidence. Every row still needs point-in-time data, a LEAN implementation, cost/slippage assumptions, Cloud validation, current paper/live-shadow evidence, and reconciliation before own-capital allocation.
+
+Corpus index: [index.json](index.json)
+
+## Priority Labels
+
+| Label | Meaning |
+| --- | --- |
+| `P1` | Directly useful for the first own-capital research backlog. |
+| `P2` | Useful after baseline, data, or universe work exists. |
+| `P3` | Context/risk note; do not implement as a direct strategy now. |
+| `Out` | Outside current allowed scope or needs a future spec. |
+
+## Article Mapping
+
+| # | Source | Priority | Strategy idea or lesson | Required data | Current project gap |
+| --- | --- | --- | --- | --- | --- |
+| 1 | [Portfolio choices](articles/01-portfolio-choices.md) | P3 | Investor inertia and defaults can explain flows and allocation behavior. | Fund flows, account behavior, retirement defaults. | Not a tradable alpha yet; could inform demand/friction features later. |
+| 2 | [Factor strategies](articles/02-factor-strategies.md) | P1 | Anomaly-driven demand and factor crowding may predict short-horizon returns around rebalance windows. | Broad cross-section, anomaly memberships, rebalance calendar, institutional-flow proxies. | Current universe is too narrow and lacks anomaly membership/factor-demand features. |
+| 3 | [Shareholder activism](articles/03-shareholder-activism.md) | P2 | Activist leader-follower dynamics may create event-driven alpha. | 13D filings, activist identities, ownership changes, event timestamps. | No activist event ingest or event-study replay path. |
+| 4 | [351 exchange](articles/04-why-the-351-exchange-might-revolutionize-investing.md) | P3 | Tax and ETF structure matter for after-tax wealth. | Tax lots, realized gains, ETF structure data. | Useful for reporting; not an alpha engine input now. |
+| 5 | [Institutional investor attention](articles/05-institutional-investor.md) | P2 | Institutional attention can change demand and pricing. | Institutional holdings, attention/news proxies, breadth changes. | No institutional attention feature store. |
+| 6 | [Momentum struggling](articles/06-momentum-investing-struggling.md) | P1 | Momentum quality depends on volatility and regime filters. | Daily prices, volatility regimes, momentum lookbacks, transaction costs. | Current alpha needs explicit momentum ablations and volatility-conditioned variants. |
+| 7 | [Private equity performance](articles/07-private-equity-performance.md) | Out | Private equity allocation is not directly executable in the current public-market engine. | Private-market cash flows and fees. | Outside current tradable universe. |
+| 8 | [Regime-dependent trend following](articles/08-rethinking-trend-following-optimal-regime-dependent-allocation.md) | P1 | Trend following should adapt to regimes instead of using one static rule. | Liquid ETF/futures proxies, moving averages, volatility/regime labels. | Current LEAN strategy needs a simple trend-following baseline before complex LLM overlays. |
+| 9 | [Bank monitoring](articles/09-bank-monitoring.md) | P3 | Supervision changes bank risk behavior; mostly macro/sector context. | Bank regulatory events, bank balance sheets. | Not aligned with current active universe except as macro risk context. |
+| 10 | [Skip-month mystery](articles/10-skip-month-mystery.md) | P1 | Recent month returns may encode reversal/noise; skip-month momentum needs testing. | Daily/monthly returns, liquidity, turnover costs. | Need canonical momentum feature definitions and ablation runs. |
+| 11 | [Moving average handbook](articles/11-the-ultimate-moving-average-handbook-bringing-science-into-the-art-of-trend-following.md) | P1 | Moving-average trend rules are a simple, robust baseline for own-capital testing. | Daily adjusted prices, rebalance schedule, cost model. | This should be a first baseline; current project is over-indexed on LLM/Cloud evidence before a durable simple strategy. |
+| 12 | [Stock-specific momentum](articles/12-stock-specific-momentum.md) | P1 | Separate stock-level momentum from factor-level momentum. | Broad stock universe, factor returns, stock residual returns. | Current quality-gated universe may be too small to separate factor vs idiosyncratic momentum. |
+| 13 | [Factor MAX](articles/13-factor-max.md) | P2 | Factor-return extremes may predict future factor performance. | Factor return library, monthly factor portfolios. | No factor-portfolio feature store or factor timing adapter. |
+| 14 | [Mutual fund managers](articles/14-mutual-fund-managers.md) | P3 | Local information/social interaction can affect managers. | Manager locations, holdings, local network data. | Hard to operationalize for personal capital. |
+| 15 | [Carry is back](articles/15-mean-reversion-in-play-carry-is-back.md) | Out | Carry/managed futures may be useful but crosses into futures/derivatives. | Futures data, carry curves, margin model. | Current spec does not approve futures/derivatives. |
+| 16 | [Small business investment companies](articles/16-small-business-investment-companies.md) | Out | Private-credit/private-equity style allocation. | Private fund data. | Outside current executable universe. |
+| 17 | [Daily stock returns](articles/17-daily-stock-returns.md) | P1 | Recent daily return sequences can be transformed into predictive features. | Daily returns, rank/sequence features, regularized model, costs. | Strong candidate for numeric/ML baseline; needs broad history and no-lookahead feature pipeline. |
+| 18 | [CAPE ratios](articles/18-cape-ratios.md) | P2 | Valuation timing may improve with adjusted CAPE variants. | Valuation series, earnings, inflation, index data. | Needs macro/valuation vintage data; not suitable for short-horizon single-stock execution alone. |
+| 19 | [Trend following comeback](articles/19-the-return-of-the-king-trend-following-is-back-but-will-it-last.md) | P1 | Trend following and crisis alpha deserve a simple liquid baseline. | Cross-asset or ETF proxies, trend signals, drawdown regimes. | Current U.S. equity theme universe under-represents defensive/cross-asset trend exposures. |
+| 20 | [Intangible investment language](articles/20-intangible-investment.md) | P1 | Corporate language can reveal intangible investment changes. | Filings/transcripts, NLP features, fundamentals, forward returns. | Fits LLM semantic alpha, but needs filing ingestion and point-in-time text versions. |
+| 21 | [Defensive strategies](articles/21-defensive-investment-strategies.md) | P1 | Defensive/low-risk strategies can be persistent and useful for drawdown control. | Volatility, beta, quality, drawdown, liquidity. | Risk model needs defensive sleeve and benchmark-relative drawdown targets. |
+| 22 | [Borrowing restricted fund selection](articles/22-fund-selection-when-borrowing-is-restricted.md) | P3 | Capital constraints affect fund selection and behavior. | Fund returns, borrowing constraints. | Context for leverage constraints; not a direct current alpha. |
+| 23 | [AI financial disclosures](articles/23-ai-tools-financial-disclosures.md) | P1 | AI can extract useful signals from disclosures. | SEC filings, text chunks, disclosure labels, model versions. | LLM feature pipeline needs scaled filing corpus and fixed prompts, not ad hoc article-driven decisions. |
+| 24 | [Long-term investing](articles/24-long-term-investing.md) | P2 | Long-horizon mispricing may exist when investors are myopic. | Fundamentals, ownership, long-horizon returns. | Current horizon handling is short/mid; needs multi-month labels and capital lockup policy. |
+| 25 | [Bank risk-taking](articles/25-bank-risk-taking.md) | P3 | Equity market conditions can affect bank risk-taking. | Bank stock returns, bank balance sheets, credit conditions. | Macro/sector risk context only for now. |
+| 26 | [Hard-to-value stocks](articles/26-hard-to-value-stocks.md) | P2 | Retail attention and valuation opacity can create mispricing. | Retail flow proxies, short interest, valuation uncertainty, liquidity. | No retail-flow/attention data and current universe favors liquid quality names. |
+| 27 | [Financial regulation and AI](articles/27-financial-regulation.md) | P3 | AI/regulation risk is an operational and sector-risk theme. | Regulatory releases, bank/fintech exposure. | Not a direct strategy candidate. |
+| 28 | [Long volatility premium](articles/28-the-long-volatility-premium-short-the-market-get-paid.md) | Out | Volatility/option risk premia may be tradable but need derivatives. | Options/futures, margin, Greeks, volatility surface. | Derivatives are not approved. |
+| 29 | [Shadow banks](articles/29-shadow-banks.md) | P3 | Interest-rate regime changes affect shadow banking and credit risk. | Rate history, credit spreads, financial-sector exposures. | Macro context; needs asset mapping. |
+| 30 | [Revaluation alpha](articles/30-revaluation-alpha.md) | P1 | Past factor returns can be misleading when valuation changes dominate realized returns. | Factor valuations, factor returns, fundamentals. | Current promotion metrics need decompose return into valuation vs cash-flow/earnings contribution. |
+| 31 | [Short box spreads](articles/31-short-box-spreads.md) | Out | Financing via options is outside current asset and broker scope. | Options, margin, assignment risk. | Not allowed before derivatives spec. |
+| 32 | [Trading behavior](articles/32-trading-behavior.md) | P3 | Overtrading hurts investors; turnover discipline matters. | Trades, taxes, fees, account history. | Must be reflected in turnover caps and after-tax reporting. |
+| 33 | [Value investing dead](articles/33-is-value-investing-dead.md) | P1 | Value may still work but needs regime-aware and valuation-aware testing. | Fundamentals, book/market, profitability, sector controls. | Current universe lacks broad value factor coverage and robust fundamentals vintage data. |
+| 34 | [Index market timing](articles/34-index-investing.md) | P2 | Index inclusion/rebalance behavior can affect demand. | Index membership history, rebalance dates, ETF flows. | No index constituent vintage store. |
+| 35 | [ChatGPT momentum investing](articles/35-chatgpt-momentum-investing.md) | P1 | LLM news interpretation can support momentum signals. | News timestamps, LLM features, stock returns, prompt versions. | This is closest to current semantic alpha path, but needs live-shadow evaluation beyond historical text. |
+| 36 | [Geopolitical risk](articles/36-geopolitical-risk.md) | P2 | Geopolitical risk may be priced quickly and affect sector/country exposures. | Geopolitical event data, news, sector exposures. | Useful as risk flag; current universe is mostly U.S. themes and lacks country/commodity hedges. |
+| 37 | [Leveraged single-stock ETFs](articles/37-leveraged-single-stock-etfs.md) | P3 | Leveraged products carry hidden costs and compounding risk. | Leveraged ETF terms, realized volatility. | Reinforces current ban on leveraged ETF live use. |
+| 38 | [Macroeconomic forces](articles/38-macroeconomic-forces.md) | P1 | Macro regimes shape anomaly returns. | Macro vintages, factor returns, regime labels. | Need macro-vintage feature store before factor-timing claims. |
+| 39 | [Bad brokers](articles/39-bad-brokers.md) | P3 | Regulation can reduce bad behavior; broker quality matters. | Broker/regulatory actions, account events. | Useful for broker due diligence, not alpha. |
+| 40 | [Return expectations](articles/40-return-expectations.md) | P2 | Institutional expected returns vary across time/assets. | Survey expectations, asset-class returns. | Could inform allocation priors, but data access and vintage handling are missing. |
+
+## Near-Term Own-Capital Backlog From The Corpus
+
+1. Liquid trend-following baseline: articles 8, 11, 19, and 21.
+2. Momentum and daily-return baseline: articles 6, 10, 12, 17, and 35.
+3. Factor crowding and factor valuation: articles 2, 13, 18, 30, 33, 34, and 38.
+4. Text/LLM semantic alpha: articles 20, 23, 35, and 36.
+5. Risk and execution discipline: articles 22, 32, 37, and 39.
