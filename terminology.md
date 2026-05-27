@@ -84,6 +84,15 @@ podman info
 | `slippage` | execution price difference versus reference | execution noise |
 | `fill` | executed order event | completion when order-specific |
 | `broker adapter` | provider-specific broker boundary implementation | broker connector |
+| `own-capital allocation` | allocating the operator's own pre-funded capital after evidence gates pass | live pilot, tiny live order |
+| `Darwinex/Zero` | external-capital track-record and performance-fee venue considered by this project | backtest platform when referring to Darwinex |
+| `DARWIN` | Darwinex investable track-record product/index derived from a trader's signals and Darwinex risk management | Darwin strategy if ambiguous |
+| `Darwinex Risk Engine` | Darwinex risk-standardization layer that can resize risk independently of our portfolio target | our risk model when referring to Darwinex |
+| `performance fee` | compensation based on profit from allocated capital under venue rules | subscription fee, guaranteed fee |
+| `allocated capital` | third-party or program capital assigned to a track record or strategy | AUM if the platform uses a different term |
+| `high-water mark` | performance-fee reference level used to avoid paying twice for the same profit | previous best vaguely |
+| `vintage data` | preserved historical data version available at a specific time | revised history if used as original data |
+| `strategy research corpus` | stored articles, papers, and notes used to form testable hypotheses | blog dump, idea pile |
 
 ## Engineering Terms
 
@@ -111,7 +120,7 @@ Rules:
 - Existing contract names may remain until a planned migration updates them.
 - Existing persisted fields such as `horizonDays` may remain until a schema migration changes them; new contracts should make the unit explicit.
 - New docs should call them `historical endpoint name`, `legacy identifier`, or `blocked preflight evidence` when needed.
-- New product scope must not use `live pilot`; use `future live-money spec` or `broker-write spec`.
+- New product scope must not use `live pilot`; use `broker-write spec`, `own-capital allocation`, or `Darwinex/Zero track-record path` as appropriate.
 - New implementation names should avoid `V1` unless they refer to an immutable migration, fixture, or archived path.
 
 ## Avoid AI-Slop Expressions

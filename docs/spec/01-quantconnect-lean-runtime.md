@@ -25,6 +25,10 @@ The repo control plane owns orchestration and evidence:
 - broker-boundary state;
 - reconciliation and operator visibility.
 
+The operator's Oracle Cloud ARM server is an always-on deployment target for the control plane, not a replacement for LEAN. It may schedule ingestion, alpha cycles, QuantConnect Cloud imports, paper/live-shadow cycles, reconciliation, and alerts. It must not become an unreviewed broker-write host.
+
+Darwinex/Zero is not a replacement for QuantConnect Cloud or LEAN. It is a later external-capital monetization venue that may consume a validated signal and track record after a separate adapter spec proves instrument mapping, execution behavior, and risk-engine effects.
+
 ## QuantConnect Cloud Is Promotion Runtime
 
 Local LEAN is required, but it is not enough for promotion. Strategy promotion needs QuantConnect Cloud evidence when credentials and account tier allow it.
@@ -45,6 +49,8 @@ QuantConnect Cloud is required for:
 - cloud backtest result import;
 - paper or live-shadow deployment evidence;
 - Research/Object Store workflows that rely on QuantConnect-managed environment behavior.
+
+Own-capital and Darwinex/Zero decisions must not skip QuantConnect Cloud evidence unless a future spec explicitly replaces the promotion runtime with a stronger directly verified path.
 
 ## Algorithm Framework Shape
 
@@ -89,6 +95,8 @@ Expected automation:
 Every cloud action must produce a local run record. The record must include command/API call, project id or name, backtest id if available, source hash, parameter hash, artifact refs, status, and blocker reasons.
 
 Cloud command success is not strategy-promotion evidence by itself. Promotion requires imported result artifacts from QuantConnect API endpoints such as `/backtests/read`, `/backtests/read/insights`, and `/backtests/orders/read`, then the same local strategy-evidence acceptance gates.
+
+The control plane may later add adapter-specific records for own brokers or Darwinex/Zero. Those records must remain separate from QuantConnect `LeanRunResult` records so a Darwinex track record cannot be mistaken for QuantConnect Cloud promotion evidence, and a Cloud backtest cannot be mistaken for allocated-capital profit.
 
 ## Required Run Contract
 

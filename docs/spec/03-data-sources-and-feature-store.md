@@ -45,6 +45,8 @@ Direct raw data must be stored with source URL, retrieval time, event time, avai
 
 The active collection map starts from the quality-gated universe manifest. Active and watchlist symbols can collect raw evidence, but only active profile symbols can become portfolio targets. This prevents watchlist research or excluded turnaround ideas from leaking into execution.
 
+Strategy research articles, practitioner notes, and academic summaries are allowed as direct external sources only as hypothesis inputs. They must be stored with source URL, publisher, title, author when available, publication time, retrieval time, content hash, parser version, and an extracted hypothesis. They must not be treated as executable alpha until the hypothesis has been converted into features and validated.
+
 Initial approved Hugging Face usage is semantic evidence, not price data replacement:
 
 - `vtasca/fomc-statements-minutes` may feed macro `RawEvidenceRecord` rows for FOMC statements/minutes.
@@ -63,6 +65,19 @@ Every market-moving input needs separate timestamps:
 
 Backtests and replay must key eligibility on `availableAt`, not on file write time or event date.
 
+## Vintage Data Rules
+
+Some sources revise history after the first release: macro series, fundamentals, estimates, index constituents, earnings calendars, filing corrections, and even edited articles. For those sources, the feature store must preserve vintage data rather than overwriting records in place.
+
+Required behavior:
+
+- store every retrieved version with `retrievedAt`, `availableAt`, source hash, parser version, and prior-version reference when known;
+- mark whether a feature came from originally available data, later-restated data, or a mixed source;
+- block promotion when a backtest depends on a source whose original availability cannot be reconstructed;
+- keep LLM semantic features tied to the text version the model actually saw.
+
+This is not optional bookkeeping. Without vintage data, a strategy can look profitable because the backtest used information that did not exist at decision time.
+
 ## Feature Store Requirements
 
 Feature records must include:
@@ -76,6 +91,7 @@ Feature records must include:
 - model version if generated;
 - confidence or quality score where applicable;
 - blocker or abstain reason where applicable.
+- vintage status where the source can be restated or corrected.
 
 The feature store may start as files plus database records. It should preserve enough metadata to replay an alpha decision without re-calling external APIs.
 

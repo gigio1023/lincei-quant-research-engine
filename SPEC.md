@@ -2,7 +2,7 @@
 
 Status: active long-term specification.
 
-Last aligned: 2026-05-24.
+Last aligned: 2026-05-27.
 
 ## Spec Authority
 
@@ -10,13 +10,18 @@ This file is the canonical index for the project specification. A contributor ca
 
 Documents linked from this file are normative. Older dated handoffs, prompts, archived plans, and review notes are historical context only. They cannot override this spec.
 
-Changing this file or a linked `docs/spec/` document changes the long-term project direction. Do not make that kind of change from inference alone. Any change that expands or relaxes live trading, broker writes, leverage, derivatives, capital limits, QuantConnect promotion requirements, testing policy, or the LLM/broker boundary requires explicit user approval before implementation.
+Changing this file or a linked `docs/spec/` document changes the long-term project direction. Do not make that kind of change from inference alone. The 2026-05-27 direction change explicitly approves the long-term objective of own-capital allocation and Darwinex/Zero monetization. It does not approve immediate broker writes, exact capital limits, leverage, derivatives, or any broker adapter implementation. Those still require the dedicated specs and gates named below.
 
 ## Current Direction Lock
 
-The current milestone is not automatic production/live trading. The project is being fixed around a QuantConnect Cloud and LEAN validation runtime for alpha research, cloud/local backtests, paper or live-shadow evidence, result import, and reconciliation.
+The long-term project goal is real capital allocation. There are now two approved monetization tracks:
 
-Real-money broker writes are out of scope unless the user explicitly approves a separate spec change. Old `10 USD live pilot` language is superseded by this direction lock.
+1. Own-capital allocation: use the operator's own pre-funded capital only after the alpha, risk, execution, preflight, and reconciliation gates are strong enough.
+2. Darwinex/Zero fee path: use the same validated trading signal and track record to pursue external-capital allocation and performance fees when instrument support and Darwinex rules permit it.
+
+The current milestone is still not automatic production/live trading. The repository is being fixed around a QuantConnect Cloud and LEAN validation runtime for alpha research, cloud/local backtests, paper or live-shadow evidence, result import, reconciliation, and promotion review.
+
+Real-money broker writes are long-term in scope but remain blocked in the current milestone. Any code path that can submit, cancel, replace, flatten, transfer, or mutate margin/account settings needs a dedicated user-approved broker-write implementation spec before implementation. Old `10 USD live pilot` language is superseded by this direction lock.
 
 QuantConnect Cloud and LEAN are the strategy validation runtime. Local LEAN is still required for fast debugging, deterministic replay, custom-data checks, and smoke tests, but local sample-data or simulator results alone are not strategy-promotion evidence.
 
@@ -24,13 +29,15 @@ LLMs are first-class semantic alpha engines. They may read timestamped news, fil
 
 ## Product Goal
 
-Build a personal, aggressive autonomous investment research system that can eventually support capital allocation by combining:
+Build a personal, aggressive autonomous investment system that can earn its way toward capital allocation by combining:
 
 1. LEAN / QuantConnect as the executable strategy, backtest, paper, and later live runtime;
 2. LLM agents as semantic alpha engines for natural-language data, event interpretation, thesis/counter-thesis, and risk narrative;
 3. deterministic portfolio, risk, execution, broker, and reconciliation boundaries so broker-write behavior only happens through typed, auditable contracts.
 
-The repository is not a generic investment dashboard. Dashboards, reports, and ledgers exist to make the alpha and execution loop observable and controllable.
+The repository is not a generic investment dashboard. Dashboards, reports, ledgers, and research-note stores exist to make the alpha and execution loop observable, testable, and controllable.
+
+The project hypothesis is that a point-in-time alpha engine combining numeric/ML features with LLM semantic alpha features can improve after-cost, benchmark-relative returns enough to survive QuantConnect Cloud validation, current paper/live-shadow evidence, reconciliation, and later transfer to own-capital and Darwinex/Zero execution paths.
 
 ## Required Reading
 
@@ -46,6 +53,7 @@ Read these documents in order when implementing core behavior:
 8. [Implementation Roadmap](docs/spec/06-implementation-roadmap.md): current phase sequence and acceptance criteria.
 9. [References](docs/spec/07-references.md): official docs and research references used by this spec.
 10. [Quality-Gated Universe](docs/spec/08-quality-gated-universe.md): active universe policy, ETF redundancy rules, symbol caps, profiles, and exclusion rationale.
+11. [Dual Monetization And Operations](docs/spec/09-dual-monetization-and-operations.md): own-capital allocation, Oracle Cloud ARM operations, Darwinex/Zero fee path, strategy hypothesis stack, and vintage-data requirements.
 
 Supporting project docs may provide runbooks and implementation detail, but they must be interpreted through the active spec:
 
@@ -72,9 +80,10 @@ Market/news/filing/macro data
   -> paper/live-shadow execution evidence
   -> result import + reconciliation
   -> learning loop
+  -> own-capital broker-write candidate or Darwinex/Zero track-record candidate
 ```
 
-The control plane orchestrates and records evidence. LEAN owns the strategy runtime. LLMs produce semantic alpha features and risk judgments. Broker write paths remain blocked until a user-approved live-trading spec exists.
+The control plane orchestrates and records evidence. LEAN owns the strategy runtime. LLMs produce semantic alpha features and risk judgments. Broker write paths remain blocked until a user-approved broker-write implementation spec exists.
 
 ## Core Contracts
 
@@ -138,19 +147,20 @@ Final reports must separate unit-test evidence from direct-execution evidence.
 ## Non-Goals
 
 - automatic production/live trading in the current milestone;
-- real broker writes without a separate user-approved spec;
+- real broker writes without a separate user-approved broker-write implementation spec;
 - HFT, market making, tick scalping, unrestricted margin, options, futures, shorts, or derivatives;
 - LLM free text directly placing broker orders;
 - local simulator, local sample data, or static fixtures treated as promotion evidence;
 - hidden backtest selection or only storing winning runs;
 - broker credentials in frontend, LLM prompts, logs, or research artifacts;
+- Darwinex/Zero performance-fee claims without a compatible account, mapped instruments, observed track record, and allocated-capital profit under Darwinex rules;
 - UI polish that delays the alpha, backtest, paper/live-shadow, and reconciliation loop.
 
 ## Real-Money Readiness
 
-Current verdict: not ready and not in active scope.
+Current verdict: long-term goal, not ready for broker writes.
 
-Before any future live-money spec can be approved, the repository must have:
+Before any broker-write implementation spec can be approved, the repository must have:
 
 - point-in-time alpha decisions with no-lookahead evidence;
 - QuantConnect Cloud backtest/import evidence;
@@ -159,4 +169,11 @@ Before any future live-money spec can be approved, the repository must have:
 - explicit capital limits and kill-switch behavior;
 - broker write adapter design reviewed separately;
 - fail-closed preflight and reconciliation tests;
-- user approval for the live-money spec change.
+- user approval for the broker-write implementation spec.
+
+Before any Darwinex/Zero implementation spec can be approved, the repository must additionally have:
+
+- instrument mapping between the quality-gated universe and Darwinex/Zero-supported instruments;
+- a signal execution bridge design for the selected Darwinex/Zero account and platform;
+- evidence that Darwinex Risk Engine behavior and fees are understood and reported separately from our portfolio target;
+- track-record import or reconciliation design for DARWIN, DarwinIA, investor allocation, and performance-fee evidence.

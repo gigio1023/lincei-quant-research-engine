@@ -18,6 +18,7 @@ The LLM can influence whether the system wants exposure. It cannot directly plac
 - flag crowded, contradictory, or fragile trades;
 - recommend alpha direction, horizon, confidence, and max-position hint;
 - review backtest failures and propose research hypotheses.
+- read a strategy research corpus and convert articles or papers into testable hypotheses, feature definitions, and counter-theses.
 
 ## Forbidden LLM Responsibilities
 
@@ -28,6 +29,7 @@ The LLM can influence whether the system wants exposure. It cannot directly plac
 - emitting non-replayable live-only decisions;
 - selecting only winning backtests for storage;
 - changing capital limits or live-trading scope.
+- converting a research article, blog post, or Darwinex track-record observation directly into a trade without point-in-time feature generation, LEAN validation, and risk gates.
 
 ## Feature Contract
 
@@ -106,10 +108,13 @@ LLM alpha can overfit history because modern models may know old market outcomes
 
 - store `availableAt` and enforce point-in-time replay;
 - store model and prompt versions;
+- store source text snapshots or content hashes so revised articles, filings, macro releases, and transcripts do not silently rewrite historical evidence;
 - compare numeric-only, LLM-only, and combined ablations;
 - prefer post-model-training-period live-shadow evaluation;
 - store failed and flat decisions, not only winners;
 - avoid promoting LLM-only historical backtests without live-shadow evidence.
+
+When the LLM summarizes external investment research, the output must be labeled as a hypothesis candidate. It is not alpha evidence until the project has generated features, run the validation ladder, and recorded outcomes.
 
 ## Typed Models
 

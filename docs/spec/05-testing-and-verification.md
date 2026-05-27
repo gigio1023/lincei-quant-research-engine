@@ -68,6 +68,20 @@ bun run test:e2e
 
 Use the command that matches the touched surface. Do not run broad slow suites just to create noise if a narrower direct verification proves the change.
 
+## Validation Time And Promotion
+
+The project must report elapsed validation time, not only backtest metrics. A strategy that passed one historical run has not proven live readiness or Darwinex readiness.
+
+Promotion reports must include:
+
+- in-sample, out-of-sample, and live-shadow calendar spans;
+- number of decisions, orders, fills, blocked decisions, and flat/abstain decisions;
+- market regimes covered when known;
+- elapsed clock time since the strategy version first entered live-shadow or paper evaluation;
+- whether any result came from historical replay rather than current market evidence.
+
+No own-capital or Darwinex/Zero promotion can be based only on a unit-test suite, a local simulator run, or a same-day selected backtest.
+
 `run-paper-cycle` and `run-paper-replay` prove different things. `run-paper-cycle` is current-market strict and should block stale historical targets. `run-paper-replay` is historical plumbing evidence and must not satisfy live preflight or promotion.
 
 `prepare-lean-local-data` is the direct data-path proof before a full quality universe local backtest. A blocked result is acceptable evidence when it identifies missing Stooq API key, missing QuantConnect Security Master/map-factor entitlement, missing LEAN daily zip, missing map/factor file, or insufficient ingested bars per symbol.
@@ -88,6 +102,13 @@ Final reports must separate:
 - blockers.
 
 Report commands, modes, artifact paths or run ids, and exact blocker reasons.
+
+For future own-capital and Darwinex/Zero work, reports must also separate:
+
+- own broker preflight evidence;
+- real broker order/fill/reconciliation evidence;
+- Darwinex/Zero signal execution evidence;
+- Darwinex/Zero track-record and performance-fee evidence.
 
 ## Required Failure Cases
 

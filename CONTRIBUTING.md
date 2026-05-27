@@ -2,7 +2,7 @@
 
 Status: active contribution guide.
 
-This repository is a QuantConnect/LEAN + LLM autonomous alpha validation system. Contributions must serve the active spec in [SPEC.md](SPEC.md). Do not treat this project as a generic dashboard or report app.
+This repository is a QuantConnect/LEAN + LLM autonomous alpha system with two long-term monetization tracks: own-capital allocation and Darwinex/Zero track-record monetization. Contributions must serve the active spec in [SPEC.md](SPEC.md). Do not treat this project as a generic dashboard or report app.
 
 ## Required Reading
 
@@ -13,7 +13,7 @@ Before changing core behavior, read:
 - [AGENTS.md](AGENTS.md)
 - [docs/README.md](docs/README.md)
 
-`SPEC.md` and linked `docs/spec/*` files are long-term spec documents. Changing them changes project direction. Live-money broker writes, leverage, derivatives, capital limits, QuantConnect promotion requirements, testing policy, credential rules, and the LLM/broker boundary require explicit user approval before implementation.
+`SPEC.md` and linked `docs/spec/*` files are long-term spec documents. Changing them changes project direction. Live-money broker writes, Darwinex/Zero adapters, leverage, derivatives, capital limits, QuantConnect promotion requirements, testing policy, credential rules, and the LLM/broker boundary require explicit user approval before implementation.
 
 ## Development Flow
 

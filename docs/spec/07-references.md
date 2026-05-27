@@ -70,6 +70,20 @@ Use official documentation where possible. Product behavior, pricing, dataset av
 - Live Trading Reconciliation: https://www.quantconnect.com/docs/v2/cloud-platform/live-trading/reconciliation
 - Live Trading Risks: https://www.quantconnect.com/docs/v2/cloud-platform/live-trading/risks
 
+## Darwinex And External-Capital Path
+
+- Darwinex Zero DARWIN overview: https://www.darwinexzero.com/docs/en/what-is-a-darwin
+- Darwinex Zero Risk Engine: https://www.darwinexzero.com/docs/en/risk-engine
+- Darwinex Zero performance fees: https://www.darwinexzero.com/docs/performance-fees
+- Darwinex Zero pricing: https://www.darwinexzero.com/docs/en/pricing
+- Darwinex Zero trading accounts and assets: https://www.darwinexzero.com/docs/en/trading-accounts-assets
+- Darwinex Zero assets overview: https://www.darwinexzero.com/assets
+
+## Strategy Research Corpus Candidates
+
+- Alpha Architect research blog: https://alphaarchitect.com/blog/
+- Alpha Architect factor research article: https://alphaarchitect.com/factor-strategies/
+
 ## Local Project Context
 
 - QuantConnect realignment decision: ../decisions/2026-05-24-quantconnect-realignment.md

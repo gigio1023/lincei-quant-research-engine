@@ -59,6 +59,8 @@ Use one ETF anchor per sleeve unless a future spec explicitly approves overlap h
 
 `tactical_leverage_disabled` adds `SOXL` only when `V1_ALLOW_LEVERAGED_ETF=true` and `allow-leveraged-etf=true` reach LEAN. This remains research-only and must not be interpreted as live-money approval.
 
+Future Darwinex/Zero work must map this universe to the exact supported account type and instrument list before execution. If a cash stock/ETF target maps only to a CFD, futures, leveraged, or synthetic exposure, that mapping needs explicit approval and separate risk treatment.
+
 ## Portfolio And Risk Policy
 
 The manifest supplies symbol caps, sleeve caps, ETF flags, and blocked symbols. LEAN must enforce these at runtime.

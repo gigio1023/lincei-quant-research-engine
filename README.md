@@ -1,10 +1,15 @@
 # Lincei Quant Research Engine
 
-Status: active QuantConnect/LEAN + LLM validation system.
+Status: active QuantConnect/LEAN + LLM validation system with dual monetization direction.
 
-Last aligned: 2026-05-26.
+Last aligned: 2026-05-27.
 
-Lincei Quant Research Engine is a personal aggressive alpha research system whose long-term objective is real capital allocation and live-money trading. The active milestone is **not yet** automatic live trading: the current system is building the evidence loop that must exist before broker writes are allowed. That loop is built around QuantConnect Cloud, local LEAN, typed LLM semantic alpha features, paper/live-shadow evidence, reconciliation, and a learning/promotion ledger.
+Lincei Quant Research Engine is a personal aggressive alpha system whose long-term objective is real capital allocation. The project now has two explicit monetization tracks:
+
+1. Own-capital allocation: run the system continuously and eventually trade the operator's own pre-funded capital after evidence, risk, broker, and reconciliation gates pass.
+2. Darwinex/Zero fee path: use the same validated trading signal and track record to pursue external-capital allocation and performance fees when Darwinex/Zero account, instrument, and risk-engine constraints fit the strategy.
+
+The active milestone is **not yet** automatic live trading. The current system is building the evidence loop that must exist before broker writes are allowed. That loop is built around QuantConnect Cloud, local LEAN, typed LLM semantic alpha features, paper/live-shadow evidence, reconciliation, and a learning/promotion ledger.
 
 Read [SPEC.md](SPEC.md) first. It is the canonical long-term spec index. If any document conflicts with `SPEC.md`, `SPEC.md` wins.
 
@@ -15,7 +20,17 @@ Read [SPEC.md](SPEC.md) first. It is the canonical long-term spec index. If any 
 - LLMs are semantic alpha engines. They convert natural-language evidence into typed point-in-time features. They do not place broker orders, see credentials, or choose final order quantity.
 - Universe selection is quality-gated by [config/universes/quality-gated-v2.json](config/universes/quality-gated-v2.json). Weak, redundant, hard-excluded, or disabled tactical instruments cannot leak into LEAN targets.
 - Profitability matters: alpha decisions are labeled against forward returns and benchmark-relative returns, Cloud/paper/live-shadow evidence feeds promotion decisions, and the strategy is expected to earn its way toward capital allocation.
-- Real broker writes remain blocked until the evidence and broker-readiness gates are complete. `submit`, `cancel`, `replace`, `flatten`, transfer, and margin/account mutation require a future user-approved live-money spec.
+- The Oracle Cloud ARM server is the intended always-on control plane for scheduled ingestion, alpha cycles, QuantConnect imports, live-shadow, reconciliation, and alerts. It is not automatically a broker-write host.
+- Real broker writes remain blocked until the evidence and broker-readiness gates are complete. `submit`, `cancel`, `replace`, `flatten`, transfer, and margin/account mutation require a future user-approved broker-write implementation spec.
+- Darwinex/Zero is a later monetization venue, not the research runtime. The repo can eventually provide a validated signal and track record, but Darwinex Risk Engine behavior, instrument mapping, track-record import, and performance-fee evidence need their own adapter spec.
+
+## Core Hypothesis
+
+The project hypothesis is:
+
+> A point-in-time alpha engine that combines numeric/ML features with LLM semantic alpha features can produce after-cost, benchmark-relative returns that survive QuantConnect Cloud validation, paper/live-shadow evidence, reconciliation, and later transfer to own-capital and Darwinex/Zero execution paths.
+
+The required comparisons are numeric-only vs LLM-only vs combined alpha, all evaluated with point-in-time and vintage-data controls. A single lucky backtest, selected winning run, or local simulator artifact is not enough.
 
 ## System Flow
 
@@ -37,6 +52,8 @@ flowchart LR
     SHADOW --> RECON
     RECON --> LEARN["Outcome labels<br/>promotion ledger"]
     LEARN --> META
+    LEARN --> OWN["Own-capital<br/>candidate"]
+    LEARN --> DZ["Darwinex/Zero<br/>track-record candidate"]
 ```
 
 ## Evidence Gates
@@ -55,6 +72,8 @@ stateDiagram-v2
     PromotionReview --> Accepted: cloud + paper/live-shadow evidence
     PromotionReview --> Blocked: missing evidence or reconciliation mismatch
     Blocked --> CloudAttempt
+    Accepted --> OwnCapitalCandidate: future broker-write spec
+    Accepted --> DarwinexCandidate: future Darwinex/Zero adapter spec
 ```
 
 Local simulator and sample-data paths prove plumbing only. Promotion evidence requires imported QuantConnect Cloud artifacts plus current live-shadow evidence and reconciliation. Accepted local historical LEAN artifacts are useful strategy evidence for debugging and paper replay, but they do not replace Cloud promotion evidence. A successful `lean cloud backtest` command is not enough unless REST result artifacts are imported and pass strategy-evidence gates.
@@ -149,9 +168,31 @@ flowchart TB
     QCLOUD --> EVIDENCE
 ```
 
+## Long-Term Monetization Architecture
+
+```mermaid
+flowchart TD
+    ORACLE["Oracle Cloud ARM<br/>always-on control plane"] --> INGEST["Evidence ingestion<br/>market / text / macro / research"]
+    INGEST --> STORE["Point-in-time and<br/>vintage feature store"]
+    STORE --> ALPHA["Numeric/ML alpha<br/>+ LLM semantic alpha"]
+    ALPHA --> LEAN["LEAN / QuantConnect<br/>Insights -> portfolio -> risk"]
+    LEAN --> EVIDENCE["Cloud + paper/live-shadow<br/>evidence and reconciliation"]
+    EVIDENCE --> REVIEW{"Promotion review"}
+
+    REVIEW -->|"not enough evidence"| RESEARCH["Improve hypothesis<br/>and retest"]
+    REVIEW -->|"approved for own-capital candidate"| BROKER["Future own broker adapter<br/>separate write spec required"]
+    REVIEW -->|"approved for Darwinex candidate"| DARWINEX["Future Darwinex/Zero adapter<br/>instrument and track-record spec required"]
+
+    BROKER --> OWNPNL["Own account P&L<br/>real fills and reconciliation"]
+    DARWINEX --> DZTRACK["DARWIN / track record<br/>Darwinex Risk Engine applies"]
+    DZTRACK --> DZFEES["Performance-fee evidence<br/>only after allocated-capital profit"]
+```
+
+The repo does not upload a QuantConnect project to Darwinex. The transferable object is the validated signal and execution behavior. Darwinex may resize risk through its Risk Engine, so our `PortfolioTarget` is not the same thing as investor exposure in a DARWIN.
+
 ## Detailed Architecture Views
 
-The diagrams below are implementation maps for the active spec. They do not expand live-money scope.
+The diagrams below are implementation maps for the active spec. Long-term monetization is in scope, but broker writes remain blocked until adapter-specific specs approve them.
 
 ### Subsystem Ownership
 
@@ -356,7 +397,7 @@ flowchart TB
     CLOUD --> PAPER["Paper cycle<br/>current-market strict"]
     PAPER --> SHADOW["Live-shadow<br/>current_live_shadow required"]
     SHADOW --> LEARN["Learning loop<br/>labels + promotion decision"]
-    LEARN --> PREFLIGHT["Live preflight<br/>blocked under active scope"]
+    LEARN --> PREFLIGHT["Broker-write preflight<br/>blocked in current milestone"]
 
     SIM["Local simulator"] -. "plumbing only" .-> LOCAL
     REPLAY["run-paper-replay"] -. "historical target plumbing only" .-> PAPER
@@ -374,7 +415,7 @@ flowchart TB
     PAPER --> RECON["Reconciliation"]
     RECON --> PREFLIGHT["Live preflight"]
 
-    subgraph FORBIDDEN["Forbidden without future approved live-money spec"]
+    subgraph FORBIDDEN["Forbidden without future approved broker-write spec"]
         WRITEBLOCK["broker write boundary"]
         SUBMIT["submit real order"]
         CANCEL["cancel/replace real order"]
@@ -386,7 +427,7 @@ flowchart TB
     WRITEBLOCK --> CANCEL
     WRITEBLOCK --> FLATTEN
     WRITEBLOCK --> MARGIN
-    PREFLIGHT -. "active spec blocks" .-> WRITEBLOCK
+    PREFLIGHT -. "current milestone blocks" .-> WRITEBLOCK
     LLM -. "no credentials / no order payloads / no final quantity" .-> WRITEBLOCK
 ```
 
@@ -424,6 +465,9 @@ The latest validated platform snapshot for this branch was:
 | Docker or Podman-compatible Docker CLI | Local LEAN container runs                      |
 | QuantConnect account/API token         | Cloud backtests, workspace setup, Object Store |
 | OpenAI API key                         | LLM semantic alpha features                    |
+| Oracle Cloud ARM host                  | Optional always-on control plane target        |
+
+Darwinex/Zero credentials or MetaTrader connectivity are not current prerequisites because the adapter is not implemented yet.
 
 ### Bootstrap
 
@@ -484,7 +528,7 @@ Run from repository root unless noted.
 ./scripts/live-pilot-10usd --confirm-real-money
 ```
 
-Exit code `2` means policy/account/platform `blocked` evidence, not a crash. Examples: missing QuantConnect Cloud project, missing Cloud account tier, failed strategy-evidence gates, missing paper target evidence, or blocked live-money preflight.
+Exit code `2` means policy/account/platform `blocked` evidence, not a crash. Examples: missing QuantConnect Cloud project, missing Cloud account tier, failed strategy-evidence gates, missing paper target evidence, or blocked broker-write preflight.
 
 ## Current Implementation Status
 
@@ -508,6 +552,14 @@ Implemented in this branch:
 - Local LEAN data preparation command that ingests Stooq daily bars when `STOOQ_API_KEY` is present, exports LEAN daily zip/map/factor files, hydrates the feature DB from existing LEAN data, and reports per-symbol coverage before a full universe backtest.
 - Cost-control guard for local QuantConnect data downloads: `run-full-backtest` defaults to `--no-download-data`, and `--download-data` is blocked unless `ALLOW_PAID_QC_LOCAL_DATA_DOWNLOAD=true`.
 - Cloud package preflight command that compiles LEAN source, runs focused LEAN tests, and executes a local Docker LEAN backtest with the universe manifest path intentionally missing. `qc-cloud-backtest --push`, `qc-cloud-push`, and `run-cloud-quality-backtest` run this preflight before pushing unless `SKIP_LEAN_CLOUD_PACKAGE_PREFLIGHT=true` is explicitly set.
+
+Not yet implemented:
+
+- Oracle Cloud ARM production deployment runbook and recurring scheduler.
+- Strategy research corpus and hypothesis registry beyond ad hoc docs and references.
+- Vintage-data versioning for all restatable sources.
+- Own-capital broker-write adapter.
+- Darwinex/Zero instrument mapping, execution bridge, track-record import, or performance-fee evidence import.
 
 Known current blockers from direct verification:
 
@@ -572,6 +624,7 @@ Latest direct verification on 2026-05-25 UTC, Linux aarch64:
 - [LEAN Backtest And Readiness Paths](docs/full-lean-backtest-setup.md)
 - [Execution Readiness](docs/execution-readiness.md)
 - [QuantConnect Realignment Decision](docs/decisions/2026-05-24-quantconnect-realignment.md)
+- [Dual Monetization And Operations](docs/spec/09-dual-monetization-and-operations.md)
 
 ## Contributing
 

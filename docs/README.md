@@ -16,6 +16,8 @@ Read [../SPEC.md](../SPEC.md) first. It is the authority document for project di
 - [Testing And Verification Policy](spec/05-testing-and-verification.md)
 - [Implementation Roadmap](spec/06-implementation-roadmap.md)
 - [References](spec/07-references.md)
+- [Quality-Gated Universe](spec/08-quality-gated-universe.md)
+- [Dual Monetization And Operations](spec/09-dual-monetization-and-operations.md)
 
 ## Supporting Design Docs
 
@@ -47,6 +49,7 @@ These documents explain subsystem intent. If they conflict with `SPEC.md`, `SPEC
 - Paper/live-shadow evidence commands: `scripts/run-paper-cycle`, `scripts/run-paper-replay`, `scripts/run-live-shadow`; replay evidence is historical plumbing only.
 - Learning/promotion ledger command: `scripts/run-learning-loop`.
 - Broker-write preflight remains blocked for real money; the legacy `scripts/live-pilot-10usd` command is a blocked compatibility surface only.
+- Long-term own-capital and Darwinex/Zero monetization are approved directions, but their broker/write adapters are not implemented or approved for account mutation yet.
 
 ## Decision Records
 
