@@ -11,8 +11,8 @@ export const ArchitectureFlow = ({ stages }: ArchitectureFlowProps) => (
       <div>
         <h2 className="text-xl font-bold text-white">Architecture Flow</h2>
         <p className="mt-1 text-sm text-[#929aa5]">
-          One validation loop from point-in-time evidence to fail-closed
-          preflight and learning.
+          One validation loop from point-in-time source material to a
+          fail-closed pre-trade risk check and learning.
         </p>
       </div>
       <div className="flex flex-wrap gap-2 text-[11px] font-bold uppercase">
@@ -51,7 +51,7 @@ export const ArchitectureFlow = ({ stages }: ArchitectureFlowProps) => (
               {stage.detail}
             </p>
             <p className="mt-3 line-clamp-2 font-mono text-[11px] leading-5 text-[#707a8a]">
-              {stage.evidence}
+              {stage.artifactSummary}
             </p>
           </div>
         </div>

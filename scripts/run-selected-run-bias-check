@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Checks whether promotion evidence includes enough retained variants to reduce selected-run bias.
+# Legacy command name: checks whether promotion evidence includes enough retained variants to reduce multiple-testing bias.
 # Exit code 2 means the promotion check is blocked by missing or one-sided variant evidence.
 set -euo pipefail
 

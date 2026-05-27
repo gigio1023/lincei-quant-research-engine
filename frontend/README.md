@@ -21,7 +21,7 @@ evidence paths.
 
 - `/` and `/backtest-cycle`: compact backtest-based architecture cycle view. It
   reads `/v1-pilot/status` and shows how Cloud/LEAN backtest evidence connects
-  to alpha, portfolio targets, current paper/live-shadow evidence, historical
+  to alpha, portfolio targets, current paper/shadow trading artifacts, historical
   replay evidence, fail-closed preflight, and learning.
 - `/control-plane`: detailed drill-down for control-plane, paper, broker
   read-only, and readiness ledgers.

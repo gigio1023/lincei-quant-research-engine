@@ -6,7 +6,7 @@ Last aligned: 2026-05-27.
 
 ## Roadmap Principle
 
-The roadmap prioritizes the own-capital evidence loop:
+The roadmap prioritizes the self-funded capital evidence loop:
 
 ```text
 research hypothesis
@@ -14,22 +14,22 @@ research hypothesis
   -> simple baseline
   -> parallel ablations and backtests
   -> LEAN / QuantConnect validation
-  -> paper/live-shadow
+  -> paper trading/shadow trading
   -> reconciliation
   -> broker-read-only proof
   -> broker-write candidate
 ```
 
-Darwinex/Zero comes after this loop works. It must not displace own-capital readiness work.
+Darwinex/Zero comes after this loop works. It must not displace self-funded capital readiness work.
 
-Parallelization is a first-class design constraint. Research, ingest, feature generation, LLM semantic feature jobs, ablations, parameter sweeps, and Cloud imports should run concurrently where safe. Portfolio target consolidation, risk cuts, execution intent, reconciliation, and preflight must remain single-writer.
+Parallelization is a first-class design constraint. Research, ingest, feature generation, LLM-derived feature jobs, ablations, parameter sweeps, and Cloud imports should run concurrently where safe. Portfolio target consolidation, risk cuts, execution intent, reconciliation, and pre-trade risk check must remain single-writer.
 
 ## Phase 1: Direction And Evidence Hygiene
 
 Deliver:
 
 - active spec split under `docs/spec/`;
-- own-capital allocation documented as the first monetization priority;
+- self-funded capital allocation documented as the first monetization priority;
 - Darwinex/Zero documented as a downstream track-record path;
 - old live-pilot scope marked superseded;
 - validation reports distinguish direct execution from unit tests.
@@ -48,7 +48,7 @@ Deliver:
 - job id, run id, parent id, partition key, input refs, input hash, output refs, output hash, status, retry, cost ref, and blocker reasons;
 - idempotent upsert rules for corpus ingest, data ingest, feature jobs, LLM jobs, ablations, backtests, and Cloud imports;
 - concurrency caps for local platform, Oracle Cloud ARM, LLM APIs, QuantConnect APIs, and data providers;
-- selected-run-bias detection that can see failed, blocked, and losing variants.
+- multiple-testing bias detection that can see failed, blocked, and losing variants.
 
 Acceptance:
 
@@ -70,7 +70,7 @@ Acceptance:
 
 - research notes create testable hypotheses, not direct trade instructions;
 - every strategy variant cites a hypothesis id and research refs;
-- own-capital backlog starts from liquid trend, defensive allocation, momentum, daily-return, and cost-aware baselines.
+- self-funded capital backlog starts from liquid trend, defensive allocation, momentum, daily-return, and cost-aware baselines.
 
 ## Phase 4: Data, Vintage, And Feature Store
 
@@ -87,7 +87,7 @@ Acceptance:
 - restated or unknown-vintage sources cannot pass promotion silently;
 - theme-universe results are labeled separately from broad-universe results.
 
-## Phase 5: Simple Own-Capital Baselines
+## Phase 5: Simple Self-Funded Capital Baselines
 
 Deliver:
 
@@ -141,7 +141,7 @@ Acceptance:
 - combined alpha emits LEAN Insights;
 - decisions are replayable by symbol and horizon;
 - every decision has evidence refs and hashes;
-- baseline, LLM, and combined variants can be compared without selected-run bias;
+- baseline, LLM, and combined variants can be compared without multiple-testing bias;
 - Cloud command success is blocked until real Cloud result artifacts are imported and pass evidence gates.
 
 ## Phase 8: Paper, Live-Shadow, And Learning Loop
@@ -150,7 +150,7 @@ Deliver:
 
 - paper order bridge from LEAN targets;
 - paper reconciliation;
-- live-shadow mode that records proposed trades without broker writes;
+- shadow trading mode that records proposed trades without broker writes;
 - result labels by horizon;
 - feature/decision outcome joins;
 - model and prompt performance tracking;
@@ -160,17 +160,17 @@ Deliver:
 Acceptance:
 
 - one full paper cycle runs from alpha decision to fill ledger;
-- live-shadow produces current would-have-traded evidence;
+- shadow trading produces current would-have-traded evidence;
 - historical paper replay is separated from current readiness;
 - kill switch and reconciliation mismatches block new exposure;
-- promotion decisions require Cloud plus current paper/live-shadow evidence.
+- promotion decisions require Cloud plus current paper trading/shadow trading evidence.
 
 ## Phase 9: Oracle Cloud ARM Always-On Control Plane
 
 Deliver:
 
 - deployment runbook for Oracle Cloud ARM;
-- scheduler for corpus refresh, data ingest, feature generation, LLM jobs, ablations, imports, paper/live-shadow, reconciliation, and alerts;
+- scheduler for corpus refresh, data ingest, feature generation, LLM jobs, ablations, imports, paper trading/shadow trading, reconciliation, and alerts;
 - credential boundary checks;
 - cost controls for LLM, QuantConnect, data providers, and storage;
 - health checks and failure reports.
@@ -188,7 +188,7 @@ Deliver:
 - user-approved broker candidate for read-only work;
 - account snapshot, positions, open orders, fills, cash, buying power, and fees read models;
 - append-only account, position, reservation, order, fill, fee, and tax-lot ledgers;
-- reconciliation between paper/live-shadow expected state and broker read-only observed state where applicable.
+- reconciliation between paper trading/shadow trading expected state and broker read-only observed state where applicable.
 
 Acceptance:
 
@@ -197,7 +197,7 @@ Acceptance:
 - broker credentials never enter LLM prompts, frontend state, logs, or research artifacts;
 - reconciliation mismatches block broker-write readiness.
 
-## Phase 11: Own-Capital Broker-Write Spec And Adapter
+## Phase 11: Self-Funded Capital Broker-Write Spec And Adapter
 
 Deliver:
 
@@ -212,8 +212,8 @@ Deliver:
 
 Acceptance:
 
-- preflight fails closed for unknown, stale, mismatched, or unsupported state;
-- paper/live-shadow evidence maps to broker-specific order semantics;
+- pre-trade risk check fails closed for unknown, stale, mismatched, or unsupported state;
+- paper trading/shadow trading evidence maps to broker-specific order semantics;
 - at least one blocked/failure case is tested for every write-like method;
 - no LLM, frontend, log, or research artifact sees broker credentials or raw account identifiers.
 
@@ -224,7 +224,7 @@ This phase approves implementation only when the user explicitly approves the br
 Deliver:
 
 - Darwinex/Zero account, jurisdiction, subscription, and terms verification;
-- instrument mapping between the approved own-capital strategy and Darwinex/Zero-supported instruments;
+- instrument mapping between the approved self-funded capital strategy and Darwinex/Zero-supported instruments;
 - MetaTrader 4/5 or API bridge design for the Oracle control plane;
 - signal-to-order mapping that respects our risk gates and Darwinex execution semantics;
 - Darwinex Risk Engine reporting separate from our portfolio targets;
@@ -233,7 +233,7 @@ Deliver:
 
 Acceptance:
 
-- own-capital-grade strategy evidence already exists;
+- self-funded capital deployment-grade strategy validation artifacts already exists;
 - the project can show which signal was executed, through which Darwinex/Zero instrument, under which costs and market hours;
 - Darwinex sizing/risk standardization is reported separately from our intended target;
 - performance-fee claims come from Darwinex/Zero evidence, not from QuantConnect backtests.

@@ -6,14 +6,14 @@ Status: supporting design. The active spec permits fast, slow, and research path
 
 This project is not an HFT or market-making system. LLMs and Lean backtests introduce seconds-to-minutes of latency, which is appropriate for aggressive swing, daily, hourly, and selective intraday strategies.
 
-| Strategy type | Typical latency budget | Fit |
-|---|---:|---|
-| HFT / market making | microseconds to milliseconds | No |
-| tick scalping | milliseconds to 1s | No |
-| 1m to 15m intraday | 5s to 60s | Limited |
-| hourly / 4h rebalance | 30s to 5m | Good |
-| daily / swing | minutes to hours | Best |
-| risk-off / stop | seconds | Good through fast path |
+| Strategy type         |       Typical latency budget | Fit                    |
+| --------------------- | ---------------------------: | ---------------------- |
+| HFT / market making   | microseconds to milliseconds | No                     |
+| tick scalping         |           milliseconds to 1s | No                     |
+| 1m to 15m intraday    |                    5s to 60s | Limited                |
+| hourly / 4h rebalance |                    30s to 5m | Good                   |
+| daily / swing         |             minutes to hours | Best                   |
+| risk-off / stop       |                      seconds | Good through fast path |
 
 ## Fast Path
 
@@ -28,7 +28,7 @@ Typical actions:
 - max drawdown cut;
 - stale data halt;
 - existing numeric alpha continuation;
-- paper/live-shadow cancel/flatten simulation;
+- paper trading/shadow trading cancel/flatten simulation;
 - future broker cancel/flatten emergency only after a separate broker-write implementation spec.
 
 Expected latency:
@@ -37,7 +37,7 @@ Expected latency:
 feature refresh:      0.5s to 5s
 LEAN/rule decision:   <1s to 5s
 risk gate:            <1s
-paper/live-shadow order intent: <1s to 3s
+paper trading/shadow trading order intent: <1s to 3s
 ```
 
 Target: 5 to 30 seconds end to end for non-HFT actions.
@@ -116,7 +116,7 @@ Record latency for every decision:
 - LLM role latency;
 - Lean run latency;
 - risk gate latency;
-- paper/live-shadow execution latency;
+- paper trading/shadow trading execution latency;
 - total decision latency;
 - path type: fast, slow, or research.
 

@@ -114,7 +114,7 @@ export function buildV1SystemStages(
         ? []
         : input.paper.replayReconciliationStatus === 'matched'
           ? [
-              'Historical paper replay is reconciled, but current paper cycle evidence is still missing for live readiness.',
+              'Historical paper replay is reconciled, but current paper trading artifacts are still missing for broker-write pre-trade risk checks.',
             ]
           : ['Latest matching paper plan is not reconciled.'],
       [
@@ -135,11 +135,11 @@ export function buildV1SystemStages(
           : 'missing',
       input.broker.snapshotId
         ? `${input.broker.provider} snapshot=${input.broker.snapshotId}, reconciliation=${input.broker.snapshotReconciliationStatus ?? 'unknown'}`
-        : 'No broker read-only snapshot evidence exists.',
+        : 'No broker read-only snapshot artifact exists.',
       input.broker.provider === 'toss' &&
         input.broker.snapshotReconciliationStatus === 'matched'
         ? []
-        : ['Latest broker snapshot is not matched Toss read-only evidence.'],
+        : ['Latest broker snapshot is not matched Toss read-only artifact.'],
       input.broker.snapshotId ? [String(input.broker.snapshotId)] : [],
     ),
     stage(
@@ -149,7 +149,7 @@ export function buildV1SystemStages(
       `${input.broker.openOrderCount} open or mismatched broker order records`,
       input.broker.openOrderCount === 0
         ? []
-        : ['Open or mismatched broker order evidence must be resolved.'],
+        : ['Open or mismatched broker order artifacts must be resolved.'],
       input.broker.orderStatusId ? [String(input.broker.orderStatusId)] : [],
     ),
     buildLivePreflightStage(input.latestLeanRun, input.paper, input.preflight),
@@ -212,19 +212,19 @@ function buildLivePreflightStage(
     latestLeanRun &&
     preflight.latestLeanRunId &&
     preflight.latestLeanRunId !== latestLeanRun.runId
-      ? `Latest preflight used LEAN run ${preflight.latestLeanRunId}, not current ${latestLeanRun.runId}.`
+      ? `Latest live-preflight legacy check used LEAN run ${preflight.latestLeanRunId}, not current ${latestLeanRun.runId}.`
       : '',
     paper.planId &&
     preflight.latestPaperPlanId &&
     String(preflight.latestPaperPlanId) !== String(paper.planId)
-      ? `Latest preflight used paper plan ${preflight.latestPaperPlanId}, not current ${paper.planId}.`
+      ? `Latest live-preflight legacy check used paper plan ${preflight.latestPaperPlanId}, not current ${paper.planId}.`
       : '',
   ].filter((blocker): blocker is string => blocker.length > 0);
   const blockers = [...preflight.blockers, ...staleBlockers];
 
   return stage(
     'live_preflight',
-    'Live Preflight',
+    'Pre-Trade Risk Check',
     preflight.status === 'ready' && staleBlockers.length === 0
       ? 'ready'
       : 'blocked',

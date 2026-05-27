@@ -715,7 +715,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           setLivePilotReadinessError(null);
         } else {
           setLivePilotReadinessError(
-            "Broker-write preflight readiness API is unavailable. Showing documented preflight sample.",
+            "Broker-write pre-trade risk check API is unavailable. Showing documented pre-trade check sample.",
           );
         }
         if (brokerOrderCommandsStatus.status === "fulfilled") {
@@ -825,7 +825,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
             "Funding readiness API is unavailable. Showing documented funding sample.",
           );
           setLivePilotReadinessError(
-            "Broker-write preflight readiness API is unavailable. Showing documented preflight sample.",
+            "Broker-write pre-trade risk check API is unavailable. Showing documented pre-trade check sample.",
           );
           setBrokerOrderCommandsError(
             "Broker order command API is unavailable. Showing documented broker command sample.",
@@ -1165,7 +1165,7 @@ export const useControlPlaneDashboard = (): DashboardModel => {
       setLivePilotReadinessError(null);
     } else {
       setLivePilotReadinessError(
-        "Broker-write preflight readiness refresh failed after automation action.",
+        "Broker-write pre-trade risk check refresh failed after automation action.",
       );
     }
 
@@ -1505,10 +1505,10 @@ export const useControlPlaneDashboard = (): DashboardModel => {
           ? "Loading funding readiness"
           : "Documented funding sample",
       livePilotReadiness: livePilotReadiness
-        ? "API broker-write preflight readiness"
+        ? "API broker-write pre-trade risk check"
         : loadingLivePilotReadiness
-          ? "Loading broker-write preflight readiness"
-          : "Documented broker-write preflight sample",
+          ? "Loading broker-write pre-trade risk check"
+          : "Documented broker-write pre-trade risk check sample",
       brokerOrderCommands: brokerOrderCommands
         ? "API broker order commands"
         : loadingBrokerOrderCommands

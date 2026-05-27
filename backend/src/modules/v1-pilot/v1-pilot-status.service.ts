@@ -305,7 +305,9 @@ export class V1PilotStatusService {
       checkedAt,
       maxPilotNotionalUsd: MAX_LIVE_PILOT_NOTIONAL_USD,
       broker: process.env.BROKER_PROVIDER ?? 'toss',
-      blockers: ['Live preflight has not been run for the latest state.'],
+      blockers: [
+        'The live-preflight legacy command has not run for the latest state.',
+      ],
       requiredFlags: {
         brokerWriteEnabled: process.env.BROKER_WRITE_ENABLED === 'true',
         liveTradingEnabled: process.env.LIVE_TRADING_ENABLED === 'true',

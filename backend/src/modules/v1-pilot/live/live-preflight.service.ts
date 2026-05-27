@@ -96,7 +96,7 @@ export class LivePreflightService {
           : null;
       blockers.push(
         latestPaperReplayPlan
-          ? `Only historical paper replay plan ${latestPaperReplayPlan.id} exists for the latest LEAN target; current paper cycle evidence is required for live readiness.`
+          ? `Only historical paper replay plan ${latestPaperReplayPlan.id} exists for the latest LEAN target; current paper trading artifacts are required for broker-write pre-trade risk checks.`
           : 'Latest paper cycle has not produced a filled plan for the latest LEAN target.',
       );
     } else {
@@ -153,7 +153,7 @@ export class LivePreflightService {
     ) {
       blockers.push(
         mlReadiness.blocker ??
-          `Live readiness requires a promoted ML model or an accepted no-ML LEAN run: ${mlReadiness.status}`,
+          `Broker-write pre-trade risk check requires a promoted ML model or an accepted no-ML LEAN run: ${mlReadiness.status}`,
       );
     }
 
@@ -164,7 +164,7 @@ export class LivePreflightService {
 
     const hasExternalBrokerSecret = Boolean(
       process.env.BROKER_CREDENTIAL_SECRET_REF ??
-      process.env.TOSS_OPEN_API_SECRET_REF,
+        process.env.TOSS_OPEN_API_SECRET_REF,
     );
     const hasLocalBrokerCredential = Boolean(
       process.env.TOSS_OPEN_API_CLIENT_ID ?? process.env.TOSS_CLIENT_ID,
@@ -179,7 +179,7 @@ export class LivePreflightService {
     }
     if (credentialMode === 'local-dev-env') {
       blockers.push(
-        'Broker-write preflight requires broker credentials from an external secret reference.',
+        'Broker-write pre-trade risk check requires broker credentials from an external secret reference.',
       );
     }
 

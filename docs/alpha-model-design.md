@@ -41,14 +41,14 @@ type AlphaDecision = {
 
 Then adapt it into LEAN:
 
-| `AlphaDecision` | LEAN `Insight` |
-|---|---|
-| `symbol` | symbol |
-| `direction` | `InsightDirection.Up/Down/Flat` |
-| `horizonHours` | period |
-| `expectedReturnBps` | magnitude |
-| `confidence` | confidence |
-| `maxPositionPct` | optional weight |
+| `AlphaDecision`     | LEAN `Insight`                  |
+| ------------------- | ------------------------------- |
+| `symbol`            | symbol                          |
+| `direction`         | `InsightDirection.Up/Down/Flat` |
+| `horizonHours`      | period                          |
+| `expectedReturnBps` | magnitude                       |
+| `confidence`        | confidence                      |
+| `maxPositionPct`    | optional weight                 |
 
 ## Numeric Alpha
 
@@ -155,7 +155,7 @@ Each alpha source must be evaluated separately and together:
 - performance by market regime;
 - calibration of confidence;
 - ablation: numeric only, LLM only, combined;
-- walk-forward and live-shadow performance.
+- walk-forward and shadow trading performance.
 
 ## Promotion Rule
 
@@ -165,6 +165,6 @@ No alpha becomes promotion-capable until it has:
 - no-lookahead data proof;
 - QuantConnect Cloud backtest when available, or local LEAN evidence with explicit blocker notes;
 - out-of-sample or walk-forward evidence;
-- paper/live-shadow evidence;
+- paper trading/shadow trading evidence;
 - documented failure modes;
 - rollback path.

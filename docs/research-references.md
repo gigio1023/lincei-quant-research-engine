@@ -39,7 +39,7 @@ For each adopted idea, record:
 
 - Alpha Architect corpus: [../references/alphaarchitect/README.md](../references/alphaarchitect/README.md)
 - Alpha Architect strategy register: [../references/alphaarchitect/strategy-register.md](../references/alphaarchitect/strategy-register.md)
-- Own-capital architecture review from the corpus: [own-capital-alphaarchitect-corpus-review.md](own-capital-alphaarchitect-corpus-review.md)
+- Self-funded capital architecture review from the corpus: [own-capital-alphaarchitect-corpus-review.md](own-capital-alphaarchitect-corpus-review.md)
 
 The corpus is a source library, not promotion evidence. A stored article becomes useful only after it is converted into a hypothesis, mapped to point-in-time data, implemented as a LEAN strategy or feature, and validated through the active promotion ladder.
 

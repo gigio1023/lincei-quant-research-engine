@@ -12,7 +12,7 @@ The canonical machine-readable manifest is:
 
 - `config/universes/quality-gated-v2.json`
 
-Backend services and the LEAN runtime must read this manifest. Hardcoded fallback universes are allowed only for explicitly named local smoke paths, and those smoke paths must be described as plumbing evidence rather than strategy evidence.
+Backend services and the LEAN runtime must read this manifest. Hardcoded fallback universes are allowed only for explicitly named local smoke paths, and those smoke paths must be described as plumbing evidence rather than strategy validation artifacts.
 
 ## Admission Rules
 
@@ -35,12 +35,12 @@ This profile is designed for historical backtests and excludes newly launched fo
 
 Active sleeves:
 
-| Sleeve | Active instruments |
-| --- | --- |
+| Sleeve                     | Active instruments                                                                |
+| -------------------------- | --------------------------------------------------------------------------------- |
 | Semiconductor / AI compute | `SMH`, `NVDA`, `AVGO`, `TSM`, `ASML`, `AMAT`, `AMD`, `MU`, `LRCX`, `KLAC`, `MRVL` |
-| Software / Cybersecurity | `IGV`, `CIBR`, `MSFT`, `ORCL`, `NOW`, `PANW`, `CRWD`, `PLTR`, `ANET`, `DDOG` |
-| Power / Electrification | `GRID`, `ETN`, `PWR`, `VRT`, `GEV`, `CEG`, `VST` |
-| Space / Aerospace | `XAR`, `UFO`, `RKLB`, `LMT`, `NOC`, `LHX` |
+| Software / Cybersecurity   | `IGV`, `CIBR`, `MSFT`, `ORCL`, `NOW`, `PANW`, `CRWD`, `PLTR`, `ANET`, `DDOG`      |
+| Power / Electrification    | `GRID`, `ETN`, `PWR`, `VRT`, `GEV`, `CEG`, `VST`                                  |
+| Space / Aerospace          | `XAR`, `UFO`, `RKLB`, `LMT`, `NOC`, `LHX`                                         |
 
 Benchmark and diagnostic symbols such as `SPY`, `QQQ`, `IWM`, `SOXX`, `XLU`, and `ITA` may be used for comparison or local smoke overrides, but they are not active default alpha targets.
 

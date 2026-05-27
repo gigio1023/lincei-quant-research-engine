@@ -4,11 +4,11 @@ Status: active normative spec.
 
 ## Boundary Principle
 
-LLMs and broker write paths must not touch. The LLM can produce semantic alpha and risk concerns. Deterministic portfolio, risk, execution, preflight, and reconciliation layers decide whether any target is executable.
+LLMs and broker write paths must not touch. The LLM can produce LLM-derived alpha and risk concerns. Deterministic portfolio, risk, execution, pre-trade risk checks, and reconciliation layers decide whether any target is executable.
 
-Current implementation permits paper and live-shadow evidence. The long-term spec includes own-capital broker writes and Darwinex/Zero monetization, but both remain blocked until adapter-specific implementation specs approve the exact methods, capital limits, credentials, deployment process, and reconciliation behavior.
+Current implementation permits paper and shadow trading artifacts. The long-term spec includes self-funded capital broker writes and Darwinex/Zero monetization, but both remain blocked until adapter-specific implementation specs approve the exact methods, capital limits, credentials, deployment process, and reconciliation behavior.
 
-Research and alpha jobs may run in parallel before promotion. Portfolio construction, risk cuts, paper/live-shadow execution intent, reconciliation, preflight, and future broker writes must remain single-writer for each account, strategy version, and evidence mode.
+Research and alpha jobs may run in parallel before promotion. Portfolio construction, risk cuts, paper trading/shadow trading execution intent, reconciliation, pre-trade risk checks, and future broker writes must remain single-writer for each account, strategy version, and evidence mode.
 
 ## Portfolio Construction
 
@@ -50,7 +50,7 @@ Risk code should explain the safety invariant in comments where the failure mode
 Backtest:
 
 - LEAN executes simulated orders inside the backtest runtime.
-- Results are strategy evidence only when data quality and acceptance gates pass.
+- Results are strategy validation artifacts only when data quality and acceptance gates pass.
 
 Paper:
 
@@ -66,7 +66,7 @@ Live-shadow:
 
 Live-money:
 
-- long-term goal for the own-capital track;
+- long-term goal for the self-funded capital track;
 - blocked in the current implementation milestone;
 - requires a separate user-approved broker-write implementation spec before any real account mutation.
 
@@ -78,7 +78,7 @@ Darwinex/Zero:
 
 ## Broker Boundary
 
-Provider-neutral broker interfaces may exist for read-only and preflight work, but write methods must remain blocked unless an approved broker-write implementation spec exists.
+Provider-neutral broker interfaces may exist for read-only and pre-trade risk check work, but write methods must remain blocked unless an approved broker-write implementation spec exists.
 
 Forbidden without spec approval:
 
@@ -96,8 +96,8 @@ Allowed now:
 - read open orders;
 - read fills;
 - verify schema support;
-- produce blocked preflight status;
-- reconcile paper/live-shadow evidence.
+- produce blocked pre-trade risk check status;
+- reconcile paper trading/shadow trading evidence.
 
 ## Darwinex Boundary
 

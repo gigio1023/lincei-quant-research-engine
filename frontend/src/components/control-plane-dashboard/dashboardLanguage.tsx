@@ -7,7 +7,7 @@ const KOREAN_COPY: Record<string, string> = {
   Control: "제어",
   "No live trading": "실거래 차단",
   "Control Plane Dashboard": "컨트롤 플레인 대시보드",
-  "One-page operating surface for autonomous research, deterministic risk, paper account state, broker read-only evidence, blockers, and next safe action. Broker and live order paths remain disabled.":
+  "One-page operating surface for autonomous research, deterministic risk, paper account state, broker read-only artifacts, blockers, and next safe action. Broker and live order paths remain disabled.":
     "자율 리서치, 결정적 리스크, 모의 계정 상태, 브로커 읽기 전용 증거, 차단 항목, 다음 안전 행동을 한 화면에서 확인합니다. 브로커와 실거래 주문 경로는 계속 비활성화됩니다.",
   "Broker execution": "브로커 실행",
   "Live trading": "실거래",
@@ -90,7 +90,7 @@ const KOREAN_COPY: Record<string, string> = {
   imported: "가져옴",
   "Dashboard emergency stop": "대시보드 긴급 정지",
   "Action Audit Timeline": "행동 감사 타임라인",
-  "Chronological audit feed across research, schedules, approvals, paper execution, broker evidence, and emergency controls.":
+  "Chronological audit feed across research, schedules, approvals, paper execution, broker artifacts, and emergency controls.":
     "리서치, 스케줄, 승인, 모의 실행, 브로커 증거, 긴급 제어를 시간순으로 보여주는 감사 피드입니다.",
   "No action audit events recorded yet.":
     "아직 행동 감사 이벤트가 기록되지 않았습니다.",
@@ -147,7 +147,7 @@ const KOREAN_COPY: Record<string, string> = {
   approvedByRun: "승인 실행",
   approvedBySchedule: "승인 스케줄",
   autoApprovalPolicy: "자동승인 정책",
-  "Approval evidence": "승인 증거",
+  "Approval basis": "승인 근거",
   "no approval": "승인 없음",
   "Standing schedule authorization for paper-only autonomous execution. Broker and live trading remain disabled.":
     "모의 전용 자율 실행을 위한 스케줄 상시 승인입니다. 브로커와 실거래는 계속 비활성입니다.",
@@ -157,7 +157,7 @@ const KOREAN_COPY: Record<string, string> = {
   "Action Status": "행동 상태",
   checked: "확인",
   "Latest system action": "최근 시스템 행동",
-  "Paper evidence": "모의거래 증거",
+  "Paper artifacts": "모의거래 산출물",
   "Broker truth": "브로커 대조",
   "Broker fill": "브로커 체결",
   "Current blocker": "현재 차단",
@@ -170,7 +170,7 @@ const KOREAN_COPY: Record<string, string> = {
     "아직 모의 주문 계획이 생성되지 않았습니다.",
   "No broker snapshot evidence has been imported yet":
     "아직 브로커 스냅샷 증거가 가져와지지 않았습니다.",
-  "No broker fill evidence has been imported yet":
+  "No broker fill report has been imported yet":
     "아직 브로커 체결 증거가 가져와지지 않았습니다.",
 
   "Autonomous Action Chain": "자율 행동 체인",
@@ -433,7 +433,7 @@ const KOREAN_COPY: Record<string, string> = {
   notes: "메모",
 
   "Broker Snapshot Monitor": "브로커 스냅샷 모니터",
-  "Read-only broker evidence. No credentials, order payloads, or callable broker actions are exposed here.":
+  "Read-only broker artifacts. No credentials, order payloads, or callable broker actions are exposed here.":
     "읽기 전용 브로커 증거입니다. 자격 증명, 주문 페이로드, 호출 가능한 브로커 행동은 노출되지 않습니다.",
   "broker write disabled": "브로커 쓰기 비활성",
   credential: "자격 증명",
@@ -460,7 +460,7 @@ const KOREAN_COPY: Record<string, string> = {
   "Broker blockers": "브로커 차단 항목",
   "No broker read-only snapshot has been imported yet.":
     "아직 읽기 전용 브로커 스냅샷을 가져오지 않았습니다.",
-  "No broker read-only fill evidence has been imported yet.":
+  "No broker read-only fill report has been imported yet.":
     "아직 읽기 전용 브로커 체결 증거를 가져오지 않았습니다.",
   Exposure: "노출",
   "As of": "기준",
@@ -500,12 +500,12 @@ const KOREAN_COPY: Record<string, string> = {
     "자금 준비 API를 사용할 수 없어 문서화된 자금 샘플을 표시합니다.",
   "Funding readiness refresh failed after automation action.":
     "자동화 작업 후 자금 준비 상태 새로고침에 실패했습니다.",
-  "Funding readiness is read-only broker evidence. No order endpoint was called.":
+  "Funding readiness is read-only broker artifacts. No order endpoint was called.":
     "자금 준비 상태는 읽기 전용 브로커 증거입니다. 주문 엔드포인트는 호출되지 않았습니다.",
 
   "Broker Write Readiness": "브로커 쓰기 준비 상태",
-  "Broker-write preflight evidence. This panel explains why real-money broker writes remain out of active scope.":
-    "브로커 쓰기 사전 점검 증거입니다. 실제 자금 브로커 쓰기가 왜 active scope 밖인지 보여줍니다.",
+  "Broker-write pre-trade risk check artifacts. This panel explains why real-money broker writes remain out of active scope.":
+    "브로커 쓰기 사전 리스크 점검 산출물입니다. 실제 자금 브로커 쓰기가 왜 active scope 밖인지 보여줍니다.",
   brokerWriteEnabled: "브로커 쓰기",
   orderEndpointImplemented: "주문 엔드포인트",
   Funding: "자금",
@@ -516,21 +516,21 @@ const KOREAN_COPY: Record<string, string> = {
   "Cancel orders": "주문 취소",
   "Flatten positions": "포지션 청산",
   "Open-order polling": "미체결 주문 조회",
-  "preflight budget": "사전 점검 예산",
+  "pre-trade check budget": "사전 리스크 점검 예산",
   "single order cap": "단일 주문 한도",
   funding: "자금",
   "Broker write blockers": "브로커 쓰기 차단 항목",
-  "Broker-write preflight readiness API is unavailable. Showing documented preflight sample.":
+  "Broker-write pre-trade risk check API is unavailable. Showing documented pre-trade check sample.":
     "브로커 쓰기 사전 점검 API를 사용할 수 없어 문서화된 사전 점검 샘플을 표시합니다.",
-  "Broker-write preflight readiness refresh failed after automation action.":
+  "Broker-write pre-trade risk check refresh failed after automation action.":
     "자동화 작업 후 브로커 쓰기 사전 점검 상태 새로고침에 실패했습니다.",
-  "API broker-write preflight readiness": "API 브로커 쓰기 사전 점검",
-  "Loading broker-write preflight readiness": "브로커 쓰기 사전 점검 로딩 중",
-  "Documented broker-write preflight sample":
+  "API broker-write pre-trade risk check": "API 브로커 쓰기 사전 점검",
+  "Loading broker-write pre-trade risk check": "브로커 쓰기 사전 점검 로딩 중",
+  "Documented broker-write pre-trade risk check sample":
     "문서화된 브로커 쓰기 사전 점검 샘플",
-  "Documented broker-write preflight readiness sample is available":
+  "Documented broker-write pre-trade risk check sample is available":
     "문서화된 브로커 쓰기 사전 점검 샘플 사용 가능",
-  "Latest broker-write preflight readiness is blocked: broker write gates are not ready":
+  "Latest broker-write pre-trade risk check is blocked: broker write gates are not ready":
     "최근 브로커 쓰기 사전 점검 상태가 차단됨: 브로커 쓰기 게이트가 준비되지 않았습니다.",
   "Production broker credential custody is not ready":
     "프로덕션 브로커 자격 증명 보관이 준비되지 않았습니다.",
@@ -584,8 +584,8 @@ const KOREAN_COPY: Record<string, string> = {
   "Out of active scope until a future user-approved live-money spec defines budget, approval, and broker-order kill-switch requirements.":
     "향후 사용자가 승인한 실자금 스펙이 예산, 승인, 브로커 주문 킬 스위치 요구사항을 정의하기 전까지 active scope 밖입니다.",
   "Broker Order Command Ledger": "브로커 주문 명령 원장",
-  "Dry-run broker command evidence. It shows what would be prepared, not submitted.":
-    "드라이런 브로커 명령 증거입니다. 실제 제출이 아니라 준비될 내용을 보여줍니다.",
+  "Dry-run broker command artifact. It shows what would be prepared, not submitted.":
+    "드라이런 브로커 명령 산출물입니다. 실제 제출이 아니라 준비될 내용을 보여줍니다.",
   "API broker order commands": "API 브로커 주문 명령",
   "Loading broker order commands": "브로커 주문 명령 로딩 중",
   "Documented broker command sample": "문서화된 브로커 명령 샘플",
@@ -597,8 +597,8 @@ const KOREAN_COPY: Record<string, string> = {
     "문서화된 브로커 주문 명령 드라이런 샘플 사용 가능",
   command: "명령",
   provider: "공급자",
-  "broker-write preflight": "브로커 쓰기 사전 점검",
-  preflight: "사전 점검",
+  "broker-write pre-trade risk check": "브로커 쓰기 사전 리스크 점검",
+  "pre-trade check": "사전 리스크 점검",
   hash: "해시",
   "signed approval": "서명 승인",
   sandbox: "샌드박스",
@@ -614,7 +614,7 @@ const KOREAN_COPY: Record<string, string> = {
   flatten_positions: "포지션 청산",
   "No broker order command dry-run has been recorded.":
     "아직 브로커 주문 명령 드라이런이 기록되지 않았습니다.",
-  "No ready broker-write preflight readiness record":
+  "No ready broker-write pre-trade risk check record":
     "준비된 브로커 쓰기 사전 점검 기록이 없습니다.",
   "Live broker order endpoint is not implemented":
     "실브로커 주문 엔드포인트가 구현되지 않았습니다.",

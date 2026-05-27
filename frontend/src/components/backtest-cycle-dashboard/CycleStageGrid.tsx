@@ -11,7 +11,7 @@ export const CycleStageGrid = ({ stages }: CycleStageGridProps) => (
       <div>
         <h2 className="text-xl font-bold text-white">Cycle Stages</h2>
         <p className="mt-1 text-sm text-[#929aa5]">
-          Each card maps to one executable command or imported evidence
+          Each card maps to one executable command or imported artifact
           boundary.
         </p>
       </div>
@@ -40,7 +40,7 @@ export const CycleStageGrid = ({ stages }: CycleStageGridProps) => (
           </div>
 
           <p className="mt-3 text-sm leading-6 text-[#929aa5]">
-            {stage.evidence}
+            {stage.artifactSummary}
           </p>
 
           {stage.blockers.length > 0 ? (
@@ -51,7 +51,7 @@ export const CycleStageGrid = ({ stages }: CycleStageGridProps) => (
             </ul>
           ) : (
             <p className="mt-3 text-xs font-semibold uppercase text-[#0ecb81]">
-              Evidence ready
+              Artifacts ready
             </p>
           )}
 

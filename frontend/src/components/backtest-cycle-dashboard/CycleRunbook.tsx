@@ -5,7 +5,7 @@ export const CycleRunbook = () => (
     <h2 className="text-lg font-bold text-white">One-Cycle Runbook</h2>
     <p className="mt-1 text-sm leading-6 text-[#929aa5]">
       These commands avoid paid local QuantConnect data downloads by treating
-      Cloud backtest import as the strategy-evidence anchor.
+      Cloud backtest import as the strategy validation anchor.
     </p>
 
     <ol className="mt-4 space-y-3">

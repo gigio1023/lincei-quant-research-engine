@@ -1,4 +1,4 @@
-# Parallel Research Factory
+# Parallel Research Pipeline
 
 Status: active normative spec.
 
@@ -6,9 +6,9 @@ Last aligned: 2026-05-27.
 
 ## Purpose
 
-This project should always consider maximum safe parallelization. The goal is not parallelism for its own sake. The goal is to evaluate more hypotheses, data sources, feature sets, model variants, and backtests under the same evidence rules before risking own capital.
+This project should always consider maximum safe parallelization. The goal is not parallelism for its own sake. The goal is to evaluate more hypotheses, data sources, feature sets, model variants, and backtests under the same promotion-evidence rules before risking self-funded capital.
 
-Parallelization is allowed and encouraged in research and evidence generation. It is not allowed to create multiple unsynchronized execution truths.
+Parallelization is allowed and encouraged in research and validation-artifact generation. It is not allowed to create multiple unsynchronized execution truths.
 
 ## Core Rule
 
@@ -20,7 +20,7 @@ parallel:
   hypothesis extraction
   data ingest
   feature generation
-  LLM semantic feature jobs
+  LLM-derived feature jobs
   numeric/LLM/combined ablations
   parameter sweeps
   local and Cloud backtest attempts
@@ -30,14 +30,14 @@ single writer:
   promotion decision
   portfolio target consolidation
   risk cuts
-  paper/live-shadow execution intent
+  paper trading/shadow trading execution intent
   reconciliation
-  broker-write preflight
+  broker-write pre-trade risk check
 ```
 
-If a path can mutate a paper account, live-shadow ledger, broker snapshot, or future real account, it must pass through the single canonical state and risk gate.
+If a path can mutate a paper account, shadow trading ledger, broker snapshot, or future real account, it must pass through the single canonical state and risk gate.
 
-## Parallel Job Contract
+## Parallel Job Schema
 
 Every parallel job must be idempotent and replayable:
 
@@ -74,7 +74,7 @@ Partition keys should make the independent unit explicit: article id, symbol, so
 
 ## Idempotency Requirements
 
-Parallel jobs must not create duplicate evidence when retried.
+Parallel jobs must not create duplicate artifacts when retried.
 
 Required keys:
 
@@ -82,7 +82,7 @@ Required keys:
 - hypothesis extraction: source content hash plus prompt/model version;
 - data ingest: source, symbol or asset id, event time, retrieved time, and content hash;
 - feature generation: feature type, symbol, `asOf`, `availableAt`, input hash, and model version;
-- LLM semantic feature: evidence refs, prompt version, model, and input hash;
+- LLM-derived feature: source refs, prompt version, model, and input hash;
 - ablation: hypothesis id, strategy version, data manifest, parameter hash, and variant name;
 - backtest: source hash, config hash, data manifest hash, and parameter hash;
 - Cloud import: project id, backtest id, endpoint, page range, and response hash.
@@ -91,14 +91,14 @@ Unknown idempotency state is blocked state.
 
 ## Runnable Ledger Commands
 
-The current implementation exposes the first durable research-factory path:
+The current implementation exposes the first durable research pipeline path:
 
 ```bash
 ./scripts/build-hypothesis-registry
 ./scripts/run-selected-run-bias-check
 ```
 
-`build-hypothesis-registry` converts the stored Alpha Architect corpus and strategy register into `research_hypotheses` plus `research_job_records`. `run-selected-run-bias-check` records a `promotion-check` job and blocks promotion until enough ablation/backtest/Cloud-import variants, including rejected or blocked variants, are retained.
+`build-hypothesis-registry` converts the stored Alpha Architect corpus and strategy register into `research_hypotheses` plus `research_job_records`. `run-selected-run-bias-check` is a legacy script name; it records a multiple-testing bias `promotion-check` job and blocks promotion until enough ablation/backtest/Cloud-import variants, including rejected or blocked variants, are retained.
 
 ## Allowed Parallel Work
 
@@ -106,12 +106,12 @@ The current implementation exposes the first durable research-factory path:
 
 Research articles can be crawled, stored, hashed, and summarized in parallel. The output must be a hypothesis candidate, not a trade instruction.
 
-The Alpha Architect corpus is the initial stored source library. The first own-capital backlog should prefer:
+The Alpha Architect corpus is the initial stored source library. The first self-funded capital backlog should prefer:
 
 - liquid trend-following and defensive allocation;
 - momentum, skip-month, volatility-conditioned, and daily-return features;
 - factor crowding, factor valuation, and macro regime features;
-- filing/news/LLM semantic alpha only after numeric baselines are stable.
+- filing/news/LLM-derived alpha only after numeric baselines are stable.
 
 ### Data And Feature Generation
 
@@ -119,7 +119,7 @@ Market, news, filing, macro, and research-derived data jobs should run independe
 
 Feature outputs must include `availableAt`, input hashes, source refs, parser/model versions, and vintage status where relevant.
 
-### LLM Semantic Feature Jobs
+### LLM-Derived Feature Jobs
 
 LLM jobs can run in parallel across articles, filings, news events, symbols, or time windows. They must respect:
 
@@ -135,7 +135,7 @@ LLM jobs can run in parallel across articles, filings, news events, symbols, or 
 
 Numeric-only, LLM-only, combined, trend baseline, momentum baseline, and parameter variants should run in parallel. This is the main way to avoid overfitting one attractive story.
 
-All variants must be recorded. Failed and losing variants are not noise; they are selected-run-bias protection.
+All variants must be recorded. Failed and losing variants are not noise; they are multiple-testing bias protection.
 
 ### Cloud Artifact Imports
 
@@ -148,23 +148,23 @@ The following stages must have one canonical writer per account/evidence mode:
 - promotion decision for a strategy version;
 - portfolio target consolidation;
 - risk cuts;
-- paper/live-shadow execution intent;
+- paper trading/shadow trading execution intent;
 - reconciliation state;
-- broker-write preflight verdict;
+- broker-write pre-trade risk check verdict;
 - future real broker submit/cancel/replace/flatten methods.
 
-Multiple jobs may propose alpha. Only one consolidated target set may advance to risk and execution evidence for a given account, timestamp, and strategy version.
+Multiple jobs may propose alpha. Only one consolidated target set may advance to risk and execution artifacts for a given account, timestamp, and strategy version.
 
-## Selected-Run-Bias Control
+## Multiple-Testing Bias Control
 
-Parallel backtests make selected-run bias easier. The project must counteract that by storing:
+Parallel backtests make multiple-testing bias easier. The project must counteract that by storing:
 
 - every attempted variant;
 - parameter ranges and search space;
 - failed, blocked, and rejected runs;
 - the reason a variant was promoted;
 - whether the promoted run was selected after seeing the results;
-- out-of-sample and live-shadow windows.
+- out-of-sample and shadow trading windows.
 
 Promotion must block when only the winning run is available.
 
@@ -179,7 +179,7 @@ Parallelism must be bounded:
 - QuantConnect data-download cost blockers;
 - retry budget and backoff policy.
 
-The Oracle Cloud ARM server is a good always-on scheduler for lightweight jobs. It is not a substitute for explicit Cloud evidence or broker-write approval.
+The Oracle Cloud ARM server is a good always-on scheduler for lightweight jobs. It is not a substitute for explicit Cloud artifacts or broker-write approval.
 
 ## Acceptance Criteria
 
@@ -189,6 +189,6 @@ A parallel research implementation is acceptable when:
 - retries are idempotent;
 - output hashes and input hashes are recorded;
 - failed/blocked/losing variants are preserved;
-- selected-run-bias checks are possible;
+- multiple-testing bias checks are possible;
 - execution-like paths remain single-writer and fail closed;
-- final reports separate parallel research evidence from paper/live-shadow and broker-readiness evidence.
+- final reports separate parallel research artifacts from paper trading/shadow trading artifacts and broker-read-only artifacts.

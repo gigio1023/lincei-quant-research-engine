@@ -2,7 +2,7 @@
 
 Status: active contribution guide.
 
-This repository is an own-capital-first QuantConnect/LEAN + LLM autonomous alpha system. Darwinex/Zero is a later track-record monetization path, not the first architecture driver. Contributions must serve the active spec in [SPEC.md](SPEC.md). Do not treat this project as a generic dashboard or report app.
+This repository is a self-funded capital-first QuantConnect/LEAN + LLM autonomous alpha system. Darwinex/Zero is a later track-record monetization path, not the first architecture driver. Contributions must serve the active spec in [SPEC.md](SPEC.md). Do not treat this project as a generic dashboard or report app.
 
 ## Required Reading
 
@@ -24,19 +24,19 @@ flowchart LR
     CODE --> TEST["Run focused tests"]
     TEST --> DIRECT["Run direct<br/>engine command"]
     DIRECT --> DOCS["Update docs<br/>and runbooks"]
-    DOCS --> COMMIT["Commit with<br/>evidence"]
+    DOCS --> COMMIT["Commit with<br/>validation artifacts"]
     COMMIT --> PUSH["Push branch"]
 ```
 
 Prefer vertical slices that advance:
 
 ```text
-research hypothesis -> point-in-time data -> alpha -> LEAN Insight -> portfolio target -> risk -> paper/live-shadow evidence -> reconciliation -> learning
+research hypothesis -> point-in-time data -> alpha -> LEAN Insight -> portfolio target -> risk -> paper trading/shadow trading artifacts -> reconciliation -> learning
 ```
 
-Maximize bounded parallelism before promotion: corpus ingest, hypothesis extraction, data ingest, feature generation, LLM semantic feature jobs, ablations, backtest sweeps, and Cloud artifact imports. Keep portfolio/risk/execution/reconciliation/preflight single-writer and fail closed.
+Maximize bounded parallelism before promotion: corpus ingest, hypothesis extraction, data ingest, feature generation, LLM-derived feature jobs, ablations, backtest sweeps, and Cloud artifact imports. Keep portfolio/risk/execution/reconciliation/pre-trade risk checks single-writer and fail closed.
 
-Do not spend major effort on UI polish while the executable alpha-to-evidence loop is missing or broken.
+Do not spend major effort on UI polish while the executable alpha-to-validation loop is missing or broken.
 
 ## Commit Policy
 
@@ -45,11 +45,11 @@ Do **not** collapse broad work into one vague commit. Commit history should expl
 Use multiple commits grouped by subsystem or evidence boundary:
 
 - spec/doc alignment and archive moves;
-- contract/entity/migration changes;
+- schema/entity/migration changes;
 - LLM feature feed and point-in-time replay;
 - QuantConnect Cloud/Object Store command loop;
 - LEAN runtime changes;
-- paper/live-shadow/reconciliation changes;
+- paper trading/shadow trading/reconciliation changes;
 - learning/promotion ledger changes;
 - README/runbook/API updates.
 
@@ -58,7 +58,7 @@ Use multiple commits grouped by subsystem or evidence boundary:
 Use a concise subject plus a detailed body:
 
 ```text
-Implement QuantConnect Cloud evidence loop
+Implement QuantConnect Cloud artifacts loop
 
 - Add LeanCloudRunner for cloud backtest and Object Store commands
 - Record missing project/tier/credential states as blocked evidence
@@ -73,9 +73,9 @@ Verification:
 Good subjects:
 
 - `Align active spec and archive superseded live-pilot docs`
-- `Add canonical alpha evidence contracts`
-- `Implement LLM semantic feature replay`
-- `Record live-shadow and promotion blockers`
+- `Add canonical alpha validation schemas`
+- `Implement LLM-derived feature replay`
+- `Record shadow trading and promotion blockers`
 
 Avoid:
 
@@ -97,8 +97,8 @@ For non-trivial commits, include:
 
 Distinguish these cases clearly:
 
-- simulator passed vs strategy evidence passed;
-- preflight blocked by policy vs command failed;
+- simulator passed vs strategy validation artifacts passed;
+- pre-trade risk check blocked by policy vs command failed;
 - legacy identifier retained for compatibility vs approved term for new work;
 - local sample data vs QuantConnect Cloud promotion evidence.
 
@@ -166,14 +166,14 @@ Required examples:
 
 - `QuantConnect`, not `QuantConnector`;
 - `LEAN`, `Lean CLI`, `QuantConnect Cloud`;
-- `semantic alpha feature`;
+- `LLM-derived feature`;
 - `point-in-time`, `availableAt`, `lookahead bias`;
-- `paper trading`, `live-shadow`, `preflight`, `reconciliation`;
+- `paper trading`, `shadow trading`, `pre-trade risk check`, `reconciliation`;
 - `broker-write path`, not vague “money-moving” language.
 
 ## Safety Boundary
 
-LLMs may generate typed semantic alpha features and risk judgments. They must not:
+LLMs may generate typed LLM-derived features and risk judgments. They must not:
 
 - see broker credentials or raw account identifiers;
 - generate broker request payloads;

@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-/** Adds the durable parallel research factory ledger required by SPEC.md. */
+/** Adds the durable parallel research pipeline ledger required by SPEC.md. */
 export class AddResearchFactoryTables1764460800000
   implements MigrationInterface
 {

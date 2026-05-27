@@ -4,7 +4,7 @@ Status: active normative spec.
 
 ## Purpose
 
-LLMs are not just report writers in this project. They are semantic alpha engines that turn natural-language evidence into typed, point-in-time features and alpha judgments.
+LLMs are not just report writers in this project. They are LLM-derived alpha engines that turn natural-language evidence into typed, point-in-time features and alpha judgments.
 
 The LLM can influence whether the system wants exposure. It cannot directly place trades.
 
@@ -102,7 +102,7 @@ raw text evidence -> LLM feature sidecar -> feature store/Object Store
 
 Avoid calling external LLM APIs directly from LEAN backtests. Direct calls make replay, latency, credential custody, and lookahead control harder. If live scheduled LLM calls are ever introduced, they need their own spec change and must write the same feature records used by replay.
 
-LLM semantic feature jobs should run in parallel across independent articles, filings, news events, symbols, or time windows when rate limits and cost caps allow it. Parallel LLM jobs must write structured feature records with input hashes, output hashes, prompt/model versions, abstain reasons, and evidence refs. Their outputs join the alpha loop as features only; they do not create portfolio targets or broker instructions.
+LLM-derived feature jobs should run in parallel across independent articles, filings, news events, symbols, or time windows when rate limits and cost caps allow it. Parallel LLM jobs must write structured feature records with input hashes, output hashes, prompt/model versions, abstain reasons, and evidence refs. Their outputs join the alpha loop as features only; they do not create portfolio targets or broker instructions.
 
 ## Bias Controls
 
@@ -112,9 +112,9 @@ LLM alpha can overfit history because modern models may know old market outcomes
 - store model and prompt versions;
 - store source text snapshots or content hashes so revised articles, filings, macro releases, and transcripts do not silently rewrite historical evidence;
 - compare numeric-only, LLM-only, and combined ablations;
-- prefer post-model-training-period live-shadow evaluation;
+- prefer post-model-training-period shadow trading evaluation;
 - store failed and flat decisions, not only winners;
-- avoid promoting LLM-only historical backtests without live-shadow evidence.
+- avoid promoting LLM-only historical backtests without shadow trading artifacts.
 
 When the LLM summarizes external investment research, the output must be labeled as a hypothesis candidate. It is not alpha evidence until the project has generated features, run the validation ladder, and recorded outcomes.
 

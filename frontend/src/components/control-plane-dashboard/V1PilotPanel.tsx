@@ -67,7 +67,7 @@ export const V1PilotPanel = () => {
               value={`${status.broker.provider ?? "none"}/${status.broker.snapshotReconciliationStatus ?? "none"}`}
             />
             <Metric label="open orders" value={status.broker.openOrderCount} />
-            <Metric label="preflight" value={status.preflight.status} />
+            <Metric label="pre-trade check" value={status.preflight.status} />
           </div>
 
           <ol className="space-y-2">

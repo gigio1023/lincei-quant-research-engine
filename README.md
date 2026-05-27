@@ -1,48 +1,48 @@
 # Lincei Quant Research Engine
 
-Status: active own-capital-first QuantConnect/LEAN + LLM alpha system.
+Status: active self-funded capital-first QuantConnect/LEAN + LLM alpha system.
 
 Last aligned: 2026-05-27.
 
-Lincei is a personal autonomous alpha system whose first monetization goal is own-capital allocation: running continuously, researching strategies, validating evidence, and eventually trading the operator's own pre-funded capital only after risk, preflight, and reconciliation gates pass.
+Lincei is a personal autonomous alpha system whose first monetization goal is self-funded capital allocation: running continuously, researching strategies, collecting validation artifacts, and eventually trading the operator's own pre-funded capital only after promotion evidence, pre-trade risk checks, and reconciliation gates pass.
 
-Darwinex/Zero is a later monetization path. It should not drive the first architecture. A Darwinex/Zero track record is useful only after the own-capital loop can produce a defensible signal and execution record.
+Darwinex/Zero is a later monetization path. It should not drive the first architecture. A Darwinex/Zero track record is useful only after the self-funded capital loop can produce a defensible signal and execution record.
 
 Read [SPEC.md](SPEC.md) first. It is the canonical active spec index. If another document conflicts with `SPEC.md`, `SPEC.md` wins.
 
 ## Direction
 
-- Own-capital allocation is the priority.
+- Self-funded capital allocation is the priority.
 - QuantConnect Cloud and LEAN are the strategy validation/runtime foundation.
-- The Oracle Cloud ARM server is the intended always-on control plane for scheduling research, data, feature, ablation, import, paper/live-shadow, reconciliation, and alert jobs.
-- LLMs are semantic alpha feature generators, not allocators and not broker operators.
+- The Oracle Cloud ARM server is the intended always-on control plane for scheduling research, data, feature, ablation, import, paper trading/shadow trading, reconciliation, and alert jobs.
+- LLMs are LLM-derived feature generators, not allocators and not broker operators.
 - Parallelization is expected before promotion: corpus ingest, hypothesis extraction, data ingest, feature jobs, LLM jobs, ablations, backtests, and Cloud artifact imports should run concurrently where safe.
-- Execution-like work is single-writer: promotion, portfolio target consolidation, risk cuts, paper/live-shadow intent, reconciliation, and broker-write preflight must have one canonical state.
+- Execution-like work is single-writer: promotion, portfolio target consolidation, risk cuts, paper trading/shadow trading intent, reconciliation, and broker-write pre-trade risk checks must have one canonical state.
 - Real broker writes remain blocked until a separate broker-write implementation spec is approved.
 
 ## Core Hypothesis
 
 The project hypothesis is:
 
-> A point-in-time parallel research factory that combines durable numeric baselines, ML features, and LLM semantic alpha features can produce after-cost, benchmark-relative returns that survive QuantConnect Cloud validation, current paper/live-shadow evidence, reconciliation, and later own-capital execution.
+> A point-in-time parallel research pipeline that combines durable numeric baselines, ML features, and LLM-derived features can produce after-cost, benchmark-relative returns that survive QuantConnect Cloud validation, current paper trading/shadow trading artifacts, reconciliation, and later self-funded capital execution.
 
 The Alpha Architect corpus review changes the near-term priority:
 
 1. Prove simple liquid baselines first: trend following, defensive allocation, momentum, daily-return features, and cost-aware rebalancing.
-2. Add LLM semantic alpha only as typed features and ablations.
+2. Add LLM-derived alpha only as typed features and ablations.
 3. Treat factor crowding, factor valuation, macro regimes, index effects, and filing language as research hypotheses that need broader data and vintage controls.
-4. Revisit Darwinex/Zero after the own-capital-grade track record exists.
+4. Revisit Darwinex/Zero after the self-funded capital deployment-grade track record exists.
 
 ## System Flow
 
 ```mermaid
 flowchart TB
-    subgraph PAR["Parallel research factory"]
+    subgraph PAR["Parallel research pipeline"]
         CORPUS["Research corpus<br/>articles / papers / notes"]
         HYP["Hypothesis registry"]
         DATA["Market / news / filing / macro ingest"]
         FEAT["Feature jobs<br/>symbol / source / window"]
-        LLM["LLM semantic feature jobs"]
+        LLM["LLM-derived feature jobs"]
         ABL["Ablations<br/>numeric / LLM / combined"]
         BT["Backtest and parameter sweeps"]
         CLOUD["QuantConnect Cloud imports"]
@@ -61,9 +61,9 @@ flowchart TB
     ALPHA --> LEAN["LEAN Insight"]
     LEAN --> TARGET["Portfolio targets"]
     TARGET --> RISK["Risk cuts"]
-    RISK --> PAPER["Paper/live-shadow intent"]
+    RISK --> PAPER["Paper trading/shadow trading intent"]
     PAPER --> RECON["Reconciliation"]
-    RECON --> PREFLIGHT["Broker-write preflight<br/>blocked until approved spec"]
+    RECON --> PREFLIGHT["Broker-write pre-trade risk check<br/>blocked until approved spec"]
 ```
 
 Parallel jobs improve research throughput. They do not create multiple execution truths. The system can evaluate many hypotheses at once, but only one consolidated target set can advance toward execution evidence for a given strategy/account/time.
@@ -77,7 +77,7 @@ stateDiagram-v2
     Baseline --> Ablation: numeric / LLM / combined
     Ablation --> LocalLEAN: local LEAN debug
     LocalLEAN --> CloudImport: QuantConnect Cloud backtest/import
-    CloudImport --> PaperShadow: current paper/live-shadow
+    CloudImport --> PaperShadow: current paper trading/shadow trading
     PaperShadow --> Reconciliation: intended vs observed state
     Reconciliation --> PromotionReview: cost, slippage, tax, bias checks
     PromotionReview --> OwnCapitalCandidate: broker-read-only then write spec
@@ -85,7 +85,7 @@ stateDiagram-v2
     OwnCapitalCandidate --> DarwinexCandidate: later track-record path
 ```
 
-Promotion requires direct evidence. Unit tests protect contracts, but they do not prove strategy performance or broker readiness.
+Promotion requires direct supporting evidence. Unit tests protect schemas and API contracts, but they do not prove strategy performance or broker-write readiness.
 
 ## Research Corpus
 
@@ -100,33 +100,33 @@ The corpus contains 40 sourced articles with metadata and content hashes. It is 
 
 ## Current Architecture
 
-| Layer               | Role                                                                                                   |
-| ------------------- | ------------------------------------------------------------------------------------------------------ |
-| Research corpus     | Stores articles, papers, source metadata, content hashes, and hypothesis candidates.                   |
-| Hypothesis registry | Converts research into testable strategy variants and failure modes.                                   |
-| Feature store       | Preserves point-in-time and vintage features with `availableAt`, source refs, and hashes.              |
-| LLM semantic alpha  | Extracts structured features from text evidence; never emits broker instructions.                      |
-| Numeric/ML alpha    | Provides simple baselines and model features for ablation.                                             |
-| LEAN / QuantConnect | Owns strategy runtime semantics: `Insight`, portfolio construction, risk, execution in approved modes. |
-| Control plane       | Orchestrates jobs, imports artifacts, records ledgers, reconciliation, preflight, and dashboard state. |
-| Broker boundary     | Read-only and preflight first; broker writes require a future approved spec.                           |
+| Layer               | Role                                                                                                               |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Research corpus     | Stores articles, papers, source metadata, content hashes, and hypothesis candidates.                               |
+| Hypothesis registry | Converts research into testable strategy variants and failure modes.                                               |
+| Feature store       | Preserves point-in-time and vintage features with `availableAt`, source refs, and hashes.                          |
+| LLM-derived alpha   | Extracts structured features from text evidence; never emits broker instructions.                                  |
+| Numeric/ML alpha    | Provides simple baselines and model features for ablation.                                                         |
+| LEAN / QuantConnect | Owns strategy runtime semantics: `Insight`, portfolio construction, risk, execution in approved modes.             |
+| Control plane       | Orchestrates jobs, imports artifacts, records ledgers, reconciliation, pre-trade risk checks, and dashboard state. |
+| Broker boundary     | Read-only and pre-trade risk checks first; broker writes require a future approved spec.                           |
 
 ## Repository Map
 
-| Path                                                                                                 | Purpose                                                     |
-| ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| [SPEC.md](SPEC.md)                                                                                   | Canonical active spec index                                 |
-| [AGENTS.md](AGENTS.md)                                                                               | Agent/contributor rules                                     |
-| [terminology.md](terminology.md)                                                                     | Canonical terms                                             |
-| [docs/spec/](docs/spec)                                                                              | Normative split spec                                        |
-| [docs/own-capital-alphaarchitect-corpus-review.md](docs/own-capital-alphaarchitect-corpus-review.md) | Own-capital architecture review from research corpus        |
-| [references/alphaarchitect/](references/alphaarchitect)                                              | Stored Alpha Architect article corpus and strategy register |
-| [config/universes/](config/universes)                                                                | Universe manifests and caps                                 |
-| [backend/](backend)                                                                                  | NestJS control plane and ledgers                            |
-| [engines/lean/aggressive_llm_momentum/](engines/lean/aggressive_llm_momentum)                        | LEAN Algorithm Framework strategy                           |
-| [ml/](ml)                                                                                            | Offline feature/model helpers                               |
-| [frontend/](frontend)                                                                                | Operational dashboard                                       |
-| [scripts/](scripts)                                                                                  | Operator command wrappers                                   |
+| Path                                                                                                 | Purpose                                                      |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| [SPEC.md](SPEC.md)                                                                                   | Canonical active spec index                                  |
+| [AGENTS.md](AGENTS.md)                                                                               | Agent/contributor rules                                      |
+| [terminology.md](terminology.md)                                                                     | Canonical terms                                              |
+| [docs/spec/](docs/spec)                                                                              | Normative split spec                                         |
+| [docs/own-capital-alphaarchitect-corpus-review.md](docs/own-capital-alphaarchitect-corpus-review.md) | Self-funded capital architecture review from research corpus |
+| [references/alphaarchitect/](references/alphaarchitect)                                              | Stored Alpha Architect article corpus and strategy register  |
+| [config/universes/](config/universes)                                                                | Universe manifests and caps                                  |
+| [backend/](backend)                                                                                  | NestJS control plane and ledgers                             |
+| [engines/lean/aggressive_llm_momentum/](engines/lean/aggressive_llm_momentum)                        | LEAN Algorithm Framework strategy                            |
+| [ml/](ml)                                                                                            | Offline feature/model helpers                                |
+| [frontend/](frontend)                                                                                | Operational dashboard                                        |
+| [scripts/](scripts)                                                                                  | Operator command wrappers                                    |
 
 ## Implementation Status
 
@@ -134,14 +134,14 @@ Implemented in the current branch:
 
 - durable research hypothesis registry and parallel research job ledger;
 - Alpha Architect corpus-to-hypothesis ingestion script with idempotent job records;
-- selected-run-bias promotion check that blocks when only winning/no variant evidence exists;
-- point-in-time semantic evidence ingestion, including Hugging Face FOMC evidence;
+- multiple-testing bias promotion check that blocks when only winning/no variant evidence exists;
+- point-in-time text evidence ingestion, including Hugging Face FOMC evidence;
 - QuantConnect Cloud project/backtest listing and manual Cloud backtest import;
 - paginated Cloud insights/orders import with Cloud id preservation;
-- paper replay separated from current paper/live-shadow readiness;
+- paper replay separated from current paper trading/shadow trading readiness;
 - backtest-cycle dashboard;
-- Alpha Architect corpus with 40 sourced articles and own-capital strategy review;
-- long-term specs for own-capital priority, Darwinex/Zero deferral, and parallel research factory.
+- Alpha Architect corpus with 40 sourced articles and self-funded capital strategy review;
+- long-term specs for self-funded capital priority, Darwinex/Zero deferral, and parallel research pipeline.
 
 Not implemented yet:
 
@@ -164,7 +164,7 @@ Prerequisites:
 | Python 3.10+                           | ML helpers and Lean CLI venv                   |
 | Docker or Podman-compatible Docker CLI | Local LEAN container runs                      |
 | QuantConnect account/API token         | Cloud backtests, workspace setup, Object Store |
-| OpenAI-compatible API key              | LLM semantic alpha features                    |
+| OpenAI-compatible API key              | LLM-derived features                           |
 | Oracle Cloud ARM host                  | Optional always-on control plane target        |
 
 Bootstrap:
@@ -183,7 +183,7 @@ cp .env.example .env
 Run from repository root unless noted.
 
 ```bash
-# Research and semantic evidence
+# Research and text evidence
 ./scripts/build-hypothesis-registry
 ./scripts/run-selected-run-bias-check
 ./scripts/ingest-semantic-evidence --source hf-fomc-statements-minutes --limit 80
@@ -202,7 +202,7 @@ Run from repository root unless noted.
 ./scripts/qc-cloud-backtest aggressive_llm_momentum
 ./scripts/qc-cloud-push aggressive_llm_momentum
 
-# Paper, live-shadow, learning, broker-write preflight
+# Paper trading, shadow trading, learning, broker-write pre-trade risk check
 ./scripts/run-paper-cycle
 ./scripts/run-paper-replay
 ./scripts/run-live-shadow
@@ -210,7 +210,7 @@ Run from repository root unless noted.
 ./scripts/live-preflight
 ```
 
-Exit code `2` means policy/account/platform `blocked` evidence, not necessarily a crash. Examples include missing QuantConnect Cloud credentials, account-tier blockers, missing current paper/live-shadow evidence, stale targets, data-license blockers, or broker-write preflight blockers.
+Exit code `2` means a policy/account/platform `blocked` result, not necessarily a crash. Examples include missing QuantConnect Cloud credentials, account-tier blockers, missing current paper trading/shadow trading artifacts, stale targets, data-license blockers, or broker-write pre-trade risk check blockers.
 
 ## Verification
 
@@ -236,14 +236,14 @@ cd frontend && bun run test:run
 ./scripts/live-preflight
 ```
 
-Final reports must separate unit-test evidence, local LEAN evidence, QuantConnect Cloud evidence, paper/live-shadow evidence, reconciliation evidence, and blockers.
+Final reports must separate unit-test evidence, local LEAN evidence, QuantConnect Cloud artifacts, paper trading/shadow trading evidence, reconciliation evidence, and blockers.
 
 ## Key Rule
 
-Build the own-capital loop before anything else:
+Build the self-funded capital loop before anything else:
 
 ```text
-hypothesis -> baseline -> ablation -> Cloud evidence -> current paper/live-shadow -> reconciliation -> broker-read-only -> broker-write spec
+hypothesis -> baseline -> ablation -> Cloud artifacts -> current paper trading/shadow trading -> reconciliation -> broker-read-only -> broker-write spec
 ```
 
 Everything else is supporting infrastructure.

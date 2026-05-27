@@ -2,7 +2,7 @@
  * Coordinates the V1 validation loop invoked by repo scripts and the v1-pilot CLI.
  *
  * Order of operations follows SPEC.md: alpha -> LEAN backtest/import -> paper bridge
- * -> broker-write preflight. Real-money broker writes remain blocked unless a future
+ * -> broker-write pre-trade risk check. Real-money broker writes remain blocked unless a future
  * user-approved spec changes the active scope. LEAN CLI is preferred; the local
  * simulator exists so CI and dev machines without Docker/LEAN can still prove artifact flow.
  */

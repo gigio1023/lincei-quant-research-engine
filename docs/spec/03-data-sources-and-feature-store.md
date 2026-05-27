@@ -7,7 +7,7 @@ Status: active normative spec.
 Use a hybrid data approach:
 
 ```text
-QuantConnect native datasets -> parity with LEAN backtest/paper/live-shadow
+QuantConnect native datasets -> parity with LEAN backtest/paper trading/shadow trading
 direct external ingestion -> broader text coverage and semantic edge
 LLM feature engine -> point-in-time natural-language features
 LEAN -> consumes typed features and emits Insights
@@ -47,7 +47,7 @@ The active collection map starts from the quality-gated universe manifest. Activ
 
 Strategy research articles, practitioner notes, and academic summaries are allowed as direct external sources only as hypothesis inputs. They must be stored with source URL, publisher, title, author when available, publication time, retrieval time, content hash, parser version, and an extracted hypothesis. They must not be treated as executable alpha until the hypothesis has been converted into features and validated.
 
-Initial approved Hugging Face usage is semantic evidence, not price data replacement:
+Initial approved Hugging Face usage is text evidence, not price data replacement:
 
 - `vtasca/fomc-statements-minutes` may feed macro `RawEvidenceRecord` rows for FOMC statements/minutes.
 - Earnings-call, SEC-index, and financial-news datasets may be added only when the ingest preserves `eventTime`, `publishedAt` or equivalent, `retrievedAt`, `availableAt`, source URL, parser version, and source hash.
@@ -74,7 +74,7 @@ Required behavior:
 - store every retrieved version with `retrievedAt`, `availableAt`, source hash, parser version, and prior-version reference when known;
 - mark whether a feature came from originally available data, later-restated data, or a mixed source;
 - block promotion when a backtest depends on a source whose original availability cannot be reconstructed;
-- keep LLM semantic features tied to the text version the model actually saw.
+- keep LLM-derived features tied to the text version the model actually saw.
 
 This is not optional bookkeeping. Without vintage data, a strategy can look profitable because the backtest used information that did not exist at decision time.
 

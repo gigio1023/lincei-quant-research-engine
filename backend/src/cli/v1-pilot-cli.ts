@@ -1,6 +1,6 @@
 /**
  * Headless entrypoint for ./scripts/* — boots Nest without HTTP and runs one V1 command.
- * Exit code 2 from engine/preflight commands means blocked by policy or missing evidence, not a crash.
+ * Exit code 2 from engine or legacy live-preflight commands means blocked by policy or missing evidence, not a crash.
  */
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';

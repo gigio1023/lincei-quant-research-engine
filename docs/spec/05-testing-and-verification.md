@@ -11,8 +11,8 @@ This repository is a non-production research engine. The primary proof is direct
 - result import;
 - alpha replay;
 - paper cycle;
-- live-shadow cycle;
-- preflight;
+- shadow trading cycle;
+- pre-trade risk check;
 - reconciliation.
 
 Unit tests support that proof. They do not replace it.
@@ -30,7 +30,7 @@ Use narrow Detroit/classicist tests for high-value behavior:
 - idempotency and duplicate replay;
 - cap enforcement;
 - kill switch behavior;
-- broker/preflight fail-closed behavior;
+- broker/pre-trade risk check fail-closed behavior;
 - import mappers around real fixture artifacts.
 
 Prefer concrete services, real value objects, real schemas, and small fixtures. Mock only external API boundaries, time, network, filesystem, brokers, and LLM providers.
@@ -70,21 +70,21 @@ Use the command that matches the touched surface. Do not run broad slow suites j
 
 ## Validation Time And Promotion
 
-The project must report elapsed validation time, not only backtest metrics. A strategy that passed one historical run has not proven live readiness or Darwinex readiness.
+The project must report elapsed validation time, not only backtest metrics. A strategy that passed one historical run has not proven broker-write readiness or Darwinex readiness.
 
 Promotion reports must include:
 
-- in-sample, out-of-sample, and live-shadow calendar spans;
+- in-sample, out-of-sample, and shadow trading calendar spans;
 - number of decisions, orders, fills, blocked decisions, and flat/abstain decisions;
 - market regimes covered when known;
-- elapsed clock time since the strategy version first entered live-shadow or paper evaluation;
+- elapsed clock time since the strategy version first entered shadow trading or paper evaluation;
 - whether any result came from historical replay rather than current market evidence.
 
-No own-capital or Darwinex/Zero promotion can be based only on a unit-test suite, a local simulator run, or a same-day selected backtest.
+No self-funded capital or Darwinex/Zero promotion can be based only on a unit-test suite, a local simulator run, or a same-day selected backtest.
 
 ## Parallel Research Verification
 
-Parallel research jobs must be verified for idempotency and selected-run-bias controls.
+Parallel research jobs must be verified for idempotency and multiple-testing bias controls.
 
 Required evidence:
 
@@ -95,9 +95,9 @@ Required evidence:
 - failed, blocked, and losing runs retained in the promotion ledger;
 - a clear boundary where parallel outputs join into one promotion decision.
 
-If a promoted strategy came from a parallel sweep, the report must say whether the result was selected after seeing the backtest metrics and what out-of-sample or live-shadow evidence offsets that bias.
+If a promoted strategy came from a parallel sweep, the report must say whether the result was selected after seeing the backtest metrics and what out-of-sample or shadow trading artifacts offsets that bias.
 
-`run-paper-cycle` and `run-paper-replay` prove different things. `run-paper-cycle` is current-market strict and should block stale historical targets. `run-paper-replay` is historical plumbing evidence and must not satisfy live preflight or promotion.
+`run-paper-cycle` and `run-paper-replay` prove different things. `run-paper-cycle` is current-market strict and should block stale historical targets. `run-paper-replay` is historical plumbing evidence and must not satisfy live-preflight legacy check or promotion.
 
 `prepare-lean-local-data` is the direct data-path proof before a full quality universe local backtest. A blocked result is acceptable evidence when it identifies missing Stooq API key, missing QuantConnect Security Master/map-factor entitlement, missing LEAN daily zip, missing map/factor file, or insufficient ingested bars per symbol.
 
@@ -110,24 +110,24 @@ Final reports must separate:
 - unit-test evidence;
 - build/type/lint evidence;
 - local LEAN evidence;
-- QuantConnect Cloud evidence;
+- QuantConnect Cloud artifacts;
 - alpha replay evidence;
-- paper/live-shadow evidence;
-- preflight/reconciliation evidence;
+- paper trading/shadow trading evidence;
+- pre-trade risk check/reconciliation evidence;
 - blockers.
 
 Report commands, modes, artifact paths or run ids, and exact blocker reasons.
 
-For future own-capital and Darwinex/Zero work, reports must also separate:
+For future self-funded capital and Darwinex/Zero work, reports must also separate:
 
-- own broker preflight evidence;
+- own broker pre-trade risk check artifacts;
 - real broker order/fill/reconciliation evidence;
 - Darwinex/Zero signal execution evidence;
 - Darwinex/Zero track-record and performance-fee evidence.
 
 ## Required Failure Cases
 
-If a change touches broker, execution, paper account, risk, reconciliation, live-shadow, or preflight paths, include at least one blocked/failure case. Happy-path-only tests are not enough for execution boundaries.
+If a change touches broker, execution, paper account, risk, reconciliation, shadow trading, or pre-trade risk check paths, include at least one blocked/failure case. Happy-path-only tests are not enough for execution boundaries.
 
 Unknown state must stay blocked.
 

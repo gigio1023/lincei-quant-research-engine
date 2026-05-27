@@ -307,7 +307,8 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
     {
       key: "livePilotReadinessLedgerReady",
       ready: true,
-      detail: "Documented broker-write preflight readiness sample is available",
+      detail:
+        "Documented broker-write pre-trade risk check sample is available",
     },
     {
       key: "brokerOrderCommandLedgerReady",
@@ -323,7 +324,7 @@ export const DOCUMENTED_CONTROL_PLANE_STATUS: ControlPlaneStatus = {
       key: "livePilotReady",
       ready: false,
       detail:
-        "Latest broker-write preflight readiness is blocked: broker write gates are not ready",
+        "Latest broker-write pre-trade risk check is blocked: broker write gates are not ready",
     },
     {
       key: "liveTradingReady",

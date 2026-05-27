@@ -57,7 +57,7 @@ export const DashboardHeader = ({ model }: DashboardHeaderProps) => {
           </h2>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-[#929aa5]">
             {t(
-              "One-page operating surface for autonomous research, deterministic risk, paper account state, broker read-only evidence, blockers, and next safe action. Broker and live order paths remain disabled.",
+              "One-page operating surface for autonomous research, deterministic risk, paper account state, broker read-only artifacts, blockers, and next safe action. Broker and live order paths remain disabled.",
             )}
           </p>
         </div>

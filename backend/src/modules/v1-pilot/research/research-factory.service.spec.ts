@@ -67,7 +67,7 @@ describe('ResearchFactoryService', () => {
     });
   });
 
-  it('blocks_selected_run_bias_when_no_variant_evidence_exists', async () => {
+  it('blocks_multiple_testing_bias_check_when_no_variant_artifacts_exist', async () => {
     const result = await service.checkSelectedRunBias({
       targetRef: 'strategy:missing-run',
     });
@@ -80,7 +80,7 @@ describe('ResearchFactoryService', () => {
     expect(await jobRepository.countBy({ jobType: 'promotion-check' })).toBe(1);
   });
 
-  it('passes_selected_run_bias_when_passed_and_rejected_variants_are_retained', async () => {
+  it('passes_multiple_testing_bias_check_when_passed_and_rejected_variants_are_retained', async () => {
     await jobRepository.save([
       makeVariantJob('job-backtest-1', 'backtest', 'passed'),
       makeVariantJob('job-backtest-2', 'backtest', 'blocked'),

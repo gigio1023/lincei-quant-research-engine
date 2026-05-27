@@ -30,7 +30,7 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
           </h3>
           <p className="mt-1 text-xs text-[#707a8a]">
             {t(
-              "Read-only broker evidence. No credentials, order payloads, or callable broker actions are exposed here.",
+              "Read-only broker artifacts. No credentials, order payloads, or callable broker actions are exposed here.",
             )}
           </p>
         </div>
@@ -565,7 +565,7 @@ export const BrokerSnapshotPanel = ({ model }: BrokerSnapshotPanelProps) => {
           </div>
         ) : (
           <div className="mt-3 rounded-lg border border-[#2b3139] bg-[#0b0e11] p-3 text-xs font-semibold text-[#707a8a]">
-            {t("No broker read-only fill evidence has been imported yet.")}
+            {t("No broker read-only fill report has been imported yet.")}
           </div>
         )}
       </div>

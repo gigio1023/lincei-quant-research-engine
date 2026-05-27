@@ -15,7 +15,7 @@ export interface CycleStageDefinition {
 
 export interface CycleStageView extends CycleStageDefinition {
   status: V1SystemStageStatus;
-  evidence: string;
+  artifactSummary: string;
   blockers: string[];
 }
 
@@ -36,9 +36,10 @@ export const CYCLE_STAGES: CycleStageDefinition[] = [
   },
   {
     key: "semantic_data",
-    label: "Semantic Evidence",
+    label: "Text Evidence",
     lane: "data",
-    detail: "Timestamped macro/news/filing text becomes replayable evidence.",
+    detail:
+      "Timestamped macro/news/filing text becomes replayable source material.",
     command:
       "./scripts/ingest-semantic-evidence --source hf-fomc-statements-minutes",
   },
@@ -47,7 +48,7 @@ export const CYCLE_STAGES: CycleStageDefinition[] = [
     label: "Feature Store",
     lane: "data",
     sourceStageKey: "feature_store",
-    detail: "Point-in-time numeric and semantic features are stored.",
+    detail: "Point-in-time numeric and LLM-derived features are stored.",
     command: "./scripts/run-alpha-cycle",
   },
   {
@@ -55,15 +56,16 @@ export const CYCLE_STAGES: CycleStageDefinition[] = [
     label: "Alpha Decisions",
     lane: "alpha",
     sourceStageKey: "alpha_decisions",
-    detail: "Numeric alpha, LLM alpha, and meta alpha produce typed decisions.",
+    detail:
+      "Numeric alpha, LLM-derived alpha, and meta alpha produce typed decisions.",
     command: "./scripts/run-alpha-cycle",
   },
   {
     key: "cloud_backtest",
-    label: "Cloud/LEAN Backtest Evidence",
+    label: "Cloud/LEAN Backtest Results",
     lane: "lean",
     sourceStageKey: "lean_backtest",
-    detail: "Cloud/LEAN artifacts become the strategy evidence baseline.",
+    detail: "Cloud/LEAN artifacts become the strategy validation baseline.",
     command:
       "./scripts/run-v1-cycle --skip-alpha-cycle --skip-market-data-ingest --no-download-data",
   },
@@ -80,7 +82,8 @@ export const CYCLE_STAGES: CycleStageDefinition[] = [
     label: "Paper Execution",
     lane: "execution",
     sourceStageKey: "paper_execution",
-    detail: "Targets become paper/live-shadow order intent and fill evidence.",
+    detail:
+      "Targets become paper trading/shadow trading order intent and fill reports.",
     command: "./scripts/run-paper-cycle",
   },
   {
@@ -88,15 +91,16 @@ export const CYCLE_STAGES: CycleStageDefinition[] = [
     label: "Broker Boundary",
     lane: "execution",
     sourceStageKey: "broker_read_only",
-    detail: "Broker evidence stays read-only until a future live-money spec.",
+    detail: "Broker artifacts stay read-only until a future live-money spec.",
     command: "./scripts/run-live-shadow",
   },
   {
     key: "preflight",
-    label: "Live Preflight",
+    label: "Pre-Trade Risk Check",
     lane: "execution",
     sourceStageKey: "live_preflight",
-    detail: "Unknown, stale, or unsafe state stays blocked.",
+    detail:
+      "Unknown, stale, or unsafe state stays blocked by the live-preflight legacy command.",
     command: "./scripts/live-preflight",
   },
   {
@@ -114,7 +118,7 @@ export const CYCLE_RUNBOOK = [
     command:
       "./scripts/run-v1-cycle --skip-alpha-cycle --skip-market-data-ingest --no-download-data",
     evidence:
-      "local LEAN run, imported targets, paper blocker, preflight blocker",
+      "local LEAN run, imported targets, paper blocker, pre-trade risk check blocker",
   },
   {
     label: "Import cloud baseline",
@@ -129,20 +133,21 @@ export const CYCLE_RUNBOOK = [
     evidence: "feature snapshots, LLM event features, alpha decisions",
   },
   {
-    label: "Bridge into execution evidence",
+    label: "Bridge into execution artifacts",
     command: "./scripts/run-paper-cycle || ./scripts/run-paper-replay",
     evidence: "paper order plan, fills, reconciliation status",
   },
   {
     label: "Record broker-safe shadow path",
     command: "./scripts/run-live-shadow && ./scripts/live-preflight",
-    evidence: "would-have-traded record, fail-closed preflight blockers",
+    evidence:
+      "would-have-traded record, fail-closed pre-trade risk check blockers",
   },
   {
     label: "Review promotion evidence",
     command:
       "./scripts/run-selected-run-bias-check && ./scripts/run-learning-loop",
-    evidence: "promotion decision, blockers, retained variant evidence",
+    evidence: "promotion decision, blockers, retained variant artifacts",
   },
 ];
 
@@ -155,7 +160,7 @@ export const buildCycleStages = (
     return {
       ...stage,
       status: sourceStage?.status ?? derived.status,
-      evidence: sourceStage?.detail ?? derived.evidence,
+      artifactSummary: sourceStage?.detail ?? derived.artifactSummary,
       blockers: sourceStage?.blockers ?? derived.blockers,
     };
   });
@@ -198,7 +203,7 @@ export const buildCycleMetrics = (
       status?.paper.reconciliationStatus === "matched" ? "positive" : "warning",
   },
   {
-    label: "Preflight",
+    label: "Pre-Trade Check",
     value: status?.preflight.status ?? "blocked",
     tone: status?.preflight.status === "ready" ? "positive" : "danger",
   },
@@ -228,11 +233,15 @@ const findSourceStage = (
 const deriveStageStatus = (
   status: V1PilotSystemStatus | null,
   stageKey: string,
-): { status: V1SystemStageStatus; evidence: string; blockers: string[] } => {
+): {
+  status: V1SystemStageStatus;
+  artifactSummary: string;
+  blockers: string[];
+} => {
   if (!status) {
     return {
       status: "missing",
-      evidence: "Status API has not returned yet.",
+      artifactSummary: "Status API has not returned yet.",
       blockers: ["Load /v1-pilot/status."],
     };
   }
@@ -241,13 +250,13 @@ const deriveStageStatus = (
     return status.alpha.llmDecisionCount > 0
       ? {
           status: "ready",
-          evidence: `${status.alpha.llmDecisionCount} LLM alpha decisions available`,
+          artifactSummary: `${status.alpha.llmDecisionCount} LLM-derived alpha decisions available`,
           blockers: [],
         }
       : {
           status: "blocked",
-          evidence: "No LLM alpha decisions are available yet.",
-          blockers: ["Ingest timestamped semantic evidence and rerun alpha."],
+          artifactSummary: "No LLM-derived alpha decisions are available yet.",
+          blockers: ["Ingest timestamped text evidence and rerun alpha."],
         };
   }
 
@@ -256,20 +265,20 @@ const deriveStageStatus = (
     return ready
       ? {
           status: "blocked",
-          evidence:
+          artifactSummary:
             "Learning loop can run, but promotion stays evidence-gated.",
           blockers: status.nextActions.slice(0, 2),
         }
       : {
           status: "missing",
-          evidence: "Backtest evidence is missing.",
+          artifactSummary: "Backtest results are missing.",
           blockers: ["Import a passing LEAN/Cloud backtest first."],
         };
   }
 
   return {
     status: "missing",
-    evidence: "No mapped evidence.",
+    artifactSummary: "No mapped artifacts.",
     blockers: [],
   };
 };

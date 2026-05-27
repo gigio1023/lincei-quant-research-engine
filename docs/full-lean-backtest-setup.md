@@ -2,17 +2,17 @@
 
 Status: operator runbook. The active scope is defined by [../SPEC.md](../SPEC.md).
 
-This document separates **what each path proves**. QuantConnect Cloud backtests are the preferred promotion evidence when account access allows them. Local historical LEAN runs can support strategy evidence when data quality passes. The local simulator and flow-validation paths prove artifact plumbing only.
+This document separates **what each path proves**. QuantConnect Cloud backtests are the preferred promotion evidence when account access allows them. Local historical LEAN runs can support strategy validation artifacts when data quality passes. The local simulator and flow-validation paths prove artifact plumbing only.
 
 ## Path overview
 
-| Path                              | Command / trigger                                                           | What it validates                                                                                                                                | Live-ready?                                                            |
-| --------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
-| **LEAN flow validation**          | `lean-backtest` with `LEAN_ALLOW_SIMULATOR=true`, or simulator fallback     | End-to-end artifact export, import, paper bridge wiring                                                                                          | No                                                                     |
-| **Historical numeric backtest**   | `run-full-backtest` / `LeanCliRunner`                                       | Bar-by-bar numeric alpha inside LEAN on local historical data                                                                                    | Debug/supporting evidence when local data gates pass                   |
-| **Rolling ML / meta research**    | `run-alpha-cycle`, external baselines, `LIVE_PREFLIGHT_ALLOW_RESEARCH=true` | Nest feature snapshots, LightGBM scores, LLM committee, static `meta_decisions.json`                                                             | No (research only)                                                     |
-| **QuantConnect Cloud evidence**   | `qc-cloud-backtest`, `qc-object-store-sync`                                 | Cloud project push/backtest attempt, Object Store feature artifact upload, account-tier blockers, REST result import, imported-result acceptance | Promotion evidence only when cloud artifacts are imported and accepted |
-| **Paper / live-shadow readiness** | `run-paper-cycle`, `run-paper-replay`, `run-live-shadow`, `live-preflight`  | Policy gates, historical replay plumbing, would-have-traded evidence, broker snapshot reconciliation, blocked preflight evidence                 | No real broker writes under active spec                                |
+| Path                                         | Command / trigger                                                           | What it validates                                                                                                                                | Live-ready?                                                            |
+| -------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| **LEAN flow validation**                     | `lean-backtest` with `LEAN_ALLOW_SIMULATOR=true`, or simulator fallback     | End-to-end artifact export, import, paper bridge wiring                                                                                          | No                                                                     |
+| **Historical numeric backtest**              | `run-full-backtest` / `LeanCliRunner`                                       | Bar-by-bar numeric alpha inside LEAN on local historical data                                                                                    | Debug/supporting evidence when local data gates pass                   |
+| **Rolling ML / meta research**               | `run-alpha-cycle`, external baselines, `LIVE_PREFLIGHT_ALLOW_RESEARCH=true` | Nest feature snapshots, LightGBM scores, LLM committee, static `meta_decisions.json`                                                             | No (research only)                                                     |
+| **QuantConnect Cloud artifacts**             | `qc-cloud-backtest`, `qc-object-store-sync`                                 | Cloud project push/backtest attempt, Object Store feature artifact upload, account-tier blockers, REST result import, imported-result acceptance | Promotion evidence only when cloud artifacts are imported and accepted |
+| **Paper trading / shadow trading artifacts** | `run-paper-cycle`, `run-paper-replay`, `run-live-shadow`, `live-preflight`  | Policy gates, historical replay plumbing, would-have-traded artifact, broker snapshot reconciliation, blocked pre-trade risk check artifacts     | No real broker writes under active spec                                |
 
 **Static LLM / meta overlay is not historical alpha validation.** `meta_decisions.json` is a single committee snapshot per run (QuantConnect “precomputed overlay” pattern). It does not walk forward through time and must not be treated as proof that LLM alpha worked historically.
 
@@ -28,7 +28,7 @@ export LEAN_ALLOW_SIMULATOR=true
 ./scripts/import-lean-run latest
 ```
 
-Artifacts include `config.json` with `"simulator": "lean-local-simulator-v1"`. **Live preflight blocks** simulator runs, `validationMode: flow-validation`, and `usesStaticMetaOverlay: true` unless `LIVE_PREFLIGHT_ALLOW_RESEARCH=true` or `parameters.mode: research`.
+Artifacts include `config.json` with `"simulator": "lean-local-simulator-v1"`. **Live-preflight legacy check blocks** simulator runs, `validationMode: flow-validation`, and `usesStaticMetaOverlay: true` unless `LIVE_PREFLIGHT_ALLOW_RESEARCH=true` or `parameters.mode: research`.
 
 ---
 
@@ -190,13 +190,13 @@ Build the hypothesis registry first when starting from the stored strategy resea
 
 This converts `references/alphaarchitect/index.json` and `references/alphaarchitect/strategy-register.md` into durable `research_hypotheses` and `research_job_records` rows. It is research backlog evidence, not strategy performance evidence.
 
-Ingest approved semantic evidence first when the run should include fresh macro text:
+Ingest approved text evidence first when the run should include fresh macro text:
 
 ```bash
 ./scripts/ingest-semantic-evidence --source hf-fomc-statements-minutes --limit 80
 ```
 
-This stores Hugging Face FOMC statements/minutes as `macro` `RawEvidenceRecord` rows with `eventTime`, `publishedAt`, `retrievedAt`, and `availableAt`. These records are inputs to the LLM semantic feature engine; they are not market-price data and do not replace QuantConnect bars.
+This stores Hugging Face FOMC statements/minutes as `macro` `RawEvidenceRecord` rows with `eventTime`, `publishedAt`, `retrievedAt`, and `availableAt`. These records are inputs to the LLM-derived feature engine; they are not market-price data and do not replace QuantConnect bars.
 
 ```bash
 ./scripts/run-alpha-cycle
@@ -214,7 +214,7 @@ Local `run-full-backtest` can ingest Stooq bars first; if ingestion fails, alpha
 Outputs under `engines/lean/aggressive_llm_momentum/input/`:
 
 - `meta_decisions.json` — static meta/LLM overlay for LEAN
-- `llm_event_features.json` — point-in-time semantic alpha features for LEAN replay
+- `llm_event_features.json` — point-in-time LLM-derived features for LEAN replay
 - `ml_predictions.json` — optional external LightGBM scores
 
 The same LLM feature payload is exported to `artifacts/llm-features/latest.json` for QuantConnect Object Store upload.
@@ -309,7 +309,7 @@ Command success is not promotion evidence by itself. Missing REST credentials, m
 
 ---
 
-## Paper / live-shadow readiness
+## Paper trading / shadow trading artifacts
 
 ```bash
 ./scripts/run-paper-cycle
@@ -320,7 +320,7 @@ Command success is not promotion evidence by itself. Missing REST credentials, m
 
 `run-paper-cycle` is current-market strict. If the latest LEAN target snapshot is historical, the risk gate blocks instead of pretending the target is fresh.
 
-`run-paper-replay` is different: it replays historical targets through paper plumbing and tags the proposal with `paper-replay:historical-target`. Live preflight ignores that evidence. Imported QuantConnect Cloud statistics may be strings such as `11.128%` or `$1143.98`; the paper bridge parses those into finite research metrics before proposal creation. Cloud order-derived target weights are cumulative replay evidence, so the paper bridge caps the generated replay orders to the paper budget policy rather than weakening risk gates.
+`run-paper-replay` is different: it replays historical targets through paper plumbing and tags the proposal with `paper-replay:historical-target`. Live-preflight legacy check ignores that evidence. Imported QuantConnect Cloud statistics may be strings such as `11.128%` or `$1143.98`; the paper bridge parses those into finite research metrics before proposal creation. Cloud order-derived target weights are cumulative replay artifact, so the paper bridge caps the generated replay orders to the paper budget policy rather than weakening risk gates.
 
 ```mermaid
 flowchart LR
@@ -328,12 +328,12 @@ flowchart LR
     STRATEGY --> REPLAY["run-paper-replay<br/>historical target plumbing"]
     CURRENT --> SHADOWCURRENT["run-live-shadow<br/>current_live_shadow"]
     REPLAY --> SHADOWREPLAY["run-live-shadow<br/>historical_target_replay"]
-    SHADOWCURRENT --> PREFLIGHT["live-preflight<br/>eligible evidence"]
+    SHADOWCURRENT --> PREFLIGHT["live-preflight<br/>eligible artifacts"]
     SHADOWREPLAY -. ignored .-> PREFLIGHT
     PREFLIGHT --> BLOCKED["blocked unless<br/>Cloud + broker + reconciliation gates pass"]
 ```
 
-`run-live-shadow` records proposed targets and would-have-traded orders without broker writes. The record has `evidenceMode`:
+`run-live-shadow` records proposed targets and would-have-traded orders without broker writes. The record has `evidenceMode legacy field`:
 
 - `historical_target_replay` for old LEAN target snapshots;
 - `current_live_shadow` only when the target snapshot is current enough for promotion.
@@ -391,11 +391,11 @@ The command writes `artifacts/lean-runs/qc-import-<backtest-prefix>/`, updates `
 
 ### `run-paper-replay`
 
-Runs the paper execution plumbing against the latest accepted LEAN strategy target while explicitly marking the proposal as historical replay. This command is useful after local or Cloud historical backtests because historical target timestamps are stale by design. It must not be counted as live-readiness evidence.
+Runs the paper execution plumbing against the latest accepted LEAN strategy target while explicitly marking the proposal as historical replay. This command is useful after local or Cloud historical backtests because historical target timestamps are stale by design. It must not be counted as broker-write pre-trade risk check evidence.
 
 ### `run-live-shadow`
 
-Creates a live-shadow record from the latest accepted LEAN strategy target snapshot. It never submits broker orders.
+Creates a shadow trading record from the latest accepted LEAN strategy target snapshot. It never submits broker orders.
 
 ### `run-learning-loop`
 
@@ -415,7 +415,7 @@ Exit code **2** = blocked by policy (not a crash).
 | `LEAN_DOWNLOAD_DATA=true`                        | Request local QC `--download-data`; blocked unless paid-download guard is enabled |
 | `ALLOW_PAID_QC_LOCAL_DATA_DOWNLOAD=true`         | Explicitly allow local QCC-consuming QuantConnect data downloads                  |
 | `ALLOW_SYNTHETIC_FEATURES=true`                  | Test/simulator: synthetic Nest features without bars                              |
-| `LIVE_PREFLIGHT_ALLOW_RESEARCH=true`             | Waive flow-validation / static-meta preflight blockers                            |
+| `LIVE_PREFLIGHT_ALLOW_RESEARCH=true`             | Waive flow-validation / static-meta pre-trade risk check blockers                 |
 | `QUANTCONNECT_USER_ID`, `QUANTCONNECT_API_TOKEN` | Lean CLI login (see `lean-login-from-env.sh`)                                     |
 | `QC_PROJECT_ID`, `QC_USER_ID`, `QC_API_TOKEN`    | QuantConnect REST result import aliases                                           |
 | `STOOQ_API_KEY`                                  | Stooq CSV ingestion for local LEAN daily data preparation                         |
@@ -446,8 +446,8 @@ Exit code **2** = blocked by policy (not a crash).
 | `ApiDataProvider(): Must be subscribed to map and factor files`           | Local QuantConnect Security Master/map-factor entitlement is missing for `--download-data`; use Cloud before buying local datasets.                                                      |
 | Stooq says `Get your apikey`                                              | Open `https://stooq.com/q/d/?s=smh.us&get_apikey`, complete captcha, and set `STOOQ_API_KEY` in `backend/.env`                                                                           |
 | `run-paper-cycle` exits 2 with stale market data                          | This is correct for historical targets. Use `run-paper-replay` for plumbing evidence; use current targets for real paper readiness.                                                      |
-| Live preflight: simulator                                                 | Re-run with Lean CLI, not simulator                                                                                                                                                      |
-| Live preflight: reconciliation                                            | `reconcileBrokerSnapshot` / paper reconcile until `matched`                                                                                                                              |
+| Live-preflight legacy check: simulator                                    | Re-run with Lean CLI, not simulator                                                                                                                                                      |
+| Live-preflight legacy check: reconciliation                               | `reconcileBrokerSnapshot` / paper reconcile until `matched`                                                                                                                              |
 | Meta overlay static                                                       | Expected for the current static overlay path; not historical LLM validation                                                                                                              |
 
 ---
@@ -455,6 +455,6 @@ Exit code **2** = blocked by policy (not a crash).
 ## Architecture note
 
 - **Model sharing:** Downloaded LightGBM + JSON into LEAN (no QC model hub).
-- **Sign-off:** QuantConnect Cloud evidence when available, plus local LEAN/direct verification; never treat `lean-local-simulator` as strategy validation.
+- **Sign-off:** QuantConnect Cloud artifacts when available, plus local LEAN/direct verification; never treat `lean-local-simulator` as strategy validation.
 
 See also: [ml-external-baselines-research.md](./ml-external-baselines-research.md), [lean-quantconnect-engine.md](./lean-quantconnect-engine.md).

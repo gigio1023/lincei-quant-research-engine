@@ -1707,7 +1707,7 @@ describe('ControlPlaneService', () => {
     ).rejects.toThrow('Funding readiness cannot include orders');
   });
 
-  it('records blocked broker-write preflight readiness before broker write controls exist', async () => {
+  it('records blocked broker-write pre-trade risk check before broker write controls exist', async () => {
     const snapshot = await service.importBrokerSnapshot({
       provider: 'manual',
       accountRef: 'pilot-account-ref',
@@ -1732,7 +1732,9 @@ describe('ControlPlaneService', () => {
         maxPilotBudgetAmount: 1_000_000,
         maxSingleOrderNotional: 100_000,
         idempotencyKey: 'live-pilot-blocked-1',
-        notes: ['Operator requested broker-write preflight evidence.'],
+        notes: [
+          'Operator requested broker-write pre-trade risk check evidence.',
+        ],
       },
       {
         provider: 'toss',
@@ -1788,7 +1790,7 @@ describe('ControlPlaneService', () => {
     expect(readiness.fundingReadinessId).toBe(funding.id);
     expect(readiness.blockers).toEqual(
       expect.arrayContaining([
-        'Broker-write preflight requires a budget envelope in live mode',
+        'Broker-write pre-trade risk check requires a budget envelope in live mode',
         'Production broker credential custody is not ready',
         'Broker OpenAPI schema is not verified',
         'Broker sandbox or paper environment is not verified',
@@ -1826,7 +1828,7 @@ describe('ControlPlaneService', () => {
     );
   });
 
-  it('rejects broker-write preflight readiness requests that include order intent', async () => {
+  it('rejects broker-write pre-trade risk check requests that include order intent', async () => {
     await expect(
       service.assessLivePilotReadiness({} as any, {
         provider: 'toss',
@@ -1876,7 +1878,7 @@ describe('ControlPlaneService', () => {
         brokerExecutionEnabled: false,
       }),
     ).rejects.toThrow(
-      'Broker-write preflight readiness pilotBudgetAmount must be positive',
+      'Broker-write pre-trade risk check pilotBudgetAmount must be positive',
     );
 
     await expect(
@@ -1934,7 +1936,7 @@ describe('ControlPlaneService', () => {
         },
       ),
     ).rejects.toThrow(
-      'Broker-write preflight readiness cannot include placeOrder',
+      'Broker-write pre-trade risk check cannot include placeOrder',
     );
   });
 
@@ -2007,7 +2009,7 @@ describe('ControlPlaneService', () => {
     ]);
     expect(command.blockedReasons).toEqual(
       expect.arrayContaining([
-        'No ready broker-write preflight readiness record',
+        'No ready broker-write pre-trade risk check record',
         'Live broker order endpoint is not implemented',
         'Broker write access is disabled',
         'Broker order command is dry-run only',

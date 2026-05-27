@@ -6,12 +6,12 @@ Last aligned: 2026-05-27.
 
 ## Purpose
 
-This document turns the long-term spec into an implementation plan. It is not a promise that every phase is approved for immediate implementation. It defines the order, dependencies, acceptance criteria, and verification evidence needed to complete the own-capital-first system.
+This document turns the long-term spec into an implementation plan. It is not a promise that every phase is approved for immediate implementation. It defines the order, dependencies, acceptance criteria, and verification evidence needed to complete the self-funded-capital-first system.
 
 The controlling rule is:
 
 ```text
-build executable own-capital evidence first;
+build executable self-funded capital evidence first;
 defer broker writes and Darwinex/Zero adapters until their explicit gates are met.
 ```
 
@@ -23,11 +23,11 @@ Implemented:
 - Hypothesis registry ingestion from the strategy register.
 - Durable `research_hypotheses` and `research_job_records` tables.
 - Selected-run-bias check that blocks promotion when retained variants are missing.
-- Hugging Face FOMC semantic evidence ingestion into point-in-time raw evidence.
+- Hugging Face FOMC text evidence ingestion into point-in-time raw evidence.
 - Numeric, LLM, and meta alpha decision storage paths.
 - LEAN local/simulator runner and QuantConnect Cloud listing/import wrappers.
 - Cloud insight/order pagination and artifact import.
-- Paper replay separated from current paper/live-shadow readiness.
+- Paper replay separated from current paper trading/shadow trading artifacts.
 - Read-only backtest-cycle dashboard and status API.
 
 Not complete:
@@ -36,8 +36,8 @@ Not complete:
 - Simple trend, defensive, momentum, and daily-return baselines do not yet have complete promotion evidence.
 - Broad point-in-time and vintage data stores are incomplete.
 - Ablation and parameter sweep jobs are not yet recorded as first-class variant evidence.
-- QuantConnect Cloud evidence still depends on operator-provided project/backtest ids and credentials.
-- Current paper/live-shadow, reconciliation, and broker-read-only evidence are incomplete.
+- QuantConnect Cloud artifacts still depends on operator-provided project/backtest ids and credentials.
+- Current paper trading/shadow trading, reconciliation, and broker-read-only evidence are incomplete.
 - Broker-write and Darwinex/Zero adapters are not approved for implementation.
 
 ## Target End State
@@ -54,11 +54,11 @@ strategy research corpus
   -> LEAN Insight
   -> portfolio targets
   -> deterministic risk cuts
-  -> paper/live-shadow evidence
+  -> paper trading/shadow trading artifacts
   -> reconciliation
   -> broker-read-only proof
   -> user-approved broker-write spec
-  -> own-capital allocation
+  -> self-funded capital allocation
   -> later Darwinex/Zero track-record path
 ```
 
@@ -70,9 +70,9 @@ Goal: make every research and validation attempt durable, replayable, and bias-a
 
 Deliver:
 
-- `ResearchJobRecord` creation for data ingest, feature generation, LLM semantic feature jobs, ablations, backtests, Cloud imports, and promotion checks.
+- `ResearchJobRecord` creation for data ingest, feature generation, LLM-derived feature jobs, ablations, backtests, Cloud imports, and promotion checks.
 - Job parent/child relationships from hypothesis to feature jobs to backtest variants.
-- Idempotency keys for every job type named in [Parallel Research Factory](10-parallel-research-factory.md).
+- Idempotency keys for every job type named in [Parallel Research Pipeline](10-parallel-research-factory.md).
 - Variant registry linking one hypothesis to many strategy versions, parameter hashes, data manifests, and outcomes.
 - Search-space records that describe what was tried before seeing results.
 - Cost records for LLM, data, QuantConnect, storage, and Oracle Cloud ARM usage.
@@ -81,7 +81,7 @@ Acceptance:
 
 - Retrying any job preserves one canonical job record.
 - A failed or blocked variant is queryable and cannot be silently overwritten by a later winning run.
-- `./scripts/run-selected-run-bias-check` blocks when a promoted candidate has only winner evidence.
+- `./scripts/run-selected-run-bias-check` blocks when a promoted candidate has only winner artifacts.
 - Promotion reports show attempted, passed, failed, blocked, and rejected variant counts.
 
 Verification:
@@ -120,9 +120,9 @@ Verification:
 cd backend && bun run test -- src/modules/v1-pilot/alpha/huggingface-semantic-evidence-ingest.service.spec.ts
 ```
 
-## Workstream C: Simple Own-Capital Baselines
+## Workstream C: Simple Self-Funded Capital Baselines
 
-Goal: build boring baselines before relying on LLM semantic alpha.
+Goal: build boring baselines before relying on LLM-derived alpha.
 
 Deliver:
 
@@ -139,7 +139,7 @@ Acceptance:
 - Each P1 baseline has a hypothesis id, data manifest, source hash, parameter hash, and retained result.
 - Each baseline can pass or fail independently; rejection is recorded as evidence.
 - Local simulator evidence cannot satisfy promotion.
-- Baseline promotion requires local LEAN or QuantConnect Cloud evidence plus selected-run-bias review.
+- Baseline promotion requires local LEAN or QuantConnect Cloud artifacts plus multiple-testing bias review.
 
 Verification:
 
@@ -157,7 +157,7 @@ Goal: make LLM output a typed feature source, not a trade allocator.
 Deliver:
 
 - Filing, news, macro, and research-derived text ingestion with point-in-time availability.
-- LLM semantic feature schema validation and abstain records.
+- LLM-derived feature schema validation and abstain records.
 - Prompt/model version registry.
 - Object Store/custom-data export for LEAN replay.
 - Numeric-only, LLM-only, and combined ablation variants.
@@ -188,7 +188,7 @@ Deliver:
 - Cloud backtest list/import by `projectId` and `backtestId`.
 - Parallel Cloud artifact imports by endpoint/page.
 - Imported statistics, insights, orders, fills, logs, charts, and equity curves.
-- Cloud evidence acceptance policy by runtime, status, promotion eligibility, data manifest, and blocker reasons.
+- Cloud artifacts acceptance policy by runtime, status, promotion eligibility, data manifest, and blocker reasons.
 
 Acceptance:
 
@@ -216,16 +216,16 @@ Deliver:
 - Deterministic risk cuts with max notional, gross exposure, single-name cap, stale-data block, and kill-switch state.
 - Paper order plan creation from accepted targets.
 - Paper fills and reconciliation.
-- Current live-shadow records using live data without broker writes.
+- Current shadow trading records using live data without broker writes.
 - Outcome labels by horizon.
-- Promotion/rejection ledger that joins hypothesis, data, alpha, backtest, paper/live-shadow, reconciliation, and selected-run-bias evidence.
+- Promotion/rejection ledger that joins hypothesis, data, alpha, backtest, paper trading/shadow trading, reconciliation, and multiple-testing bias evidence.
 
 Acceptance:
 
 - Portfolio/risk/execution-like stages are single-writer.
 - Unknown, stale, or mismatched state blocks advancement.
-- Historical paper replay is not treated as current live readiness.
-- Promotion requires current paper/live-shadow evidence, not only historical replay.
+- Historical paper replay is not treated as broker-write pre-trade risk checks.
+- Promotion requires current paper trading/shadow trading artifacts, not only historical replay.
 
 Verification:
 
@@ -244,7 +244,7 @@ Goal: make the research/evidence loop run continuously with bounded costs and ex
 Deliver:
 
 - Oracle Cloud ARM deployment runbook.
-- Scheduler for corpus refresh, data ingest, feature generation, LLM jobs, ablations, Cloud imports, paper/live-shadow, reconciliation, and alerts.
+- Scheduler for corpus refresh, data ingest, feature generation, LLM jobs, ablations, Cloud imports, paper trading/shadow trading, reconciliation, and alerts.
 - Job concurrency caps by platform and provider.
 - Cost caps for LLM, QuantConnect, data, storage, and compute.
 - Health checks for stale data, failed jobs, missing credentials, Cloud blockers, and reconciliation mismatches.
@@ -273,7 +273,7 @@ Deliver:
 - User-approved broker candidate for read-only work.
 - Account, cash, buying power, position, open-order, fill, fee, and tax-lot read models.
 - Append-only broker snapshot and fill ledgers.
-- Reconciliation against paper/live-shadow expected state.
+- Reconciliation against paper trading/shadow trading expected state.
 - Credential custody checks and hashed account refs.
 
 Acceptance:
@@ -281,7 +281,7 @@ Acceptance:
 - No submit, cancel, replace, flatten, transfer, margin, or account-setting write method exists.
 - Unknown broker read state is blocked.
 - Broker credentials never enter LLM prompts, frontend state, logs, or research artifacts.
-- Reconciliation mismatch blocks broker-write readiness.
+- Reconciliation mismatch blocks broker-write pre-trade risk check status.
 
 Verification:
 
@@ -292,7 +292,7 @@ cd backend && bun run test -- src/modules/control-plane
 
 ## Workstream I: Broker-Write Implementation Spec
 
-Goal: define the exact account-mutation boundary before implementing own-capital trading.
+Goal: define the exact account-mutation boundary before implementing self-funded capital trading.
 
 Deliver:
 
@@ -318,14 +318,14 @@ Verification:
 cd backend && bun run test -- <broker-write-spec-tests>
 ```
 
-## Workstream J: Own-Capital Allocation
+## Workstream J: Self-Funded Capital Allocation
 
 Goal: trade the operator's own pre-funded capital only after evidence gates pass.
 
 Deliver:
 
-- Own-capital broker adapter implemented under the approved broker-write spec.
-- Pre-trade preflight and post-trade reconciliation.
+- Self-funded capital broker adapter implemented under the approved broker-write spec.
+- Pre-trade risk check and post-trade reconciliation.
 - Real fills imported and matched.
 - Capital allocation reports.
 - Strategy retirement and de-risking rules.
@@ -334,7 +334,7 @@ Deliver:
 Acceptance:
 
 - Orders are never submitted from LLM output directly.
-- Broker writes require ready preflight, current paper/live-shadow evidence, and matched broker-read-only state.
+- Broker writes require ready pre-trade risk check, current paper trading/shadow trading artifacts, and matched broker-read-only state.
 - Fill mismatches or open-order unknowns block new exposure.
 - Capital scaling requires explicit approval and updated limits.
 
@@ -349,12 +349,12 @@ Additional broker-write commands must be named only in the future approved broke
 
 ## Workstream K: Darwinex/Zero Track-Record Path
 
-Goal: use own-capital-grade signals to pursue later external-capital performance fees.
+Goal: use self-funded capital deployment-grade signals to pursue later external-capital performance fees.
 
 Deliver:
 
 - Darwinex/Zero account, subscription, jurisdiction, and terms verification.
-- Instrument mapping from approved own-capital strategy to Darwinex/Zero-supported instruments.
+- Instrument mapping from approved self-funded capital strategy to Darwinex/Zero-supported instruments.
 - MetaTrader or approved API bridge design.
 - Execution/reconciliation records separate from QuantConnect evidence.
 - Darwinex Risk Engine reports separate from our portfolio target sizing.
@@ -362,7 +362,7 @@ Deliver:
 
 Acceptance:
 
-- Own-capital-grade strategy evidence exists first.
+- Self-funded capital deployment-grade strategy validation artifacts exist first.
 - Darwinex/Zero is not treated as a backtest provider.
 - The system reports our signal, Darwinex/Zero execution, Darwinex risk standardization, and fee evidence separately.
 - Performance-fee claims come from Darwinex/Zero records, not simulated returns.
@@ -383,7 +383,7 @@ Parallelize:
 - hypothesis extraction by document;
 - market/news/filing/macro ingest by source, symbol, and time window;
 - feature generation by feature family, symbol, and window;
-- LLM semantic features by event/symbol/window under cost caps;
+- LLM-derived features by event/symbol/window under cost caps;
 - numeric/LLM/combined ablations by hypothesis and parameter hash;
 - local backtests by strategy variant where platform resources allow;
 - QuantConnect Cloud imports by endpoint/page range.
@@ -393,24 +393,24 @@ Keep single-writer:
 - promotion decision;
 - portfolio target consolidation;
 - risk cuts;
-- paper/live-shadow execution intent;
+- paper trading/shadow trading execution intent;
 - reconciliation;
 - broker-read-only account truth per provider/account;
-- broker-write preflight;
+- broker-write pre-trade risk check;
 - future broker writes.
 
 ## Definition Of Done For The Full Spec
 
 The full long-term spec is implemented only when:
 
-- P1 baselines and LLM semantic alpha variants are represented as retained variant evidence.
+- P1 baselines and LLM-derived alpha variants are represented as retained variant evidence.
 - Point-in-time and vintage data blockers are enforced.
 - QuantConnect Cloud imports produce accepted or blocked promotion evidence.
-- Current paper/live-shadow evidence and reconciliation exist for promoted candidates.
+- Current paper trading/shadow trading artifacts and reconciliation exist for promoted candidates.
 - Selected-run-bias review can inspect winning, losing, failed, and blocked variants.
 - Oracle Cloud ARM can run the non-broker loop continuously with cost and stale-data controls.
 - Broker-read-only reconciliation is implemented and matched.
 - A separate broker-write implementation spec is approved and implemented.
-- Own-capital fills are reconciled before any Darwinex/Zero adapter is prioritized.
+- Self-funded capital fills are reconciled before any Darwinex/Zero adapter is prioritized.
 
 Until all of these are true, reports must say which rung of the evidence ladder is complete and which exact blocker remains.

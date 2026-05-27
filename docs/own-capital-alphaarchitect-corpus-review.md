@@ -1,4 +1,4 @@
-# Own-Capital Architecture Review From Alpha Architect Corpus
+# Self-Funded Capital Architecture Review From Alpha Architect Corpus
 
 Status: supporting review.
 
@@ -6,7 +6,7 @@ Last aligned: 2026-05-27.
 
 ## Scope
 
-This review treats own-capital allocation as the first monetization priority. Darwinex/Zero remains a later track-record path. The immediate question is whether the current project architecture can produce a strategy that is robust enough for the operator's own pre-funded capital.
+This review treats self-funded capital allocation as the first monetization priority. Darwinex/Zero remains a later track-record path. The immediate question is whether the current project architecture can produce a strategy that is robust enough for the operator's own pre-funded capital.
 
 Source corpus:
 
@@ -27,7 +27,7 @@ LLM/text evidence exists
   -> dashboard explains the loop
 ```
 
-That is not enough for own-capital allocation. The missing part is a boring, repeatable research-production ladder:
+That is not enough for self-funded capital allocation. The missing part is a boring, repeatable research-production ladder:
 
 ```text
 strategy hypothesis
@@ -36,24 +36,24 @@ strategy hypothesis
   -> ablations
   -> broad cost/slippage/tax assumptions
   -> Cloud backtest
-  -> current paper/live-shadow
+  -> current paper trading/shadow trading
   -> broker-read-only reconciliation
   -> broker-write spec
 ```
 
-The project should now prioritize durable own-capital baselines over more surfaces. Darwinex/Zero should wait until the own-capital path can generate an independently defensible track record.
+The project should now prioritize durable self-funded capital baselines over more surfaces. Darwinex/Zero should wait until the self-funded capital path can generate an independently defensible track record.
 
 ## What The Corpus Says
 
 The 40 articles cluster into five practical themes.
 
-| Theme | Relevant corpus rows | Own-capital implication |
-| --- | --- | --- |
-| Trend following and defensive allocation | 8, 11, 19, 21 | Start with simple liquid trend/defensive baselines. They are easier to validate, trade, and reconcile than complex semantic alpha. |
-| Momentum and short-term return structure | 6, 10, 12, 17, 35 | Momentum needs volatility, skip-month, stock-specific, and news/LLM ablations before being trusted. |
-| Factor crowding, factor valuation, anomaly demand | 2, 13, 18, 30, 33, 34, 38 | Alpha may come from demand pressure and factor timing, but this needs broad universe data and factor membership history. |
-| Text and AI-derived signals | 20, 23, 35, 36 | This supports the LLM semantic alpha direction, but only as typed point-in-time features with live-shadow evaluation. |
-| Frictions, turnover, leverage, broker quality, taxes | 4, 22, 31, 32, 37, 39 | Own-capital returns can disappear after costs, tax, leverage decay, broker failures, and overtrading. |
+| Theme                                                | Relevant corpus rows      | Self-funded capital implication                                                                                                       |
+| ---------------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Trend following and defensive allocation             | 8, 11, 19, 21             | Start with simple liquid trend/defensive baselines. They are easier to validate, trade, and reconcile than complex LLM-derived alpha. |
+| Momentum and short-term return structure             | 6, 10, 12, 17, 35         | Momentum needs volatility, skip-month, stock-specific, and news/LLM ablations before being trusted.                                   |
+| Factor crowding, factor valuation, anomaly demand    | 2, 13, 18, 30, 33, 34, 38 | Alpha may come from demand pressure and factor timing, but this needs broad universe data and factor membership history.              |
+| Text and AI-derived signals                          | 20, 23, 35, 36            | This supports the LLM-derived alpha direction, but only as typed point-in-time features with shadow trading evaluation.               |
+| Frictions, turnover, leverage, broker quality, taxes | 4, 22, 31, 32, 37, 39     | Self-funded capital returns can disappear after costs, tax, leverage decay, broker failures, and overtrading.                         |
 
 Several articles are not direct strategy candidates for this repo yet: private equity, options financing, long volatility, futures/carry, and leveraged single-stock ETFs. They are useful warnings, not current implementation targets.
 
@@ -65,7 +65,7 @@ Why it matters:
 
 - It is simple enough to debug end to end.
 - It can be expressed through liquid ETFs before single-stock complexity.
-- It gives a defensible first own-capital candidate if it survives costs and drawdowns.
+- It gives a defensible first self-funded capital candidate if it survives costs and drawdowns.
 
 Needed:
 
@@ -74,7 +74,7 @@ Needed:
 - moving-average and regime variants;
 - benchmark-relative and absolute return reports;
 - turnover and slippage assumptions;
-- current paper/live-shadow run.
+- current paper trading/shadow trading run.
 
 Current gap:
 
@@ -121,7 +121,7 @@ Current gap:
 
 Why it matters:
 
-- Articles on corporate language, AI disclosure analysis, and ChatGPT momentum support the project's LLM semantic-alpha thesis.
+- Articles on corporate language, AI disclosure analysis, and ChatGPT momentum support the project's LLM-derived alpha thesis.
 
 Needed:
 
@@ -129,7 +129,7 @@ Needed:
 - source text versioning;
 - fixed prompt/model versions;
 - abstain records;
-- live-shadow evaluation after the model's training window;
+- shadow trading evaluation after the model's training window;
 - evidence that LLM features improve numeric baselines.
 
 Current gap:
@@ -156,7 +156,7 @@ Fix:
 
 - Every Cloud attempt should create a run record, including failed, blocked, and bad runs.
 - Promotion should require a run manifest that links parameter choices, source hashes, and all attempted variants.
-- Add a selected-run-bias check before promotion.
+- Add a multiple-testing bias check before promotion.
 
 ### Risk 3: LLM Alpha May Be Treated As A Strategy Instead Of A Feature
 
@@ -164,20 +164,20 @@ The corpus supports LLM text features, but it does not justify letting the LLM b
 
 Fix:
 
-- Keep LLM output as typed semantic alpha features.
+- Keep LLM output as typed LLM-derived features.
 - Require numeric-only, LLM-only, and combined ablations.
 - Store flat/abstain/failed decisions.
-- Prefer live-shadow evidence after the model/prompt version is fixed.
+- Prefer shadow trading artifacts after the model/prompt version is fixed.
 
-### Risk 4: Current Evidence Loop Is Not Yet Own-Capital Execution
+### Risk 4: Current Evidence Loop Is Not Yet Self-Funded Capital Execution
 
-Backtest, paper replay, and dashboard visibility do not prove broker readiness. Own-capital allocation needs broker-read-only snapshots, order/fill reconciliation, fee/tax accounting, and kill-switch drills.
+Backtest, paper replay, and dashboard visibility do not prove broker readiness. Self-funded capital allocation needs broker-read-only snapshots, order/fill reconciliation, fee/tax accounting, and kill-switch drills.
 
 Fix:
 
 - Build broker-read-only adapter before broker writes.
 - Add append-only cash, position, order, fill, fee, and tax-lot ledgers.
-- Require cancel/flatten drills in paper/live-shadow before real order methods are implemented.
+- Require cancel/flatten drills in paper trading/shadow trading before real order methods are implemented.
 
 ### Risk 5: Factor Ideas Need Vintage Data More Than The Current Repo Has
 
@@ -190,28 +190,28 @@ Fix:
 
 ### Risk 6: Costs And Taxes Are Under-Specified
 
-The corpus repeatedly warns about turnover, leverage decay, frictions, and tax structure. For own capital, after-cost and after-tax survivability matters more than pretty gross returns.
+The corpus repeatedly warns about turnover, leverage decay, frictions, and tax structure. For self-funded capital, after-cost and after-tax survivability matters more than pretty gross returns.
 
 Fix:
 
 - Add slippage, commission, spread, tax, and turnover reports to every promotion decision.
 - Explicitly label before-tax vs after-tax evidence.
-- Penalize strategies that require frequent turnover unless they have strong current paper/live-shadow evidence.
+- Penalize strategies that require frequent turnover unless they have strong current paper trading/shadow trading evidence.
 
 ## Missing Architecture Pieces
 
-| Missing piece | Why it matters for own capital | Suggested owner |
-| --- | --- | --- |
-| Hypothesis registry | Prevents blog/article ideas from becoming ad hoc trades. | Backend + docs |
-| Broad research universe profiles | Needed for factor/momentum validity beyond a theme basket. | LEAN + config |
-| Vintage-data store | Prevents restated macro/fundamental/text data from creating false alpha. | Backend + data pipeline |
-| Numeric baseline runner | Establishes a durable baseline before LLM complexity. | LEAN + ML |
-| Ablation framework | Proves whether LLM adds value over numeric features. | Backend + LEAN import |
-| Selected-run-bias ledger | Prevents only winning Cloud runs from being promoted. | Backend |
-| Cost/slippage/tax model | Determines whether own-capital trading can survive real frictions. | LEAN + backend |
-| Broker-read-only adapter | Needed before any broker-write path. | Backend |
-| Append-only account ledger | Required for reconciliation, P&L, and tax review. | Backend |
-| Kill-switch and flatten drills | Required before real capital mutation. | Paper/live-shadow |
+| Missing piece                    | Why it matters for self-funded capital                                     | Suggested owner         |
+| -------------------------------- | -------------------------------------------------------------------------- | ----------------------- |
+| Hypothesis registry              | Prevents blog/article ideas from becoming ad hoc trades.                   | Backend + docs          |
+| Broad research universe profiles | Needed for factor/momentum validity beyond a theme basket.                 | LEAN + config           |
+| Vintage-data store               | Prevents restated macro/fundamental/text data from creating false alpha.   | Backend + data pipeline |
+| Numeric baseline runner          | Establishes a durable baseline before LLM complexity.                      | LEAN + ML               |
+| Ablation framework               | Proves whether LLM adds value over numeric features.                       | Backend + LEAN import   |
+| Selected-run-bias ledger         | Prevents only winning Cloud runs from being promoted.                      | Backend                 |
+| Cost/slippage/tax model          | Determines whether self-funded capital trading can survive real frictions. | LEAN + backend          |
+| Broker-read-only adapter         | Needed before any broker-write path.                                       | Backend                 |
+| Append-only account ledger       | Required for reconciliation, P&L, and tax review.                          | Backend                 |
+| Kill-switch and flatten drills   | Required before real capital mutation.                                     | Paper/shadow trading    |
 
 ## Recommended Build Order
 
@@ -219,12 +219,12 @@ Fix:
 2. Implement a liquid ETF trend-following baseline in LEAN.
 3. Implement momentum/daily-return numeric features and ablations.
 4. Add broad research profiles separate from the current theme universe.
-5. Add selected-run-bias checks for Cloud import and promotion.
+5. Add multiple-testing bias checks for Cloud import and promotion.
 6. Add cost/slippage/tax reporting to promotion decisions.
-7. Expand semantic alpha from FOMC evidence to filings/news only after the numeric baselines are stable.
+7. Expand LLM-derived alpha from FOMC evidence to filings/news only after the numeric baselines are stable.
 8. Build broker-read-only reconciliation.
-9. Draft the own-capital broker-write spec only after current paper/live-shadow runs are healthy.
-10. Revisit Darwinex/Zero only after the strategy has an own-capital-grade track record.
+9. Draft the self-funded capital broker-write spec only after current paper trading/shadow trading runs are healthy.
+10. Revisit Darwinex/Zero only after the strategy has an self-funded capital deployment-grade track record.
 
 ## Practical Conclusion
 
@@ -237,9 +237,9 @@ Alpha Architect hypothesis
   -> simple numeric baseline
   -> LEAN backtest
   -> Cloud import
-  -> current paper/live-shadow
+  -> current paper trading/shadow trading
   -> reconciliation
-  -> promotion report with cost and selected-run-bias checks
+  -> promotion report with cost and multiple-testing bias checks
 ```
 
-That slice serves own-capital allocation directly. Darwinex/Zero can only come after this works.
+That slice serves self-funded capital allocation directly. Darwinex/Zero can only come after this works.

@@ -8,63 +8,63 @@ Last aligned: 2026-05-27.
 
 The long-term product objective has two monetization tracks:
 
-1. Own-capital allocation: run the system continuously, allocate the operator's own pre-funded capital only after evidence gates pass, and keep broker-write behavior bounded, typed, and reconcilable.
+1. Self-funded capital allocation: run the system continuously, allocate the operator's own pre-funded capital only after promotion evidence, pre-trade risk checks, and reconciliation gates pass, and keep broker-write behavior bounded, typed, and reconcilable.
 2. External-capital fee path: use the same validated signal and track record to pursue Darwinex/Zero capital allocation and performance fees when the strategy is compatible with Darwinex instruments, execution, and risk standardization.
 
 This document approves the long-term direction. It does not approve immediate broker writes, exact capital limits, leverage, derivatives, or a specific broker adapter. Those still require a dedicated implementation spec before code can mutate a real account.
 
-Own-capital allocation has priority over Darwinex/Zero work. Darwinex/Zero is a downstream monetization venue, not a blocker for building the operator's own validated capital-allocation loop.
+Self-funded capital allocation has priority over Darwinex/Zero work. Darwinex/Zero is a downstream monetization venue, not a blocker for building the operator's own validated capital-allocation loop.
 
 ## Primary Hypothesis
 
 The project hypothesis is:
 
-> A point-in-time parallel research factory that combines durable numeric baselines, ML features, and LLM semantic alpha features can produce after-cost, benchmark-relative returns that survive QuantConnect Cloud validation, paper/live-shadow evidence, reconciliation, and later own-capital execution.
+> A point-in-time parallel research pipeline that combines durable numeric baselines, ML features, and LLM-derived features can produce after-cost, benchmark-relative returns that survive QuantConnect Cloud validation, paper trading/shadow trading artifacts, reconciliation, and later self-funded capital execution.
 
 This is a testable claim, not a product slogan. Every promotion review must be able to answer which part of the hypothesis passed or failed.
 
 The Alpha Architect corpus review changes the near-term priority:
 
 - first prove simple liquid trend-following, defensive allocation, momentum, and daily-return baselines;
-- then test whether LLM semantic alpha improves those baselines;
+- then test whether LLM-derived alpha improves those baselines;
 - defer factor crowding, factor valuation, macro regime, and filing-language strategies until the project has broad data and vintage controls;
-- defer Darwinex/Zero until own-capital-grade evidence exists.
+- defer Darwinex/Zero until self-funded capital deployment-grade evidence exists.
 
 ## Hypothesis Stack
 
-| ID | Hypothesis | Required comparison |
-| --- | --- | --- |
-| H1 | A simple numeric baseline has positive edge after costs on a liquid, testable universe. | Trend/momentum/defensive baseline vs benchmark, with drawdown, turnover, and slippage assumptions reported. |
-| H2 | LLM semantic alpha adds incremental edge beyond numeric/ML features. | Numeric-only vs LLM-only vs combined ablations. |
-| H3 | Point-in-time and vintage-data controls remove false alpha caused by future information or restated data. | Replay using `availableAt`, source hashes, and raw snapshot versions. |
-| H4 | The combined alpha survives QuantConnect Cloud evidence and current paper/live-shadow evidence. | Imported Cloud artifacts plus current paper/live-shadow records and reconciliation. |
-| H5 | Parallel hypothesis/backtest search does not create selected-run bias. | Complete run registry, failed/blocked/losing variants, parameter search space, and out-of-sample/live-shadow windows. |
-| H6 | The strategy remains usable after operational costs, taxes, latency, missed fills, and reconciliation blockers. | Live-shadow dwell-time reports, execution-cost assumptions, tax-context notes, and failure-case logs. |
-| H7 | The own-capital signal can later support Darwinex/Zero track-record monetization. | Own-capital-grade evidence first; Darwinex/Zero instrument mapping and track-record proof second. |
+| ID  | Hypothesis                                                                                                      | Required comparison                                                                                                      |
+| --- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| H1  | A simple numeric baseline has positive edge after costs on a liquid, testable universe.                         | Trend/momentum/defensive baseline vs benchmark, with drawdown, turnover, and slippage assumptions reported.              |
+| H2  | LLM-derived alpha adds incremental edge beyond numeric/ML features.                                             | Numeric-only vs LLM-only vs combined ablations.                                                                          |
+| H3  | Point-in-time and vintage-data controls remove false alpha caused by future information or restated data.       | Replay using `availableAt`, source hashes, and raw snapshot versions.                                                    |
+| H4  | The combined alpha survives QuantConnect Cloud artifacts and current paper trading/shadow trading artifacts.    | Imported Cloud artifacts plus current paper trading/shadow trading records and reconciliation.                           |
+| H5  | Parallel hypothesis/backtest search does not create multiple-testing bias.                                      | Complete run registry, failed/blocked/losing variants, parameter search space, and out-of-sample/shadow trading windows. |
+| H6  | The strategy remains usable after operational costs, taxes, latency, missed fills, and reconciliation blockers. | Shadow trading dwell-time reports, execution-cost assumptions, tax-context notes, and failure-case logs.                 |
+| H7  | The self-funded capital signal can later support Darwinex/Zero track-record monetization.                       | Self-funded capital deployment-grade evidence first; Darwinex/Zero instrument mapping and track-record proof second.     |
 
 No hypothesis can be marked accepted from a single lucky backtest, a selected winning run, or a local simulator artifact.
 
 ## End-To-End Direction
 
 ```text
-data and research evidence
+data and research artifacts
   -> point-in-time and vintage feature store
   -> parallel numeric/ML/LLM feature jobs and ablations
   -> LEAN Insights
   -> portfolio construction
   -> risk cuts
-  -> paper/live-shadow execution evidence
+  -> paper trading/shadow trading execution artifacts
   -> reconciliation
   -> learning and promotion ledger
-  -> own-capital broker-write candidate
+  -> self-funded capital broker-write candidate
   -> Darwinex/Zero track-record candidate
 ```
 
-The core loop remains data -> alpha -> backtest -> portfolio sizing -> risk -> execution evidence -> reconciliation -> learning. Dashboards, reports, and research notes support that loop; they do not replace it.
+The core loop remains data -> alpha -> backtest -> portfolio sizing -> risk -> execution artifacts -> reconciliation -> learning. Dashboards, reports, and research notes support that loop; they do not replace it.
 
-## Parallel Research Factory
+## Parallel Research Pipeline
 
-The Oracle Cloud ARM control plane should coordinate a bounded parallel research factory:
+The Oracle Cloud ARM control plane should coordinate a bounded parallel research pipeline:
 
 ```text
 research articles || data ingest || feature jobs || LLM jobs || ablations || backtests || Cloud imports
@@ -73,47 +73,47 @@ research articles || data ingest || feature jobs || LLM jobs || ablations || bac
 Those jobs may run concurrently. They must write durable job records and output hashes. The final portfolio/risk/execution path must remain single-writer:
 
 ```text
-promotion ledger -> portfolio targets -> risk cuts -> execution intent -> reconciliation -> preflight
+promotion ledger -> portfolio targets -> risk cuts -> execution intent -> reconciliation -> pre-trade risk check
 ```
 
-Parallelization is useful only when it improves evidence quality. It must not create hidden winning-run selection, duplicate artifacts, or multiple competing account states.
+Parallelization is useful only when it improves validation quality. It must not create hidden winning-run selection, duplicate artifacts, or multiple competing account states.
 
 ## Oracle Cloud ARM Operations
 
 The operator's Oracle Cloud ARM server is the preferred always-on control plane for low-cost continuous operation. Its responsibilities are:
 
-- schedule evidence ingestion, feature generation, alpha cycles, live-shadow runs, imports, reconciliation, and alerts;
+- schedule evidence ingestion, feature generation, alpha cycles, shadow trading runs, imports, reconciliation, and alerts;
 - schedule parallel hypothesis extraction, feature generation, ablation, and backtest jobs under resource and cost caps;
 - maintain point-in-time raw evidence, feature snapshots, run manifests, and promotion ledgers;
 - call QuantConnect Cloud or local LEAN commands when the platform and credentials allow it;
-- run lightweight model scoring and LLM semantic feature jobs within configured cost limits;
+- run lightweight model scoring and LLM-derived feature jobs within configured cost limits;
 - keep credentials in approved environment boundaries and never expose broker credentials to LLM prompts, frontend state, logs, or artifacts.
 
-The Oracle server is not automatically the strategy execution venue. QuantConnect/LEAN remains the validation and strategy runtime. A future own-capital broker adapter may run on the Oracle server only after the broker-write implementation spec defines supported methods, capital caps, kill-switch behavior, reconciliation requirements, deployment controls, and rollback drills.
+The Oracle server is not automatically the strategy execution venue. QuantConnect/LEAN remains the validation and strategy runtime. A future self-funded capital broker adapter may run on the Oracle server only after the broker-write implementation spec defines supported methods, capital caps, kill-switch behavior, reconciliation requirements, deployment controls, and rollback drills.
 
-## Own-Capital Track
+## Self-Funded Capital Track
 
-Own-capital trading is a long-term goal. The required progression is:
+Self-funded capital trading is a long-term goal. The required progression is:
 
 1. Research and data collection with point-in-time and vintage controls.
 2. Hypothesis registry with accepted, rejected, blocked, and deferred candidates.
 3. Simple numeric baselines for liquid trend, defensive allocation, momentum, and daily-return features.
-4. LLM semantic alpha ablations against those baselines.
-5. QuantConnect Cloud backtest/import evidence.
-6. Current paper/live-shadow evidence with reconciliation.
+4. LLM-derived alpha ablations against those baselines.
+5. QuantConnect Cloud backtest/import artifacts.
+6. Current paper trading/shadow trading artifacts with reconciliation.
 7. Broker-read-only reconciliation.
 8. Broker-write implementation spec for the selected broker and account type.
 9. Bounded initial live-money deployment with explicit maximum notional, loss limits, kill switch, cancel/flatten drills, and reconciliation fail-closed behavior.
 10. Ongoing learning loop that keeps failed, flat, blocked, and winning decisions.
 
-The system must not skip from a backtest to real orders. A green unit-test suite does not authorize own-capital deployment.
+The system must not skip from a backtest to real orders. A green unit-test suite does not authorize self-funded capital deployment.
 
 ## Darwinex/Zero Track
 
 Darwinex/Zero is a later monetization venue, not the research engine. The project should treat Darwinex/Zero as an external-capital track-record path:
 
 - the repo generates and validates alpha signals;
-- QuantConnect/LEAN supplies backtest and paper/live-shadow evidence;
+- QuantConnect/LEAN supplies backtest and paper trading/shadow trading artifacts;
 - a future Darwinex adapter maps approved signals to Darwinex/Zero-supported instruments and execution semantics;
 - Darwinex/Zero creates a DARWIN or similar track record where Darwinex's Risk Engine may standardize or resize risk independently of the source strategy;
 - performance fees are possible only when Darwinex/Zero or investor allocated capital produces profit under Darwinex rules.
@@ -131,7 +131,7 @@ Before any Darwinex adapter is implemented, the project must verify:
 
 ## Strategy Research Corpus
 
-Research articles, papers, and practitioner notes are useful alpha idea sources, but they are not executable strategy evidence. The corpus must store:
+Research articles, papers, and practitioner notes are useful alpha idea sources, but they are not executable strategy validation artifacts. The corpus must store:
 
 - source URL and publisher;
 - title, author, publication time, retrieval time, and parser version;
@@ -141,12 +141,12 @@ Research articles, papers, and practitioner notes are useful alpha idea sources,
 
 The LLM may use this corpus to propose hypotheses and counter-theses. It must not convert a research article directly into a broker order.
 
-The initial stored corpus is `references/alphaarchitect/`. Its strategy register identifies the first own-capital backlog:
+The initial stored corpus is `references/alphaarchitect/`. Its strategy register identifies the first self-funded capital backlog:
 
 - liquid trend-following and defensive allocation;
 - momentum, skip-month, volatility-conditioned, and daily-return features;
 - factor crowding, factor valuation, and macro regime features after broad data/vintage support exists;
-- filing/news/LLM semantic alpha after numeric baselines are stable.
+- filing/news/LLM-derived alpha after numeric baselines are stable.
 
 ## Vintage Data And Restatements
 
@@ -155,9 +155,9 @@ For macro, fundamentals, filings, estimates, index membership, and any source th
 - never overwrite a raw record in place when the source changes;
 - store each retrieved version with `retrievedAt`, `availableAt`, source hash, parser version, and prior-version reference when known;
 - report whether a backtest used originally available data, later-restated data, or a mixed source;
-- block promotion when the evidence path cannot distinguish original availability from restated values.
+- block promotion when the provenance path cannot distinguish original availability from restated values.
 
-This applies to LLM semantic evidence too. If the text was edited after publication, the replay should know which version the system could have read at the time.
+This applies to LLM text evidence too. If the text was edited after publication, the replay should know which version the system could have read at the time.
 
 ## Promotion Gates
 
@@ -167,22 +167,22 @@ The minimum long-term promotion ladder is:
 unit/schema tests
   -> direct local LEAN smoke or focused backtest
   -> QuantConnect Cloud backtest/import
-  -> paper cycle or live-shadow current evidence
+  -> paper cycle or shadow trading current artifacts
   -> reconciliation
   -> learning/promotion review
-  -> own-capital or Darwinex adapter-specific preflight
+  -> self-funded capital or Darwinex adapter-specific pre-trade risk check
 ```
 
 Every promotion decision must report:
 
 - hypothesis id, research refs, and strategy variant;
 - data vintage and point-in-time status;
-- attempted variants, failed runs, and selected-run-bias status;
+- attempted variants, failed runs, and multiple-testing bias status;
 - benchmark-relative and absolute returns;
 - after-cost assumptions;
 - drawdown, volatility, turnover, liquidity, and slippage;
-- elapsed validation time and out-of-sample/live-shadow period;
-- unit-test evidence separately from direct execution evidence;
+- elapsed validation time and out-of-sample/shadow trading period;
+- unit-test evidence separately from direct execution artifacts;
 - exact blockers for missing credentials, platform tier, data license, broker support, Darwinex support, or reconciliation mismatch.
 
 ## Non-Goals
@@ -205,5 +205,5 @@ Every promotion decision must report:
 - Alpha Architect factor research article: https://alphaarchitect.com/factor-strategies/
 - Alpha Architect stored corpus: ../../references/alphaarchitect/README.md
 - Alpha Architect strategy register: ../../references/alphaarchitect/strategy-register.md
-- Own-capital corpus review: ../own-capital-alphaarchitect-corpus-review.md
-- Parallel research factory spec: 10-parallel-research-factory.md
+- Self-funded capital corpus review: ../own-capital-alphaarchitect-corpus-review.md
+- Parallel research pipeline spec: 10-parallel-research-factory.md

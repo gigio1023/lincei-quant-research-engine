@@ -58,9 +58,7 @@ export class HuggingFaceSemanticEvidenceIngestService {
         recordsSeen: 0,
         recordsCreated: 0,
         recordsExisting: 0,
-        blockers: [
-          `Unsupported Hugging Face semantic evidence source: ${source}.`,
-        ],
+        blockers: [`Unsupported Hugging Face text evidence source: ${source}.`],
       };
     }
 
@@ -129,7 +127,7 @@ export class HuggingFaceSemanticEvidenceIngestService {
     if (sourcePath) {
       if (!existsSync(sourcePath)) {
         throw new Error(
-          `Hugging Face semantic evidence file not found: ${sourcePath}`,
+          `Hugging Face text evidence file not found: ${sourcePath}`,
         );
       }
       return readFileSync(sourcePath, 'utf8');

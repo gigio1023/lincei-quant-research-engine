@@ -30,10 +30,10 @@ export const CycleHero = ({ model }: CycleHeroProps) => {
             Backtest-Based Architecture Cycle
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-[#929aa5]">
-            This view treats QuantConnect Cloud/LEAN backtest import as the
-            baseline evidence, then shows how alpha, portfolio targets, paper
-            execution, broker-safe shadowing, preflight, and learning should
-            advance without enabling real-money broker writes.
+            This view treats QuantConnect Cloud/LEAN backtest imports as the
+            baseline validation artifacts, then shows how alpha, portfolio
+            targets, paper trading, shadow trading, pre-trade risk checks, and
+            learning should advance without enabling real-money broker writes.
           </p>
 
           <div className="mt-5 flex flex-wrap gap-2">

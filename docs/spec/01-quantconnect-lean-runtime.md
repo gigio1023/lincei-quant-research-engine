@@ -21,17 +21,17 @@ The repo control plane owns orchestration and evidence:
 - cloud/local run commands;
 - result import;
 - acceptance gates;
-- paper/live-shadow ledgers;
+- paper trading/shadow trading ledgers;
 - broker-boundary state;
 - reconciliation and operator visibility.
 
-The operator's Oracle Cloud ARM server is an always-on deployment target for the control plane, not a replacement for LEAN. It may schedule ingestion, hypothesis extraction, feature jobs, LLM semantic feature jobs, ablations, QuantConnect Cloud imports, paper/live-shadow cycles, reconciliation, and alerts. It must not become an unreviewed broker-write host.
+The operator's Oracle Cloud ARM server is an always-on deployment target for the control plane, not a replacement for LEAN. It may schedule ingestion, hypothesis extraction, feature jobs, LLM-derived feature jobs, ablations, QuantConnect Cloud imports, paper trading/shadow trading cycles, reconciliation, and alerts. It must not become an unreviewed broker-write host.
 
 Darwinex/Zero is not a replacement for QuantConnect Cloud or LEAN. It is a later external-capital monetization venue that may consume a validated signal and track record after a separate adapter spec proves instrument mapping, execution behavior, and risk-engine effects.
 
 ## QuantConnect Cloud Is Promotion Runtime
 
-Local LEAN is required, but it is not enough for promotion. Strategy promotion needs QuantConnect Cloud evidence when credentials and account tier allow it.
+Local LEAN is required, but it is not enough for promotion. Strategy promotion needs QuantConnect Cloud artifacts when credentials and account tier allow it.
 
 Local LEAN is valid for:
 
@@ -47,10 +47,10 @@ QuantConnect Cloud is required for:
 - promotion backtests with platform data;
 - cloud project compile checks;
 - cloud backtest result import;
-- paper or live-shadow deployment evidence;
+- paper or shadow trading deployment evidence;
 - Research/Object Store workflows that rely on QuantConnect-managed environment behavior.
 
-Own-capital and Darwinex/Zero decisions must not skip QuantConnect Cloud evidence unless a future spec explicitly replaces the promotion runtime with a stronger directly verified path.
+Self-funded capital and Darwinex/Zero decisions must not skip QuantConnect Cloud artifacts unless a future spec explicitly replaces the promotion runtime with a stronger directly verified path.
 
 ## Algorithm Framework Shape
 
@@ -76,7 +76,7 @@ Use Object Store or a custom-data archive for:
 - model artifacts;
 - feature manifests;
 - strategy parameters;
-- replay fixtures shared between Research, backtest, and paper/live-shadow modes.
+- replay fixtures shared between Research, backtest, and paper trading/shadow trading modes.
 
 Every artifact needs a version, source hash, creation time, and availability time when it can affect alpha.
 
@@ -90,7 +90,7 @@ Expected automation:
 - run cloud compile/backtest jobs;
 - read backtest statistics, orders, charts, and insights through the QuantConnect REST API;
 - upload/read Object Store artifacts;
-- later start/stop paper or live-shadow deployments if the spec allows it.
+- later start/stop paper or shadow trading deployments if the spec allows it.
 
 Every cloud action must produce a local run record. The record must include command/API call, project id or name, backtest id if available, source hash, parameter hash, artifact refs, status, and blocker reasons.
 

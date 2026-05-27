@@ -174,7 +174,7 @@ export class ResearchFactoryService {
         ? 'No passed ablation, backtest, or Cloud-import variant is recorded.'
         : '',
       failedOrBlockedVariantCount === 0
-        ? 'No failed or blocked variant is recorded; selected-run-bias protection needs rejected evidence too.'
+        ? 'No failed or blocked variant is recorded; multiple-testing bias protection needs rejected artifacts too.'
         : '',
     ].filter(Boolean);
     const checkedAt = new Date().toISOString();
@@ -208,7 +208,7 @@ export class ResearchFactoryService {
         partitionKey: options.hypothesisId ?? targetRef,
         inputRefs: variantJobRefs,
         inputHash: hashObject({ targetRef, minVariantCount, jobs }),
-        outputRefs: [`selected-run-bias:${targetRef}`],
+        outputRefs: [`multiple-testing-bias:${targetRef}`],
         outputHash: hashObject(result),
         startedAt: checkedAt,
         completedAt: checkedAt,

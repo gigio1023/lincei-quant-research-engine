@@ -115,7 +115,7 @@ Key metrics:
 - return by score decile;
 - turnover;
 - fees and slippage;
-- live-shadow degradation;
+- shadow trading degradation;
 - calibration curve for confidence.
 
 ## Hardware Plans
@@ -200,8 +200,8 @@ No trained model may affect real capital until the broker-write implementation s
 
 - it beats numeric rule baseline after costs;
 - it survives walk-forward validation;
-- it has paper/live-shadow evidence;
+- it has paper trading/shadow trading evidence;
 - it has calibration evidence;
 - it has failure-mode docs;
-- selected-run-bias controls when it came from parallel sweeps;
+- multiple-testing bias controls when it came from parallel sweeps;
 - rollback to the previous model is tested.

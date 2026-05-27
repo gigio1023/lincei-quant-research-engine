@@ -110,7 +110,7 @@ export class LeanPaperBridgeService {
       strategyFamily: 'aggressive_llm_momentum',
       hypothesis:
         mode === 'historical-target-replay'
-          ? 'Historical LEAN targets can exercise the paper execution plumbing without becoming live-readiness evidence.'
+          ? 'Historical LEAN targets can exercise the paper execution plumbing without becoming broker-write pre-trade risk check artifacts.'
           : 'Imported LEAN targets can execute in paper mode.',
       datasetRefs: [
         {
@@ -140,15 +140,15 @@ export class LeanPaperBridgeService {
       knownFailureModes:
         mode === 'historical-target-replay'
           ? [
-              'Paper replay uses historical target timestamps and is not current market evidence.',
-              'Live preflight must ignore paper-replay evidence refs.',
+              'Paper replay uses historical target timestamps and is not a current-market artifact.',
+              'The live-preflight legacy command must ignore paper-replay evidence refs.',
             ]
           : ['Paper bridge depends on LEAN target import.'],
     });
 
     const orders = this.buildOrders(snapshot.targets);
     const now = new Date().toISOString();
-    // Historical replay must carry an explicit paper-replay evidence ref; live preflight rejects it so a fresh replay timestamp cannot masquerade as current market evidence.
+    // Historical replay must carry an explicit paper-replay evidence ref; the live-preflight legacy command rejects it so a fresh replay timestamp cannot masquerade as a current-market artifact.
     const marketDataTimestamp =
       mode === 'historical-target-replay' ? now : snapshot.asOf;
     const proposal = await this.controlPlaneService.createProposal({
@@ -168,7 +168,7 @@ export class LeanPaperBridgeService {
       orders,
       thesis:
         mode === 'historical-target-replay'
-          ? `Historical paper replay from LEAN targets as of ${snapshot.asOf}; not live-readiness evidence.`
+          ? `Historical paper replay from LEAN targets as of ${snapshot.asOf}; not broker-write pre-trade risk check evidence.`
           : 'Paper cycle from latest LEAN portfolio targets.',
       evidenceRefs: [
         leanRunEvidenceRef,

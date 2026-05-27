@@ -47,7 +47,7 @@ bun run migration:show
 bun run migration:run
 ```
 
-Migration state is part of preflight evidence. Unknown migration state should block execution-like paths.
+Migration state is part of pre-trade risk check artifacts. Unknown migration state should block execution-like paths.
 
 ## Validation Deployment Checklist
 

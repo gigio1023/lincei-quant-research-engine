@@ -85,12 +85,12 @@ export class LearningLoopService {
       }
     }
     if (!liveShadow) {
-      blockers.push('No live-shadow evidence exists.');
+      blockers.push('No shadow trading record exists.');
     } else if (liveShadow.status !== 'recorded') {
-      blockers.push('Latest live-shadow evidence is blocked.');
+      blockers.push('Latest shadow trading record is blocked.');
     } else if (liveShadow.evidenceMode !== 'current_live_shadow') {
       blockers.push(
-        `Latest live-shadow evidence mode is ${liveShadow.evidenceMode}; current_live_shadow required for promotion.`,
+        `Latest shadow trading evidenceMode legacy field is ${liveShadow.evidenceMode}; current_live_shadow required for promotion.`,
       );
     }
 

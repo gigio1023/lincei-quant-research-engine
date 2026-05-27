@@ -12,11 +12,11 @@ Status: active agent guidance. `AGENTS.md`, `SPEC.md`, linked `docs/spec/` files
 ## Core Project Direction
 
 - The project is a LEAN/QuantConnect + LLM autonomous alpha research engine.
-- The core loop is: data -> alpha -> LEAN insight -> portfolio target -> risk -> paper/live-shadow order intent -> fill or would-have-traded evidence -> reconciliation -> learning.
+- The core loop is: data -> alpha -> LEAN insight -> portfolio target -> risk -> paper trading/shadow trading order intent -> fill or would-have-traded evidence -> reconciliation -> learning.
 - Prioritize work that makes this loop executable, inspectable, and reproducible.
 - Dashboards, reports, ledgers, and settings are support surfaces. They should not displace missing alpha generation, backtesting, portfolio sizing, risk, execution, reconciliation, or learning behavior.
 - Keep LEAN as the strategy runtime. The NestJS control plane can orchestrate, validate, import, reconcile, and learn from evidence; it should not reimplement LEAN portfolio/risk/execution semantics.
-- Keep the LLM inside the alpha and risk-judgment loop through typed semantic features and explanations. Do not let the LLM access broker credentials, raw order payloads, or final order quantities.
+- Keep the LLM inside the alpha and risk-judgment loop through typed LLM-derived features and explanations. Do not let the LLM access broker credentials, raw order payloads, or final order quantities.
 
 ## Research And Reasoning Discipline
 
@@ -48,7 +48,7 @@ Use these Karpathy-style guidelines to avoid common LLM coding mistakes. They bi
 - For multi-step work, keep a short plan where each step includes how it will be verified.
 - Loop until the relevant command, direct execution path, artifact, or explicit blocker is captured.
 - Distinguish unit-test evidence from direct engine evidence. A passing unit test does not prove a meaningful QuantConnect/LEAN path.
-- For this repository, strong verification usually means one of: LEAN local backtest, QuantConnect Cloud backtest/import, alpha replay, paper cycle, live-shadow cycle, preflight, reconciliation, learning loop, build/type check, or a focused state-based unit test.
+- For this repository, strong verification usually means one of: LEAN local backtest, QuantConnect Cloud backtest/import, alpha replay, paper cycle, shadow trading cycle, pre-trade risk check, reconciliation, learning loop, build/type check, or a focused state-based unit test.
 
 ## Platform Portability
 
@@ -75,10 +75,10 @@ uname -m
 
 ## Current Architecture Map
 
-- `backend/`: NestJS control plane for V1 pilot workflows, evidence ingestion, LLM semantic features, LEAN artifact import, paper/live-shadow cycles, preflight, reconciliation, and learning.
+- `backend/`: NestJS control plane for V1 pilot workflows, evidence ingestion, LLM-derived features, LEAN artifact import, paper trading/shadow trading cycles, pre-trade risk check, reconciliation, and learning.
 - `lean/`: LEAN/QuantConnect strategy runtime and Framework models.
-- `frontend/`: operational dashboard for readiness, blockers, evidence, and next safe actions.
-- `scripts/`: operator entry points for setup, QuantConnect Cloud push/backtest/import, local backtest, alpha cycle, paper/live-shadow, preflight, reconciliation, learning, and semantic evidence ingestion.
+- `frontend/`: operational dashboard for status, blockers, artifacts, and next safe actions.
+- `scripts/`: operator entry points for setup, QuantConnect Cloud push/backtest/import, local backtest, alpha cycle, paper trading/shadow trading, pre-trade risk checks, reconciliation, learning, and text evidence ingestion.
 - `docs/spec/`: active subsystem specifications linked from `SPEC.md`.
 - `artifacts/`: generated run evidence, latest pointers, LEAN run exports, import results, and learning artifacts.
 
@@ -130,13 +130,13 @@ Use the smallest command set that proves the affected behavior. If a direct engi
 - Frontend changes need typecheck/build plus the relevant Vitest or lint command.
 - LEAN runtime changes need a local strategy smoke/backtest when data is available, or a QuantConnect Cloud package/push/build check when cloud is the target.
 - QuantConnect Cloud result ingestion should preserve run id, project id, backtest id, runtime, insight count, order count, fill/order-event count, promotion eligibility, and artifact path.
-- Broker, paper, live-shadow, preflight, reconciliation, and cap changes must include at least one blocked/failure case. Unknown state is blocked.
+- Broker, paper, shadow trading, pre-trade risk check, reconciliation, and cap changes must include at least one blocked/failure case. Unknown state is blocked.
 
 ## Communication
 
 - Be explicit and context-rich with the user. Explain what changed, why it changed, how it was verified, and what remains uncertain.
 - Do not flood the user with raw logs. Summarize the important result and point to the command, artifact path, run id, or file.
-- Clearly distinguish "simulator passed", "Cloud import passed", "strategy evidence passed", "preflight blocked by policy", and "command failed".
+- Clearly distinguish "simulator passed", "Cloud import passed", "strategy validation artifacts passed", "pre-trade risk check blocked by policy", and "command failed".
 - If platform-sensitive behavior was involved, include `Darwin arm64`, `Linux aarch64`, `Linux ARM64`, `Apple Silicon`, or `x86_64` context as appropriate.
 
 ## Outdated Surfaces

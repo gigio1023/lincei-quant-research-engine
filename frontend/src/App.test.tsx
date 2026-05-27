@@ -268,7 +268,7 @@ vi.mock("./services/api", () => ({
           checkedAt: "2026-05-22T09:00:00.000Z",
           maxPilotNotionalUsd: 10,
           broker: "toss",
-          blockers: ["Test preflight blocked."],
+          blockers: ["Test pre-trade risk check blocked."],
           requiredFlags: {},
           openOrderRefs: [],
           credentialMode: "missing",
@@ -276,14 +276,16 @@ vi.mock("./services/api", () => ({
         stages: [
           {
             key: "live_preflight",
-            label: "Live Preflight",
+            label: "Pre-Trade Risk Check",
             status: "blocked",
             detail: "blocked",
-            blockers: ["Test preflight blocked."],
+            blockers: ["Test pre-trade risk check blocked."],
             refs: [],
           },
         ],
-        nextActions: ["Resolve Live Preflight: Test preflight blocked."],
+        nextActions: [
+          "Resolve Pre-Trade Risk Check: Test pre-trade risk check blocked.",
+        ],
       }),
     ),
     listLeanRuns: vi.fn(() => Promise.resolve([])),

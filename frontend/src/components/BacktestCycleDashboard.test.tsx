@@ -71,7 +71,7 @@ vi.mock("../services/api", () => ({
           },
           {
             key: "live_preflight",
-            label: "Live Preflight",
+            label: "Pre-Trade Risk Check",
             status: "blocked",
             detail: "blocked",
             blockers: ["Broker writes require a future approved spec."],
@@ -79,7 +79,7 @@ vi.mock("../services/api", () => ({
           },
         ],
         nextActions: [
-          "Resolve Live Preflight: Broker writes require a future approved spec.",
+          "Resolve Pre-Trade Risk Check: Broker writes require a future approved spec.",
         ],
       }),
     ),
@@ -103,7 +103,7 @@ describe("BacktestCycleDashboard", () => {
     });
 
     expect(
-      screen.getAllByText("Cloud/LEAN Backtest Evidence").length,
+      screen.getAllByText("Cloud/LEAN Backtest Results").length,
     ).toBeGreaterThan(0);
     expect(screen.getByText("One-Cycle Runbook")).toBeInTheDocument();
     expect(
