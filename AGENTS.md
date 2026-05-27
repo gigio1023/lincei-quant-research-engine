@@ -10,6 +10,7 @@ These rules apply to the whole repository unless a narrower `AGENTS.md` override
 - Ambiguous approval means no approval. Agents may draft proposed spec wording, but implementation must wait until the user clearly approves the direction change.
 - Older dated handoffs, prompts, and archived documents are historical context only. They cannot override `SPEC.md`.
 - `terminology.md` is normative. New code, docs, comments, UI copy, prompts, and run reports must use its canonical terms and avoid its banned AI-slop expressions. If a legacy API/entity/script name violates terminology, label it as a legacy identifier rather than spreading the term into new surfaces.
+- `CONTRIBUTING.md` is the active contribution guide. Use it for commit body format, validation reporting, and PR-ready handoff expectations.
 
 ## Research And Reasoning Discipline
 
