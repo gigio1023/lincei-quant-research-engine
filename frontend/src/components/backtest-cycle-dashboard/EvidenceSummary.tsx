@@ -9,12 +9,12 @@ export const EvidenceSummary = ({ model }: EvidenceSummaryProps) => {
   const status = model.status;
 
   return (
-    <section className="rounded-xl border border-[#2b3139] bg-[#181a20] p-4">
+    <section className="rounded-lg border border-[#2b3139] bg-[#181a20] p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-white">Evidence Summary</h2>
           <p className="mt-1 text-sm text-[#929aa5]">
-            Current stored state behind the cycle view.
+            Current stored state behind the active milestone.
           </p>
         </div>
         <span
@@ -25,7 +25,24 @@ export const EvidenceSummary = ({ model }: EvidenceSummaryProps) => {
       </div>
 
       <div className="mt-4 divide-y divide-[#2b3139] text-sm">
+        <Row
+          label="Milestone"
+          value={
+            status
+              ? `${status.currentMilestone.readyStageCount}/${status.currentMilestone.currentStageCount} ready`
+              : "missing"
+          }
+        />
+        <Row
+          label="Variants"
+          value={
+            status
+              ? `${status.research.variantJobCount} retained / ${status.research.failedOrBlockedVariantJobCount} rejected`
+              : "missing"
+          }
+        />
         <Row label="LEAN run" value={status?.leanRun?.runId ?? "missing"} />
+        <Row label="Cloud run" value={status?.cloudRun?.runId ?? "missing"} />
         <Row
           label="Project"
           value={status?.leanRun?.projectName ?? "aggressive_llm_momentum"}
@@ -57,6 +74,10 @@ export const EvidenceSummary = ({ model }: EvidenceSummaryProps) => {
         <Row
           label="Broker"
           value={`${status?.broker.provider ?? "none"} / open orders ${status?.broker.openOrderCount ?? 0}`}
+        />
+        <Row
+          label="Deferred"
+          value={`${status?.currentMilestone.deferredStageCount ?? 0} future stages`}
         />
       </div>
 

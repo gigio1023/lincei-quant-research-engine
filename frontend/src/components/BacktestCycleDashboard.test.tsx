@@ -8,10 +8,31 @@ vi.mock("../services/api", () => ({
       Promise.resolve({
         checkedAt: "2026-05-26T07:12:56.000Z",
         verdict: "blocked",
+        currentMilestone: {
+          key: "self-funded-capital-evidence",
+          label: "Self-Funded Capital Evidence Milestone",
+          verdict: "blocked",
+          readyStageCount: 6,
+          blockedStageCount: 2,
+          missingStageCount: 1,
+          currentStageCount: 9,
+          deferredStageCount: 3,
+        },
         leanRun: {
           runId: "qc-import-ecd033aae81e",
           status: "passed",
           projectName: "aggressive_llm_momentum",
+          runtime: "quantconnect-cloud",
+          cloudProjectId: "32077023",
+          cloudBacktestId: "bt-1",
+        },
+        cloudRun: {
+          runId: "qc-import-ecd033aae81e",
+          status: "passed",
+          projectName: "aggressive_llm_momentum",
+          runtime: "quantconnect-cloud",
+          cloudProjectId: "32077023",
+          cloudBacktestId: "bt-1",
         },
         alpha: {
           featureSnapshotCount: 12,
@@ -30,6 +51,9 @@ vi.mock("../services/api", () => ({
           latestJobId: "research-job-hypothesis-extraction-1",
           latestJobStatus: "passed",
           latestJobType: "hypothesis-extraction",
+          variantJobCount: 4,
+          passedVariantJobCount: 2,
+          failedOrBlockedVariantJobCount: 2,
         },
         portfolioTarget: {
           id: "target-1",
@@ -65,6 +89,8 @@ vi.mock("../services/api", () => ({
             key: "lean_backtest",
             label: "LEAN Backtest",
             status: "ready",
+            scope: "current",
+            blocksCurrentMilestone: true,
             detail: "qc-import-ecd033aae81e / passed",
             blockers: [],
             refs: ["qc-import-ecd033aae81e"],
@@ -73,6 +99,8 @@ vi.mock("../services/api", () => ({
             key: "live_preflight",
             label: "Pre-Trade Risk Check",
             status: "blocked",
+            scope: "current",
+            blocksCurrentMilestone: true,
             detail: "blocked",
             blockers: ["Broker writes require a future approved spec."],
             refs: [],
@@ -92,7 +120,7 @@ describe("BacktestCycleDashboard", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "Backtest-Based Architecture Cycle",
+        name: "Self-Funded Capital Evidence Loop",
       }),
     ).toBeInTheDocument();
 
@@ -103,9 +131,9 @@ describe("BacktestCycleDashboard", () => {
     });
 
     expect(
-      screen.getAllByText("Cloud/LEAN Backtest Results").length,
+      screen.getAllByText("QuantConnect Cloud Import").length,
     ).toBeGreaterThan(0);
-    expect(screen.getByText("One-Cycle Runbook")).toBeInTheDocument();
+    expect(screen.getByText("Operator Runbook")).toBeInTheDocument();
     expect(
       screen.getAllByText("./scripts/run-learning-loop").length,
     ).toBeGreaterThan(0);

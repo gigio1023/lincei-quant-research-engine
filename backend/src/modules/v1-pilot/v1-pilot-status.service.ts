@@ -18,6 +18,7 @@ import {
 } from './contracts/v1-pilot.contracts';
 import { MlModelRegistryService } from './ml/ml-model-registry.service';
 import {
+  buildV1CurrentMilestoneStatus,
   buildV1NextActions,
   buildV1SystemStages,
 } from './v1-pilot-status-stage.builder';
@@ -61,6 +62,7 @@ export class V1PilotStatusService {
       alphaCounts,
       latestAlpha,
       latestLeanRun,
+      latestCloudRun,
       latestBrokerSnapshot,
       latestBrokerFill,
       latestIntent,
@@ -75,6 +77,15 @@ export class V1PilotStatusService {
       this.leanRunRepository.findOne({
         where: {
           mode: 'backtest',
+          status: 'passed',
+          promotionEligible: true,
+        },
+        order: { completedAt: 'DESC' },
+      }),
+      this.leanRunRepository.findOne({
+        where: {
+          mode: 'backtest',
+          runtime: 'quantconnect-cloud',
           status: 'passed',
           promotionEligible: true,
         },
@@ -113,9 +124,10 @@ export class V1PilotStatusService {
       }),
       this.researchFactoryService.getStatus(),
     ]);
-    const latestTarget = latestLeanRun
+    const evidenceLeanRun = latestCloudRun ?? latestLeanRun;
+    const latestTarget = evidenceLeanRun
       ? await this.targetRepository.findOne({
-          where: { leanRunId: latestLeanRun.runId },
+          where: { leanRunId: evidenceLeanRun.runId },
           order: { asOf: 'DESC' },
         })
       : await this.targetRepository.findOne({
@@ -123,9 +135,9 @@ export class V1PilotStatusService {
           order: { asOf: 'DESC' },
         });
     const paperPlan =
-      latestLeanRun && latestTarget
+      evidenceLeanRun && latestTarget
         ? await this.findPaperPlanForEvidence(
-            latestLeanRun.runId,
+            evidenceLeanRun.runId,
             latestTarget.id,
           )
         : await this.paperPlanRepository.findOne({
@@ -133,9 +145,9 @@ export class V1PilotStatusService {
             order: { updatedAt: 'DESC' },
           });
     const paperReplayPlan =
-      latestLeanRun && latestTarget
+      evidenceLeanRun && latestTarget
         ? await this.findPaperReplayPlanForEvidence(
-            latestLeanRun.runId,
+            evidenceLeanRun.runId,
             latestTarget.id,
           )
         : null;
@@ -195,27 +207,39 @@ export class V1PilotStatusService {
     const stages = buildV1SystemStages({
       research,
       alpha,
-      latestLeanRun,
+      latestLeanRun: evidenceLeanRun,
+      latestCloudRun,
       portfolioTarget,
       paper,
       broker,
       preflight,
       livePilot,
     });
+    const currentMilestone = buildV1CurrentMilestoneStatus(stages);
     const nextActions = buildV1NextActions(stages);
 
     return {
       checkedAt,
-      verdict: stages.every((stage) => stage.status === 'ready')
-        ? 'ready'
-        : stages.some((stage) => stage.status === 'blocked')
-          ? 'blocked'
-          : 'missing',
-      leanRun: latestLeanRun
+      verdict: currentMilestone.verdict,
+      currentMilestone,
+      leanRun: evidenceLeanRun
         ? {
-            runId: latestLeanRun.runId,
-            status: latestLeanRun.status,
-            projectName: latestLeanRun.projectName,
+            runId: evidenceLeanRun.runId,
+            status: evidenceLeanRun.status,
+            projectName: evidenceLeanRun.projectName,
+            runtime: evidenceLeanRun.runtime,
+            cloudProjectId: evidenceLeanRun.cloudProjectId,
+            cloudBacktestId: evidenceLeanRun.cloudBacktestId,
+          }
+        : null,
+      cloudRun: latestCloudRun
+        ? {
+            runId: latestCloudRun.runId,
+            status: latestCloudRun.status,
+            projectName: latestCloudRun.projectName,
+            runtime: 'quantconnect-cloud',
+            cloudProjectId: latestCloudRun.cloudProjectId,
+            cloudBacktestId: latestCloudRun.cloudBacktestId,
           }
         : null,
       alpha,

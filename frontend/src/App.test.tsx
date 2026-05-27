@@ -246,7 +246,18 @@ vi.mock("./services/api", () => ({
       Promise.resolve({
         checkedAt: "2026-05-22T09:00:00.000Z",
         verdict: "blocked",
+        currentMilestone: {
+          key: "self-funded-capital-evidence",
+          label: "Self-Funded Capital Evidence Milestone",
+          verdict: "blocked",
+          readyStageCount: 0,
+          blockedStageCount: 1,
+          missingStageCount: 8,
+          currentStageCount: 9,
+          deferredStageCount: 3,
+        },
         leanRun: null,
+        cloudRun: null,
         alpha: {
           featureSnapshotCount: 0,
           numericDecisionCount: 0,
@@ -258,6 +269,9 @@ vi.mock("./services/api", () => ({
           hypothesisCount: 0,
           p1CandidateCount: 0,
           outOfScopeCount: 0,
+          variantJobCount: 0,
+          passedVariantJobCount: 0,
+          failedOrBlockedVariantJobCount: 0,
         },
         portfolioTarget: { targetCount: 0 },
         paper: { status: "missing", fillCount: 0 },
@@ -278,6 +292,8 @@ vi.mock("./services/api", () => ({
             key: "live_preflight",
             label: "Pre-Trade Risk Check",
             status: "blocked",
+            scope: "current",
+            blocksCurrentMilestone: true,
             detail: "blocked",
             blockers: ["Test pre-trade risk check blocked."],
             refs: [],
@@ -304,7 +320,7 @@ describe("App", () => {
     await waitFor(() => {
       expect(
         screen.getByRole("heading", {
-          name: "Backtest-Based Architecture Cycle",
+          name: "Self-Funded Capital Evidence Loop",
         }),
       ).toBeInTheDocument();
     });
@@ -319,7 +335,7 @@ describe("App", () => {
     expect(document.querySelector(".min-h-screen")).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.getByText("One-Cycle Runbook")).toBeInTheDocument();
+      expect(screen.getByText("Operator Runbook")).toBeInTheDocument();
     });
   });
 
@@ -348,12 +364,12 @@ describe("App", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "Backtest-Based Architecture Cycle",
+        name: "Self-Funded Capital Evidence Loop",
       }),
     ).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.getByText("One-Cycle Runbook")).toBeInTheDocument();
+      expect(screen.getByText("Operator Runbook")).toBeInTheDocument();
     });
   });
 });

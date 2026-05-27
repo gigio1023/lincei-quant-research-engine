@@ -1,12 +1,26 @@
 export type V1SystemStageStatus = "ready" | "blocked" | "missing";
+export type V1SystemStageScope = "current" | "deferred";
 
 export interface V1SystemStage {
   key: string;
   label: string;
   status: V1SystemStageStatus;
+  scope: V1SystemStageScope;
+  blocksCurrentMilestone: boolean;
   detail: string;
   blockers: string[];
   refs: string[];
+}
+
+export interface V1CurrentMilestoneStatus {
+  key: "self-funded-capital-evidence";
+  label: string;
+  verdict: V1SystemStageStatus;
+  readyStageCount: number;
+  blockedStageCount: number;
+  missingStageCount: number;
+  currentStageCount: number;
+  deferredStageCount: number;
 }
 
 export interface V1PilotPreflightStatus {
@@ -26,10 +40,22 @@ export interface V1PilotPreflightStatus {
 export interface V1PilotSystemStatus {
   checkedAt: string;
   verdict: V1SystemStageStatus;
+  currentMilestone: V1CurrentMilestoneStatus;
   leanRun: {
     runId: string;
     status: string;
     projectName: string;
+    runtime: string;
+    cloudProjectId?: string;
+    cloudBacktestId?: string;
+  } | null;
+  cloudRun: {
+    runId: string;
+    status: string;
+    projectName: string;
+    runtime: "quantconnect-cloud";
+    cloudProjectId?: string;
+    cloudBacktestId?: string;
   } | null;
   alpha: {
     featureSnapshotCount: number;
@@ -49,6 +75,12 @@ export interface V1PilotSystemStatus {
     latestJobId?: string;
     latestJobStatus?: string;
     latestJobType?: string;
+    variantJobCount: number;
+    passedVariantJobCount: number;
+    failedOrBlockedVariantJobCount: number;
+    latestVariantJobId?: string;
+    latestVariantJobStatus?: string;
+    latestVariantJobType?: string;
   };
   portfolioTarget: {
     id?: string;

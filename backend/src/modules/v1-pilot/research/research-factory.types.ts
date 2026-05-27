@@ -61,4 +61,10 @@ export interface ResearchFactoryStatus {
   latestJobId?: string;
   latestJobStatus?: ResearchJobStatus;
   latestJobType?: ResearchJobType;
+  variantJobCount: number;
+  passedVariantJobCount: number;
+  failedOrBlockedVariantJobCount: number;
+  latestVariantJobId?: string;
+  latestVariantJobStatus?: ResearchJobStatus;
+  latestVariantJobType?: ResearchJobType;
 }

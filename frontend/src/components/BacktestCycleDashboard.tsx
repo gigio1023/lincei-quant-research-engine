@@ -7,6 +7,7 @@ import { useBacktestCycleDashboard } from "./backtest-cycle-dashboard/useBacktes
 
 const BacktestCycleDashboard = () => {
   const model = useBacktestCycleDashboard();
+  const currentStages = [...model.parallelStages, ...model.singleWriterStages];
 
   return (
     <div className="min-h-screen bg-[#0b0e11] px-4 py-4 text-[#eaecef] sm:px-5 lg:px-6">
@@ -14,7 +15,7 @@ const BacktestCycleDashboard = () => {
         <CycleHero model={model} />
         <ArchitectureFlow stages={model.stages} />
         <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
-          <CycleStageGrid stages={model.stages} />
+          <CycleStageGrid stages={currentStages} />
           <div className="space-y-4">
             <EvidenceSummary model={model} />
             <CycleRunbook />

@@ -1,11 +1,11 @@
 import { CYCLE_RUNBOOK } from "./cycleModel";
 
 export const CycleRunbook = () => (
-  <section className="rounded-xl border border-[#2b3139] bg-[#181a20] p-4">
-    <h2 className="text-lg font-bold text-white">One-Cycle Runbook</h2>
+  <section className="rounded-lg border border-[#2b3139] bg-[#181a20] p-4">
+    <h2 className="text-lg font-bold text-white">Operator Runbook</h2>
     <p className="mt-1 text-sm leading-6 text-[#929aa5]">
-      These commands avoid paid local QuantConnect data downloads by treating
-      Cloud backtest import as the strategy validation anchor.
+      Run these in order when refreshing the current self-funded capital
+      evidence loop.
     </p>
 
     <ol className="mt-4 space-y-3">

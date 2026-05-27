@@ -4,6 +4,8 @@ import type { V1PilotSystemStatus } from "../../types/v1Pilot";
 import {
   buildCycleMetrics,
   buildCycleStages,
+  currentMilestoneBlockers,
+  splitCycleStages,
   type CycleMetric,
   type CycleStageView,
 } from "./cycleModel";
@@ -11,6 +13,10 @@ import {
 export interface BacktestCycleDashboardModel {
   status: V1PilotSystemStatus | null;
   stages: CycleStageView[];
+  parallelStages: CycleStageView[];
+  singleWriterStages: CycleStageView[];
+  deferredStages: CycleStageView[];
+  primaryBlockers: string[];
   metrics: CycleMetric[];
   loading: boolean;
   error: string | null;
@@ -42,15 +48,20 @@ export const useBacktestCycleDashboard = (): BacktestCycleDashboardModel => {
     void refresh();
   }, [refresh]);
 
-  return useMemo(
-    () => ({
+  return useMemo(() => {
+    const stages = buildCycleStages(status);
+    const split = splitCycleStages(stages);
+    return {
       status,
-      stages: buildCycleStages(status),
+      stages,
+      parallelStages: split.parallel,
+      singleWriterStages: split.singleWriter,
+      deferredStages: split.deferred,
+      primaryBlockers: currentMilestoneBlockers(stages),
       metrics: buildCycleMetrics(status),
       loading,
       error,
       refresh,
-    }),
-    [error, loading, refresh, status],
-  );
+    };
+  }, [error, loading, refresh, status]);
 };

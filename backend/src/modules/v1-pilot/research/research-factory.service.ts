@@ -220,16 +220,42 @@ export class ResearchFactoryService {
   }
 
   async getStatus(): Promise<ResearchFactoryStatus> {
-    const [hypothesisCount, p1CandidateCount, outOfScopeCount, latestJobs] =
-      await Promise.all([
-        this.hypothesisRepository.count(),
-        this.hypothesisRepository.count({
-          where: { priority: 'P1', status: 'candidate' },
-        }),
-        this.hypothesisRepository.count({ where: { status: 'out_of_scope' } }),
-        this.jobRepository.find({ order: { updatedAt: 'DESC' }, take: 1 }),
-      ]);
+    const [
+      hypothesisCount,
+      p1CandidateCount,
+      outOfScopeCount,
+      latestJobs,
+      variantJobCount,
+      passedVariantJobCount,
+      failedOrBlockedVariantJobCount,
+      latestVariantJobs,
+    ] = await Promise.all([
+      this.hypothesisRepository.count(),
+      this.hypothesisRepository.count({
+        where: { priority: 'P1', status: 'candidate' },
+      }),
+      this.hypothesisRepository.count({ where: { status: 'out_of_scope' } }),
+      this.jobRepository.find({ order: { updatedAt: 'DESC' }, take: 1 }),
+      this.jobRepository.count({
+        where: { jobType: In(VARIANT_JOB_TYPES) },
+      }),
+      this.jobRepository.count({
+        where: { jobType: In(VARIANT_JOB_TYPES), status: 'passed' },
+      }),
+      this.jobRepository.count({
+        where: {
+          jobType: In(VARIANT_JOB_TYPES),
+          status: In(['failed', 'blocked']),
+        },
+      }),
+      this.jobRepository.find({
+        where: { jobType: In(VARIANT_JOB_TYPES) },
+        order: { updatedAt: 'DESC' },
+        take: 1,
+      }),
+    ]);
     const latestJob = latestJobs[0];
+    const latestVariantJob = latestVariantJobs[0];
     return {
       hypothesisCount,
       p1CandidateCount,
@@ -237,6 +263,12 @@ export class ResearchFactoryService {
       latestJobId: latestJob?.jobId,
       latestJobStatus: latestJob?.status,
       latestJobType: latestJob?.jobType,
+      variantJobCount,
+      passedVariantJobCount,
+      failedOrBlockedVariantJobCount,
+      latestVariantJobId: latestVariantJob?.jobId,
+      latestVariantJobStatus: latestVariantJob?.status,
+      latestVariantJobType: latestVariantJob?.jobType,
     };
   }
 

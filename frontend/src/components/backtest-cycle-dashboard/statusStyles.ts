@@ -21,9 +21,11 @@ export const metricToneClass: Record<CycleMetric["tone"], string> = {
 };
 
 export const laneClass = {
-  data: "border-[#2b3139] bg-[#0b0e11]",
-  alpha: "border-[#2b3139] bg-[#11151a]",
-  lean: "border-[#fcd535]/30 bg-[#1e2329]",
+  research: "border-[#2b3139] bg-[#0b0e11]",
+  data: "border-[#2b3139] bg-[#11151a]",
+  alpha: "border-[#2b3139] bg-[#101820]",
+  validation: "border-[#fcd535]/30 bg-[#1e2329]",
   execution: "border-[#2b3139] bg-[#11151a]",
   learning: "border-[#2b3139] bg-[#0b0e11]",
+  deferred: "border-[#2b3139] bg-[#11151a]/70 opacity-80",
 };
