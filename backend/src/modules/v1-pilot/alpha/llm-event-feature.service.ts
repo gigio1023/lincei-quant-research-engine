@@ -8,11 +8,11 @@ import { LlmEventFeature } from '../../../entities/llm-event-feature.entity';
 import { RawEvidenceRecord } from '../../../entities/raw-evidence-record.entity';
 import { hashObject } from '../../../shared/hash.util';
 import { loadOpenAiEnv } from '../../../shared/openai-env.loader';
-import {
+import type {
   AlphaDecisionContract,
   FeatureSnapshotContract,
 } from '../contracts/v1-pilot.contracts';
-import {
+import type {
   LlmEventFeatureContract,
   SemanticEventType,
 } from '../contracts/spec-contracts';

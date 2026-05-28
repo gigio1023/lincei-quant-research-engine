@@ -46,17 +46,17 @@ import { LivePilotReadinessRecord } from '../../entities/live-pilot-readiness-re
 import { MarketDataBar } from '../../entities/market-data-bar.entity';
 import { MarketDataIngestionRun } from '../../entities/market-data-ingestion-run.entity';
 import { OrderPlanApproval } from '../../entities/order-plan-approval.entity';
-import {
-  PaperAccountEvent,
+import { PaperAccountEvent } from '../../entities/paper-account-event.entity';
+import type {
   PaperAccountEventSnapshot,
   PaperAccountEventType,
 } from '../../entities/paper-account-event.entity';
 import { PaperAccount } from '../../entities/paper-account.entity';
-import {
+import { PaperOrderPlan } from '../../entities/paper-order-plan.entity';
+import type {
   PaperCashLedgerEntry,
   PaperFill,
   PaperOrderSnapshot,
-  PaperOrderPlan,
   PaperPositionLedgerEntry,
   PaperReadinessSnapshot,
   PaperReconciliation,
@@ -66,7 +66,7 @@ import { PaperReservationHoldRecord } from '../../entities/paper-reservation-hol
 import { ResearchRun } from '../../entities/research-run.entity';
 import { RiskEvaluation } from '../../entities/risk-evaluation.entity';
 import { RiskGateService } from '../risk-gate/risk-gate.service';
-import {
+import type {
   PortfolioSnapshot,
   ProposedOrder,
   RiskGateRequest,

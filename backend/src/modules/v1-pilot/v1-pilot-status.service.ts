@@ -12,17 +12,15 @@ import { LeanRun } from '../../entities/lean-run.entity';
 import { LivePilotStatusRecord } from '../../entities/live-pilot-status.entity';
 import { PaperOrderPlan } from '../../entities/paper-order-plan.entity';
 import { PortfolioTargetSnapshot } from '../../entities/portfolio-target-snapshot.entity';
-import {
-  LivePilotPreflightContract,
-  MAX_LIVE_PILOT_NOTIONAL_USD,
-} from './contracts/v1-pilot.contracts';
+import { MAX_LIVE_PILOT_NOTIONAL_USD } from './contracts/v1-pilot.contracts';
+import type { LivePilotPreflightContract } from './contracts/v1-pilot.contracts';
 import { MlModelRegistryService } from './ml/ml-model-registry.service';
 import {
   buildV1CurrentMilestoneStatus,
   buildV1NextActions,
   buildV1SystemStages,
 } from './v1-pilot-status-stage.builder';
-import { V1PilotSystemStatus } from './v1-pilot-status.types';
+import type { V1PilotSystemStatus } from './v1-pilot-status.types';
 import { ResearchFactoryService } from './research/research-factory.service';
 
 @Injectable()

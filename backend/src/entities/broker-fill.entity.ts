@@ -6,8 +6,8 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { OrderSide } from '../modules/risk-gate/risk-gate.types';
-import { BrokerSnapshotProvider } from './broker-snapshot.entity';
+import type { OrderSide } from '../modules/risk-gate/risk-gate.types';
+import type { BrokerSnapshotProvider } from './broker-snapshot.entity';
 
 export type BrokerFillStatus = 'imported' | 'matched' | 'mismatch';
 

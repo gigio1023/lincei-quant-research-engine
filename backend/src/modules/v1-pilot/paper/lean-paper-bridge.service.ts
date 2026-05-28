@@ -9,7 +9,7 @@ import { ControlPlaneService } from '../../control-plane/control-plane.service';
 import { PortfolioTargetSnapshot } from '../../../entities/portfolio-target-snapshot.entity';
 import { PaperOrderPlan } from '../../../entities/paper-order-plan.entity';
 import { LeanRunImportService } from '../lean/lean-run-import.service';
-import { PortfolioTargetItemContract } from '../contracts/v1-pilot.contracts';
+import type { PortfolioTargetItemContract } from '../contracts/v1-pilot.contracts';
 import { assessLeanRunArtifacts } from '../lean/lean-run-acceptance';
 
 type PaperBridgeMode = 'current-paper-cycle' | 'historical-target-replay';

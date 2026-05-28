@@ -1,4 +1,4 @@
-import { LivePilotPreflightContract } from './contracts/v1-pilot.contracts';
+import type { LivePilotPreflightContract } from './contracts/v1-pilot.contracts';
 
 export type V1SystemStageStatus = 'ready' | 'blocked' | 'missing';
 export type V1SystemStageScope = 'current' | 'deferred';

@@ -1,4 +1,4 @@
-import { MarketDataProvider } from '../../entities/market-data-bar.entity';
+import type { MarketDataProvider } from '../../entities/market-data-bar.entity';
 import { ImportMarketDataBarInput } from './control-plane.types';
 
 export interface FetchMarketDataBarsRequest {

@@ -8,7 +8,7 @@ import { Repository } from 'typeorm';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join, resolve } from 'path';
 import { AlphaDecision } from '../../../entities/alpha-decision.entity';
-import {
+import type {
   AlphaDecisionContract,
   FeatureSnapshotContract,
 } from '../contracts/v1-pilot.contracts';
@@ -17,8 +17,8 @@ import { hashObject } from '../../../shared/hash.util';
 import {
   combineMetaFromDecisions,
   directionFromMetaScore,
-  MetaDecisionExportRecord,
 } from './meta-alpha.combiner';
+import type { MetaDecisionExportRecord } from './meta-alpha.combiner';
 
 @Injectable()
 export class MetaAlphaService {

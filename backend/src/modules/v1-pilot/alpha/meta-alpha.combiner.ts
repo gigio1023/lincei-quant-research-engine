@@ -1,4 +1,4 @@
-import { AlphaDirection } from '../contracts/v1-pilot.contracts';
+import type { AlphaDirection } from '../contracts/v1-pilot.contracts';
 
 export const META_NUMERIC_WEIGHT = 0.5;
 export const META_EVENT_WEIGHT = 0.25;

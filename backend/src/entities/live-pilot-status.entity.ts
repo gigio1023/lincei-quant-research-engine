@@ -7,7 +7,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { LivePilotPreflightContract } from '../modules/v1-pilot/contracts/v1-pilot.contracts';
+import type { LivePilotPreflightContract } from '../modules/v1-pilot/contracts/v1-pilot.contracts';
 
 @Entity('live_pilot_status_records')
 @Index(['status', 'checkedAt'])

@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join, resolve } from 'path';
-import { FeatureSnapshotContract } from '../contracts/v1-pilot.contracts';
+import type { FeatureSnapshotContract } from '../contracts/v1-pilot.contracts';
 import { MlModelRegistryService } from './ml-model-registry.service';
-import { MlPrediction } from './ml-model-registry.types';
+import type { MlPrediction } from './ml-model-registry.types';
 import { MlPythonRunner } from './ml-python.runner';
 
 @Injectable()

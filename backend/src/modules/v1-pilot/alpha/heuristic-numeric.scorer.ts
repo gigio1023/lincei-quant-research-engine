@@ -1,4 +1,4 @@
-import { FeatureSnapshotContract } from '../contracts/v1-pilot.contracts';
+import type { FeatureSnapshotContract } from '../contracts/v1-pilot.contracts';
 
 /**
  * Emergency fallback when no promoted ML model or inference fails.

@@ -2,7 +2,7 @@
 
 Status: active normative spec.
 
-Last aligned: 2026-05-27.
+Last aligned: 2026-05-28.
 
 ## Purpose
 
@@ -29,13 +29,17 @@ Implemented:
 - Cloud insight/order pagination and artifact import.
 - Paper replay separated from current paper trading/shadow trading artifacts.
 - Read-only backtest-cycle dashboard and status API.
+- Framework-neutral runtime factory at `backend/src/runtime/create-lincei-runtime.ts`.
+- First-class `lincei` CLI at `backend/src/cli/lincei.ts`.
+- Thin Hono HTTP adapter at `backend/src/http/hono-app.ts`.
+- Capital evidence vertical slice that records blocked/passed/flat variant outcomes before promotion review.
 
 Not complete:
 
 - P1 hypotheses are not yet converted into retained LEAN strategy variants.
 - Simple trend, defensive, momentum, and daily-return baselines do not yet have complete promotion evidence.
 - Broad point-in-time and vintage data stores are incomplete.
-- Ablation and parameter sweep jobs are not yet recorded as first-class variant evidence.
+- Ablation jobs are recorded by the capital evidence slice, but backtest and Cloud-import variants still need full retained sweep evidence.
 - QuantConnect Cloud artifacts still depends on operator-provided project/backtest ids and credentials.
 - Current paper trading/shadow trading, reconciliation, and broker-read-only evidence are incomplete.
 - Broker-write and Darwinex/Zero adapters are not approved for implementation.
@@ -63,6 +67,14 @@ strategy research corpus
 ```
 
 The system is not complete until failed, blocked, flat, and winning variants are all retained and visible in promotion review.
+
+Canonical operator entrypoint:
+
+```bash
+bun --cwd=backend run lincei -- capital run --max-backtest-workers 1 --json
+```
+
+Compatibility `./scripts/*` wrappers may remain during migration, but new operational commands should be added to `lincei`.
 
 ## Workstream A: Research Factory And Variant Ledger
 

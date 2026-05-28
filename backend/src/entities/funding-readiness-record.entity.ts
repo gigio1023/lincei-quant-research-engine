@@ -6,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { BrokerSnapshotProvider } from './broker-snapshot.entity';
+import type { BrokerSnapshotProvider } from './broker-snapshot.entity';
 
 export type FundingReadinessStatus = 'ready' | 'blocked';
 

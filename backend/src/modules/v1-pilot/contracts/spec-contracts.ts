@@ -1,4 +1,4 @@
-import {
+import type {
   AlphaDecisionContract,
   FeatureSnapshotContract,
 } from './v1-pilot.contracts';

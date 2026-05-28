@@ -5,7 +5,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { RiskGateMode } from '../modules/risk-gate/risk-gate.types';
+import type { RiskGateMode } from '../modules/risk-gate/risk-gate.types';
 
 @Entity('autonomous_run_schedules')
 export class AutonomousRunSchedule {

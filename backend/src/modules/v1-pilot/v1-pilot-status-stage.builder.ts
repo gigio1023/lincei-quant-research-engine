@@ -1,6 +1,6 @@
 import { LeanRun } from '../../entities/lean-run.entity';
-import { LivePilotPreflightContract } from './contracts/v1-pilot.contracts';
-import {
+import type { LivePilotPreflightContract } from './contracts/v1-pilot.contracts';
+import type {
   V1CurrentMilestoneStatus,
   V1PilotSystemStatus,
   V1SystemStage,

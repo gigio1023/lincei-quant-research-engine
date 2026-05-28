@@ -6,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { MarketDataProvider } from './market-data-bar.entity';
+import type { MarketDataProvider } from './market-data-bar.entity';
 
 export type MarketDataIngestionRunStatus =
   | 'skipped'

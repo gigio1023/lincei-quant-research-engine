@@ -5,7 +5,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { PositionSnapshot } from '../modules/risk-gate/risk-gate.types';
+import type { PositionSnapshot } from '../modules/risk-gate/risk-gate.types';
 
 export type BrokerSnapshotProvider = 'manual' | 'toss' | 'simulated';
 

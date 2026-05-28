@@ -14,19 +14,17 @@ import { PaperOrderPlan } from '../../../entities/paper-order-plan.entity';
 import { InvestmentProposal } from '../../../entities/investment-proposal.entity';
 import { BrokerSnapshot } from '../../../entities/broker-snapshot.entity';
 import { ExecutionControlState } from '../../../entities/execution-control-state.entity';
-import {
-  LivePilotPreflightContract,
-  MAX_LIVE_PILOT_NOTIONAL_USD,
-} from '../contracts/v1-pilot.contracts';
+import { MAX_LIVE_PILOT_NOTIONAL_USD } from '../contracts/v1-pilot.contracts';
+import type { LivePilotPreflightContract } from '../contracts/v1-pilot.contracts';
 import { LeanRunImportService } from '../lean/lean-run-import.service';
 import { assessLeanRunArtifacts } from '../lean/lean-run-acceptance';
 import {
-  LeanRunConfigEvidence,
   assessBrokerSnapshotForLive,
   assessStaticLeanRunBlockers,
   readLeanBooleanParameter,
   readLeanParameter,
 } from './live-preflight-readiness';
+import type { LeanRunConfigEvidence } from './live-preflight-readiness';
 import { MlModelRegistryService } from '../ml/ml-model-registry.service';
 import { TossWriteBrokerAdapter } from '../broker/toss-write-broker.adapter';
 

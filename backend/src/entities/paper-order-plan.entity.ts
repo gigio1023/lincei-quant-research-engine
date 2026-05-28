@@ -6,7 +6,7 @@ import {
   UpdateDateColumn,
   Index,
 } from 'typeorm';
-import {
+import type {
   OrderSide,
   OrderType,
   PortfolioSnapshot,

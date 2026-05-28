@@ -5,7 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import {
+import type {
   AssetClass,
   RiskGateMode,
   RiskPolicy,

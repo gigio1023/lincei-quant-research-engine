@@ -10,17 +10,15 @@ import {
   MarketDataIngestionRun,
   MarketDataIngestionRunStatus,
 } from '../../entities/market-data-ingestion-run.entity';
-import { MarketDataProvider } from '../../entities/market-data-bar.entity';
+import type { MarketDataProvider } from '../../entities/market-data-bar.entity';
 import { ControlPlaneService } from './control-plane.service';
 import {
   MarketDataIngestionPollRequest,
   MarketDataIngestionPollResponse,
   MarketDataIngestionStatus,
 } from './control-plane.types';
-import {
-  MARKET_DATA_PROVIDER,
-  MarketDataProviderService,
-} from './market-data-provider.types';
+import { MARKET_DATA_PROVIDER } from './market-data-provider.types';
+import type { MarketDataProviderService } from './market-data-provider.types';
 
 @Injectable()
 export class MarketDataIngestionService {

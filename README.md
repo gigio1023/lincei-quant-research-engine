@@ -183,32 +183,38 @@ cp .env.example .env
 Run from repository root unless noted.
 
 ```bash
+# Primary capital evidence loop
+bun --cwd=backend run lincei -- capital run --max-backtest-workers 1 --json
+bun --cwd=backend run lincei -- capital status --json
+
 # Research and text evidence
-./scripts/build-hypothesis-registry
-./scripts/run-selected-run-bias-check
-./scripts/ingest-semantic-evidence --source hf-fomc-statements-minutes --limit 80
-./scripts/run-alpha-cycle
+bun --cwd=backend run lincei -- research corpus
+bun --cwd=backend run lincei -- research selected-run-bias
+bun --cwd=backend run lincei -- data semantic-evidence --limit 80
+bun --cwd=backend run lincei -- alpha run
 
 # Local LEAN and import
-./scripts/lean-backtest aggressive_llm_momentum
-./scripts/import-lean-run latest
+bun --cwd=backend run lincei -- lean backtest aggressive_llm_momentum
+bun --cwd=backend run lincei -- lean import latest
 ./scripts/run-local-strategy-smoke
 ./scripts/verify-lean-cloud-package aggressive_llm_momentum
 
 # QuantConnect Cloud
-./scripts/list-cloud-projects
-./scripts/list-cloud-backtests --project-id <project-id> --limit 10
-./scripts/import-cloud-backtest --project-id <project-id> --backtest-id <backtest-id>
-./scripts/qc-cloud-backtest aggressive_llm_momentum
+bun --cwd=backend run lincei -- qc list-projects
+bun --cwd=backend run lincei -- qc list-backtests --project-id <project-id> --limit 10
+bun --cwd=backend run lincei -- qc import-backtest --project-id <project-id> --backtest-id <backtest-id>
+bun --cwd=backend run lincei -- qc cloud-backtest aggressive_llm_momentum
 ./scripts/qc-cloud-push aggressive_llm_momentum
 
 # Paper trading, shadow trading, learning, broker-write pre-trade risk check
-./scripts/run-paper-cycle
-./scripts/run-paper-replay
-./scripts/run-live-shadow
-./scripts/run-learning-loop
-./scripts/live-preflight
+bun --cwd=backend run lincei -- paper run
+bun --cwd=backend run lincei -- paper replay
+bun --cwd=backend run lincei -- shadow run
+bun --cwd=backend run lincei -- learning run
+bun --cwd=backend run lincei -- preflight run
 ```
+
+The old `./scripts/*` operational wrappers are compatibility surfaces during migration; new operator commands should go through `lincei`.
 
 Exit code `2` means a policy/account/platform `blocked` result, not necessarily a crash. Examples include missing QuantConnect Cloud credentials, account-tier blockers, missing current paper trading/shadow trading artifacts, stale targets, data-license blockers, or broker-write pre-trade risk check blockers.
 

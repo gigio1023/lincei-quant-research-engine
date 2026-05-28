@@ -54,6 +54,7 @@ import { MlPythonRunner } from './ml/ml-python.runner';
 import { MlBaselineInferenceService } from './ml/ml-baseline-inference.service';
 import { LeanCliRunner } from './lean/lean-cli.runner';
 import { ResearchFactoryService } from './research/research-factory.service';
+import { CapitalEvidenceSliceService } from './research/capital-evidence-slice.service';
 
 @Module({
   imports: [
@@ -102,6 +103,7 @@ import { ResearchFactoryService } from './research/research-factory.service';
     LeanCliRunner,
     LeanRunImportService,
     ResearchFactoryService,
+    CapitalEvidenceSliceService,
     LeanPaperBridgeService,
     LearningLoopService,
     LiveShadowService,
