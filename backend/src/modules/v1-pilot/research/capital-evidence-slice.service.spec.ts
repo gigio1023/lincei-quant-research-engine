@@ -6,6 +6,16 @@ import { CapitalEvidenceSliceService } from './capital-evidence-slice.service';
 import { ResearchFactoryService } from './research-factory.service';
 
 describe('CapitalEvidenceSliceService', () => {
+  const originalUniverseSymbols = process.env.V1_UNIVERSE_SYMBOLS;
+
+  afterEach(() => {
+    if (originalUniverseSymbols === undefined) {
+      delete process.env.V1_UNIVERSE_SYMBOLS;
+    } else {
+      process.env.V1_UNIVERSE_SYMBOLS = originalUniverseSymbols;
+    }
+  });
+
   it('records retained blocked variants and promotion status when prerequisites are missing', async () => {
     const savedJobs: ResearchJobRecord[] = [];
     const service = new CapitalEvidenceSliceService(
@@ -36,6 +46,31 @@ describe('CapitalEvidenceSliceService', () => {
     expect(savedJobs.every((job) => job.jobType === 'ablation')).toBe(true);
     expect(result.brokerWriteCandidateStatus.status).toBe('blocked');
     expect(JSON.stringify(result.promotionDecision)).toContain('blocked');
+    expect(result.universe).toContain('SMH');
+  });
+
+  it('runs and reports the same explicit universe override', async () => {
+    const orchestrator = mockOrchestrator();
+    const service = new CapitalEvidenceSliceService(
+      orchestrator,
+      mockResearchFactory(),
+      {
+        create: (record: ResearchJobRecord) => record,
+        save: async (record: ResearchJobRecord) => record,
+      } as unknown as Repository<ResearchJobRecord>,
+      {
+        find: async () => [],
+      } as unknown as Repository<AlphaDecision>,
+    );
+
+    const result = await service.run({
+      universe: ['SPY', 'QQQ'],
+      maxBacktestWorkers: 1,
+    });
+
+    expect(result.universe).toEqual(['SPY', 'QQQ']);
+    expect(orchestrator.prepareLeanLocalData).toHaveBeenCalled();
+    expect(process.env.V1_UNIVERSE_SYMBOLS).toBe(originalUniverseSymbols);
   });
 });
 

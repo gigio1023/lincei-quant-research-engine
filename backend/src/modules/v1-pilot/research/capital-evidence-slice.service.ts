@@ -13,12 +13,11 @@ import {
 } from '../../../entities/research-job-record.entity';
 import { hashObject } from '../../../shared/hash.util';
 import { V1PilotOrchestratorService } from '../v1-pilot-orchestrator.service';
+import { resolveUniverseSelection } from '../universe/universe-manifest';
 import { ResearchFactoryService } from './research-factory.service';
 
 export const DEFAULT_CAPITAL_HYPOTHESIS_ID =
   'research-hypothesis-alphaarchitect-08-rethinking-trend-following-optimal-regime-dependent-allocation';
-
-export const DEFAULT_CAPITAL_UNIVERSE = ['SPY', 'QQQ', 'TLT', 'IEF'] as const;
 
 export const DEFAULT_CAPITAL_VARIANTS = [
   {
@@ -114,12 +113,19 @@ export class CapitalEvidenceSliceService {
   async run(
     options: CapitalEvidenceRunOptions = {},
   ): Promise<CapitalEvidenceSliceResult> {
+    return this.withUniverseOverride(options.universe, async () =>
+      this.runWithResolvedUniverse(options),
+    );
+  }
+
+  private async runWithResolvedUniverse(
+    options: CapitalEvidenceRunOptions,
+  ): Promise<CapitalEvidenceSliceResult> {
     const startedAt = new Date();
     const runId = this.runId(startedAt, options);
     const hypothesisId = options.hypothesisId ?? DEFAULT_CAPITAL_HYPOTHESIS_ID;
-    const universe = options.universe?.length
-      ? options.universe
-      : [...DEFAULT_CAPITAL_UNIVERSE];
+    const universeSelection = resolveUniverseSelection();
+    const universe = universeSelection.activeSymbols;
     const maxBacktestWorkers = options.maxBacktestWorkers ?? 1;
     const steps: CapitalEvidenceStep[] = [];
     const blockers: string[] = [];
@@ -275,6 +281,31 @@ export class CapitalEvidenceSliceService {
       },
       researchStatus,
     };
+  }
+
+  private async withUniverseOverride<T>(
+    universe: string[] | undefined,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    if (!universe?.length) {
+      return fn();
+    }
+
+    const previousUniverseSymbols = process.env.V1_UNIVERSE_SYMBOLS;
+    process.env.V1_UNIVERSE_SYMBOLS = universe
+      .map((symbol) => symbol.trim().toUpperCase())
+      .filter(Boolean)
+      .join(',');
+
+    try {
+      return await fn();
+    } finally {
+      if (previousUniverseSymbols === undefined) {
+        delete process.env.V1_UNIVERSE_SYMBOLS;
+      } else {
+        process.env.V1_UNIVERSE_SYMBOLS = previousUniverseSymbols;
+      }
+    }
   }
 
   private async recordVariantOutcomes(input: {
