@@ -1,6 +1,5 @@
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
-import { config } from 'dotenv';
 import { AutonomousRun } from './entities/autonomous-run.entity';
 import { AutonomousRunSchedule } from './entities/autonomous-run-schedule.entity';
 import { BrokerFill } from './entities/broker-fill.entity';
@@ -45,8 +44,9 @@ import { ResearchJobRecord } from './entities/research-job-record.entity';
 import { AddSpecEvidenceTables1764288000000 } from './migrations/1764288000000-AddSpecEvidenceTables';
 import { AddLiveShadowEvidenceMode1764374400000 } from './migrations/1764374400000-AddLiveShadowEvidenceMode';
 import { AddResearchFactoryTables1764460800000 } from './migrations/1764460800000-AddResearchFactoryTables';
+import { loadRepoEnv } from './shared/repo-env.loader';
 
-config();
+loadRepoEnv();
 
 export const databaseEntities = [
   Report,
