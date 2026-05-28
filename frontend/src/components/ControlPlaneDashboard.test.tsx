@@ -50,13 +50,32 @@ vi.mock("../services/api", () => ({
       Promise.resolve({
         checkedAt: "2026-05-22T09:00:00.000Z",
         verdict: "blocked",
+        currentMilestone: {
+          key: "self-funded-capital-evidence",
+          label: "Self-Funded Capital Evidence Milestone",
+          verdict: "blocked",
+          readyStageCount: 0,
+          blockedStageCount: 1,
+          missingStageCount: 8,
+          currentStageCount: 9,
+          deferredStageCount: 3,
+        },
         leanRun: null,
+        cloudRun: null,
         alpha: {
           featureSnapshotCount: 0,
           numericDecisionCount: 0,
           llmDecisionCount: 0,
           metaDecisionCount: 0,
           mlModelStatus: "not_promoted",
+        },
+        research: {
+          hypothesisCount: 0,
+          p1CandidateCount: 0,
+          outOfScopeCount: 0,
+          variantJobCount: 0,
+          passedVariantJobCount: 0,
+          failedOrBlockedVariantJobCount: 0,
         },
         portfolioTarget: { targetCount: 0 },
         paper: { status: "missing", fillCount: 0 },
@@ -67,7 +86,7 @@ vi.mock("../services/api", () => ({
           checkedAt: "2026-05-22T09:00:00.000Z",
           maxPilotNotionalUsd: 10,
           broker: "toss",
-          blockers: ["Test preflight blocked."],
+          blockers: ["Test pre-trade risk check blocked."],
           requiredFlags: {},
           openOrderRefs: [],
           credentialMode: "missing",
@@ -75,14 +94,18 @@ vi.mock("../services/api", () => ({
         stages: [
           {
             key: "live_preflight",
-            label: "Live Preflight",
+            label: "Pre-Trade Risk Check",
             status: "blocked",
+            scope: "current",
+            blocksCurrentMilestone: true,
             detail: "blocked",
-            blockers: ["Test preflight blocked."],
+            blockers: ["Test pre-trade risk check blocked."],
             refs: [],
           },
         ],
-        nextActions: ["Resolve Live Preflight: Test preflight blocked."],
+        nextActions: [
+          "Resolve Pre-Trade Risk Check: Test pre-trade risk check blocked.",
+        ],
       }),
     ),
     listLeanRuns: vi.fn(() => Promise.resolve([])),
@@ -147,7 +170,7 @@ const mockControlPlaneStatus = {
       stage: "broker_fill",
       status: "matched",
       id: "broker-fill-api-1",
-      detail: "Broker fill matched paper fill evidence.",
+      detail: "Broker fill matched paper fill report.",
       updatedAt: "2026-05-22T09:08:00.000Z",
     },
     paper: {
@@ -216,12 +239,12 @@ const mockControlPlaneStatus = {
       liveTradingEnabled: false,
       blockers: [],
       notes: [
-        "Funding readiness is read-only broker evidence. No order endpoint was called.",
+        "Funding readiness is read-only broker artifacts. No order endpoint was called.",
       ],
     },
     blockers: [],
     notes: [
-      "Funding readiness is read-only broker evidence. No order endpoint was called.",
+      "Funding readiness is read-only broker artifacts. No order endpoint was called.",
     ],
     brokerExecutionEnabled: false,
     liveTradingEnabled: false,
@@ -263,7 +286,7 @@ const mockControlPlaneStatus = {
         "Live order endpoint is not implemented",
       ],
       notes: [
-        "Broker-write preflight readiness is evidence only. No broker order endpoint was called.",
+        "Broker-write pre-trade risk check is a validation artifact only. No broker order endpoint was called.",
       ],
     },
     blockers: [
@@ -271,7 +294,7 @@ const mockControlPlaneStatus = {
       "Live order endpoint is not implemented",
     ],
     notes: [
-      "Broker-write preflight readiness is evidence only. No broker order endpoint was called.",
+      "Broker-write pre-trade risk check is a validation artifact only. No broker order endpoint was called.",
     ],
     brokerExecutionEnabled: false,
     liveTradingEnabled: false,
@@ -433,13 +456,13 @@ const mockControlPlaneStatus = {
     {
       key: "livePilotReadinessLedgerReady",
       ready: true,
-      detail: "1 broker-write preflight readiness records",
+      detail: "1 broker-write pre-trade risk check records",
     },
     {
       key: "livePilotReady",
       ready: false,
       detail:
-        "Latest broker-write preflight readiness is blocked: broker write gates are not ready",
+        "Latest broker-write pre-trade risk check is blocked: broker write gates are not ready",
     },
     {
       key: "brokerOrderCommandLedgerReady",
@@ -1340,7 +1363,7 @@ const mockActionTimeline = [
     sourceType: "broker_fill",
     sourceId: "broker-fill-api-1",
     title: "Broker fill matched",
-    detail: "Broker fill matched paper fill evidence.",
+    detail: "Broker fill matched paper fill report.",
     brokerExecutionEnabled: false,
     liveTradingEnabled: false,
   },
@@ -1477,13 +1500,13 @@ describe("ControlPlaneDashboard", () => {
     ).toBeInTheDocument();
     expect(actionStatus.getByText("broker_fill / matched")).toBeInTheDocument();
     expect(
-      actionStatus.getByText("Broker fill matched paper fill evidence."),
+      actionStatus.getByText("Broker fill matched paper fill report."),
     ).toBeInTheDocument();
-    expect(actionStatus.getByText("Paper evidence")).toBeInTheDocument();
+    expect(actionStatus.getByText("Paper artifacts")).toBeInTheDocument();
     expect(
       actionStatus.getByText("plan paper-plan-api-1 / matched"),
     ).toBeInTheDocument();
-    expect(actionStatus.getByText("Approval evidence")).toBeInTheDocument();
+    expect(actionStatus.getByText("Approval basis")).toBeInTheDocument();
     expect(actionStatus.getByText("paper_auto")).toBeInTheDocument();
     expect(
       actionStatus.getByText("approval approval-api-1 / consumed"),
@@ -1632,7 +1655,7 @@ describe("ControlPlaneDashboard", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Broker Write Readiness")).toBeInTheDocument();
     expect(
-      screen.getByText("API broker-write preflight readiness"),
+      screen.getByText("API broker-write pre-trade risk check"),
     ).toBeInTheDocument();
     expect(screen.getByText("Broker write blockers")).toBeInTheDocument();
     expect(

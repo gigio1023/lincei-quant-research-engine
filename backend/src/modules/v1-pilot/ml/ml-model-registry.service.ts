@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { existsSync, readFileSync } from 'fs';
 import { join, resolve } from 'path';
-import {
+import type {
   MlModelReadiness,
   MlModelRegistryRecord,
 } from './ml-model-registry.types';

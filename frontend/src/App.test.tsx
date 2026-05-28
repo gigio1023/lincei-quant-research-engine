@@ -246,13 +246,32 @@ vi.mock("./services/api", () => ({
       Promise.resolve({
         checkedAt: "2026-05-22T09:00:00.000Z",
         verdict: "blocked",
+        currentMilestone: {
+          key: "self-funded-capital-evidence",
+          label: "Self-Funded Capital Evidence Milestone",
+          verdict: "blocked",
+          readyStageCount: 0,
+          blockedStageCount: 1,
+          missingStageCount: 8,
+          currentStageCount: 9,
+          deferredStageCount: 3,
+        },
         leanRun: null,
+        cloudRun: null,
         alpha: {
           featureSnapshotCount: 0,
           numericDecisionCount: 0,
           llmDecisionCount: 0,
           metaDecisionCount: 0,
           mlModelStatus: "not_promoted",
+        },
+        research: {
+          hypothesisCount: 0,
+          p1CandidateCount: 0,
+          outOfScopeCount: 0,
+          variantJobCount: 0,
+          passedVariantJobCount: 0,
+          failedOrBlockedVariantJobCount: 0,
         },
         portfolioTarget: { targetCount: 0 },
         paper: { status: "missing", fillCount: 0 },
@@ -263,7 +282,7 @@ vi.mock("./services/api", () => ({
           checkedAt: "2026-05-22T09:00:00.000Z",
           maxPilotNotionalUsd: 10,
           broker: "toss",
-          blockers: ["Test preflight blocked."],
+          blockers: ["Test pre-trade risk check blocked."],
           requiredFlags: {},
           openOrderRefs: [],
           credentialMode: "missing",
@@ -271,14 +290,18 @@ vi.mock("./services/api", () => ({
         stages: [
           {
             key: "live_preflight",
-            label: "Live Preflight",
+            label: "Pre-Trade Risk Check",
             status: "blocked",
+            scope: "current",
+            blocksCurrentMilestone: true,
             detail: "blocked",
-            blockers: ["Test preflight blocked."],
+            blockers: ["Test pre-trade risk check blocked."],
             refs: [],
           },
         ],
-        nextActions: ["Resolve Live Preflight: Test preflight blocked."],
+        nextActions: [
+          "Resolve Pre-Trade Risk Check: Test pre-trade risk check blocked.",
+        ],
       }),
     ),
     listLeanRuns: vi.fn(() => Promise.resolve([])),
@@ -286,7 +309,7 @@ vi.mock("./services/api", () => ({
 }));
 
 describe("App", () => {
-  it("should_render_without_crashing", async () => {
+  it("should_render_backtest_cycle_as_the_root_page", async () => {
     render(
       <MemoryRouter>
         <App />
@@ -296,7 +319,9 @@ describe("App", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("선택한 필터에 해당하는 리포트가 없습니다."),
+        screen.getByRole("heading", {
+          name: "Self-Funded Capital Evidence Loop",
+        }),
       ).toBeInTheDocument();
     });
   });
@@ -310,9 +335,7 @@ describe("App", () => {
     expect(document.querySelector(".min-h-screen")).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(
-        screen.getByText("선택한 필터에 해당하는 리포트가 없습니다."),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Operator Runbook")).toBeInTheDocument();
     });
   });
 
@@ -329,6 +352,24 @@ describe("App", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Live API status")).toBeInTheDocument();
+    });
+  });
+
+  it("should_render_backtest_cycle_route", async () => {
+    render(
+      <MemoryRouter initialEntries={["/backtest-cycle"]}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByRole("heading", {
+        name: "Self-Funded Capital Evidence Loop",
+      }),
+    ).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByText("Operator Runbook")).toBeInTheDocument();
     });
   });
 });

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { execFileSync } from 'child_process';
-import { mkdirSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync } from 'fs';
 import { join, resolve } from 'path';
 import { randomBytes } from 'crypto';
 import { Repository } from 'typeorm';
@@ -195,6 +195,7 @@ export class LeanCloudRunner {
         configHash: hashObject({ parameters, cloudUrl, cloudBacktestId }),
         dataManifestHash: hashObject({ runtime: 'quantconnect-cloud', runId }),
         statistics: {
+          ...this.readStatistics(resultDirectory),
           cloudCommand: args.join(' '),
           cloudBacktestId: cloudBacktestId ?? '',
           status,
@@ -314,5 +315,18 @@ export class LeanCloudRunner {
       return explicitId;
     }
     return output.match(/\/backtests\/([a-f0-9-]{24,})/i)?.[1];
+  }
+
+  private readStatistics(
+    resultDirectory: string,
+  ): Record<string, string | number> {
+    const path = join(resultDirectory, 'statistics.json');
+    if (!existsSync(path)) {
+      return {};
+    }
+    return JSON.parse(readFileSync(path, 'utf8')) as Record<
+      string,
+      string | number
+    >;
   }
 }

@@ -6,7 +6,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FeatureSnapshot } from '../../../entities/feature-snapshot.entity';
-import { FeatureSnapshotContract } from '../contracts/v1-pilot.contracts';
+import type { FeatureSnapshotContract } from '../contracts/v1-pilot.contracts';
 import { validateFeatureSnapshot } from '../contracts/v1-pilot.validators';
 import { hashObject } from '../../../shared/hash.util';
 import { MarketDataBar } from '../../../entities/market-data-bar.entity';

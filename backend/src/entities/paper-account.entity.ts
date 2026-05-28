@@ -5,8 +5,8 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { PositionSnapshot } from '../modules/risk-gate/risk-gate.types';
-import {
+import type { PositionSnapshot } from '../modules/risk-gate/risk-gate.types';
+import type {
   PaperCashLedgerEntry,
   PaperPositionLedgerEntry,
 } from './paper-order-plan.entity';

@@ -175,7 +175,7 @@ describe("API Service", () => {
           sourceType: "broker_fill",
           sourceId: "broker-fill-1",
           title: "Broker fill matched",
-          detail: "Broker fill matched paper fill evidence.",
+          detail: "Broker fill matched paper fill report.",
           brokerExecutionEnabled: false,
           liveTradingEnabled: false,
         },

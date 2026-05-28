@@ -10,16 +10,16 @@ The committee is allowed to judge. It is not allowed to place orders.
 
 ## Agent Roles
 
-| Role | Job | Output |
-|---|---|---|
-| Technical Analyst | Interpret numeric factor and price context | trend, momentum, volatility, invalidation levels |
-| News / Sentiment Analyst | Read recent news and social/news sentiment | sentiment, novelty, event type, urgency |
-| Fundamental Analyst | Review earnings, valuation, growth, balance-sheet context | fundamental score, key risks |
-| Macro Analyst | Review rates, inflation, FX, index, sector, and volatility regime | macro risk and exposure modifier |
-| Bull Researcher | Build the strongest long thesis | positive evidence |
-| Bear Researcher | Build the strongest short/avoid thesis | negative evidence |
-| Risk Reviewer | Challenge sizing, liquidity, drawdown, and concentration | risk cuts and abstain reasons |
-| Final Alpha Synthesizer | Produce final typed `AlphaDecision` | direction, horizon, confidence, max position hint |
+| Role                     | Job                                                               | Output                                            |
+| ------------------------ | ----------------------------------------------------------------- | ------------------------------------------------- |
+| Technical Analyst        | Interpret numeric factor and price context                        | trend, momentum, volatility, invalidation levels  |
+| News / Sentiment Analyst | Read recent news and social/news sentiment                        | sentiment, novelty, event type, urgency           |
+| Fundamental Analyst      | Review earnings, valuation, growth, balance-sheet context         | fundamental score, key risks                      |
+| Macro Analyst            | Review rates, inflation, FX, index, sector, and volatility regime | macro risk and exposure modifier                  |
+| Bull Researcher          | Build the strongest long thesis                                   | positive evidence                                 |
+| Bear Researcher          | Build the strongest short/avoid thesis                            | negative evidence                                 |
+| Risk Reviewer            | Challenge sizing, liquidity, drawdown, and concentration          | risk cuts and abstain reasons                     |
+| Final Alpha Synthesizer  | Produce final typed `AlphaDecision`                               | direction, horizon, confidence, max position hint |
 
 The roles can run in parallel where possible. The Final Alpha Synthesizer should consume the structured outputs, not raw chat transcripts.
 
@@ -68,7 +68,7 @@ type LlmAlphaDecision = {
 
 LLM backtests can be biased because modern models may have seen historical news or company outcomes during training. Mitigations:
 
-- prefer post-model-training-period live-shadow evaluation;
+- prefer post-model-training-period shadow trading evaluation;
 - anonymize company names for sentiment-only experiments where practical;
 - compare headline-only, anonymized, and numeric-only baselines;
 - timestamp every retrieved document by availability time;

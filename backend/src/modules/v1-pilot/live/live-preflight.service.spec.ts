@@ -30,7 +30,7 @@ describe('LivePreflightService', () => {
     process.env = { ...envBackup };
   });
 
-  it('blocks live readiness when latest import is schema-only evidence', async () => {
+  it('blocks broker-write pre-trade risk checks when latest import is schema-only evidence', async () => {
     const service = new LivePreflightService(
       statusRepository(),
       targetRepository(),
@@ -74,7 +74,7 @@ describe('LivePreflightService', () => {
 
     expect(preflight.credentialMode).toBe('local-dev-env');
     expect(preflight.blockers).toContain(
-      'Broker-write preflight requires broker credentials from an external secret reference.',
+      'Broker-write pre-trade risk check requires broker credentials from an external secret reference.',
     );
     expect(preflight.blockers).not.toContain('Broker credentials are missing.');
   });

@@ -14,19 +14,17 @@ import { PaperOrderPlan } from '../../../entities/paper-order-plan.entity';
 import { InvestmentProposal } from '../../../entities/investment-proposal.entity';
 import { BrokerSnapshot } from '../../../entities/broker-snapshot.entity';
 import { ExecutionControlState } from '../../../entities/execution-control-state.entity';
-import {
-  LivePilotPreflightContract,
-  MAX_LIVE_PILOT_NOTIONAL_USD,
-} from '../contracts/v1-pilot.contracts';
+import { MAX_LIVE_PILOT_NOTIONAL_USD } from '../contracts/v1-pilot.contracts';
+import type { LivePilotPreflightContract } from '../contracts/v1-pilot.contracts';
 import { LeanRunImportService } from '../lean/lean-run-import.service';
 import { assessLeanRunArtifacts } from '../lean/lean-run-acceptance';
 import {
-  LeanRunConfigEvidence,
   assessBrokerSnapshotForLive,
   assessStaticLeanRunBlockers,
   readLeanBooleanParameter,
   readLeanParameter,
 } from './live-preflight-readiness';
+import type { LeanRunConfigEvidence } from './live-preflight-readiness';
 import { MlModelRegistryService } from '../ml/ml-model-registry.service';
 import { TossWriteBrokerAdapter } from '../broker/toss-write-broker.adapter';
 
@@ -82,11 +80,22 @@ export class LivePreflightService {
         ? await this.findLatestPaperPlanForEvidence(
             latestLeanRun.runId,
             latestTarget.id,
+            'current-paper-cycle',
           )
         : null;
     if (!latestPaperPlan) {
+      const latestPaperReplayPlan =
+        latestLeanRun && latestTarget
+          ? await this.findLatestPaperPlanForEvidence(
+              latestLeanRun.runId,
+              latestTarget.id,
+              'historical-target-replay',
+            )
+          : null;
       blockers.push(
-        'Latest paper cycle has not produced a filled plan for the latest LEAN target.',
+        latestPaperReplayPlan
+          ? `Only historical paper replay plan ${latestPaperReplayPlan.id} exists for the latest LEAN target; current paper trading artifacts are required for broker-write pre-trade risk checks.`
+          : 'Latest paper cycle has not produced a filled plan for the latest LEAN target.',
       );
     } else {
       blockers.push(...this.assessPaperReconciliation(latestPaperPlan));
@@ -142,7 +151,7 @@ export class LivePreflightService {
     ) {
       blockers.push(
         mlReadiness.blocker ??
-          `Live readiness requires a promoted ML model or an accepted no-ML LEAN run: ${mlReadiness.status}`,
+          `Broker-write pre-trade risk check requires a promoted ML model or an accepted no-ML LEAN run: ${mlReadiness.status}`,
       );
     }
 
@@ -168,7 +177,7 @@ export class LivePreflightService {
     }
     if (credentialMode === 'local-dev-env') {
       blockers.push(
-        'Broker-write preflight requires broker credentials from an external secret reference.',
+        'Broker-write pre-trade risk check requires broker credentials from an external secret reference.',
       );
     }
 
@@ -293,6 +302,7 @@ export class LivePreflightService {
   private async findLatestPaperPlanForEvidence(
     leanRunId: string,
     targetSnapshotId: string,
+    mode: 'current-paper-cycle' | 'historical-target-replay',
   ): Promise<PaperOrderPlan | null> {
     const candidates = await this.paperPlanRepository.find({
       where: { status: In(['filled', 'reconciled']) },
@@ -304,7 +314,13 @@ export class LivePreflightService {
         where: { id: plan.proposalId },
       });
       const evidenceRefs = new Set(proposal?.evidenceRefs ?? []);
-      if ([...evidenceRefs].some((ref) => ref.startsWith('paper-replay:'))) {
+      const isReplay = [...evidenceRefs].some((ref) =>
+        ref.startsWith('paper-replay:'),
+      );
+      if (mode === 'current-paper-cycle' && isReplay) {
+        continue;
+      }
+      if (mode === 'historical-target-replay' && !isReplay) {
         continue;
       }
       if (

@@ -17,6 +17,8 @@ import { NewsSource } from '../../entities/news-source.entity';
 import { PortfolioTargetSnapshot } from '../../entities/portfolio-target-snapshot.entity';
 import { PromotionDecision } from '../../entities/promotion-decision.entity';
 import { RawEvidenceRecord } from '../../entities/raw-evidence-record.entity';
+import { ResearchHypothesis } from '../../entities/research-hypothesis.entity';
+import { ResearchJobRecord } from '../../entities/research-job-record.entity';
 import { PaperOrderPlan } from '../../entities/paper-order-plan.entity';
 import { InvestmentProposal } from '../../entities/investment-proposal.entity';
 import { BrokerSnapshot } from '../../entities/broker-snapshot.entity';
@@ -30,10 +32,12 @@ import { NumericAlphaService } from './alpha/numeric-alpha.service';
 import { LlmAlphaService } from './alpha/llm-alpha.service';
 import { MetaAlphaService } from './alpha/meta-alpha.service';
 import { RawEvidenceArchiveService } from './alpha/raw-evidence-archive.service';
+import { HuggingFaceSemanticEvidenceIngestService } from './alpha/huggingface-semantic-evidence-ingest.service';
 import { LeanLocalSimulatorService } from './lean/lean-local-simulator.service';
 import { LeanDailyDataExportService } from './lean/lean-daily-data-export.service';
 import { LeanDataPreparationService } from './lean/lean-data-preparation.service';
 import { LeanCloudRunner } from './lean/lean-cloud.runner';
+import { LeanCloudManualImporter } from './lean/lean-cloud-manual-importer';
 import { LeanRunImportService } from './lean/lean-run-import.service';
 import { LeanPaperBridgeService } from './paper/lean-paper-bridge.service';
 import { LearningLoopService } from './learning/learning-loop.service';
@@ -49,6 +53,8 @@ import { MlModelRegistryService } from './ml/ml-model-registry.service';
 import { MlPythonRunner } from './ml/ml-python.runner';
 import { MlBaselineInferenceService } from './ml/ml-baseline-inference.service';
 import { LeanCliRunner } from './lean/lean-cli.runner';
+import { ResearchFactoryService } from './research/research-factory.service';
+import { CapitalEvidenceSliceService } from './research/capital-evidence-slice.service';
 
 @Module({
   imports: [
@@ -67,6 +73,8 @@ import { LeanCliRunner } from './lean/lean-cli.runner';
       PortfolioTargetSnapshot,
       PromotionDecision,
       RawEvidenceRecord,
+      ResearchHypothesis,
+      ResearchJobRecord,
       PaperOrderPlan,
       InvestmentProposal,
       BrokerSnapshot,
@@ -79,6 +87,7 @@ import { LeanCliRunner } from './lean/lean-cli.runner';
   providers: [
     FeatureSnapshotService,
     RawEvidenceArchiveService,
+    HuggingFaceSemanticEvidenceIngestService,
     LlmEventFeatureService,
     NumericAlphaService,
     MlModelRegistryService,
@@ -90,8 +99,11 @@ import { LeanCliRunner } from './lean/lean-cli.runner';
     LeanDailyDataExportService,
     LeanDataPreparationService,
     LeanCloudRunner,
+    LeanCloudManualImporter,
     LeanCliRunner,
     LeanRunImportService,
+    ResearchFactoryService,
+    CapitalEvidenceSliceService,
     LeanPaperBridgeService,
     LearningLoopService,
     LiveShadowService,

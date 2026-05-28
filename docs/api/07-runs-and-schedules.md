@@ -135,8 +135,8 @@ These historical `v1-pilot` endpoint names remain compatibility wrappers around 
 
 #### `POST /v1-pilot/live-shadow`
 
-- **Description**: Records live-shadow would-have-traded evidence from the latest imported LEAN target snapshot. It never submits broker orders.
+- **Description**: Records shadow trading would-have-traded artifacts from the latest imported LEAN target snapshot. It never submits broker orders.
 
 #### `POST /v1-pilot/learning-loop`
 
-- **Description**: Creates available alpha outcome labels and records a promotion decision. The promotion decision remains `blocked` unless QuantConnect Cloud and live-shadow evidence are both present.
+- **Description**: Creates available alpha outcome labels and records a promotion decision. The promotion decision remains `blocked` unless QuantConnect Cloud and shadow trading artifacts are both present.

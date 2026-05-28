@@ -4,7 +4,7 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
 } from 'typeorm';
-import {
+import type {
   RiskGateDecision,
   RiskGateRequest,
   RiskGateResponse,

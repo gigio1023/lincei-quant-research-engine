@@ -1,12 +1,12 @@
 # Deployment Guide
 
-Status: operator runbook for development and validation deployments. The active spec does not permit production live trading.
+Status: operator runbook for development and validation deployments. The active spec does not permit broker writes in the current milestone.
 
 ## Scope
 
-Use this guide to run the backend, frontend, database migrations, and local validation stack. It is not a live-money deployment runbook.
+Use this guide to run the backend, frontend, database migrations, and local validation stack. It is not a broker-write deployment runbook.
 
-Broker-connected or real-money deployment requires a separate user-approved live-money spec.
+Broker-connected or real-money deployment requires a separate user-approved broker-write implementation spec.
 
 ## Requirements
 
@@ -47,7 +47,7 @@ bun run migration:show
 bun run migration:run
 ```
 
-Migration state is part of preflight evidence. Unknown migration state should block execution-like paths.
+Migration state is part of pre-trade risk check artifacts. Unknown migration state should block execution-like paths.
 
 ## Validation Deployment Checklist
 

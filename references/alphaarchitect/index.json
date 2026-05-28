@@ -1,0 +1,773 @@
+{
+  "status": "supporting research corpus",
+  "source": "Alpha Architect blog",
+  "source_home": "https://alphaarchitect.com/blog/",
+  "retrieved_at": "2026-05-27T06:30:13+00:00",
+  "permission_note": "Stored in-repository per user-provided permission on 2026-05-27. Preserve source attribution.",
+  "article_count": 40,
+  "listing_pages": [
+    {
+      "url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/blog/",
+      "sha256": "ceab866b32f726adfb8d63bfc614455cdc8eb593e0ddf5814f28a74dec5897f3",
+      "bytes": 11811
+    },
+    {
+      "url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/blog/page/2/",
+      "sha256": "9c773e1ec0531b2fecdf3ce88121a6e3c4473563c49491fe77df36a3d1a6043f",
+      "bytes": 12853
+    },
+    {
+      "url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/blog/page/3/",
+      "sha256": "fad92a07b02f7811c8a66f29a3ef8d1b42d8ddd92fbfaa644748fae18f4659db",
+      "bytes": 13296
+    },
+    {
+      "url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/blog/page/4/",
+      "sha256": "1c236b6df01fc75abb29fc648c05061b6548c1336af241182779a66c87a8ace6",
+      "bytes": 12657
+    }
+  ],
+  "articles": [
+    {
+      "title": "What Drives Investors’ Portfolio Choices? It’s Not What You May Think",
+      "source_url": "https://alphaarchitect.com/portfolio-choices/",
+      "slug": "portfolio-choices",
+      "author": "Elisabetta Basilico, PhD, CFA",
+      "published": "May 25th, 2026",
+      "categories": [
+        "Elisabetta Basilico",
+        "Research Insights",
+        "Other Insights",
+        "Behavioral Finance"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/portfolio-choices/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "73e73929ef0111d491eaecbec5cbbf3f78e38e27ec88efee90b789ae05993513",
+      "content_bytes": 8728,
+      "local_path": "references/alphaarchitect/articles/01-portfolio-choices.md"
+    },
+    {
+      "title": "When Everyone Trades the Same Factor Playbook",
+      "source_url": "https://alphaarchitect.com/factor-strategies/",
+      "slug": "factor-strategies",
+      "author": "Larry Swedroe",
+      "published": "May 22nd, 2026",
+      "categories": [
+        "Research Insights",
+        "Factor Investing",
+        "Larry Swedroe",
+        "Other Insights"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/factor-strategies/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "e576486826aff880bef66e541a92df1987f4562ac15556a24c9e491cbe117c4a",
+      "content_bytes": 15091,
+      "local_path": "references/alphaarchitect/articles/02-factor-strategies.md"
+    },
+    {
+      "title": "Leader-Follower Dynamics in Shareholder Activism",
+      "source_url": "https://alphaarchitect.com/shareholder-activism/",
+      "slug": "shareholder-activism",
+      "author": "Elisabetta Basilico, PhD, CFA",
+      "published": "May 18th, 2026",
+      "categories": [
+        "Elisabetta Basilico",
+        "Research Insights",
+        "Other Insights",
+        "Behavioral Finance"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/shareholder-activism/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "fc139e470bdd761e2c842a54119c20d7c4e22a4b277ceddbace28cdd8d028967",
+      "content_bytes": 7762,
+      "local_path": "references/alphaarchitect/articles/03-shareholder-activism.md"
+    },
+    {
+      "title": "Why the 351 Exchange Might Revolutionize Investing",
+      "source_url": "https://alphaarchitect.com/why-the-351-exchange-might-revolutionize-investing/",
+      "slug": "why-the-351-exchange-might-revolutionize-investing",
+      "author": "Jose Ordonez",
+      "published": "May 15th, 2026",
+      "categories": [
+        "Best of Other",
+        "Research Insights",
+        "Tax Efficient Investing"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/why-the-351-exchange-might-revolutionize-investing/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "f0d6ebefa761c406a72f842baf1c4af69b1b375a43b95eb9b9bcafc87264270c",
+      "content_bytes": 9776,
+      "local_path": "references/alphaarchitect/articles/04-why-the-351-exchange-might-revolutionize-investing.md"
+    },
+    {
+      "title": "Institutional Investor Attention",
+      "source_url": "https://alphaarchitect.com/institutional-investor/",
+      "slug": "institutional-investor",
+      "author": "Elisabetta Basilico, PhD, CFA",
+      "published": "May 11th, 2026",
+      "categories": [
+        "Elisabetta Basilico",
+        "Research Insights",
+        "Other Insights",
+        "Behavioral Finance"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/institutional-investor/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "fe6c740db41b759c84b239f31046f4bf56f64296ca09069818e073b26a1c34eb",
+      "content_bytes": 8299,
+      "local_path": "references/alphaarchitect/articles/05-institutional-investor.md"
+    },
+    {
+      "title": "Why Momentum Investing Has Been Struggling—And What Volatility Has to Do With It",
+      "source_url": "https://alphaarchitect.com/momentum-investing-struggling/",
+      "slug": "momentum-investing-struggling",
+      "author": "Larry Swedroe",
+      "published": "May 8th, 2026",
+      "categories": [
+        "Larry Swedroe",
+        "Factor Investing",
+        "Other Insights",
+        "Momentum Investing Research"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/momentum-investing-struggling/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "d207154e8dcb086715a7575fc328d6d1f9e8b13c1548014e0bd6ac26f016939b",
+      "content_bytes": 14268,
+      "local_path": "references/alphaarchitect/articles/06-momentum-investing-struggling.md"
+    },
+    {
+      "title": "Should Your Mom Have Private Equity in Her 401K?",
+      "source_url": "https://alphaarchitect.com/private-equity-performance/",
+      "slug": "private-equity-performance",
+      "author": "Elisabetta Basilico, PhD, CFA",
+      "published": "May 4th, 2026",
+      "categories": [
+        "Elisabetta Basilico",
+        "Private Equity",
+        "Research Insights",
+        "Other Insights",
+        "Momentum Investing Research"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/private-equity-performance/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "533657169e4fd45491b9176f7aa7c854246dd2dc40b87394e11a335ada58919d",
+      "content_bytes": 10270,
+      "local_path": "references/alphaarchitect/articles/07-private-equity-performance.md"
+    },
+    {
+      "title": "Rethinking Trend Following: Optimal Regime-Dependent Allocation",
+      "source_url": "https://alphaarchitect.com/rethinking-trend-following-optimal-regime-dependent-allocation/",
+      "slug": "rethinking-trend-following-optimal-regime-dependent-allocation",
+      "author": "Valeriy Zakamulin",
+      "published": "May 1st, 2026",
+      "categories": [
+        "Research Insights",
+        "Trend Following"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/rethinking-trend-following-optimal-regime-dependent-allocation/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "b3f160a4554749b444280bc5e89390da2ccedeb3622b70b07cc8327429f8f97e",
+      "content_bytes": 7284,
+      "local_path": "references/alphaarchitect/articles/08-rethinking-trend-following-optimal-regime-dependent-allocation.md"
+    },
+    {
+      "title": "Bank Monitoring with On-Site Inspections",
+      "source_url": "https://alphaarchitect.com/bank-monitoring/",
+      "slug": "bank-monitoring",
+      "author": "Elisabetta Basilico, PhD, CFA",
+      "published": "April 28th, 2026",
+      "categories": [
+        "Elisabetta Basilico",
+        "Banking Institutions",
+        "Research Insights",
+        "Other Insights"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/bank-monitoring/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "eba7ccc3ac5ffb09b100131bf211b31091a7826ce9be7eefcea351d769f02978",
+      "content_bytes": 8289,
+      "local_path": "references/alphaarchitect/articles/09-bank-monitoring.md"
+    },
+    {
+      "title": "The Skip-Month Mystery: What Last Month’s Returns Are Really Telling You",
+      "source_url": "https://alphaarchitect.com/skip-month-mystery/",
+      "slug": "skip-month-mystery",
+      "author": "Larry Swedroe",
+      "published": "April 24th, 2026",
+      "categories": [
+        "Larry Swedroe",
+        "Factor Investing",
+        "Research Insights",
+        "Other Insights",
+        "Momentum Investing Research"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/skip-month-mystery/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "26546b7ea3356915a77ad5f2cbadf4901f0bd07423c9e84250a7c61768488a7e",
+      "content_bytes": 12842,
+      "local_path": "references/alphaarchitect/articles/10-skip-month-mystery.md"
+    },
+    {
+      "title": "The Ultimate Moving Average Handbook: Bringing Science into the Art of Trend Following",
+      "source_url": "https://alphaarchitect.com/the-ultimate-moving-average-handbook-bringing-science-into-the-art-of-trend-following/",
+      "slug": "the-ultimate-moving-average-handbook-bringing-science-into-the-art-of-trend-following",
+      "author": "Wesley Gray, PhD",
+      "published": "April 17th, 2026",
+      "categories": [
+        "Research Insights"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/the-ultimate-moving-average-handbook-bringing-science-into-the-art-of-trend-following/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "04bf0cbf67fc63a483a8ecce2a4ad90ddb9221f70fe0c3c10b2c0376fa1e27d3",
+      "content_bytes": 7615,
+      "local_path": "references/alphaarchitect/articles/11-the-ultimate-moving-average-handbook-bringing-science-into-the-art-of-trend-following.md"
+    },
+    {
+      "title": "The Many Facets of Stock Momentum: Distinguishing Factor and Stock Components",
+      "source_url": "https://alphaarchitect.com/stock-specific-momentum/",
+      "slug": "stock-specific-momentum",
+      "author": "Elisabetta Basilico, PhD, CFA",
+      "published": "April 13th, 2026",
+      "categories": [
+        "Elisabetta Basilico",
+        "Research Insights",
+        "Factor Investing",
+        "Other Insights",
+        "Momentum Investing Research"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/stock-specific-momentum/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "6f471bdf5ef3926f23c6f8156065c56f1f96bf487fc2adbab355fd27a463689a",
+      "content_bytes": 8108,
+      "local_path": "references/alphaarchitect/articles/12-stock-specific-momentum.md"
+    },
+    {
+      "title": "Factor MAX: A New Signal for Predicting Factor Returns",
+      "source_url": "https://alphaarchitect.com/factor-max/",
+      "slug": "factor-max",
+      "author": "Larry Swedroe",
+      "published": "April 10th, 2026",
+      "categories": [
+        "Larry Swedroe",
+        "Factor Investing",
+        "Research Insights",
+        "Other Insights"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/factor-max/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "47e0e423d0146e440e1bbc17271580c583afc88f099b4afd13f7ab967c998edc",
+      "content_bytes": 13762,
+      "local_path": "references/alphaarchitect/articles/13-factor-max.md"
+    },
+    {
+      "title": "Face-to-Face Social Interactions and Local Informational Advantage",
+      "source_url": "https://alphaarchitect.com/mutual-fund-managers/",
+      "slug": "mutual-fund-managers",
+      "author": "Elisabetta Basilico, PhD, CFA",
+      "published": "April 6th, 2026",
+      "categories": [
+        "Elisabetta Basilico",
+        "Research Insights",
+        "Other Insights",
+        "Behavioral Finance"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/mutual-fund-managers/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "0a675e6e4ff2d49b6163621d72056f779b19a5a7b7f89f7b535bd72e4a809e99",
+      "content_bytes": 9603,
+      "local_path": "references/alphaarchitect/articles/14-mutual-fund-managers.md"
+    },
+    {
+      "title": "Mean Reversion in Play: Carry is BACK?!",
+      "source_url": "https://alphaarchitect.com/mean-reversion-in-play-carry-is-back/",
+      "slug": "mean-reversion-in-play-carry-is-back",
+      "author": "Jose Ordonez",
+      "published": "April 3rd, 2026",
+      "categories": [
+        "Podcasts and Video",
+        "Factor Investing",
+        "Research Insights",
+        "Managed Futures Research",
+        "Macroeconomics Research"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/mean-reversion-in-play-carry-is-back/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "9e3b4cf1bf9f6e41ecf9d803b6bb5033c6ef45d5052bb193fcb322b9469591c8",
+      "content_bytes": 6235,
+      "local_path": "references/alphaarchitect/articles/15-mean-reversion-in-play-carry-is-back.md"
+    },
+    {
+      "title": "The Performance of Small Business Investment Companies",
+      "source_url": "https://alphaarchitect.com/small-business-investment-companies/",
+      "slug": "small-business-investment-companies",
+      "author": "Elisabetta Basilico, PhD, CFA",
+      "published": "March 30th, 2026",
+      "categories": [
+        "Private Equity",
+        "Elisabetta Basilico",
+        "Research Insights",
+        "Other Insights"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/small-business-investment-companies/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "65b2daec3d70df082ab820b12802a148c21a3a8c6c9f79cab93216c7bc211828",
+      "content_bytes": 9490,
+      "local_path": "references/alphaarchitect/articles/16-small-business-investment-companies.md"
+    },
+    {
+      "title": "Unlocking Hidden Patterns: How Daily Returns Predict Future Stock Performance",
+      "source_url": "https://alphaarchitect.com/daily-stock-returns/",
+      "slug": "daily-stock-returns",
+      "author": "Larry Swedroe",
+      "published": "March 27th, 2026",
+      "categories": [
+        "Predicting Market Returns",
+        "Larry Swedroe",
+        "Research Insights",
+        "Other Insights"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/daily-stock-returns/",
+      "retrieved_at": "2026-05-27T06:30:13+00:00",
+      "content_sha256": "97b2fcdc1a5a0e5ca1ee44a946b968801eccbca05b172db355fa6e501b40e42a",
+      "content_bytes": 9519,
+      "local_path": "references/alphaarchitect/articles/17-daily-stock-returns.md"
+    },
+    {
+      "title": "Increases CAPE Ratio Predictability with a Simple Adjustment",
+      "source_url": "https://alphaarchitect.com/cape-ratios/",
+      "slug": "cape-ratios",
+      "author": "Elisabetta Basilico, PhD, CFA",
+      "published": "March 23rd, 2026",
+      "categories": [
+        "Elisabetta Basilico",
+        "Research Insights",
+        "Factor Investing",
+        "Other Insights",
+        "Value Investing Research",
+        "Tactical Asset Allocation Research"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/cape-ratios/",
+      "retrieved_at": "2026-05-27T06:30:13+00:00",
+      "content_sha256": "ce1f869c378a5cfabad0b1caf536e15b3958469a1bf5184702c8a502b8d5d490",
+      "content_bytes": 6603,
+      "local_path": "references/alphaarchitect/articles/18-cape-ratios.md"
+    },
+    {
+      "title": "The Return of the King: Trend Following Is Back – But Will It Last?",
+      "source_url": "https://alphaarchitect.com/the-return-of-the-king-trend-following-is-back-but-will-it-last/",
+      "slug": "the-return-of-the-king-trend-following-is-back-but-will-it-last",
+      "author": "Jose Ordonez",
+      "published": "March 20th, 2026",
+      "categories": [
+        "Predicting Market Returns",
+        "Crisis Alpha",
+        "Podcasts and Video",
+        "Factor Investing",
+        "Research Insights",
+        "Media",
+        "Trend Following",
+        "Tactical Asset Allocation Research",
+        "Managed Futures Research"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/the-return-of-the-king-trend-following-is-back-but-will-it-last/",
+      "retrieved_at": "2026-05-27T06:30:13+00:00",
+      "content_sha256": "24c1db0b83ce99d3dbf9d05cfecdadf0fbbb92c1b3c453acfd19567f0f965615",
+      "content_bytes": 9254,
+      "local_path": "references/alphaarchitect/articles/19-the-return-of-the-king-trend-following-is-back-but-will-it-last.md"
+    },
+    {
+      "title": "Unlocking Hidden Value: How Corporate Language Reveals the Future of Intangible Investment",
+      "source_url": "https://alphaarchitect.com/intangible-investment/",
+      "slug": "intangible-investment",
+      "author": "Larry Swedroe",
+      "published": "March 13th, 2026",
+      "categories": [
+        "Intangibles",
+        "Factor Investing",
+        "Research Insights"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/intangible-investment/",
+      "retrieved_at": "2026-05-27T06:30:13+00:00",
+      "content_sha256": "c25c8b862c2bbbac2b7878b8392ba1f2b8f5de44b7d5c947d0f88bc536353f2f",
+      "content_bytes": 14377,
+      "local_path": "references/alphaarchitect/articles/20-intangible-investment.md"
+    },
+    {
+      "title": "The Best Defensive Strategies: Two Centuries of Evidence",
+      "source_url": "https://alphaarchitect.com/defensive-investment-strategies/",
+      "slug": "defensive-investment-strategies",
+      "author": "Elisabetta Basilico, PhD, CFA",
+      "published": "March 9th, 2026",
+      "categories": [
+        "Elisabetta Basilico",
+        "Research Insights",
+        "Factor Investing",
+        "Other Insights"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/defensive-investment-strategies/",
+      "retrieved_at": "2026-05-27T06:30:13+00:00",
+      "content_sha256": "1d862caa6700b861f5a499a6b4f76143ee15edaa868ee0d1058b365e8f6002c7",
+      "content_bytes": 8793,
+      "local_path": "references/alphaarchitect/articles/21-defensive-investment-strategies.md"
+    },
+    {
+      "title": "Fund Selection When Borrowing Is Restricted",
+      "source_url": "https://alphaarchitect.com/fund-selection-when-borrowing-is-restricted/",
+      "slug": "fund-selection-when-borrowing-is-restricted",
+      "author": "Elisabetta Basilico, PhD, CFA",
+      "published": "March 2nd, 2026",
+      "categories": [
+        "Elisabetta Basilico",
+        "Empirical Methods",
+        "Transaction Costs",
+        "Research Insights",
+        "Other Insights",
+        "Behavioral Finance",
+        "ETF Investing"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/fund-selection-when-borrowing-is-restricted/",
+      "retrieved_at": "2026-05-27T06:30:13+00:00",
+      "content_sha256": "a7858c52d9f19f4c147dc1db630446265bfea6cd109076cfa6dd08dbd094634c",
+      "content_bytes": 9501,
+      "local_path": "references/alphaarchitect/articles/22-fund-selection-when-borrowing-is-restricted.md"
+    },
+    {
+      "title": "How AI Can Help Find the Needle in the Haystack",
+      "source_url": "https://alphaarchitect.com/ai-tools-financial-disclosures/",
+      "slug": "ai-tools-financial-disclosures",
+      "author": "Larry Swedroe",
+      "published": "February 27th, 2026",
+      "categories": [
+        "Research Insights",
+        "Larry Swedroe",
+        "AI and Machine Learning",
+        "Other Insights"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/ai-tools-financial-disclosures/",
+      "retrieved_at": "2026-05-27T06:30:13+00:00",
+      "content_sha256": "132826a46749801efab31ad8967f5a8435057497c3c95bc6a8505f41828599cf",
+      "content_bytes": 12369,
+      "local_path": "references/alphaarchitect/articles/23-ai-tools-financial-disclosures.md"
+    },
+    {
+      "title": "Exploiting Myopia: The Returns to Long-Term Investing",
+      "source_url": "https://alphaarchitect.com/long-term-investing/",
+      "slug": "long-term-investing",
+      "author": "Elisabetta Basilico, PhD, CFA",
+      "published": "February 23rd, 2026",
+      "categories": [
+        "Elisabetta Basilico",
+        "Factor Investing",
+        "Research Insights",
+        "Other Insights",
+        "Behavioral Finance"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/long-term-investing/",
+      "retrieved_at": "2026-05-27T06:30:13+00:00",
+      "content_sha256": "57f43f67febc21cbc266201a4c1f8abc29340d9c14c83e3095c34c51b640951f",
+      "content_bytes": 8552,
+      "local_path": "references/alphaarchitect/articles/24-long-term-investing.md"
+    },
+    {
+      "title": "The Stock Market and Bank Risk-Taking",
+      "source_url": "https://alphaarchitect.com/bank-risk-taking/",
+      "slug": "bank-risk-taking",
+      "author": "Elisabetta Basilico, PhD, CFA",
+      "published": "February 17th, 2026",
+      "categories": [
+        "Elisabetta Basilico",
+        "Banking Institutions",
+        "Research Insights",
+        "Other Insights"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/bank-risk-taking/",
+      "retrieved_at": "2026-05-27T06:30:13+00:00",
+      "content_sha256": "cc69d24512db04b56ce1589d21641a4730f173c0c96a8409e4fbfa10a475b239",
+      "content_bytes": 9197,
+      "local_path": "references/alphaarchitect/articles/25-bank-risk-taking.md"
+    },
+    {
+      "title": "Retail Investors and the Mispricing Puzzle",
+      "source_url": "https://alphaarchitect.com/hard-to-value-stocks/",
+      "slug": "hard-to-value-stocks",
+      "author": "Larry Swedroe",
+      "published": "February 13th, 2026",
+      "categories": [
+        "Insider and Smart Money",
+        "Intangibles",
+        "Research Insights",
+        "Larry Swedroe",
+        "Factor Investing",
+        "Other Insights"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/hard-to-value-stocks/",
+      "retrieved_at": "2026-05-27T06:30:13+00:00",
+      "content_sha256": "6f227043563975c2d38311788c085f2ea890d8158354765eda056d27e63b4e43",
+      "content_bytes": 9176,
+      "local_path": "references/alphaarchitect/articles/26-hard-to-value-stocks.md"
+    },
+    {
+      "title": "Financial Regulation and AI: A Faustian Bargain?",
+      "source_url": "https://alphaarchitect.com/financial-regulation/",
+      "slug": "financial-regulation",
+      "author": "Elisabetta Basilico, PhD, CFA",
+      "published": "February 9th, 2026",
+      "categories": [
+        "Banking Institutions",
+        "Elisabetta Basilico",
+        "Research Insights",
+        "AI and Machine Learning",
+        "Other Insights"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/financial-regulation/",
+      "retrieved_at": "2026-05-27T06:30:13+00:00",
+      "content_sha256": "d44b27e374beab32cb6be4bc38e72e9bf428fcc6982a6aa0d4b99a0d52640900",
+      "content_bytes": 8062,
+      "local_path": "references/alphaarchitect/articles/27-financial-regulation.md"
+    },
+    {
+      "title": "The Long Volatility Premium: Short the Market, Get Paid?",
+      "source_url": "https://alphaarchitect.com/the-long-volatility-premium-short-the-market-get-paid/",
+      "slug": "the-long-volatility-premium-short-the-market-get-paid",
+      "author": "Jose Ordonez",
+      "published": "February 6th, 2026",
+      "categories": [
+        "Best of Other",
+        "Options",
+        "Volatility (e.g., VIX)",
+        "Crisis Alpha",
+        "Podcasts and Video",
+        "Factor Investing",
+        "Research Insights"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/the-long-volatility-premium-short-the-market-get-paid/",
+      "retrieved_at": "2026-05-27T06:30:13+00:00",
+      "content_sha256": "e6a9ba708526a404a6c18bf5d503dc7ae6c984cbd95bc6ef1d043925f59162cb",
+      "content_bytes": 8966,
+      "local_path": "references/alphaarchitect/articles/28-the-long-volatility-premium-short-the-market-get-paid.md"
+    },
+    {
+      "title": "The Secular Decline in Interest Rates and the Rise of Shadow Banks",
+      "source_url": "https://alphaarchitect.com/shadow-banks/",
+      "slug": "shadow-banks",
+      "author": "Elisabetta Basilico, PhD, CFA",
+      "published": "February 2nd, 2026",
+      "categories": [
+        "Banking Institutions",
+        "Elisabetta Basilico",
+        "Research Insights",
+        "Other Insights"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/shadow-banks/",
+      "retrieved_at": "2026-05-27T06:30:13+00:00",
+      "content_sha256": "bd628836a52a1677f1e4a03d26195631c4e254d35270381d21992daf706f9de1",
+      "content_bytes": 8092,
+      "local_path": "references/alphaarchitect/articles/29-shadow-banks.md"
+    },
+    {
+      "title": "Revaluation Alpha: Why Past Factor Returns May Be Misleading",
+      "source_url": "https://alphaarchitect.com/revaluation-alpha/",
+      "slug": "revaluation-alpha",
+      "author": "Larry Swedroe",
+      "published": "January 30th, 2026",
+      "categories": [
+        "Research Insights",
+        "Factor Investing",
+        "Value Investing Research",
+        "Momentum Investing Research"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/revaluation-alpha/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "582573f5092def1c2ad4a7efd0c393739aa2624c2576e3b8cd5171e3bb239700",
+      "content_bytes": 7298,
+      "local_path": "references/alphaarchitect/articles/30-revaluation-alpha.md"
+    },
+    {
+      "title": "Low-Cost Financing via Short Box Spreads: A Primer for Financial Advisors",
+      "source_url": "https://alphaarchitect.com/short-box-spreads/",
+      "slug": "short-box-spreads",
+      "author": "Joe DeSipio",
+      "published": "January 28th, 2026",
+      "categories": [
+        "Options",
+        "Best of Other",
+        "Research Insights",
+        "Guest Posts",
+        "Other Insights"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/short-box-spreads/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "d9307438e441d519e57483b068af6c3aecc330cf6013965ee11f91ae5a0037db",
+      "content_bytes": 17752,
+      "local_path": "references/alphaarchitect/articles/31-short-box-spreads.md"
+    },
+    {
+      "title": "Retired Investors Should Stop Trading So Much",
+      "source_url": "https://alphaarchitect.com/trading-behavior/",
+      "slug": "trading-behavior",
+      "author": "Elisabetta Basilico, PhD, CFA",
+      "published": "January 26th, 2026",
+      "categories": [
+        "Elisabetta Basilico",
+        "Research Insights",
+        "Other Insights",
+        "Behavioral Finance"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/trading-behavior/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "54511a14560f8a97ea66b5d1b1e4b9fd44115ee739cc5ef5a88b47d1fe5fef80",
+      "content_bytes": 9347,
+      "local_path": "references/alphaarchitect/articles/32-trading-behavior.md"
+    },
+    {
+      "title": "Is Value Investing Dead?",
+      "source_url": "https://alphaarchitect.com/is-value-investing-dead/",
+      "slug": "is-value-investing-dead",
+      "author": "Jose Ordonez",
+      "published": "January 23rd, 2026",
+      "categories": [
+        "Predicting Market Returns",
+        "Factor Investing",
+        "Research Insights",
+        "Value Investing Research",
+        "Size Investing Research",
+        "Macroeconomics Research"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/is-value-investing-dead/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "58ddc66b41744995acdfc49f313054e1607b91c1fe095d1400259197d3174a36",
+      "content_bytes": 5791,
+      "local_path": "references/alphaarchitect/articles/33-is-value-investing-dead.md"
+    },
+    {
+      "title": "Do indexes time the market?",
+      "source_url": "https://alphaarchitect.com/index-investing/",
+      "slug": "index-investing",
+      "author": "Elisabetta Basilico, PhD, CFA",
+      "published": "January 20th, 2026",
+      "categories": [
+        "Elisabetta Basilico",
+        "Factor Investing",
+        "Research Insights",
+        "Other Insights",
+        "Momentum Investing Research"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/index-investing/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "8a0d377e14f8b0cb8b2bd491cc5d7a3a3acec9a850468af4b59b24bef5123f8b",
+      "content_bytes": 8564,
+      "local_path": "references/alphaarchitect/articles/34-index-investing.md"
+    },
+    {
+      "title": "Can AI Read the News Better Than You? How ChatGPT Could Transform Momentum Investing",
+      "source_url": "https://alphaarchitect.com/chatgpt-momentum-investing/",
+      "slug": "chatgpt-momentum-investing",
+      "author": "Larry Swedroe",
+      "published": "January 16th, 2026",
+      "categories": [
+        "Research Insights",
+        "AI and Machine Learning",
+        "Momentum Investing Research"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/chatgpt-momentum-investing/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "e6f0ff3c3978ee370d94cbcf236ad768d238d48ef6246b4620b1de40b662417c",
+      "content_bytes": 15463,
+      "local_path": "references/alphaarchitect/articles/35-chatgpt-momentum-investing.md"
+    },
+    {
+      "title": "How Geopolitics is Being Priced in Real Time",
+      "source_url": "https://alphaarchitect.com/geopolitical-risk/",
+      "slug": "geopolitical-risk",
+      "author": "Elisabetta Basilico, PhD, CFA",
+      "published": "January 12th, 2026",
+      "categories": [
+        "Elisabetta Basilico",
+        "Research Insights",
+        "AI and Machine Learning",
+        "Other Insights"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/geopolitical-risk/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "4ac30f16a89285d949e9fccbc15b92496ff525ab6641163d35f00a640ec533e6",
+      "content_bytes": 9016,
+      "local_path": "references/alphaarchitect/articles/36-geopolitical-risk.md"
+    },
+    {
+      "title": "The Hidden Risks of Leveraged Single-Stock ETFs",
+      "source_url": "https://alphaarchitect.com/leveraged-single-stock-etfs/",
+      "slug": "leveraged-single-stock-etfs",
+      "author": "Larry Swedroe",
+      "published": "January 2nd, 2026",
+      "categories": [
+        "Transaction Costs",
+        "Research Insights",
+        "Larry Swedroe",
+        "Other Insights",
+        "ETF Investing"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/leveraged-single-stock-etfs/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "2e1af59688835d5b66a2480f1ed50b4b045ebad2e52b2197e546daca99f64b06",
+      "content_bytes": 13307,
+      "local_path": "references/alphaarchitect/articles/37-leveraged-single-stock-etfs.md"
+    },
+    {
+      "title": "Taming the Anomaly Zoo: How Macroeconomic Forces Shape Market Returns",
+      "source_url": "https://alphaarchitect.com/macroeconomic-forces/",
+      "slug": "macroeconomic-forces",
+      "author": "Larry Swedroe",
+      "published": "December 26th, 2025",
+      "categories": [
+        "Factor Investing",
+        "Larry Swedroe",
+        "Research Insights",
+        "Other Insights",
+        "Macroeconomics Research"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/macroeconomic-forces/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "fb4338538e129b5c948086f33201d5263167c51fa0d5a0702f3dbaaac61c4cc6",
+      "content_bytes": 12689,
+      "local_path": "references/alphaarchitect/articles/38-macroeconomic-forces.md"
+    },
+    {
+      "title": "Does regulation actually clean up bad behavior?",
+      "source_url": "https://alphaarchitect.com/bad-brokers/",
+      "slug": "bad-brokers",
+      "author": "Elisabetta Basilico, PhD, CFA",
+      "published": "December 22nd, 2025",
+      "categories": [
+        "Elisabetta Basilico",
+        "Research Insights",
+        "Other Insights",
+        "Behavioral Finance",
+        "Corporate Governance"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/bad-brokers/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "93c4d88ba8b8286b9b530d1fbc30b5308b71a30ead94f3117d1c1a2150f89517",
+      "content_bytes": 7361,
+      "local_path": "references/alphaarchitect/articles/39-bad-brokers.md"
+    },
+    {
+      "title": "Institutions’ return expectations across assets and time",
+      "source_url": "https://alphaarchitect.com/return-expectations/",
+      "slug": "return-expectations",
+      "author": "Elisabetta Basilico, PhD, CFA",
+      "published": "December 15th, 2025",
+      "categories": [
+        "Elisabetta Basilico",
+        "Research Insights",
+        "Other Insights",
+        "Behavioral Finance",
+        "Macroeconomics Research"
+      ],
+      "reader_url": "https://r.jina.ai/http://r.jina.ai/http://https://alphaarchitect.com/return-expectations/",
+      "retrieved_at": "2026-05-27T06:27:07+00:00",
+      "content_sha256": "2fec3eb0ae6059e3db3fad4cb84fc3b04bc937658bb18a763c7e4a05364f0809",
+      "content_bytes": 8238,
+      "local_path": "references/alphaarchitect/articles/40-return-expectations.md"
+    }
+  ]
+}

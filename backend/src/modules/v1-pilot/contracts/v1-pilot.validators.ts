@@ -1,14 +1,16 @@
 /** Schema and policy guards at module boundaries — reject early before persistence or broker I/O. */
 import { BadRequestException } from '@nestjs/common';
 import {
-  AlphaDecisionContract,
-  FeatureSnapshotContract,
   REQUIRED_FEATURE_KEYS,
   MAX_LIVE_PILOT_NOTIONAL_USD,
   MAX_SINGLE_LIVE_ORDER_NOTIONAL_USD,
-  ExecutionIntentContract,
 } from './v1-pilot.contracts';
-import { LlmEventFeatureContract } from './spec-contracts';
+import type {
+  AlphaDecisionContract,
+  ExecutionIntentContract,
+  FeatureSnapshotContract,
+} from './v1-pilot.contracts';
+import type { LlmEventFeatureContract } from './spec-contracts';
 
 const MAX_FEATURE_AGE_MS = 72 * 60 * 60 * 1000;
 

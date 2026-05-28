@@ -65,8 +65,12 @@ export class QuantConnectCloudArtifactMapper {
     const statistics = {
       ...(payload.backtest.statistics ?? {}),
       ...(payload.backtest.runtimeStatistics ?? {}),
+      cloudProjectId: input.projectId ?? '',
       cloudBacktestId: input.cloudBacktestId!,
       cloudStatus: payload.backtest.status ?? 'Completed.',
+      cloudImportedInsightCount: normalizedInsights.length,
+      cloudImportedOrderCount: payload.orders.length,
+      cloudImportedOrderEventCount: normalizedOrderEvents.length,
     };
     const derivedTargets = this.deriveTargetsFromCloudOrders(
       normalizedInsights,

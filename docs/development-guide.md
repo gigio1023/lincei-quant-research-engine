@@ -52,7 +52,7 @@ bun run v1:cli -- run-paper-cycle
 bun run v1:cli -- live-preflight
 ```
 
-`live-preflight` is evidence only under the active spec. It should remain blocked for real broker writes until a separate user-approved live-money spec exists.
+`live-preflight` is evidence only under the active spec. It should remain blocked for real broker writes until a separate user-approved broker-write implementation spec exists.
 
 ## Frontend
 
@@ -98,18 +98,18 @@ Full local orchestration:
 ./scripts/import-lean-run latest
 ```
 
-Local simulator/sample-data runs prove plumbing only. `run-local-strategy-smoke` is useful local LEAN strategy evidence, but strategy promotion still requires QuantConnect Cloud REST-imported evidence when account access allows it.
+Local simulator/sample-data runs prove plumbing only. `run-local-strategy-smoke` is useful local LEAN strategy validation artifacts, but strategy promotion still requires QuantConnect Cloud REST-imported evidence when account access allows it.
 
 ## Testing Policy
 
 Use the narrowest test that protects behavior:
 
-- schema and typed-contract validation;
+- schema and schema validation;
 - feature timestamp/lookahead rejection;
 - numeric scoring;
 - portfolio/risk policy;
 - idempotency;
-- blocked preflight/reconciliation cases.
+- blocked pre-trade risk check/reconciliation cases.
 
 Then run the direct command for the changed path. A unit test is not a substitute for proving the affected alpha/backtest/paper/reconciliation path still executes.
 

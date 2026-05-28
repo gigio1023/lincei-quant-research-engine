@@ -6,8 +6,11 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { BrokerSnapshotProvider } from './broker-snapshot.entity';
-import { OrderSide, OrderType } from '../modules/risk-gate/risk-gate.types';
+import type { BrokerSnapshotProvider } from './broker-snapshot.entity';
+import type {
+  OrderSide,
+  OrderType,
+} from '../modules/risk-gate/risk-gate.types';
 
 export type BrokerOrderCommandType =
   | 'submit_order_plan'

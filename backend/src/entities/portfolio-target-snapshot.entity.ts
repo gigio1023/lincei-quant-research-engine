@@ -6,7 +6,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { PortfolioTargetItemContract } from '../modules/v1-pilot/contracts/v1-pilot.contracts';
+import type { PortfolioTargetItemContract } from '../modules/v1-pilot/contracts/v1-pilot.contracts';
 
 @Entity('portfolio_target_snapshots')
 @Index(['leanRunId', 'asOf'])

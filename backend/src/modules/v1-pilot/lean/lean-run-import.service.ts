@@ -44,6 +44,8 @@ export class LeanRunImportService {
           projectName?: string;
           algorithmVersion?: string;
           simulator?: string;
+          runtime?: LeanRunResult['runtime'];
+          mode?: LeanRunResult['mode'];
           parameters?: Record<string, string | number | boolean>;
         })
       : {};
@@ -78,8 +80,8 @@ export class LeanRunImportService {
 
     const result: LeanRunResult = {
       runId,
-      runtime: config.simulator ? 'simulator' : 'local-lean',
-      mode: 'backtest',
+      runtime: this.runtimeFromConfig(config),
+      mode: config.mode ?? 'backtest',
       projectName: config.projectName ?? 'aggressive_llm_momentum',
       algorithmVersion: config.algorithmVersion ?? 'v1',
       parameters: config.parameters ?? {},
@@ -106,6 +108,8 @@ export class LeanRunImportService {
         startedAt: new Date(result.startedAt),
         completedAt: new Date(result.completedAt),
         promotionEligible: strategyAcceptance.passed,
+        cloudProjectId: this.optionalStat(statistics, 'cloudProjectId'),
+        cloudBacktestId: this.optionalStat(statistics, 'cloudBacktestId'),
         importIdempotencyKey: importKey,
       }),
     );
@@ -232,5 +236,30 @@ export class LeanRunImportService {
         targetHash: payload.targetHash ?? hashObject(payload),
       }),
     );
+  }
+
+  private runtimeFromConfig(config: {
+    simulator?: string;
+    runtime?: LeanRunResult['runtime'];
+  }): LeanRunResult['runtime'] {
+    if (
+      config.runtime === 'quantconnect-cloud' ||
+      config.runtime === 'local-lean' ||
+      config.runtime === 'simulator'
+    ) {
+      return config.runtime;
+    }
+    return config.simulator ? 'simulator' : 'local-lean';
+  }
+
+  private optionalStat(
+    statistics: Record<string, string | number>,
+    key: string,
+  ): string | undefined {
+    const value = statistics[key];
+    if (value === undefined || value === '') {
+      return undefined;
+    }
+    return String(value);
   }
 }

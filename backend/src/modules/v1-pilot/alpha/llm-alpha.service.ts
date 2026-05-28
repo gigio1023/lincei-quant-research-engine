@@ -7,11 +7,11 @@ import OpenAI from 'openai';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AlphaDecision } from '../../../entities/alpha-decision.entity';
-import {
+import type {
   AlphaDecisionContract,
   FeatureSnapshotContract,
 } from '../contracts/v1-pilot.contracts';
-import { LlmEventFeatureContract } from '../contracts/spec-contracts';
+import type { LlmEventFeatureContract } from '../contracts/spec-contracts';
 import { validateAlphaDecision } from '../contracts/v1-pilot.validators';
 import { loadOpenAiEnv } from '../../../shared/openai-env.loader';
 import { hashObject } from '../../../shared/hash.util';

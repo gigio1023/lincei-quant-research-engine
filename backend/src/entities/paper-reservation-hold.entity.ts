@@ -6,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import {
+import type {
   PaperReservationHold,
   PaperReservationHoldStatus,
 } from './paper-order-plan.entity';

@@ -68,7 +68,7 @@ Model composition:
 - Meta alpha: combine numeric and LLM signals into final `AlphaDecision`.
 - Portfolio construction: top-k concentration with volatility targeting and caps.
 - Risk management: max drawdown, exposure, single-name, volatility spike, and stale-data cuts.
-- Execution: backtest/paper/live-shadow only under the active spec.
+- Execution: backtest/paper trading/shadow trading only under the active spec.
 
 ## Lean CLI Integration
 
@@ -106,7 +106,7 @@ Use QuantConnect API, CLI, and MCP to automate platform workflows:
 - cloud backtests with QuantConnect data;
 - result/statistics/order/insight retrieval;
 - Object Store artifact upload/read;
-- paper or live-shadow deployment when spec-approved.
+- paper or shadow trading deployment when spec-approved.
 
 Every cloud action must create a local evidence record with source hash, parameter hash, cloud ids, artifact refs, status, and blockers.
 
@@ -126,5 +126,5 @@ Official docs:
 - local LEAN run works from a repo command or records an actionable blocker;
 - QuantConnect Cloud backtest/import is first-class when account access allows it;
 - result artifacts are hashed and imported;
-- simulator evidence is visibly separated from strategy evidence;
+- simulator evidence is visibly separated from strategy validation artifacts;
 - dashboard and ledgers show run status, alpha decisions, portfolio targets, risk cuts, and blockers.

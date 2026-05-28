@@ -3,7 +3,10 @@ import {
   ImportBrokerFillRequest,
   ImportBrokerSnapshotRequest,
 } from './control-plane.types';
-import { AssetClass, PositionSnapshot } from '../risk-gate/risk-gate.types';
+import type {
+  AssetClass,
+  PositionSnapshot,
+} from '../risk-gate/risk-gate.types';
 
 export interface TossReadOnlyRawSnapshot {
   accountRef: string;

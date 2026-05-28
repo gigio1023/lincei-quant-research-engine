@@ -5,7 +5,7 @@ import {
   Index,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { PortfolioSnapshot } from '../modules/risk-gate/risk-gate.types';
+import type { PortfolioSnapshot } from '../modules/risk-gate/risk-gate.types';
 
 export type PaperAccountEventType =
   | 'explicit_seed'

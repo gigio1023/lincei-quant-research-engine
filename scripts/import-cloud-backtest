@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Imports an existing QuantConnect Cloud backtest through REST into local evidence artifacts.
+# Exit code 2 means import completed as blocked by credentials, missing ids, or evidence gates.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT/backend"
+
+bun run v1:cli -- import-cloud-backtest "$@"

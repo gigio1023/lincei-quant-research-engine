@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Converts the stored strategy research corpus into typed hypothesis and research job records.
+# Exit code 2 means the corpus is missing or could not produce hypotheses.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT/backend"
+
+bun run v1:cli -- build-hypothesis-registry "$@"

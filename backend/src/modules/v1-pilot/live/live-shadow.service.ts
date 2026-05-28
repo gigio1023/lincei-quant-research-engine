@@ -24,7 +24,7 @@ export class LiveShadowService {
 
     if (!latestRun) {
       blockers.push(
-        'No accepted LEAN strategy run is available for live-shadow.',
+        'No accepted LEAN strategy run is available for shadow trading.',
       );
     } else if (latestRun.status !== 'passed') {
       blockers.push(`Latest LEAN run status is ${latestRun.status}.`);
@@ -47,7 +47,7 @@ export class LiveShadowService {
       : undefined;
     if (!snapshot?.targets.length) {
       blockers.push(
-        'No portfolio target snapshot is available for live-shadow.',
+        'No portfolio target snapshot is available for shadow trading.',
       );
     }
 

@@ -1,6 +1,6 @@
 # Broker Readiness API
 
-Status: operator API reference for broker snapshots, funding readiness, blocked preflight, and dry-run broker command evidence.
+Status: operator API reference for broker snapshots, funding readiness, blocked pre-trade risk check, and dry-run broker command artifact.
 
 #### `POST /control-plane/broker-snapshots/import-read-only`
 
@@ -61,11 +61,11 @@ Status: operator API reference for broker snapshots, funding readiness, blocked 
 
 #### `GET /control-plane/funding-readiness`
 
-- **Description**: Lists funding readiness records ordered by latest check. This is a local evidence ledger for deposit readiness, not a broker transfer, deposit, or order capability.
+- **Description**: Lists funding readiness records ordered by latest check. This is a local readiness ledger for deposit checks, not a broker transfer, deposit, or order capability.
 
 #### `POST /control-plane/funding-readiness/:id/assess-live-pilot-readiness`
 
-- **Description**: Historical endpoint name for broker-write preflight evidence. This endpoint is a readiness ledger only. It rejects credentials, raw account/order refs, and order intent fields, then combines funding readiness, active budget policy, broker adapter status, schema migration policy, read-only/fill polling, and broker emergency-control evidence. Under the active spec, status must remain `blocked` for real broker writes because no live-money scope is approved.
+- **Description**: Historical endpoint name for broker-write pre-trade risk check artifacts. This endpoint is a readiness ledger only. It rejects credentials, raw account/order refs, and order intent fields, then combines funding readiness, active budget policy, broker adapter status, schema migration policy, read-only/fill polling, and broker emergency-control evidence. Under the active spec, status must remain `blocked` for real broker writes until a broker-write implementation spec is approved.
 - **Example Request**:
   ```json
   {
@@ -73,22 +73,24 @@ Status: operator API reference for broker snapshots, funding readiness, blocked 
     "maxPilotBudgetAmount": 1000000,
     "maxSingleOrderNotional": 100000,
     "idempotencyKey": "live-pilot-readiness-20260523-001",
-    "notes": ["Tiny pilot gate checked after funding readiness."]
+    "notes": [
+      "Broker-write pre-trade risk check reviewed after funding readiness."
+    ]
   }
   ```
 - **Response Notes**:
   - returns a `LivePilotReadinessRecord`;
-  - `status` remains `blocked` under the active spec. A future live-money spec would need funding readiness, explicit budget limits, production schema migrations, production credential custody, verified broker schema/sandbox/read-only/fill polling, broker cancel/flatten/open-order polling, and a separate approved live order path;
+  - `status` remains `blocked` under the active spec. A broker-write implementation spec would need funding readiness, explicit budget limits, production schema migrations, production credential custody, verified broker schema/sandbox/read-only/fill polling, broker cancel/flatten/open-order polling, and a separate approved live order path;
   - `brokerWriteEnabled`, `orderEndpointImplemented`, `brokerExecutionEnabled`, and `liveTradingEnabled` are always `false` in the current slice;
   - explicit idempotency keys replay the prior time-sensitive readiness result.
 
 #### `GET /control-plane/live-pilot-readiness`
 
-- **Description**: Lists historical live-pilot readiness records ordered by latest check. This is local preflight evidence only; it cannot place, cancel, modify, flatten, or route broker orders.
+- **Description**: Lists historical live-pilot readiness records ordered by latest check. This is local pre-trade risk check artifacts only; it cannot place, cancel, modify, flatten, or route broker orders.
 
 #### `POST /control-plane/paper-order-plans/:id/prepare-broker-order-command`
 
-- **Description**: Creates or replays a blocked dry-run broker command record from a stored paper order plan. This endpoint is a broker-command ledger only. It copies order intent from the persisted paper plan and its signed approval evidence; it rejects credentials, raw account refs, caller-supplied order payloads, and live execution fields.
+- **Description**: Creates or replays a blocked dry-run broker command record from a stored paper order plan. This endpoint is a broker-command ledger only. It copies order intent from the persisted paper plan and its signed approval artifact; it rejects credentials, raw account refs, caller-supplied order payloads, and live execution fields.
 - **Example Request**:
   ```json
   {

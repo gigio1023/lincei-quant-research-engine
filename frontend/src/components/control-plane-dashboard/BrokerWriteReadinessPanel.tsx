@@ -23,7 +23,7 @@ export const BrokerWriteReadinessPanel = ({
     ["brokerWriteEnabled", String(liveGate.brokerWriteEnabled)],
     ["orderEndpointImplemented", String(liveGate.orderEndpointImplemented)],
   ];
-  const preflightRows: Array<[string, boolean]> = [
+  const preTradeCheckRows: Array<[string, boolean]> = [
     ["Funding", snapshot?.fundingReady ?? false],
     ["Schema migrations", snapshot?.schemaMigrationReady ?? false],
     ["Credential custody", adapter.credentialCustody.productionReady],
@@ -44,7 +44,7 @@ export const BrokerWriteReadinessPanel = ({
   const pilotRows: Array<[string, string]> = pilot
     ? [
         [
-          "preflight budget",
+          "pre-trade check budget",
           formatCurrency(pilot.pilotBudgetAmount, pilot.currency),
         ],
         [
@@ -68,7 +68,7 @@ export const BrokerWriteReadinessPanel = ({
           </div>
           <p className="mt-1 text-xs leading-5 text-[#707a8a]">
             {t(
-              "Broker-write preflight evidence. This panel explains why real-money broker writes remain out of active scope.",
+              "Broker-write pre-trade risk check artifacts. This panel explains why real-money broker writes remain out of active scope.",
             )}
           </p>
         </div>
@@ -118,7 +118,7 @@ export const BrokerWriteReadinessPanel = ({
       )}
 
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
-        {preflightRows.map(([label, ready]) => (
+        {preTradeCheckRows.map(([label, ready]) => (
           <div
             key={label}
             className="flex items-center justify-between gap-3 rounded-md border border-[#2b3139] bg-[#0b0e11] px-3 py-2 text-xs"

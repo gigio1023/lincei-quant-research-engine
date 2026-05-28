@@ -83,7 +83,7 @@ Status: operator API reference for read-only broker order/fill evidence and poll
 
 #### `GET /control-plane/broker-adapter/status`
 
-- **Description**: Returns the provider-neutral broker adapter readiness contract. The current first candidate is Toss. This endpoint reports evidence only; it does not trigger polls, place orders, or expose secrets. It reports whether required credential environment variables are present, whether credential custody is production-ready, whether the OpenAPI schema and sandbox have been operator-verified, read-only polling state, and which broker capabilities remain blocked.
+- **Description**: Returns the provider-neutral broker adapter API contract. The current first candidate is Toss. This endpoint reports validation artifacts only; it does not trigger polls, place orders, or expose secrets. It reports whether required credential environment variables are present, whether credential custody is production-ready, whether the OpenAPI schema and sandbox have been operator-verified, read-only polling state, and which broker capabilities remain blocked.
 - **Example Response**:
   ```json
   {
@@ -191,6 +191,6 @@ Status: operator API reference for read-only broker order/fill evidence and poll
   {
     "tolerance": 0.01,
     "maxAgeMinutes": 60,
-    "notes": ["Operator imported broker read-only evidence."]
+    "notes": ["Operator imported broker read-only artifacts."]
   }
   ```

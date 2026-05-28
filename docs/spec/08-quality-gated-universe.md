@@ -12,7 +12,7 @@ The canonical machine-readable manifest is:
 
 - `config/universes/quality-gated-v2.json`
 
-Backend services and the LEAN runtime must read this manifest. Hardcoded fallback universes are allowed only for explicitly named local smoke paths, and those smoke paths must be described as plumbing evidence rather than strategy evidence.
+Backend services and the LEAN runtime must read this manifest. Hardcoded fallback universes are allowed only for explicitly named local smoke paths, and those smoke paths must be described as plumbing evidence rather than strategy validation artifacts.
 
 ## Admission Rules
 
@@ -35,12 +35,12 @@ This profile is designed for historical backtests and excludes newly launched fo
 
 Active sleeves:
 
-| Sleeve | Active instruments |
-| --- | --- |
+| Sleeve                     | Active instruments                                                                |
+| -------------------------- | --------------------------------------------------------------------------------- |
 | Semiconductor / AI compute | `SMH`, `NVDA`, `AVGO`, `TSM`, `ASML`, `AMAT`, `AMD`, `MU`, `LRCX`, `KLAC`, `MRVL` |
-| Software / Cybersecurity | `IGV`, `CIBR`, `MSFT`, `ORCL`, `NOW`, `PANW`, `CRWD`, `PLTR`, `ANET`, `DDOG` |
-| Power / Electrification | `GRID`, `ETN`, `PWR`, `VRT`, `GEV`, `CEG`, `VST` |
-| Space / Aerospace | `XAR`, `UFO`, `RKLB`, `LMT`, `NOC`, `LHX` |
+| Software / Cybersecurity   | `IGV`, `CIBR`, `MSFT`, `ORCL`, `NOW`, `PANW`, `CRWD`, `PLTR`, `ANET`, `DDOG`      |
+| Power / Electrification    | `GRID`, `ETN`, `PWR`, `VRT`, `GEV`, `CEG`, `VST`                                  |
+| Space / Aerospace          | `XAR`, `UFO`, `RKLB`, `LMT`, `NOC`, `LHX`                                         |
 
 Benchmark and diagnostic symbols such as `SPY`, `QQQ`, `IWM`, `SOXX`, `XLU`, and `ITA` may be used for comparison or local smoke overrides, but they are not active default alpha targets.
 
@@ -58,6 +58,8 @@ Use one ETF anchor per sleeve unless a future spec explicitly approves overlap h
 `forward_nasa` adds `NASA` only from 2026-03-31 onward. It must not be used for pre-inception historical backtests.
 
 `tactical_leverage_disabled` adds `SOXL` only when `V1_ALLOW_LEVERAGED_ETF=true` and `allow-leveraged-etf=true` reach LEAN. This remains research-only and must not be interpreted as live-money approval.
+
+Future Darwinex/Zero work must map this universe to the exact supported account type and instrument list before execution. If a cash stock/ETF target maps only to a CFD, futures, leveraged, or synthetic exposure, that mapping needs explicit approval and separate risk treatment.
 
 ## Portfolio And Risk Policy
 

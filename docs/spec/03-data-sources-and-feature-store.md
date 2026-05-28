@@ -7,7 +7,7 @@ Status: active normative spec.
 Use a hybrid data approach:
 
 ```text
-QuantConnect native datasets -> parity with LEAN backtest/paper/live-shadow
+QuantConnect native datasets -> parity with LEAN backtest/paper trading/shadow trading
 direct external ingestion -> broader text coverage and semantic edge
 LLM feature engine -> point-in-time natural-language features
 LEAN -> consumes typed features and emits Insights
@@ -33,6 +33,7 @@ Dataset availability and costs can change, so implementation work must verify cu
 Direct ingestion can include:
 
 - SEC EDGAR;
+- Hugging Face research datasets when licensing and point-in-time fields are usable;
 - company investor-relations feeds;
 - press-release feeds;
 - earnings-call transcripts;
@@ -43,6 +44,14 @@ Direct ingestion can include:
 Direct raw data must be stored with source URL, retrieval time, event time, availability time, content hash, and parser version.
 
 The active collection map starts from the quality-gated universe manifest. Active and watchlist symbols can collect raw evidence, but only active profile symbols can become portfolio targets. This prevents watchlist research or excluded turnaround ideas from leaking into execution.
+
+Strategy research articles, practitioner notes, and academic summaries are allowed as direct external sources only as hypothesis inputs. They must be stored with source URL, publisher, title, author when available, publication time, retrieval time, content hash, parser version, and an extracted hypothesis. They must not be treated as executable alpha until the hypothesis has been converted into features and validated.
+
+Initial approved Hugging Face usage is text evidence, not price data replacement:
+
+- `vtasca/fomc-statements-minutes` may feed macro `RawEvidenceRecord` rows for FOMC statements/minutes.
+- Earnings-call, SEC-index, and financial-news datasets may be added only when the ingest preserves `eventTime`, `publishedAt` or equivalent, `retrievedAt`, `availableAt`, source URL, parser version, and source hash.
+- Hugging Face stock-price datasets are research-only unless they provide enough adjusted OHLCV, corporate-action, ETF, and universe coverage to match the intended LEAN validation path.
 
 ## Point-In-Time Rules
 
@@ -55,6 +64,19 @@ Every market-moving input needs separate timestamps:
 - `processedAt`: when our feature pipeline produced the structured record.
 
 Backtests and replay must key eligibility on `availableAt`, not on file write time or event date.
+
+## Vintage Data Rules
+
+Some sources revise history after the first release: macro series, fundamentals, estimates, index constituents, earnings calendars, filing corrections, and even edited articles. For those sources, the feature store must preserve vintage data rather than overwriting records in place.
+
+Required behavior:
+
+- store every retrieved version with `retrievedAt`, `availableAt`, source hash, parser version, and prior-version reference when known;
+- mark whether a feature came from originally available data, later-restated data, or a mixed source;
+- block promotion when a backtest depends on a source whose original availability cannot be reconstructed;
+- keep LLM-derived features tied to the text version the model actually saw.
+
+This is not optional bookkeeping. Without vintage data, a strategy can look profitable because the backtest used information that did not exist at decision time.
 
 ## Feature Store Requirements
 
@@ -69,6 +91,23 @@ Feature records must include:
 - model version if generated;
 - confidence or quality score where applicable;
 - blocker or abstain reason where applicable.
+- vintage status where the source can be restated or corrected.
+
+## Parallel Feature Generation
+
+Feature generation should be parallelized by source, symbol, asset id, time window, feature family, and hypothesis id when the job does not mutate shared account state.
+
+Parallel feature jobs must record:
+
+- job id and run id;
+- partition key;
+- input refs and input hash;
+- output refs and output hash;
+- feature version or model version;
+- cost ref when an external API or LLM was used;
+- blocker reasons.
+
+The feature store must support idempotent writes. Retrying a job with the same partition key and input hash must not create duplicate features. Unknown idempotency state blocks promotion.
 
 The feature store may start as files plus database records. It should preserve enough metadata to replay an alpha decision without re-calling external APIs.
 
@@ -109,4 +148,5 @@ QuantConnect local `--download-data` can spend QCC and is disabled by default. I
 - Importing data key concepts: https://www.quantconnect.com/docs/v2/writing-algorithms/importing-data/key-concepts
 - Stooq historical database: https://stooq.com/db/h/
 - Stooq CSV API key flow example: https://stooq.com/q/d/?s=smh.us&get_apikey
+- Hugging Face FOMC statements/minutes dataset: https://huggingface.co/datasets/vtasca/fomc-statements-minutes
 - Quality-gated universe manifest: ../../config/universes/quality-gated-v2.json

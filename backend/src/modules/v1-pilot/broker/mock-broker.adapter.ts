@@ -1,7 +1,7 @@
 /** In-memory broker for tests and plumbing verification — not production execution. */
 import { Injectable } from '@nestjs/common';
-import { ExecutionIntentContract } from '../contracts/v1-pilot.contracts';
-import {
+import type { ExecutionIntentContract } from '../contracts/v1-pilot.contracts';
+import type {
   BrokerAdapter,
   BrokerFillView,
   BrokerOrderStatusView,

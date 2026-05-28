@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Legacy command name: checks whether promotion evidence includes enough retained variants to reduce multiple-testing bias.
+# Exit code 2 means the promotion check is blocked by missing or one-sided variant evidence.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT/backend"
+
+bun run v1:cli -- run-selected-run-bias-check "$@"

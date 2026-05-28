@@ -6,7 +6,7 @@ import {
   readLeanParameter,
 } from './live-preflight-readiness';
 
-describe('live preflight readiness helpers', () => {
+describe('legacy live-preflight readiness helpers', () => {
   it('reads LEAN parameters in kebab-case and camelCase', () => {
     const parameters = {
       'validation-mode': 'flow-validation',

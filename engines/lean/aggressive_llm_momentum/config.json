@@ -13,7 +13,7 @@
     "universe-manifest-path": "input/universe_manifest.runtime.json",
     "allow-leveraged-etf": "false"
   },
-  "description": "Aggressive LLM momentum quality gated universe with numeric and semantic alpha",
+  "description": "Aggressive LLM momentum quality gated universe with numeric and semantic alpha signals",
   "local-id": 987654321,
   "organization-id": "lincei-local",
   "algorithm-type-name": "AggressiveLlmMomentum"

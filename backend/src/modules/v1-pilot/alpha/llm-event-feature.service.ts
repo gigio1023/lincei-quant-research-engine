@@ -8,11 +8,11 @@ import { LlmEventFeature } from '../../../entities/llm-event-feature.entity';
 import { RawEvidenceRecord } from '../../../entities/raw-evidence-record.entity';
 import { hashObject } from '../../../shared/hash.util';
 import { loadOpenAiEnv } from '../../../shared/openai-env.loader';
-import {
+import type {
   AlphaDecisionContract,
   FeatureSnapshotContract,
 } from '../contracts/v1-pilot.contracts';
-import {
+import type {
   LlmEventFeatureContract,
   SemanticEventType,
 } from '../contracts/spec-contracts';
@@ -41,11 +41,8 @@ export class LlmEventFeatureService {
     snapshots: FeatureSnapshotContract[],
     numeric: AlphaDecisionContract[],
   ): Promise<LlmEventFeatureContract[]> {
-    const archivedEvidence = await this.rawEvidenceArchive.archiveRecentNews();
-    const evidence =
-      archivedEvidence.length > 0
-        ? archivedEvidence
-        : await this.rawEvidenceArchive.listRecentEvidence();
+    await this.rawEvidenceArchive.archiveRecentNews();
+    const evidence = await this.rawEvidenceArchive.listRecentEvidence();
     const generated = await this.generateFeatures(snapshots, numeric, evidence);
     const saved = await this.saveFeatures(generated);
     this.exportLatestFeatures(saved);
@@ -66,7 +63,7 @@ export class LlmEventFeatureService {
       return this.flatFeatures(
         snapshots,
         evidence,
-        'OPENAI_API_KEY missing; semantic alpha feature abstained.',
+        'OPENAI_API_KEY missing; LLM-derived feature abstained.',
         env.model ?? 'llm-unavailable',
       );
     }
@@ -110,19 +107,19 @@ export class LlmEventFeatureService {
         : this.flatFeatures(
             snapshots,
             evidence,
-            'LLM returned no semantic alpha features.',
+            'LLM returned no LLM-derived features.',
             model,
           );
     } catch (error) {
       this.logger.warn(
-        `LLM semantic feature generation unavailable: ${
+        `LLM-derived feature generation unavailable: ${
           error instanceof Error ? error.message : 'unknown error'
         }`,
       );
       return this.flatFeatures(
         snapshots,
         evidence,
-        'LLM semantic feature generation failed; feature abstained.',
+        'LLM-derived feature generation failed; feature abstained.',
         env.model ?? 'llm-unavailable',
       );
     }
@@ -313,7 +310,7 @@ export class LlmEventFeatureService {
       evidence,
     );
     return JSON.stringify({
-      task: 'Create point-in-time semantic alpha features. Emit event, macro, and risk features when evidence supports them; otherwise emit flat abstentions.',
+      task: 'Create point-in-time LLM-derived features. Emit event, macro, and risk features when point-in-time text evidence supports them; otherwise emit flat abstentions.',
       promptVersion: PROMPT_VERSION,
       symbols: snapshots.map((snapshot) => ({
         symbol: snapshot.symbol,

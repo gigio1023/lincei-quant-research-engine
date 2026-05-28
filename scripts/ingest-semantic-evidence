@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Ingests approved semantic evidence sources into RawEvidenceRecord for replayable LLM alpha features.
+# Exit code 2 means the source is blocked or unsupported, not a broker/runtime failure.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT/backend"
+
+bun run v1:cli -- ingest-semantic-evidence "$@"

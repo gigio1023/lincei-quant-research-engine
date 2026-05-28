@@ -35,7 +35,7 @@ export const V1PilotPanel = () => {
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-[11px] font-bold uppercase text-[#707a8a]">
-                whole-system verdict
+                current milestone verdict
               </div>
               <div className="mt-1 font-mono text-sm font-bold text-white">
                 {status.leanRun?.runId ?? "no-lean-run"}
@@ -48,7 +48,26 @@ export const V1PilotPanel = () => {
             </span>
           </div>
 
+          <div className="grid grid-cols-3 gap-2 text-xs">
+            <Metric
+              label="ready stages"
+              value={`${status.currentMilestone.readyStageCount}/${status.currentMilestone.currentStageCount}`}
+            />
+            <Metric
+              label="blocked"
+              value={status.currentMilestone.blockedStageCount}
+            />
+            <Metric
+              label="deferred"
+              value={status.currentMilestone.deferredStageCount}
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-2 text-xs">
+            <Metric
+              label="research"
+              value={`${status.research.p1CandidateCount}/${status.research.hypothesisCount}`}
+            />
             <Metric label="alpha" value={alphaSummary(status)} />
             <Metric
               label="targets"
@@ -63,7 +82,11 @@ export const V1PilotPanel = () => {
               value={`${status.broker.provider ?? "none"}/${status.broker.snapshotReconciliationStatus ?? "none"}`}
             />
             <Metric label="open orders" value={status.broker.openOrderCount} />
-            <Metric label="preflight" value={status.preflight.status} />
+            <Metric label="pre-trade check" value={status.preflight.status} />
+            <Metric
+              label="variants"
+              value={`${status.research.variantJobCount}/${status.research.failedOrBlockedVariantJobCount}`}
+            />
           </div>
 
           <ol className="space-y-2">
@@ -76,6 +99,10 @@ export const V1PilotPanel = () => {
                   <div className="min-w-0">
                     <div className="font-semibold text-[#eaecef]">
                       {stage.label}
+                    </div>
+                    <div className="mt-1 text-[10px] font-bold uppercase text-[#707a8a]">
+                      {stage.scope}
+                      {stage.blocksCurrentMilestone ? " / current blocker" : ""}
                     </div>
                     <div className="mt-1 truncate font-mono text-[11px] text-[#929aa5]">
                       {stage.detail}

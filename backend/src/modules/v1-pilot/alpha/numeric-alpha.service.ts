@@ -5,7 +5,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AlphaDecision } from '../../../entities/alpha-decision.entity';
-import {
+import type {
   AlphaDecisionContract,
   FeatureSnapshotContract,
 } from '../contracts/v1-pilot.contracts';
@@ -13,7 +13,7 @@ import { validateAlphaDecision } from '../contracts/v1-pilot.validators';
 import { hashObject } from '../../../shared/hash.util';
 import { MlBaselineInferenceService } from '../ml/ml-baseline-inference.service';
 import { MlModelRegistryService } from '../ml/ml-model-registry.service';
-import { MlPrediction } from '../ml/ml-model-registry.types';
+import type { MlPrediction } from '../ml/ml-model-registry.types';
 import { scoreSnapshotHeuristic } from './heuristic-numeric.scorer';
 
 const UP_THRESHOLD = 0.65;

@@ -2,7 +2,7 @@
  * Coordinates the V1 validation loop invoked by repo scripts and the v1-pilot CLI.
  *
  * Order of operations follows SPEC.md: alpha -> LEAN backtest/import -> paper bridge
- * -> broker-write preflight. Real-money broker writes remain blocked unless a future
+ * -> broker-write pre-trade risk check. Real-money broker writes remain blocked unless a future
  * user-approved spec changes the active scope. LEAN CLI is preferred; the local
  * simulator exists so CI and dev machines without Docker/LEAN can still prove artifact flow.
  */
@@ -15,6 +15,7 @@ import { LlmEventFeatureService } from './alpha/llm-event-feature.service';
 import { NumericAlphaService } from './alpha/numeric-alpha.service';
 import { LlmAlphaService } from './alpha/llm-alpha.service';
 import { MetaAlphaService } from './alpha/meta-alpha.service';
+import { HuggingFaceSemanticEvidenceIngestService } from './alpha/huggingface-semantic-evidence-ingest.service';
 import { LeanLocalSimulatorService } from './lean/lean-local-simulator.service';
 import { LeanRunImportService } from './lean/lean-run-import.service';
 import { LeanPaperBridgeService } from './paper/lean-paper-bridge.service';
@@ -25,7 +26,9 @@ import { LivePilot10UsdService } from './live/live-pilot-10usd.service';
 import { MlPythonRunner } from './ml/ml-python.runner';
 import { MlModelRegistryService } from './ml/ml-model-registry.service';
 import { LeanCloudRunner } from './lean/lean-cloud.runner';
+import { LeanCloudManualImporter } from './lean/lean-cloud-manual-importer';
 import { LeanCliRunner } from './lean/lean-cli.runner';
+import { ResearchFactoryService } from './research/research-factory.service';
 import {
   LeanDataPreparationService,
   LeanLocalDataPreparationResult,
@@ -42,6 +45,7 @@ export class V1PilotOrchestratorService {
     private readonly numericAlphaService: NumericAlphaService,
     private readonly llmAlphaService: LlmAlphaService,
     private readonly metaAlphaService: MetaAlphaService,
+    private readonly huggingFaceSemanticEvidenceIngestService: HuggingFaceSemanticEvidenceIngestService,
     private readonly leanLocalSimulatorService: LeanLocalSimulatorService,
     private readonly leanRunImportService: LeanRunImportService,
     private readonly leanPaperBridgeService: LeanPaperBridgeService,
@@ -52,7 +56,9 @@ export class V1PilotOrchestratorService {
     private readonly mlPythonRunner: MlPythonRunner,
     private readonly mlModelRegistryService: MlModelRegistryService,
     private readonly leanCloudRunner: LeanCloudRunner,
+    private readonly leanCloudManualImporter: LeanCloudManualImporter,
     private readonly leanCliRunner: LeanCliRunner,
+    private readonly researchFactoryService: ResearchFactoryService,
     private readonly leanDataPreparationService: LeanDataPreparationService,
   ) {}
 
@@ -211,6 +217,29 @@ export class V1PilotOrchestratorService {
     };
   }
 
+  async ingestSemanticEvidence(options: {
+    source?: 'hf-fomc-statements-minutes';
+    limit?: number;
+    sourcePath?: string;
+  }) {
+    return this.huggingFaceSemanticEvidenceIngestService.ingest(options);
+  }
+
+  async buildHypothesisRegistry(options: {
+    indexPath?: string;
+    strategyRegisterPath?: string;
+  }) {
+    return this.researchFactoryService.ingestAlphaArchitectCorpus(options);
+  }
+
+  async runSelectedRunBiasCheck(options: {
+    targetRef?: string;
+    hypothesisId?: string;
+    minVariantCount?: number;
+  }) {
+    return this.researchFactoryService.checkSelectedRunBias(options);
+  }
+
   async runLeanBacktest(
     projectName: string,
   ): Promise<{ runId: string; mode: string }> {
@@ -259,6 +288,26 @@ export class V1PilotOrchestratorService {
       projectName,
       push: options.push,
     });
+  }
+
+  async importQuantConnectCloudBacktest(input: {
+    projectName?: string;
+    projectId?: number;
+    backtestId: string;
+  }) {
+    return this.leanCloudManualImporter.importCloudBacktest(input);
+  }
+
+  async listQuantConnectCloudProjects(options: { limit?: number } = {}) {
+    return this.leanCloudManualImporter.listCloudProjects(options);
+  }
+
+  async listQuantConnectCloudBacktests(options: {
+    projectId?: number;
+    projectName?: string;
+    limit?: number;
+  }) {
+    return this.leanCloudManualImporter.listCloudBacktests(options);
   }
 
   async syncQuantConnectObjectStore(key: string, sourcePath: string) {

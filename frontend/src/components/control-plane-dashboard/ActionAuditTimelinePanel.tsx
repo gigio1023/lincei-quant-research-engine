@@ -32,7 +32,7 @@ export const ActionAuditTimelinePanel = ({
           </h3>
           <p className="mt-1 text-xs text-[#929aa5]">
             {t(
-              "Chronological audit feed across research, schedules, approvals, paper execution, broker evidence, and emergency controls.",
+              "Chronological audit feed across research, schedules, approvals, paper execution, broker artifacts, and emergency controls.",
             )}
           </p>
         </div>

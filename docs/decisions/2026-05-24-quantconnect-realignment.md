@@ -6,7 +6,7 @@ Generated: 2026-05-24 07:07:20 UTC
 
 ## Summary
 
-The project should be realigned from "local LEAN backtest runner" toward a QuantConnect-first autonomous alpha system. Local LEAN remains useful for fast debugging, deterministic replay, unit tests, and custom-data checks, but it should not be treated as final strategy evidence. The promotion path should rely on QuantConnect Research, cloud backtests, paper/live deployment, and reconciliation.
+The project should be realigned from "local LEAN backtest runner" toward a QuantConnect-first autonomous alpha system. Local LEAN remains useful for fast debugging, deterministic replay, unit tests, and custom-data checks, but it should not be treated as final strategy validation artifacts. The promotion path should rely on QuantConnect Research, cloud backtests, paper/live deployment, and reconciliation.
 
 ## Core Judgment
 
@@ -106,7 +106,7 @@ Gaps and risks:
 
 ## Things Not To Do
 
-- Do not treat simulator, synthetic features, or local sample data as strategy evidence.
+- Do not treat simulator, synthetic features, or local sample data as strategy validation artifacts.
 - Do not call static LLM overlay backtests "LLM historical alpha".
 - Do not build more dashboard surface ahead of the engine and validation loop.
 - Do not let LLMs touch broker credentials, account identifiers, or raw order payloads.

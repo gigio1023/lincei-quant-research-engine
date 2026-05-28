@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
 import { RiskGateService } from './risk-gate.service';
-import { RiskGateRequest, RiskGateResponse } from './risk-gate.types';
+import type { RiskGateRequest, RiskGateResponse } from './risk-gate.types';
 
 @Controller('risk-gate')
 export class RiskGateController {

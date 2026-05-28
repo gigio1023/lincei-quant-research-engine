@@ -37,6 +37,13 @@ Use official documentation where possible. Product behavior, pricing, dataset av
 - Stooq historical database: https://stooq.com/db/h/
 - Stooq CSV API key flow example: https://stooq.com/q/d/?s=smh.us&get_apikey
 
+## External Semantic Evidence
+
+- Hugging Face FOMC statements/minutes: https://huggingface.co/datasets/vtasca/fomc-statements-minutes
+- Hugging Face earnings-call data candidate: https://huggingface.co/datasets/RudrakshNanavaty/earnings-call-data
+- Hugging Face SEC filings index candidate: https://huggingface.co/datasets/kapilrao/SEC_filings_1994_2024
+- Hugging Face financial news with price candidate: https://huggingface.co/datasets/oliverwang15/us_stock_news_with_price
+
 ## Universe Research Sources
 
 - VanEck SMH: https://www.vaneck.com/us/en/investments/semiconductor-etf-smh/
@@ -62,6 +69,23 @@ Use official documentation where possible. Product behavior, pricing, dataset av
 - Live Trading Deployment: https://www.quantconnect.com/docs/v2/cloud-platform/live-trading/deployment
 - Live Trading Reconciliation: https://www.quantconnect.com/docs/v2/cloud-platform/live-trading/reconciliation
 - Live Trading Risks: https://www.quantconnect.com/docs/v2/cloud-platform/live-trading/risks
+
+## Darwinex And External-Capital Path
+
+- Darwinex Zero DARWIN overview: https://www.darwinexzero.com/docs/en/what-is-a-darwin
+- Darwinex Zero Risk Engine: https://www.darwinexzero.com/docs/en/risk-engine
+- Darwinex Zero performance fees: https://www.darwinexzero.com/docs/performance-fees
+- Darwinex Zero pricing: https://www.darwinexzero.com/docs/en/pricing
+- Darwinex Zero trading accounts and assets: https://www.darwinexzero.com/docs/en/trading-accounts-assets
+- Darwinex Zero assets overview: https://www.darwinexzero.com/assets
+
+## Strategy Research Corpus Candidates
+
+- Alpha Architect research blog: https://alphaarchitect.com/blog/
+- Alpha Architect factor research article: https://alphaarchitect.com/factor-strategies/
+- Stored Alpha Architect corpus: ../../references/alphaarchitect/README.md
+- Alpha Architect strategy register: ../../references/alphaarchitect/strategy-register.md
+- Self-funded capital architecture review: ../own-capital-alphaarchitect-corpus-review.md
 
 ## Local Project Context
 

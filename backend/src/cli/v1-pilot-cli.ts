@@ -1,6 +1,6 @@
 /**
  * Headless entrypoint for ./scripts/* — boots Nest without HTTP and runs one V1 command.
- * Exit code 2 from engine/preflight commands means blocked by policy or missing evidence, not a crash.
+ * Exit code 2 from engine or legacy live-preflight commands means blocked by policy or missing evidence, not a crash.
  */
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
@@ -50,6 +50,63 @@ async function bootstrap(): Promise<void> {
         );
         process.exitCode =
           result.status === 'passed' ? 0 : result.status === 'blocked' ? 2 : 1;
+        break;
+      }
+      case 'import-cloud-backtest': {
+        const projectName =
+          argValue(args, '--project-name') ?? 'aggressive_llm_momentum';
+        const projectId = numericArgValue(args, '--project-id');
+        const backtestId =
+          argValue(args, '--backtest-id') ??
+          args.find((arg) => !arg.startsWith('--'));
+        if (!backtestId) {
+          throw new Error('import-cloud-backtest requires --backtest-id <id>.');
+        }
+        const result = await orchestrator.importQuantConnectCloudBacktest({
+          projectName,
+          projectId,
+          backtestId,
+        });
+        console.log(
+          JSON.stringify(
+            {
+              runId: result.runId,
+              runtime: result.runtime,
+              status: result.status,
+              promotionEligible: result.promotionEligible,
+              cloudProjectId: result.cloudProjectId,
+              cloudBacktestId: result.cloudBacktestId,
+              blockers: result.blockerReasons,
+            },
+            null,
+            2,
+          ),
+        );
+        process.exitCode =
+          result.status === 'passed' ? 0 : result.status === 'blocked' ? 2 : 1;
+        break;
+      }
+      case 'list-cloud-projects': {
+        const result = await orchestrator.listQuantConnectCloudProjects({
+          limit: numericArgValue(args, '--limit') ?? 100,
+        });
+        console.log(JSON.stringify(result, null, 2));
+        process.exitCode = result.status === 'completed' ? 0 : 2;
+        break;
+      }
+      case 'list-cloud-backtests': {
+        const projectId = numericArgValue(args, '--project-id');
+        const projectName =
+          argValue(args, '--project-name') ??
+          args.find((arg) => !arg.startsWith('--')) ??
+          'aggressive_llm_momentum';
+        const result = await orchestrator.listQuantConnectCloudBacktests({
+          projectId,
+          projectName,
+          limit: numericArgValue(args, '--limit') ?? 20,
+        });
+        console.log(JSON.stringify(result, null, 2));
+        process.exitCode = result.status === 'completed' ? 0 : 2;
         break;
       }
       case 'qc-object-store-set': {
@@ -172,8 +229,60 @@ async function bootstrap(): Promise<void> {
         break;
       }
       case 'run-alpha-cycle': {
-        const result = await orchestrator.runAlphaCycle();
+        try {
+          const result = await orchestrator.runAlphaCycle();
+          console.log(JSON.stringify(result, null, 2));
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : 'Alpha cycle prerequisites are missing.';
+          if (isAlphaCycleBlocked(message)) {
+            console.log(
+              JSON.stringify(
+                { status: 'blocked', blockers: [message] },
+                null,
+                2,
+              ),
+            );
+            process.exitCode = 2;
+            break;
+          }
+          throw error;
+        }
+        break;
+      }
+      case 'ingest-semantic-evidence': {
+        const source =
+          argValue(args, '--source') ?? 'hf-fomc-statements-minutes';
+        const limit = numericArgValue(args, '--limit') ?? 80;
+        const sourcePath = argValue(args, '--source-path');
+        const result = await orchestrator.ingestSemanticEvidence({
+          source: source as 'hf-fomc-statements-minutes',
+          limit,
+          sourcePath,
+        });
         console.log(JSON.stringify(result, null, 2));
+        process.exitCode = result.status === 'completed' ? 0 : 2;
+        break;
+      }
+      case 'build-hypothesis-registry': {
+        const result = await orchestrator.buildHypothesisRegistry({
+          indexPath: argValue(args, '--index-path'),
+          strategyRegisterPath: argValue(args, '--strategy-register-path'),
+        });
+        console.log(JSON.stringify(result, null, 2));
+        process.exitCode = result.status === 'completed' ? 0 : 2;
+        break;
+      }
+      case 'run-selected-run-bias-check': {
+        const result = await orchestrator.runSelectedRunBiasCheck({
+          targetRef: argValue(args, '--target-ref'),
+          hypothesisId: argValue(args, '--hypothesis-id'),
+          minVariantCount: numericArgValue(args, '--min-variant-count'),
+        });
+        console.log(JSON.stringify(result, null, 2));
+        process.exitCode = result.status === 'passed' ? 0 : 2;
         break;
       }
       case 'run-paper-cycle': {
@@ -290,7 +399,7 @@ async function bootstrap(): Promise<void> {
       }
       default:
         throw new Error(
-          `Unknown command: ${command ?? '(missing)'}. Expected run-full-backtest, prepare-lean-local-data, lean-backtest, qc-cloud-backtest, qc-object-store-set, import-lean-run, download-external-baselines, train-ml-baseline, run-alpha-cycle, run-paper-cycle, run-paper-replay, run-live-shadow, run-learning-loop, live-preflight, live-pilot-10usd.`,
+          `Unknown command: ${command ?? '(missing)'}. Expected run-full-backtest, prepare-lean-local-data, lean-backtest, qc-cloud-backtest, import-cloud-backtest, list-cloud-projects, list-cloud-backtests, qc-object-store-set, import-lean-run, download-external-baselines, train-ml-baseline, run-alpha-cycle, ingest-semantic-evidence, build-hypothesis-registry, run-selected-run-bias-check, run-paper-cycle, run-paper-replay, run-live-shadow, run-learning-loop, live-preflight, live-pilot-10usd.`,
         );
     }
   } finally {
@@ -323,4 +432,29 @@ function isFullBacktestBlocked(message: string): boolean {
     message.includes('Stooq CSV download requires STOOQ_API_KEY') ||
     message.includes('Docker is unavailable to the current process')
   );
+}
+
+function isAlphaCycleBlocked(message: string): boolean {
+  return (
+    message.includes('Insufficient market data') ||
+    message.includes('ALLOW_SYNTHETIC_FEATURES=true')
+  );
+}
+
+function argValue(args: string[], name: string): string | undefined {
+  const index = args.indexOf(name);
+  if (index < 0) {
+    return undefined;
+  }
+  const value = args[index + 1];
+  return value && !value.startsWith('--') ? value : undefined;
+}
+
+function numericArgValue(args: string[], name: string): number | undefined {
+  const value = argValue(args, name);
+  if (!value) {
+    return undefined;
+  }
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 }

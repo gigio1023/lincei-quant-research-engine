@@ -4,9 +4,11 @@ Status: active normative spec.
 
 ## Boundary Principle
 
-LLMs and broker write paths must not touch. The LLM can produce semantic alpha and risk concerns. Deterministic portfolio, risk, execution, preflight, and reconciliation layers decide whether any target is executable.
+LLMs and broker write paths must not touch. The LLM can produce LLM-derived alpha and risk concerns. Deterministic portfolio, risk, execution, pre-trade risk checks, and reconciliation layers decide whether any target is executable.
 
-Current spec permits paper and live-shadow evidence. It does not permit real broker writes.
+Current implementation permits paper and shadow trading artifacts. The long-term spec includes self-funded capital broker writes and Darwinex/Zero monetization, but both remain blocked until adapter-specific implementation specs approve the exact methods, capital limits, credentials, deployment process, and reconciliation behavior.
+
+Research and alpha jobs may run in parallel before promotion. Portfolio construction, risk cuts, paper trading/shadow trading execution intent, reconciliation, pre-trade risk checks, and future broker writes must remain single-writer for each account, strategy version, and evidence mode.
 
 ## Portfolio Construction
 
@@ -48,7 +50,7 @@ Risk code should explain the safety invariant in comments where the failure mode
 Backtest:
 
 - LEAN executes simulated orders inside the backtest runtime.
-- Results are strategy evidence only when data quality and acceptance gates pass.
+- Results are strategy validation artifacts only when data quality and acceptance gates pass.
 
 Paper:
 
@@ -60,16 +62,23 @@ Live-shadow:
 
 - the algorithm runs against live data or broker read-only state but cannot submit real orders;
 - produces proposed targets, risk cuts, and would-have-traded records;
-- used before any future live-money spec.
+- used before any future broker-write implementation spec.
 
 Live-money:
 
-- out of scope for the active spec;
-- requires a separate user-approved spec change.
+- long-term goal for the self-funded capital track;
+- blocked in the current implementation milestone;
+- requires a separate user-approved broker-write implementation spec before any real account mutation.
+
+Darwinex/Zero:
+
+- long-term external-capital fee path;
+- consumes a validated signal and track record rather than the whole repository;
+- requires a separate adapter spec for instrument mapping, platform connectivity, execution bridge, track-record import, and Darwinex Risk Engine reporting.
 
 ## Broker Boundary
 
-Provider-neutral broker interfaces may exist for read-only and preflight work, but write methods must remain blocked unless an approved live-money spec exists.
+Provider-neutral broker interfaces may exist for read-only and pre-trade risk check work, but write methods must remain blocked unless an approved broker-write implementation spec exists.
 
 Forbidden without spec approval:
 
@@ -87,8 +96,19 @@ Allowed now:
 - read open orders;
 - read fills;
 - verify schema support;
-- produce blocked preflight status;
-- reconcile paper/live-shadow evidence.
+- produce blocked pre-trade risk check status;
+- reconcile paper trading/shadow trading evidence.
+
+## Darwinex Boundary
+
+Darwinex/Zero must be modeled as an external venue with its own semantics:
+
+- A DARWIN may replicate the trader's timing and asset-selection signals, but Darwinex's Risk Engine can standardize and resize risk independently of the source portfolio target.
+- Project portfolio targets are not the same thing as Darwinex investor exposure.
+- Performance-fee evidence must be imported from Darwinex/Zero or its official reports, not inferred from QuantConnect backtests.
+- Darwinex/Zero subscription cost, instrument availability, platform choice, spreads, swaps, market hours, and Risk Engine behavior are operational inputs and can change.
+
+A Darwinex adapter must not bypass the LLM/broker boundary. LLMs may influence alpha features and risk judgments, but they must not see Darwinex credentials, generate MetaTrader payloads, or choose final order quantity.
 
 ## Reconciliation
 
@@ -111,3 +131,6 @@ Reconciliation mismatches must block new exposure until resolved.
 - QuantConnect live trading risks: https://www.quantconnect.com/docs/v2/cloud-platform/live-trading/risks
 - QuantConnect live reconciliation: https://www.quantconnect.com/docs/v2/cloud-platform/live-trading/reconciliation
 - Algorithm Framework overview: https://www.quantconnect.com/docs/v2/writing-algorithms/algorithm-framework/overview
+- Darwinex Zero DARWIN overview: https://www.darwinexzero.com/docs/en/what-is-a-darwin
+- Darwinex Zero Risk Engine: https://www.darwinexzero.com/docs/en/risk-engine
+- Darwinex Zero performance fees: https://www.darwinexzero.com/docs/performance-fees

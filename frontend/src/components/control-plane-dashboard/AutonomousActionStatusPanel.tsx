@@ -29,7 +29,7 @@ export const AutonomousActionStatusPanel = ({
     },
     brokerFill: {
       status: "missing",
-      detail: "No broker fill evidence has been imported yet",
+      detail: "No broker fill report has been imported yet",
     },
     nextSafeAction: "Refresh control-plane status before advancing.",
     brokerExecutionEnabled: false as const,
@@ -127,7 +127,7 @@ export const AutonomousActionStatusPanel = ({
           }
         />
         <StatusBlock
-          label={t("Paper evidence")}
+          label={t("Paper artifacts")}
           value={t(status.paper.status)}
           detail={t(status.paper.detail)}
           meta={
@@ -137,7 +137,7 @@ export const AutonomousActionStatusPanel = ({
           }
         />
         <StatusBlock
-          label={t("Approval evidence")}
+          label={t("Approval basis")}
           value={
             approval ? t(approval.approvalSource ?? "human") : t("missing")
           }

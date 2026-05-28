@@ -872,12 +872,12 @@ export const DOCUMENTED_FUNDING_READINESS: FundingReadinessRecord[] = [
       liveTradingEnabled: false,
       blockers: [],
       notes: [
-        "Documented funding readiness sample uses read-only broker evidence.",
+        "Documented funding readiness sample uses read-only broker artifacts.",
       ],
     },
     blockers: [],
     notes: [
-      "Documented funding readiness sample uses read-only broker evidence.",
+      "Documented funding readiness sample uses read-only broker artifacts.",
     ],
     brokerExecutionEnabled: false,
     liveTradingEnabled: false,
@@ -924,7 +924,7 @@ export const DOCUMENTED_LIVE_PILOT_READINESS: LivePilotReadinessRecord[] = [
         "Live order endpoint is not implemented",
       ],
       notes: [
-        "Documented broker-write preflight readiness sample is evidence only.",
+        "Documented broker-write pre-trade risk check sample is validation artifact only.",
       ],
     },
     blockers: [
@@ -934,7 +934,7 @@ export const DOCUMENTED_LIVE_PILOT_READINESS: LivePilotReadinessRecord[] = [
       "Live order endpoint is not implemented",
     ],
     notes: [
-      "Documented broker-write preflight readiness sample is evidence only.",
+      "Documented broker-write pre-trade risk check sample is validation artifact only.",
     ],
     brokerExecutionEnabled: false,
     liveTradingEnabled: false,
@@ -975,7 +975,7 @@ export const DOCUMENTED_BROKER_ORDER_COMMANDS: BrokerOrderCommand[] = [
       brokerExecutionEnabled: false,
       liveTradingEnabled: false,
       blockers: [
-        "No ready broker-write preflight readiness record",
+        "No ready broker-write pre-trade risk check record",
         "Live broker order endpoint is not implemented",
         "Broker write access is disabled",
       ],
@@ -990,17 +990,19 @@ export const DOCUMENTED_BROKER_ORDER_COMMANDS: BrokerOrderCommand[] = [
         orderType: "MARKET",
         requestedNotional: 499_800,
         status: "blocked",
-        blockedReason: "No ready broker-write preflight readiness record",
+        blockedReason: "No ready broker-write pre-trade risk check record",
       },
     ],
     emergencyActions: [],
     blockedReasons: [
-      "No ready broker-write preflight readiness record",
+      "No ready broker-write pre-trade risk check record",
       "Live broker order endpoint is not implemented",
       "Broker write access is disabled",
       "Broker order command is dry-run only",
     ],
-    notes: ["Documented broker order command is dry-run evidence only."],
+    notes: [
+      "Documented broker order command is dry-run validation artifact only.",
+    ],
     brokerExecutionEnabled: false,
     liveTradingEnabled: false,
     createdAt: "2026-05-22T09:10:00.000Z",
@@ -1105,7 +1107,7 @@ export const DOCUMENTED_BROKER_FILLS: BrokerFill[] = [
       feeDiff: 0,
       tolerance: 0.01,
       notes: [
-        "Documented read-only broker fill evidence sample.",
+        "Documented read-only broker fill report sample.",
         "Broker fill compared against paper fill paper-docs-order-001:fill:0 from paper order plan paper-docs-plan-001.",
       ],
     },

@@ -22,7 +22,7 @@ export class FeatureSnapshot {
   @Column()
   dataAvailabilityTime: string;
 
-  @Column()
+  @Column({ nullable: true })
   availableAt: string;
 
   @Column({ default: 'daily' })
