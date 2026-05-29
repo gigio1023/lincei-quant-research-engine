@@ -134,9 +134,7 @@ export class LlmAlphaService {
     });
 
     if (decisions.length > 0) {
-      await this.alphaRepository.save(
-        decisions.map((decision) => this.alphaRepository.create(decision)),
-      );
+      await this.saveDecisions(decisions);
     }
 
     return decisions;
@@ -214,12 +212,19 @@ export class LlmAlphaService {
     }
 
     if (decisions.length > 0) {
-      await this.alphaRepository.save(
-        decisions.map((decision) => this.alphaRepository.create(decision)),
-      );
+      await this.saveDecisions(decisions);
     }
 
     return decisions;
+  }
+
+  private async saveDecisions(
+    decisions: AlphaDecisionContract[],
+  ): Promise<void> {
+    await this.alphaRepository.upsert(
+      decisions.map((decision) => this.alphaRepository.create(decision)),
+      ['id'],
+    );
   }
 
   private buildPrompt(

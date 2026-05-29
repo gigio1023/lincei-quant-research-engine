@@ -236,7 +236,7 @@ export function buildV1NextActions(stages: V1SystemStage[]): string[] {
   }
   return [
     `Resolve ${firstBlocker.label}: ${firstBlocker.blockers[0] ?? firstBlocker.detail}`,
-    'Run ./scripts/run-v1-cycle after the blocker is resolved.',
+    'Run bun --cwd=backend run lincei -- capital run --max-backtest-workers 1 --json after the blocker is resolved.',
   ];
 }
 

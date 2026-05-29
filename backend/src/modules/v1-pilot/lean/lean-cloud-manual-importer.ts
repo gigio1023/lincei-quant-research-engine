@@ -4,10 +4,12 @@ import { mkdirSync, readFileSync, existsSync } from 'fs';
 import { join, resolve } from 'path';
 import { Repository } from 'typeorm';
 import { LeanRun } from '../../../entities/lean-run.entity';
+import { PortfolioTargetSnapshot } from '../../../entities/portfolio-target-snapshot.entity';
 import { hashObject } from '../../../shared/hash.util';
 import { LeanCloudArtifactWriter } from './lean-cloud-artifact-writer';
 import { QuantConnectCloudRestImporter } from './lean-cloud-rest-importer';
 import { assessLeanRunArtifacts } from './lean-run-acceptance';
+import { importPortfolioTargetSnapshot } from './lean-portfolio-target-importer';
 import {
   leanRuntimeUniverseManifestParameter,
   prepareLeanRuntimeUniverseManifest,
@@ -31,6 +33,8 @@ export class LeanCloudManualImporter {
   constructor(
     @InjectRepository(LeanRun)
     private readonly leanRunRepository: Repository<LeanRun>,
+    @InjectRepository(PortfolioTargetSnapshot)
+    private readonly targetRepository: Repository<PortfolioTargetSnapshot>,
   ) {}
 
   async listCloudProjects(options: { limit?: number } = {}) {
@@ -58,7 +62,18 @@ export class LeanCloudManualImporter {
       where: { importIdempotencyKey: importKey },
     });
     if (existing?.status === 'passed') {
-      return existing;
+      const existingAcceptance = assessLeanRunArtifacts(
+        existing.resultDirectory,
+        'strategy-backtest',
+      );
+      if (existingAcceptance.passed) {
+        await importPortfolioTargetSnapshot(
+          this.targetRepository,
+          existing.runId,
+          existing.portfolioTargetsRef,
+        );
+        return existing;
+      }
     }
 
     const runId = `qc-import-${request.backtestId.slice(0, 12)}`;
@@ -155,7 +170,7 @@ export class LeanCloudManualImporter {
       }
     }
 
-    return this.leanRunRepository.save(
+    const saved = await this.leanRunRepository.save(
       this.leanRunRepository.create({
         runId,
         runtime: 'quantconnect-cloud',
@@ -191,6 +206,12 @@ export class LeanCloudManualImporter {
         importIdempotencyKey: importKey,
       }),
     );
+    await importPortfolioTargetSnapshot(
+      this.targetRepository,
+      saved.runId,
+      saved.portfolioTargetsRef,
+    );
+    return saved;
   }
 
   private writeCloudArtifacts(input: {

@@ -176,7 +176,49 @@ describe('lean run acceptance', () => {
 
     const report = assessLeanRunArtifacts(tempDir, 'strategy-backtest');
     expect(report.blockers).toContainEqual(
-      expect.stringContaining('LEAN data monitor reports 4 failed data requests'),
+      expect.stringContaining(
+        'LEAN data monitor reports 4 failed data requests',
+      ),
+    );
+  });
+
+  it('rejects unlevered strategy evidence with oversized target exposure', () => {
+    const runId = tempDir.split('/').pop() ?? 'lean-acceptance';
+    writeArtifactSet(tempDir, {
+      runId,
+      insights: [{ id: 'i1', symbol: 'NVDA' }],
+      targets: [
+        { symbol: 'NVDA', targetWeight: 1.25, sourceInsightIds: ['i1'] },
+      ],
+      targetGrossExposurePct: 1.25,
+      targetMaxSingleNamePct: 1.25,
+      events: [{ id: '1', status: 'Filled', fillQuantity: 1, fillPrice: 100 }],
+      fills: [{ id: 'f1', orderId: '1', quantity: 1, price: 100 }],
+      statistics: { 'Total Orders': 1, 'End Equity': 100500 },
+      dataMonitorReport: {
+        'total-data-requests-count': 5,
+        'failed-data-requests-count': 0,
+        'failed-universe-data-requests-count': 0,
+      },
+      config: {
+        projectName: 'aggressive_llm_momentum',
+        algorithmVersion: 'v1',
+        parameters: {
+          'run-id': runId,
+          'validation-mode': 'historical-research',
+          'uses-static-meta-overlay': false,
+          'uses-static-ml-predictions': false,
+        },
+      },
+    });
+
+    const report = assessLeanRunArtifacts(tempDir, 'strategy-backtest');
+
+    expect(report.blockers).toEqual(
+      expect.arrayContaining([
+        'Portfolio target NVDA exceeds the unlevered absolute target weight cap.',
+        'Portfolio target gross exposure exceeds the current unlevered strategy cap.',
+      ]),
     );
   });
 });
@@ -193,6 +235,8 @@ function writeArtifactSet(
     dataMonitorReport?: Record<string, number>;
     config: Record<string, unknown>;
     riskNotes?: string[];
+    targetGrossExposurePct?: number;
+    targetMaxSingleNamePct?: number;
   },
 ): void {
   writeJson(join(directory, 'insights.json'), {
@@ -204,8 +248,10 @@ function writeArtifactSet(
     leanRunId: input.runId,
     asOf: '2026-05-24T00:00:00.000Z',
     targets: input.targets,
-    grossExposurePct: input.targets.length ? 0.35 : 0,
-    maxSingleNamePct: input.targets.length ? 0.35 : 0,
+    grossExposurePct:
+      input.targetGrossExposurePct ?? (input.targets.length ? 0.35 : 0),
+    maxSingleNamePct:
+      input.targetMaxSingleNamePct ?? (input.targets.length ? 0.35 : 0),
     riskNotes: input.riskNotes ?? [],
   });
   writeJson(join(directory, 'order_events.json'), { events: input.events });

@@ -269,10 +269,11 @@ export class LlmEventFeatureService {
     if (features.length === 0) {
       return [];
     }
-    const saved = await this.featureRepository.save(
+    await this.featureRepository.upsert(
       features.map((feature) => this.featureRepository.create(feature)),
+      ['id'],
     );
-    return saved.map((feature) => ({ ...feature }));
+    return features;
   }
 
   private exportLatestFeatures(features: LlmEventFeatureContract[]): void {

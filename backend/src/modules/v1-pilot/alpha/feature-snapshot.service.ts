@@ -63,8 +63,9 @@ export class FeatureSnapshotService {
       };
       validateFeatureSnapshot(snapshot);
       snapshots.push(snapshot);
-      await this.featureRepository.save(
+      await this.featureRepository.upsert(
         this.featureRepository.create(snapshot),
+        ['id'],
       );
     }
 

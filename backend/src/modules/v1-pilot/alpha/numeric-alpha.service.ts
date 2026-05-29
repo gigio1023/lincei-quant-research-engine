@@ -90,9 +90,7 @@ export class NumericAlphaService {
     });
 
     if (decisions.length > 0) {
-      await this.alphaRepository.save(
-        decisions.map((decision) => this.alphaRepository.create(decision)),
-      );
+      await this.saveDecisions(decisions);
     }
 
     return decisions.sort((left, right) => right.confidence - left.confidence);
@@ -139,12 +137,19 @@ export class NumericAlphaService {
     });
 
     if (decisions.length > 0) {
-      await this.alphaRepository.save(
-        decisions.map((decision) => this.alphaRepository.create(decision)),
-      );
+      await this.saveDecisions(decisions);
     }
 
     return decisions;
+  }
+
+  private async saveDecisions(
+    decisions: AlphaDecisionContract[],
+  ): Promise<void> {
+    await this.alphaRepository.upsert(
+      decisions.map((decision) => this.alphaRepository.create(decision)),
+      ['id'],
+    );
   }
 
   private buildDecision(input: {

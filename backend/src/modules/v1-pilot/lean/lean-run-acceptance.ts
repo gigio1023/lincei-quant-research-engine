@@ -57,6 +57,8 @@ type DataMonitorReport = {
 
 const HYDRATION_NOTE = 'hydrated_from_lean_summary_only';
 const STRATEGY_VALIDATION_MODE = 'historical-research';
+const MAX_UNLEVERED_ABSOLUTE_TARGET_WEIGHT = 1;
+const MAX_UNLEVERED_GROSS_TARGET_WEIGHT = 1;
 
 export function assessLeanRunArtifacts(
   resultDirectory: string,
@@ -284,6 +286,14 @@ function targetIntegrityBlockers(
     if (!Number.isFinite(target.targetWeight)) {
       blockers.push(`Portfolio target ${target.symbol} has non-finite weight.`);
     }
+    if (
+      Number.isFinite(target.targetWeight) &&
+      Math.abs(target.targetWeight) > MAX_UNLEVERED_ABSOLUTE_TARGET_WEIGHT
+    ) {
+      blockers.push(
+        `Portfolio target ${target.symbol} exceeds the unlevered absolute target weight cap.`,
+      );
+    }
     const sourceInsightIds = target.sourceInsightIds ?? [];
     if (sourceInsightIds.length === 0) {
       blockers.push(
@@ -312,6 +322,15 @@ function targetIntegrityBlockers(
   if (targets && Math.abs(maxSingle - targets.maxSingleNamePct) > 0.0001) {
     blockers.push(
       'Portfolio target max single-name exposure does not match targets.',
+    );
+  }
+  if (
+    targets &&
+    Number.isFinite(targets.grossExposurePct) &&
+    targets.grossExposurePct > MAX_UNLEVERED_GROSS_TARGET_WEIGHT
+  ) {
+    blockers.push(
+      'Portfolio target gross exposure exceeds the current unlevered strategy cap.',
     );
   }
 
