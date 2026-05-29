@@ -191,6 +191,11 @@ export class V1PilotOrchestratorService {
     llmFeatureCount: number;
     llmCount: number;
     metaCount: number;
+    featureIds: string[];
+    numericDecisionIds: string[];
+    llmFeatureIds: string[];
+    llmDecisionIds: string[];
+    metaDecisionIds: string[];
   }> {
     const snapshots =
       await this.featureSnapshotService.buildSnapshotsForUniverse(
@@ -214,6 +219,11 @@ export class V1PilotOrchestratorService {
       llmFeatureCount: llmFeatures.length,
       llmCount: llm.length,
       metaCount: meta.length,
+      featureIds: snapshots.map((snapshot) => snapshot.id),
+      numericDecisionIds: numeric.map((decision) => decision.id),
+      llmFeatureIds: llmFeatures.map((feature) => feature.id),
+      llmDecisionIds: llm.map((decision) => decision.id),
+      metaDecisionIds: meta.map((decision) => decision.id),
     };
   }
 

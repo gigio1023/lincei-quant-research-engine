@@ -35,8 +35,6 @@ export class MetaAlphaService {
     const metaDecisions: AlphaDecisionContract[] = [];
     const exportRecords: MetaDecisionExportRecord[] = [];
 
-    const savePromises: Promise<AlphaDecision>[] = [];
-
     snapshots.forEach((snapshot) => {
       const numericDecision = numeric.find(
         (item) => item.symbol === snapshot.symbol,
@@ -167,12 +165,14 @@ export class MetaAlphaService {
         numericFeatureRefs: decision.numericFeatureRefs ?? [],
         outputHash: decision.outputHash,
       });
-      savePromises.push(
-        this.alphaRepository.save(this.alphaRepository.create(decision)),
-      );
     });
 
-    await Promise.all(savePromises);
+    if (metaDecisions.length > 0) {
+      await this.alphaRepository.upsert(
+        metaDecisions.map((decision) => this.alphaRepository.create(decision)),
+        ['id'],
+      );
+    }
     this.exportMetaDecisionsFile(exportRecords);
     return metaDecisions;
   }

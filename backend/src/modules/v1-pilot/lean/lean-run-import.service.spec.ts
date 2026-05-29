@@ -1,7 +1,8 @@
 import { Test } from '@nestjs/testing';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
 import { mkdirSync, writeFileSync, rmSync } from 'fs';
 import { join } from 'path';
+import { Repository } from 'typeorm';
 import { LeanRun } from '../../../entities/lean-run.entity';
 import { PortfolioTargetSnapshot } from '../../../entities/portfolio-target-snapshot.entity';
 import { LeanRunImportService } from './lean-run-import.service';
@@ -9,6 +10,7 @@ import { LeanLocalSimulatorService } from './lean-local-simulator.service';
 
 describe('LeanRunImportService', () => {
   let service: LeanRunImportService;
+  let targetRepository: Repository<PortfolioTargetSnapshot>;
   const tempRoot = join(process.cwd(), 'tmp-test-lean-runs');
 
   beforeAll(async () => {
@@ -25,6 +27,7 @@ describe('LeanRunImportService', () => {
       providers: [LeanRunImportService, LeanLocalSimulatorService],
     }).compile();
     service = moduleRef.get(LeanRunImportService);
+    targetRepository = moduleRef.get(getRepositoryToken(PortfolioTargetSnapshot));
   });
 
   afterAll(() => {
@@ -140,5 +143,11 @@ describe('LeanRunImportService', () => {
     expect(imported.runtime).toBe('quantconnect-cloud');
     expect(imported.cloudProjectId).toBe('32077023');
     expect(imported.cloudBacktestId).toBe('ecd033aae81ec9f98e1c24b4c5a58d4c');
+    await expect(
+      targetRepository.findOne({ where: { id: 'targets-qc-import-test' } }),
+    ).resolves.toMatchObject({
+      leanRunId: 'qc-import-test',
+      targetHash: expect.any(String),
+    });
   });
 });

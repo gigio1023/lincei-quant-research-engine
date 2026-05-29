@@ -168,8 +168,15 @@ export async function createLinceiRuntime(
     repo(LeanRun),
     repo(PortfolioTargetSnapshot),
   );
-  const leanCloudRunner = new LeanCloudRunner(leanCliRunner, repo(LeanRun));
-  const leanCloudManualImporter = new LeanCloudManualImporter(repo(LeanRun));
+  const leanCloudRunner = new LeanCloudRunner(
+    leanCliRunner,
+    repo(LeanRun),
+    repo(PortfolioTargetSnapshot),
+  );
+  const leanCloudManualImporter = new LeanCloudManualImporter(
+    repo(LeanRun),
+    repo(PortfolioTargetSnapshot),
+  );
   const researchFactoryService = new ResearchFactoryService(
     repo(ResearchHypothesis),
     repo(ResearchJobRecord),

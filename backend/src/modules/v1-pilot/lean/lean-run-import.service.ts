@@ -10,12 +10,12 @@ import { Repository } from 'typeorm';
 import { LeanRun } from '../../../entities/lean-run.entity';
 import { PortfolioTargetSnapshot } from '../../../entities/portfolio-target-snapshot.entity';
 import { LeanRunResult } from './lean-run.types';
-import { LeanPortfolioTargetsPayload } from './lean-run.types';
 import { hashObject } from '../../../shared/hash.util';
 import {
   LeanAcceptanceMode,
   assessLeanRunArtifacts,
 } from './lean-run-acceptance';
+import { importPortfolioTargetSnapshot } from './lean-portfolio-target-importer';
 
 @Injectable()
 export class LeanRunImportService {
@@ -75,6 +75,11 @@ export class LeanRunImportService {
       where: { importIdempotencyKey: importKey },
     });
     if (existing) {
+      await importPortfolioTargetSnapshot(
+        this.targetRepository,
+        existing.runId,
+        existing.portfolioTargetsRef,
+      );
       return existing;
     }
 
@@ -113,7 +118,11 @@ export class LeanRunImportService {
         importIdempotencyKey: importKey,
       }),
     );
-    await this.importPortfolioTargets(saved.runId, result.portfolioTargetsRef!);
+    await importPortfolioTargetSnapshot(
+      this.targetRepository,
+      saved.runId,
+      result.portfolioTargetsRef,
+    );
     return saved;
   }
 
@@ -210,32 +219,6 @@ export class LeanRunImportService {
       throw new BadRequestException(`Unsafe LEAN run path in marker: ${runId}`);
     }
     return resultDirectory;
-  }
-
-  private async importPortfolioTargets(
-    leanRunId: string,
-    portfolioTargetsRef: string,
-  ): Promise<PortfolioTargetSnapshot> {
-    const payload = JSON.parse(
-      readFileSync(portfolioTargetsRef, 'utf8'),
-    ) as LeanPortfolioTargetsPayload;
-    const existing = await this.targetRepository.findOne({
-      where: { id: payload.id },
-    });
-    if (existing) {
-      return existing;
-    }
-    return this.targetRepository.save(
-      this.targetRepository.create({
-        id: payload.id,
-        leanRunId: payload.leanRunId ?? leanRunId,
-        asOf: payload.asOf,
-        targets: payload.targets,
-        grossExposurePct: payload.grossExposurePct,
-        maxSingleNamePct: payload.maxSingleNamePct,
-        targetHash: payload.targetHash ?? hashObject(payload),
-      }),
-    );
   }
 
   private runtimeFromConfig(config: {

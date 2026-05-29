@@ -4,7 +4,7 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThanOrEqual, Repository } from 'typeorm';
+import { In, MoreThanOrEqual, Repository } from 'typeorm';
 import { AlphaDecision } from '../../../entities/alpha-decision.entity';
 import {
   ResearchJobRecord,
@@ -315,12 +315,18 @@ export class CapitalEvidenceSliceService {
     alphaStartedAt: Date;
     alphaStep: CapitalEvidenceStep;
   }): Promise<CapitalVariantOutcome[]> {
-    const decisions = await this.alphaRepository.find({
-      where: {
-        createdAt: MoreThanOrEqual(input.alphaStartedAt),
-      },
-      order: { createdAt: 'DESC' },
-    });
+    const alphaDecisionIds = this.alphaDecisionIds(input.alphaStep);
+    const decisions = alphaDecisionIds.length
+      ? await this.alphaRepository.find({
+          where: { id: In(alphaDecisionIds) },
+          order: { createdAt: 'DESC' },
+        })
+      : await this.alphaRepository.find({
+          where: {
+            updatedAt: MoreThanOrEqual(input.alphaStartedAt),
+          },
+          order: { createdAt: 'DESC' },
+        });
 
     const outcomes: CapitalVariantOutcome[] = [];
     for (const variant of DEFAULT_CAPITAL_VARIANTS) {
@@ -374,6 +380,18 @@ export class CapitalEvidenceSliceService {
       });
     }
     return outcomes;
+  }
+
+  private alphaDecisionIds(alphaStep: CapitalEvidenceStep): string[] {
+    if (!alphaStep.output || typeof alphaStep.output !== 'object') {
+      return [];
+    }
+    const output = alphaStep.output as Record<string, unknown>;
+    return [
+      ...this.stringArray(output.numericDecisionIds),
+      ...this.stringArray(output.llmDecisionIds),
+      ...this.stringArray(output.metaDecisionIds),
+    ];
   }
 
   private async recordResearchJob(input: {

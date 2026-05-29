@@ -6,6 +6,7 @@ import { join, resolve } from 'path';
 import { randomBytes } from 'crypto';
 import { Repository } from 'typeorm';
 import { LeanRun } from '../../../entities/lean-run.entity';
+import { PortfolioTargetSnapshot } from '../../../entities/portfolio-target-snapshot.entity';
 import { hashObject } from '../../../shared/hash.util';
 import { LeanCliRunner } from './lean-cli.runner';
 import { assessLeanRunArtifacts } from './lean-run-acceptance';
@@ -17,6 +18,7 @@ import {
   resolveUniverseSelection,
   writeUniverseSelectionReport,
 } from '../universe/universe-manifest';
+import { importPortfolioTargetSnapshot } from './lean-portfolio-target-importer';
 
 export type LeanCloudBacktestRequest = {
   projectName?: string;
@@ -35,6 +37,8 @@ export class LeanCloudRunner {
     private readonly leanCliRunner: LeanCliRunner,
     @InjectRepository(LeanRun)
     private readonly leanRunRepository: Repository<LeanRun>,
+    @InjectRepository(PortfolioTargetSnapshot)
+    private readonly targetRepository: Repository<PortfolioTargetSnapshot>,
   ) {}
 
   async runCloudBacktest(
@@ -176,10 +180,15 @@ export class LeanCloudRunner {
       where: { importIdempotencyKey: `cloud:${runId}` },
     });
     if (existing) {
+      await importPortfolioTargetSnapshot(
+        this.targetRepository,
+        existing.runId,
+        existing.portfolioTargetsRef,
+      );
       return existing;
     }
 
-    return this.leanRunRepository.save(
+    const saved = await this.leanRunRepository.save(
       this.leanRunRepository.create({
         runId,
         runtime: 'quantconnect-cloud',
@@ -212,6 +221,12 @@ export class LeanCloudRunner {
         importIdempotencyKey: `cloud:${runId}`,
       }),
     );
+    await importPortfolioTargetSnapshot(
+      this.targetRepository,
+      saved.runId,
+      saved.portfolioTargetsRef,
+    );
+    return saved;
   }
 
   async syncObjectStore(

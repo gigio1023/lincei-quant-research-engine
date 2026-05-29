@@ -34,6 +34,9 @@ type NormalizedCloudOrderEvent = {
   utcTime: string;
 };
 
+const SECONDS_PER_DAY = 86_400;
+const QUANTCONNECT_SYMBOL_ID_PATTERN = /^[A-Z0-9]{8,}$/;
+
 export type QuantConnectCloudArtifactPayload = {
   backtest: QuantConnectBacktestPayload;
   insights: Record<string, unknown>[];
@@ -98,7 +101,7 @@ export class QuantConnectCloudArtifactMapper {
         input.completedAt.toISOString(),
       targets: derivedTargets,
       ...this.targetExposure(derivedTargets),
-      riskNotes: ['derived_from_quantconnect_cloud_orders'],
+      riskNotes: ['derived_from_quantconnect_cloud_net_fill_notional'],
     });
     this.writeJson(join(input.resultDirectory, 'data-monitor-report.json'), {
       'total-data-requests-count': 1,
@@ -115,18 +118,17 @@ export class QuantConnectCloudArtifactMapper {
     index: number,
   ): NormalizedCloudInsight {
     const symbol = this.symbolValue(insight.symbol) || 'UNKNOWN';
-    const generatedTime =
-      String(
-        insight.generatedTimeUtc ??
-          insight.generatedTime ??
-          insight.closeTimeUtc ??
-          new Date().toISOString(),
-      ) || new Date().toISOString();
+    const generatedTime = this.timestampValue(
+      insight.generatedTimeUtc ??
+        insight.generatedTime ??
+        insight.closeTimeUtc ??
+        new Date().toISOString(),
+    );
     return {
       id: String(insight.id ?? `cloud-insight-${index}-${symbol}`),
       symbol,
       direction: this.directionName(insight.direction),
-      periodDays: Number(insight.periodDays ?? insight.period ?? 1) || 1,
+      periodDays: this.periodDaysValue(insight.periodDays ?? insight.period),
       confidence: Number(insight.confidence ?? 0.5) || 0.5,
       magnitude: Number(insight.magnitude ?? 0) || 0,
       sourceModel: String(insight.sourceModel ?? 'quantconnect-cloud'),
@@ -175,7 +177,7 @@ export class QuantConnectCloudArtifactMapper {
       fillQuantity: Number.isFinite(fillQuantity) ? fillQuantity : 0,
       fillPrice: Number.isFinite(fillPrice) ? fillPrice : 0,
       orderFee: this.orderFeeValue(event.orderFee),
-      utcTime: String(
+      utcTime: this.timestampValue(
         event.utcTime ??
           event.time ??
           order.lastFillTime ??
@@ -203,10 +205,7 @@ export class QuantConnectCloudArtifactMapper {
       if (!event.status.toLowerCase().includes('filled')) {
         continue;
       }
-      const signedNotional =
-        event.fillQuantity *
-        event.fillPrice *
-        (event.direction === 'sell' ? -1 : 1);
+      const signedNotional = this.signedFillQuantity(event) * event.fillPrice;
       notionalBySymbol.set(
         event.symbol,
         (notionalBySymbol.get(event.symbol) ?? 0) + signedNotional,
@@ -214,13 +213,24 @@ export class QuantConnectCloudArtifactMapper {
     }
     return [...notionalBySymbol.entries()]
       .filter(([symbol]) => (insightsBySymbol.get(symbol) ?? []).length > 0)
+      .filter(([, notional]) => Math.abs(notional / endEquity) > 0.00001)
       .map(([symbol, notional]) => ({
         symbol,
         targetWeight: Number((notional / endEquity).toFixed(6)),
         sourceInsightIds: insightsBySymbol.get(symbol) ?? [],
         riskAdjusted: true,
-        riskNotes: ['derived_from_quantconnect_cloud_orders'],
+        riskNotes: ['derived_from_quantconnect_cloud_net_fill_notional'],
       }));
+  }
+
+  private signedFillQuantity(event: NormalizedCloudOrderEvent): number {
+    if (event.fillQuantity < 0) {
+      return event.fillQuantity;
+    }
+    if (event.direction === 'sell') {
+      return -Math.abs(event.fillQuantity);
+    }
+    return event.fillQuantity;
   }
 
   private targetExposure(targets: { targetWeight: number }[]): {
@@ -241,13 +251,26 @@ export class QuantConnectCloudArtifactMapper {
       return '';
     }
     if (typeof value === 'string') {
-      return value;
+      return this.normalizeSymbol(value);
     }
     if (typeof value === 'object') {
       const candidate = value as { value?: unknown; Value?: unknown };
-      return String(candidate.value ?? candidate.Value ?? '');
+      return this.normalizeSymbol(
+        String(candidate.value ?? candidate.Value ?? ''),
+      );
     }
-    return String(value);
+    return this.normalizeSymbol(String(value));
+  }
+
+  private normalizeSymbol(symbol: string): string {
+    const tokens = symbol.trim().split(/\s+/);
+    if (
+      tokens.length === 2 &&
+      QUANTCONNECT_SYMBOL_ID_PATTERN.test(tokens[1] ?? '')
+    ) {
+      return tokens[0] ?? symbol.trim();
+    }
+    return symbol.trim();
   }
 
   private orderStatusName(value: unknown): string {
@@ -307,6 +330,31 @@ export class QuantConnectCloudArtifactMapper {
     }
     const parsed = Number(value.replace(/[%$,]/g, ''));
     return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  private periodDaysValue(value: unknown): number {
+    const raw = Number(value ?? 1);
+    if (!Number.isFinite(raw) || raw <= 0) {
+      return 1;
+    }
+    return Number((raw > 365 ? raw / SECONDS_PER_DAY : raw).toFixed(6));
+  }
+
+  private timestampValue(value: unknown): string {
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    const raw = String(value ?? '').trim();
+    const numeric = Number(raw);
+    if (Number.isFinite(numeric) && raw !== '') {
+      const milliseconds = numeric < 10_000_000_000 ? numeric * 1000 : numeric;
+      return new Date(milliseconds).toISOString();
+    }
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString();
+    }
+    return new Date().toISOString();
   }
 
   private writeJson(path: string, payload: unknown): void {

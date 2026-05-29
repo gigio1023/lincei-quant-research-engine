@@ -75,7 +75,12 @@ export class LeanPaperBridgeService {
     if (!snapshot?.targets.length) {
       throw new Error('Latest LEAN run has no portfolio targets.');
     }
-    const scopedIdempotencyKey = `${idempotencyKey}:${latestRun.runId}:${snapshot.id}`;
+    const scopedIdempotencyKey = [
+      idempotencyKey,
+      latestRun.runId,
+      snapshot.id,
+      snapshot.targetHash ?? 'no-target-hash',
+    ].join(':');
     const leanRunEvidenceRef = `lean-run:${latestRun.runId}`;
     const targetEvidenceRef = `portfolio-target:${snapshot.id}`;
     const replayEvidenceRefs =
@@ -296,7 +301,14 @@ export class LeanPaperBridgeService {
 
   private buildOrders(targets: PortfolioTargetItemContract[]) {
     const selectedTargets = targets
-      .filter((target) => Number.isFinite(target.targetWeight))
+      .filter(
+        (target) =>
+          Number.isFinite(target.targetWeight) && target.targetWeight > 0,
+      )
+      .sort(
+        (left, right) =>
+          Math.abs(right.targetWeight) - Math.abs(left.targetWeight),
+      )
       .slice(0, 2);
     const cappedPercents = selectedTargets.map((target) =>
       Math.min(
