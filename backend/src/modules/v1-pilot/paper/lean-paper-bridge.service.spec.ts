@@ -40,6 +40,15 @@ describe('LeanPaperBridgeService', () => {
         }),
       } as never,
       {
+        ensureCurrentTargetSnapshot: jest.fn().mockResolvedValue({
+          id: 11,
+          leanRunId: tempDir.split('/').pop(),
+          targets: [{ symbol: 'SPY', targetWeight: 0.35 }],
+        }),
+        currentTargetMarketDataTimestamp: jest.fn(),
+        isCurrentAlphaTarget: jest.fn().mockReturnValue(false),
+      } as never,
+      {
         find: jest.fn().mockResolvedValue([
           {
             id: 11,
@@ -130,6 +139,11 @@ describe('LeanPaperBridgeService', () => {
         }),
       } as never,
       {
+        ensureCurrentTargetSnapshot: jest.fn(),
+        currentTargetMarketDataTimestamp: jest.fn(),
+        isCurrentAlphaTarget: jest.fn().mockReturnValue(false),
+      } as never,
+      {
         find: jest.fn().mockResolvedValue([
           {
             id: 11,
@@ -179,6 +193,120 @@ describe('LeanPaperBridgeService', () => {
             symbol: 'VRT XBX55P02OU3P',
             notional: 4000,
             targetPositionPct: 40,
+          }),
+        ],
+      }),
+    );
+  });
+
+  it('builds a current paper proposal from current alpha targets', async () => {
+    const filledPlan = {
+      id: 13,
+      status: 'filled',
+      reconciliation: { status: 'pending' },
+    } as PaperOrderPlan;
+    const reconciledPlan = {
+      ...filledPlan,
+      status: 'reconciled',
+      reconciliation: { status: 'matched' },
+    } as PaperOrderPlan;
+    const controlPlaneService = {
+      listBudgetEnvelopes: jest
+        .fn()
+        .mockResolvedValue([{ id: 1, name: 'V1 LEAN Paper Budget (ETF)' }]),
+      getPaperAccountState: jest.fn().mockResolvedValue({
+        id: 2,
+        budgetEnvelopeId: 1,
+        currency: 'USD',
+        cash: 10_000,
+        equity: 10_000,
+        grossExposurePct: 0,
+        positions: [],
+      }),
+      listBrokerSnapshots: jest.fn().mockResolvedValue([{ id: 3 }]),
+      createResearchRun: jest.fn().mockResolvedValue({ id: 4 }),
+      createProposal: jest.fn().mockResolvedValue({ id: 5 }),
+      evaluateProposal: jest.fn().mockResolvedValue({ decision: 'REVIEW' }),
+      listPaperAccountEvents: jest
+        .fn()
+        .mockResolvedValue([{ eventHash: 'event-hash' }]),
+      createOrderPlanApproval: jest.fn().mockResolvedValue({ id: 6 }),
+      paperExecuteProposal: jest.fn().mockResolvedValue(filledPlan),
+      reconcilePaperOrderPlan: jest.fn().mockResolvedValue(reconciledPlan),
+    };
+    const service = new LeanPaperBridgeService(
+      controlPlaneService as never,
+      {
+        getLatestStrategyRun: jest.fn().mockResolvedValue({
+          runId: tempDir.split('/').pop(),
+          status: 'passed',
+          resultDirectory: tempDir,
+          startedAt: new Date('2026-05-25T07:10:18.000Z'),
+          completedAt: new Date('2026-05-25T07:12:56.000Z'),
+          statistics: JSON.parse(
+            readFileSync(join(tempDir, 'statistics.json'), 'utf8'),
+          ),
+          configHash: 'config-hash',
+        }),
+      } as never,
+      {
+        ensureCurrentTargetSnapshot: jest.fn().mockResolvedValue({
+          id: 'current-alpha-target-test',
+          leanRunId: tempDir.split('/').pop(),
+          asOf: '2026-05-29T00:40:00.000Z',
+          targetHash: 'target-hash',
+          targets: [
+            {
+              symbol: 'QQQ',
+              targetWeight: 0.1,
+              riskNotes: [
+                'current_alpha_target',
+                'market-data-timestamp:2026-05-28T22:00:00.000Z',
+              ],
+            },
+            {
+              symbol: 'SPY',
+              targetWeight: 0.08,
+              riskNotes: [
+                'current_alpha_target',
+                'market-data-timestamp:2026-05-28T22:00:00.000Z',
+              ],
+            },
+          ],
+        }),
+        currentTargetMarketDataTimestamp: jest
+          .fn()
+          .mockReturnValue('2026-05-28T22:00:00.000Z'),
+        isCurrentAlphaTarget: jest.fn().mockReturnValue(true),
+      } as never,
+      {
+        find: jest.fn(),
+      } as never,
+      {
+        find: jest.fn().mockResolvedValue([]),
+      } as never,
+    );
+
+    const result = await service.runPaperCycle();
+
+    expect(result).toBe(reconciledPlan);
+    expect(controlPlaneService.createProposal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        marketDataTimestamp: '2026-05-28T22:00:00.000Z',
+        thesis: expect.stringContaining('Current paper cycle'),
+        evidenceRefs: expect.not.arrayContaining([
+          'paper-replay:historical-target',
+        ]),
+        orders: [
+          expect.objectContaining({
+            symbol: 'QQQ',
+            notional: 1000,
+            targetPositionPct: 10,
+          }),
+          expect.objectContaining({
+            symbol: 'SPY',
+            notional: 800,
+            targetPositionPct: 8,
           }),
         ],
       }),
