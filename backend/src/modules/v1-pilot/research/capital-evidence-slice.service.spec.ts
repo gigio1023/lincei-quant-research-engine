@@ -2,7 +2,11 @@ import { Repository } from 'typeorm';
 import { AlphaDecision } from '../../../entities/alpha-decision.entity';
 import { ResearchJobRecord } from '../../../entities/research-job-record.entity';
 import { V1PilotOrchestratorService } from '../v1-pilot-orchestrator.service';
-import { CapitalEvidenceSliceService } from './capital-evidence-slice.service';
+import {
+  CapitalEvidenceProgressEvent,
+  CapitalEvidenceSliceService,
+  DEFAULT_CAPITAL_UNIVERSE,
+} from './capital-evidence-slice.service';
 import { ResearchFactoryService } from './research-factory.service';
 
 describe('CapitalEvidenceSliceService', () => {
@@ -46,7 +50,8 @@ describe('CapitalEvidenceSliceService', () => {
     expect(savedJobs.every((job) => job.jobType === 'ablation')).toBe(true);
     expect(result.brokerWriteCandidateStatus.status).toBe('blocked');
     expect(JSON.stringify(result.promotionDecision)).toContain('blocked');
-    expect(result.universe).toContain('SMH');
+    expect(result.universe).toEqual([...DEFAULT_CAPITAL_UNIVERSE]);
+    expect(process.env.V1_UNIVERSE_SYMBOLS).toBe(originalUniverseSymbols);
   });
 
   it('runs and reports the same explicit universe override', async () => {
@@ -72,9 +77,56 @@ describe('CapitalEvidenceSliceService', () => {
     expect(orchestrator.prepareLeanLocalData).toHaveBeenCalled();
     expect(process.env.V1_UNIVERSE_SYMBOLS).toBe(originalUniverseSymbols);
   });
+
+  it('records a blocked step and progress events when a step times out', async () => {
+    const events: CapitalEvidenceProgressEvent[] = [];
+    const orchestrator = mockOrchestrator({
+      buildHypothesisRegistry: jest.fn(() => new Promise(() => undefined)),
+    });
+    const service = new CapitalEvidenceSliceService(
+      orchestrator,
+      mockResearchFactory(),
+      {
+        create: (record: ResearchJobRecord) => record,
+        save: async (record: ResearchJobRecord) => record,
+      } as unknown as Repository<ResearchJobRecord>,
+      {
+        find: async () => [],
+      } as unknown as Repository<AlphaDecision>,
+    );
+
+    const result = await service.run({
+      maxBacktestWorkers: 1,
+      stepTimeoutMs: 5,
+      onProgress: (event) => events.push(event),
+    });
+
+    const researchCorpus = result.steps.find(
+      (step) => step.key === 'research-corpus',
+    );
+    expect(researchCorpus?.status).toBe('blocked');
+    expect(researchCorpus?.blockers).toContain(
+      'Research corpus ingest timed out after 5 ms.',
+    );
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'started',
+          key: 'research-corpus',
+        }),
+        expect.objectContaining({
+          type: 'completed',
+          key: 'research-corpus',
+          status: 'blocked',
+        }),
+      ]),
+    );
+  });
 });
 
-function mockOrchestrator(): V1PilotOrchestratorService {
+function mockOrchestrator(
+  overrides: Partial<Record<keyof V1PilotOrchestratorService, unknown>> = {},
+): V1PilotOrchestratorService {
   return {
     buildHypothesisRegistry: jest.fn(async () => ({
       status: 'completed',
@@ -123,6 +175,7 @@ function mockOrchestrator(): V1PilotOrchestratorService {
       status: 'blocked',
       blockers: ['Broker read-only snapshot is missing.'],
     })),
+    ...overrides,
   } as unknown as V1PilotOrchestratorService;
 }
 

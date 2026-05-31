@@ -19,10 +19,31 @@
     "software_cybersecurity": 0.3,
     "power_electrification": 0.3,
     "space_aerospace": 0.12,
+    "self_funded_etf_baseline": 1.0,
+    "defensive_fixed_income": 1.0,
     "cash_risk_off": 1.0,
     "benchmark": 1.0
   },
   "profiles": [
+    {
+      "name": "self_funded_etf_baseline",
+      "description": "Liquid ETF trend/defensive baseline for the first self-funded capital evidence slice.",
+      "activeSymbols": [
+        "SPY",
+        "QQQ",
+        "TLT",
+        "IEF"
+      ],
+      "benchmarkSymbols": [
+        "SPY",
+        "QQQ"
+      ],
+      "watchlistSymbols": [
+        "SGOV",
+        "IWM",
+        "XLU"
+      ]
+    },
     {
       "name": "quality_core_backtest_safe",
       "description": "Default backtest-safe quality universe. It excludes forward-only launches and daily leveraged ETFs.",
@@ -485,7 +506,7 @@
       "assetType": "etf",
       "status": "benchmark",
       "tier": "benchmark",
-      "sleeve": "benchmark",
+      "sleeve": "self_funded_etf_baseline",
       "maxPositionPct": 0.35,
       "rationale": "Broad market benchmark and legacy smoke-test symbol."
     },
@@ -495,9 +516,35 @@
       "assetType": "etf",
       "status": "benchmark",
       "tier": "benchmark",
-      "sleeve": "benchmark",
+      "sleeve": "self_funded_etf_baseline",
       "maxPositionPct": 0.35,
       "rationale": "Growth/technology benchmark and legacy smoke-test symbol."
+    },
+    {
+      "symbol": "TLT",
+      "name": "iShares 20+ Year Treasury Bond ETF",
+      "assetType": "etf",
+      "status": "benchmark",
+      "tier": "defensive_fixed_income",
+      "sleeve": "defensive_fixed_income",
+      "maxPositionPct": 0.35,
+      "rationale": "Long-duration Treasury ETF used for liquid defensive allocation and trend baseline testing.",
+      "sourceRefs": [
+        "https://www.ishares.com/us/products/239454/ishares-20-year-treasury-bond-etf"
+      ]
+    },
+    {
+      "symbol": "IEF",
+      "name": "iShares 7-10 Year Treasury Bond ETF",
+      "assetType": "etf",
+      "status": "benchmark",
+      "tier": "defensive_fixed_income",
+      "sleeve": "defensive_fixed_income",
+      "maxPositionPct": 0.35,
+      "rationale": "Intermediate-duration Treasury ETF used for defensive allocation and lower-volatility baseline testing.",
+      "sourceRefs": [
+        "https://www.ishares.com/us/products/239456/ishares-710-year-treasury-bond-etf"
+      ]
     },
     {
       "symbol": "IWM",

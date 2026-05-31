@@ -19,6 +19,9 @@ import { ResearchFactoryService } from './research-factory.service';
 export const DEFAULT_CAPITAL_HYPOTHESIS_ID =
   'research-hypothesis-alphaarchitect-08-rethinking-trend-following-optimal-regime-dependent-allocation';
 
+export const DEFAULT_CAPITAL_UNIVERSE = ['SPY', 'QQQ', 'TLT', 'IEF'] as const;
+export const DEFAULT_CAPITAL_STEP_TIMEOUT_MS = 5 * 60_000;
+
 export const DEFAULT_CAPITAL_VARIANTS = [
   {
     id: 'trend-regime-numeric-v1',
@@ -49,6 +52,8 @@ export interface CapitalEvidenceRunOptions {
   universe?: string[];
   maxBacktestWorkers?: number;
   semanticEvidenceLimit?: number;
+  stepTimeoutMs?: number;
+  onProgress?: (event: CapitalEvidenceProgressEvent) => void;
 }
 
 export interface CapitalEvidenceStep<T = unknown> {
@@ -60,6 +65,15 @@ export interface CapitalEvidenceStep<T = unknown> {
   blockers: string[];
   evidenceRefs: string[];
   output?: T;
+}
+
+export interface CapitalEvidenceProgressEvent {
+  type: 'started' | 'completed';
+  key: string;
+  label: string;
+  at: string;
+  status?: CapitalEvidenceStepStatus;
+  blockers?: string[];
 }
 
 export interface CapitalVariantOutcome {
@@ -81,6 +95,7 @@ export interface CapitalEvidenceSliceResult {
   hypothesisId: string;
   universe: string[];
   maxBacktestWorkers: number;
+  stepTimeoutMs: number;
   variants: CapitalVariantOutcome[];
   variantSummary: {
     passed: number;
@@ -113,8 +128,11 @@ export class CapitalEvidenceSliceService {
   async run(
     options: CapitalEvidenceRunOptions = {},
   ): Promise<CapitalEvidenceSliceResult> {
-    return this.withUniverseOverride(options.universe, async () =>
-      this.runWithResolvedUniverse(options),
+    const universe = options.universe?.length
+      ? options.universe
+      : [...DEFAULT_CAPITAL_UNIVERSE];
+    return this.withUniverseOverride(universe, async () =>
+      this.runWithResolvedUniverse({ ...options, universe }),
     );
   }
 
@@ -127,13 +145,22 @@ export class CapitalEvidenceSliceService {
     const universeSelection = resolveUniverseSelection();
     const universe = universeSelection.activeSymbols;
     const maxBacktestWorkers = options.maxBacktestWorkers ?? 1;
+    const stepTimeoutMs =
+      options.stepTimeoutMs ?? DEFAULT_CAPITAL_STEP_TIMEOUT_MS;
+    const stepOptions = {
+      timeoutMs: stepTimeoutMs,
+      onProgress: options.onProgress,
+    };
     const steps: CapitalEvidenceStep[] = [];
     const blockers: string[] = [];
     let promotionDecision: unknown;
 
     steps.push(
-      await this.runStep('research-corpus', 'Research corpus ingest', () =>
-        this.orchestrator.buildHypothesisRegistry({}),
+      await this.runStep(
+        'research-corpus',
+        'Research corpus ingest',
+        () => this.orchestrator.buildHypothesisRegistry({}),
+        stepOptions,
       ),
     );
 
@@ -146,6 +173,7 @@ export class CapitalEvidenceSliceService {
             source: 'hf-fomc-statements-minutes',
             limit: options.semanticEvidenceLimit ?? 80,
           }),
+        stepOptions,
       ),
     );
 
@@ -156,12 +184,16 @@ export class CapitalEvidenceSliceService {
         this.orchestrator.prepareLeanLocalData({
           ingestUniverseBars: true,
         }),
+      stepOptions,
     );
     steps.push(pointInTimeData);
 
     const alphaStartedAt = new Date();
-    const alphaStep = await this.runStep('alpha-cycle', 'Alpha cycle', () =>
-      this.orchestrator.runAlphaCycle(),
+    const alphaStep = await this.runStep(
+      'alpha-cycle',
+      'Alpha cycle',
+      () => this.orchestrator.runAlphaCycle(),
+      stepOptions,
     );
     steps.push(alphaStep);
 
@@ -185,7 +217,9 @@ export class CapitalEvidenceSliceService {
                 ingestUniverseBars: false,
                 noStaticMeta: true,
                 noStaticMl: true,
+                backtestTimeoutMs: stepTimeoutMs,
               }),
+            stepOptions,
           )
         : this.skippedStep('lean-validation', 'Local LEAN validation attempt', [
             'Skipped because point-in-time market data or local LEAN data preparation is blocked.',
@@ -197,6 +231,7 @@ export class CapitalEvidenceSliceService {
         'quantconnect-cloud-credential-check',
         'QuantConnect Cloud credential and project access check',
         () => this.orchestrator.listQuantConnectCloudProjects({ limit: 5 }),
+        stepOptions,
       ),
     );
 
@@ -209,18 +244,25 @@ export class CapitalEvidenceSliceService {
             hypothesisId,
             minVariantCount: DEFAULT_CAPITAL_VARIANTS.length,
           }),
+        stepOptions,
       ),
     );
 
     steps.push(
-      await this.runStep('paper-cycle', 'Current paper trading cycle', () =>
-        this.orchestrator.runPaperCycle(),
+      await this.runStep(
+        'paper-cycle',
+        'Current paper trading cycle',
+        () => this.orchestrator.runPaperCycle(),
+        stepOptions,
       ),
     );
 
     steps.push(
-      await this.runStep('live-shadow', 'Shadow trading record', () =>
-        this.orchestrator.runLiveShadow(),
+      await this.runStep(
+        'live-shadow',
+        'Shadow trading record',
+        () => this.orchestrator.runLiveShadow(),
+        stepOptions,
       ),
     );
 
@@ -228,6 +270,7 @@ export class CapitalEvidenceSliceService {
       'learning-loop',
       'Outcome labeling and promotion decision',
       () => this.orchestrator.runLearningLoop(),
+      stepOptions,
     );
     steps.push(learningStep);
     promotionDecision =
@@ -243,6 +286,7 @@ export class CapitalEvidenceSliceService {
         'broker-write-preflight',
         'Broker-write pre-trade risk check',
         () => this.orchestrator.runLivePreflight(),
+        stepOptions,
       ),
     );
 
@@ -265,6 +309,7 @@ export class CapitalEvidenceSliceService {
       hypothesisId,
       universe,
       maxBacktestWorkers,
+      stepTimeoutMs,
       variants,
       variantSummary,
       steps,
@@ -437,12 +482,26 @@ export class CapitalEvidenceSliceService {
     key: string,
     label: string,
     run: () => Promise<T>,
+    options: {
+      timeoutMs: number;
+      onProgress?: (event: CapitalEvidenceProgressEvent) => void;
+    },
   ): Promise<CapitalEvidenceStep<T>> {
     const startedAt = new Date().toISOString();
+    options.onProgress?.({
+      type: 'started',
+      key,
+      label,
+      at: startedAt,
+    });
     try {
-      const output = await run();
+      const output = await this.withStepTimeout(
+        Promise.resolve().then(run),
+        options.timeoutMs,
+        label,
+      );
       const blockers = this.outputBlockers(output);
-      return {
+      const step = {
         key,
         label,
         status: blockers.length ? 'blocked' : 'passed',
@@ -451,9 +510,18 @@ export class CapitalEvidenceSliceService {
         blockers,
         evidenceRefs: this.outputEvidenceRefs(output),
         output,
-      };
+      } satisfies CapitalEvidenceStep<T>;
+      options.onProgress?.({
+        type: 'completed',
+        key,
+        label,
+        at: step.completedAt,
+        status: step.status,
+        blockers: step.blockers,
+      });
+      return step;
     } catch (error) {
-      return {
+      const step = {
         key,
         label,
         status: 'blocked',
@@ -461,7 +529,41 @@ export class CapitalEvidenceSliceService {
         completedAt: new Date().toISOString(),
         blockers: [this.errorMessage(error)],
         evidenceRefs: [],
-      };
+      } satisfies CapitalEvidenceStep<T>;
+      options.onProgress?.({
+        type: 'completed',
+        key,
+        label,
+        at: step.completedAt,
+        status: step.status,
+        blockers: step.blockers,
+      });
+      return step;
+    }
+  }
+
+  private async withStepTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    label: string,
+  ): Promise<T> {
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+      return promise;
+    }
+    let timer: NodeJS.Timeout | undefined;
+    try {
+      return await Promise.race([
+        promise,
+        new Promise<T>((_, reject) => {
+          timer = setTimeout(() => {
+            reject(new Error(`${label} timed out after ${timeoutMs} ms.`));
+          }, timeoutMs);
+        }),
+      ]);
+    } finally {
+      if (timer) {
+        clearTimeout(timer);
+      }
     }
   }
 
@@ -640,10 +742,17 @@ export class CapitalEvidenceSliceService {
   }
 
   private runId(startedAt: Date, options: CapitalEvidenceRunOptions): string {
+    const runIdInput = {
+      hypothesisId: options.hypothesisId,
+      universe: options.universe,
+      maxBacktestWorkers: options.maxBacktestWorkers,
+      semanticEvidenceLimit: options.semanticEvidenceLimit,
+      stepTimeoutMs: options.stepTimeoutMs,
+    };
     return `capital-evidence-${startedAt
       .toISOString()
       .replace(/[-:TZ.]/g, '')
-      .slice(0, 14)}-${this.shortHash(options)}`;
+      .slice(0, 14)}-${this.shortHash(runIdInput)}`;
   }
 
   private shortHash(payload: unknown): string {

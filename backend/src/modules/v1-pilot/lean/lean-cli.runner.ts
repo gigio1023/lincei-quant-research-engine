@@ -45,6 +45,8 @@ const REQUIRED_ARTIFACTS = [
   'logs.txt',
 ] as const;
 
+const DEFAULT_LEAN_BACKTEST_TIMEOUT_MS = 10 * 60_000;
+
 type LeanDockerMode = 'direct' | 'sg-docker';
 
 export type LeanCliBacktestRequest = {
@@ -63,6 +65,7 @@ export type LeanCliBacktestRequest = {
   allowLeveragedEtf?: boolean;
   allowSummaryHydration?: boolean;
   requireStrategyEvidence?: boolean;
+  timeoutMs?: number;
 };
 
 export type LeanCliBacktestResult = {
@@ -168,6 +171,7 @@ export class LeanCliRunner {
     }
     const { leanBin, processEnv, dockerMode } = this.assertPrerequisites();
     const projectName = request.projectName ?? 'aggressive_llm_momentum';
+    const timeoutMs = this.resolveBacktestTimeoutMs(request.timeoutMs);
     const runId =
       request.runId ??
       `bt-${new Date()
@@ -270,7 +274,13 @@ export class LeanCliRunner {
     let stdout = '';
     let stderr = '';
     try {
-      stdout = this.runLeanCommand(leanBin, args, processEnv, dockerMode);
+      stdout = this.runLeanCommand(
+        leanBin,
+        args,
+        processEnv,
+        dockerMode,
+        timeoutMs,
+      );
     } catch (error) {
       const execError = error as {
         stdout?: string;
@@ -299,11 +309,11 @@ export class LeanCliRunner {
         outputDirectory,
       });
       const latestLog = readLeanLog(matchedBacktestDirectory);
-      const diagnostic = summarizeLeanCliFailure({
-        stdout,
-        stderr,
-        logText: latestLog?.text,
-      });
+      const diagnostic = this.leanFailureDiagnostic(
+        { stdout, stderr, message: execError.message },
+        latestLog?.text,
+        timeoutMs,
+      );
       writeLeanCliFailureDiagnostics({
         outputDirectory,
         runId,
@@ -518,6 +528,7 @@ export class LeanCliRunner {
     args: string[],
     processEnv: NodeJS.ProcessEnv,
     dockerMode: LeanDockerMode,
+    timeoutMs: number,
   ): string {
     if (dockerMode === 'direct') {
       return execFileSync(leanBin, args, {
@@ -525,6 +536,7 @@ export class LeanCliRunner {
         encoding: 'utf8',
         maxBuffer: 32 * 1024 * 1024,
         env: processEnv,
+        timeout: timeoutMs,
       });
     }
 
@@ -536,8 +548,41 @@ export class LeanCliRunner {
         encoding: 'utf8',
         maxBuffer: 32 * 1024 * 1024,
         env: processEnv,
+        timeout: timeoutMs,
       },
     );
+  }
+
+  private resolveBacktestTimeoutMs(requestTimeoutMs?: number): number {
+    const configured = Number(
+      process.env.LEAN_BACKTEST_TIMEOUT_MS ?? DEFAULT_LEAN_BACKTEST_TIMEOUT_MS,
+    );
+    const timeoutMs = requestTimeoutMs ?? configured;
+    return Number.isFinite(timeoutMs) && timeoutMs > 0
+      ? timeoutMs
+      : DEFAULT_LEAN_BACKTEST_TIMEOUT_MS;
+  }
+
+  private leanFailureDiagnostic(
+    error: {
+      stdout?: string;
+      stderr?: string;
+      message?: string;
+    },
+    logText: string | undefined,
+    timeoutMs: number,
+  ): string {
+    if (
+      error.message?.includes('ETIMEDOUT') ||
+      error.message?.includes('timed out')
+    ) {
+      return `LEAN backtest process timed out after ${timeoutMs} ms.`;
+    }
+    return summarizeLeanCliFailure({
+      stdout: error.stdout ?? '',
+      stderr: error.stderr ?? '',
+      logText,
+    });
   }
 
   private shellCommand(parts: string[]): string {

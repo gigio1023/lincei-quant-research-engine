@@ -9,8 +9,10 @@ import {
 } from '../runtime/create-lincei-runtime';
 import {
   DEFAULT_CAPITAL_HYPOTHESIS_ID,
+  CapitalEvidenceProgressEvent,
   CapitalEvidenceRunOptions,
 } from '../modules/v1-pilot/research/capital-evidence-slice.service';
+import { buildCapitalTriage } from './capital-triage';
 
 type CommandHandlerResult = {
   result?: unknown;
@@ -56,21 +58,32 @@ export async function runLinceiCli(
     return 0;
   }
 
-  const runtime = await createLinceiRuntime();
+  let restoreStdout: (() => void) | undefined;
+  let runtime: LinceiRuntime | undefined;
   try {
-    const handled = await dispatchCommand(runtime, args);
+    restoreStdout = json ? redirectStdoutToStderr() : undefined;
+    runtime = await createLinceiRuntime();
+    const handled = await dispatchCommand(runtime, args, { json });
+    await runtime.close();
+    runtime = undefined;
+    restoreStdout?.();
+    restoreStdout = undefined;
     if (handled.result !== undefined) {
       printResult(handled.result, json);
     }
     return handled.exitCode ?? exitCodeFromResult(handled.result);
   } finally {
-    await runtime.close();
+    if (runtime) {
+      await runtime.close();
+    }
+    restoreStdout?.();
   }
 }
 
 async function dispatchCommand(
   runtime: LinceiRuntime,
   args: string[],
+  context: { json?: boolean } = {},
 ): Promise<CommandHandlerResult> {
   const [group, command, ...rest] = args;
   if (isLegacyCommand(group)) {
@@ -78,6 +91,7 @@ async function dispatchCommand(
       runtime,
       group,
       [command, ...rest].filter((arg): arg is string => Boolean(arg)),
+      context,
     );
   }
   const key = command ? `${group} ${command}` : group;
@@ -90,11 +104,17 @@ async function dispatchCommand(
         maxBacktestWorkers:
           numericArgValue(rest, '--max-backtest-workers') ?? 1,
         semanticEvidenceLimit: numericArgValue(rest, '--semantic-limit'),
+        stepTimeoutMs: numericArgValue(rest, '--step-timeout-ms'),
+        onProgress: (event) => printCapitalProgress(event, context.json),
       };
       return {
         result: await runtime.capitalEvidenceSliceService.run(options),
       };
     }
+    case 'capital triage':
+      return {
+        result: buildCapitalTriage(await runtime.statusService.getStatus()),
+      };
     case 'capital status':
     case 'status':
       return { result: await runtime.statusService.getStatus() };
@@ -173,6 +193,10 @@ async function dispatchCommand(
             noStaticMl:
               fullBacktestArgs.includes('--no-static-ml') ||
               !fullBacktestArgs.includes('--with-static-ml'),
+            backtestTimeoutMs: numericArgValue(
+              fullBacktestArgs,
+              '--backtest-timeout-ms',
+            ),
           }),
         {
           isBlocked: isFullBacktestBlocked,
@@ -335,56 +359,93 @@ async function dispatchLegacyCommand(
   runtime: LinceiRuntime,
   command: string,
   args: string[],
+  context: { json?: boolean } = {},
 ): Promise<CommandHandlerResult> {
   switch (command) {
     case 'build-hypothesis-registry':
-      return dispatchCommand(runtime, ['research', 'corpus', ...args]);
+      return dispatchCommand(runtime, ['research', 'corpus', ...args], context);
     case 'run-selected-run-bias-check':
-      return dispatchCommand(runtime, [
-        'research',
-        'selected-run-bias',
-        ...args,
-      ]);
+      return dispatchCommand(
+        runtime,
+        ['research', 'selected-run-bias', ...args],
+        context,
+      );
     case 'ingest-semantic-evidence':
-      return dispatchCommand(runtime, ['data', 'semantic-evidence', ...args]);
+      return dispatchCommand(
+        runtime,
+        ['data', 'semantic-evidence', ...args],
+        context,
+      );
     case 'prepare-lean-local-data':
-      return dispatchCommand(runtime, ['data', 'prepare-lean', ...args]);
+      return dispatchCommand(
+        runtime,
+        ['data', 'prepare-lean', ...args],
+        context,
+      );
     case 'run-alpha-cycle':
-      return dispatchCommand(runtime, ['alpha', 'run', ...args]);
+      return dispatchCommand(runtime, ['alpha', 'run', ...args], context);
     case 'train-ml-baseline':
-      return dispatchCommand(runtime, ['ml', 'train-baseline', ...args]);
+      return dispatchCommand(
+        runtime,
+        ['ml', 'train-baseline', ...args],
+        context,
+      );
     case 'download-external-baselines':
-      return dispatchCommand(runtime, [
-        'ml',
-        'download-external-baselines',
-        ...args,
-      ]);
+      return dispatchCommand(
+        runtime,
+        ['ml', 'download-external-baselines', ...args],
+        context,
+      );
     case 'lean-backtest':
-      return dispatchCommand(runtime, ['lean', 'backtest', ...args]);
+      return dispatchCommand(runtime, ['lean', 'backtest', ...args], context);
     case 'run-full-backtest':
-      return dispatchCommand(runtime, ['lean', 'full-backtest', ...args]);
+      return dispatchCommand(
+        runtime,
+        ['lean', 'full-backtest', ...args],
+        context,
+      );
     case 'import-lean-run':
-      return dispatchCommand(runtime, ['lean', 'import', ...args]);
+      return dispatchCommand(runtime, ['lean', 'import', ...args], context);
     case 'qc-cloud-backtest':
-      return dispatchCommand(runtime, ['qc', 'cloud-backtest', ...args]);
+      return dispatchCommand(
+        runtime,
+        ['qc', 'cloud-backtest', ...args],
+        context,
+      );
     case 'import-cloud-backtest':
-      return dispatchCommand(runtime, ['qc', 'import-backtest', ...args]);
+      return dispatchCommand(
+        runtime,
+        ['qc', 'import-backtest', ...args],
+        context,
+      );
     case 'list-cloud-projects':
-      return dispatchCommand(runtime, ['qc', 'list-projects', ...args]);
+      return dispatchCommand(
+        runtime,
+        ['qc', 'list-projects', ...args],
+        context,
+      );
     case 'list-cloud-backtests':
-      return dispatchCommand(runtime, ['qc', 'list-backtests', ...args]);
+      return dispatchCommand(
+        runtime,
+        ['qc', 'list-backtests', ...args],
+        context,
+      );
     case 'qc-object-store-set':
-      return dispatchCommand(runtime, ['qc', 'object-store-set', ...args]);
+      return dispatchCommand(
+        runtime,
+        ['qc', 'object-store-set', ...args],
+        context,
+      );
     case 'run-paper-cycle':
-      return dispatchCommand(runtime, ['paper', 'run', ...args]);
+      return dispatchCommand(runtime, ['paper', 'run', ...args], context);
     case 'run-paper-replay':
-      return dispatchCommand(runtime, ['paper', 'replay', ...args]);
+      return dispatchCommand(runtime, ['paper', 'replay', ...args], context);
     case 'run-live-shadow':
-      return dispatchCommand(runtime, ['shadow', 'run', ...args]);
+      return dispatchCommand(runtime, ['shadow', 'run', ...args], context);
     case 'run-learning-loop':
-      return dispatchCommand(runtime, ['learning', 'run', ...args]);
+      return dispatchCommand(runtime, ['learning', 'run', ...args], context);
     case 'live-preflight':
-      return dispatchCommand(runtime, ['preflight', 'run', ...args]);
+      return dispatchCommand(runtime, ['preflight', 'run', ...args], context);
     case 'live-pilot-10usd':
       return {
         result: await runtime.orchestrator.runLivePilot10Usd(
@@ -408,6 +469,43 @@ async function dispatchLegacyCommand(
 
 function printResult(result: unknown, _json: boolean): void {
   console.log(JSON.stringify(result, null, 2));
+}
+
+function redirectStdoutToStderr(): () => void {
+  const originalWrite = process.stdout.write;
+  process.stdout.write = ((
+    chunk: string | Uint8Array,
+    encodingOrCallback?: BufferEncoding | ((error?: Error | null) => void),
+    callback?: (error?: Error | null) => void,
+  ): boolean => {
+    if (typeof encodingOrCallback === 'function') {
+      return process.stderr.write(chunk, encodingOrCallback);
+    }
+    return process.stderr.write(chunk, encodingOrCallback, callback);
+  }) as typeof process.stdout.write;
+  return () => {
+    process.stdout.write = originalWrite;
+  };
+}
+
+function printCapitalProgress(
+  event: CapitalEvidenceProgressEvent,
+  json = false,
+): void {
+  if (json) {
+    console.error(
+      JSON.stringify({
+        type: 'capital-progress',
+        ...event,
+      }),
+    );
+    return;
+  }
+  const suffix =
+    event.type === 'completed'
+      ? `: ${event.status}${event.blockers?.length ? ` (${event.blockers.join('; ')})` : ''}`
+      : '';
+  console.error(`[capital] ${event.type} ${event.key}${suffix}`);
 }
 
 function exitCodeFromResult(result: unknown): number {
@@ -499,7 +597,8 @@ function isFullBacktestBlocked(message: string): boolean {
     message.includes('Paid local QC data download is disabled') ||
     message.includes('Stooq CSV download requires STOOQ_API_KEY') ||
     message.includes('Docker is unavailable to the current process') ||
-    message.includes('Missing lean.json')
+    message.includes('Missing lean.json') ||
+    message.includes('LEAN backtest process timed out')
   );
 }
 
@@ -515,10 +614,12 @@ function helpText(): string {
 
 Usage:
   bun --cwd=backend run lincei -- capital run --max-backtest-workers 1 --json
+  bun --cwd=backend run lincei -- capital triage --json
   bun --cwd=backend run lincei -- capital status --json
 
 Core commands:
   capital run                         Run the capital evidence vertical slice
+  capital triage                      Show one next safe broker-excluded action
   capital status                      Show V1 capital evidence status
   research corpus                     Ingest Alpha Architect research corpus
   research selected-run-bias          Check retained variant evidence
@@ -540,6 +641,6 @@ Legacy script command names remain accepted during migration.`;
 
 if (require.main === module) {
   runLinceiCli().then((code) => {
-    process.exitCode = code;
+    process.exit(code);
   });
 }

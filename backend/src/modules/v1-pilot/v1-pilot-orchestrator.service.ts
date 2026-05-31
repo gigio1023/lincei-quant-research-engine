@@ -83,6 +83,7 @@ export class V1PilotOrchestratorService {
       validationMode?: string;
       noStaticMeta?: boolean;
       noStaticMl?: boolean;
+      backtestTimeoutMs?: number;
     } = {},
   ): Promise<Record<string, unknown>> {
     const repoRoot = resolve(process.cwd(), '..');
@@ -135,6 +136,7 @@ export class V1PilotOrchestratorService {
       universeSymbols,
       universeProfile: universeSelection.profile,
       requireStrategyEvidence: true,
+      timeoutMs: options.backtestTimeoutMs,
     });
     steps.leanBacktest = leanResult;
     steps.universeSelection = universeSelection;
