@@ -40,6 +40,7 @@ import { StooqMarketDataService } from '../modules/control-plane/stooq-market-da
 import { ControlPlaneService } from '../modules/control-plane/control-plane.service';
 import { RiskGateService } from '../modules/risk-gate/risk-gate.service';
 import { FeatureSnapshotService } from '../modules/v1-pilot/alpha/feature-snapshot.service';
+import { CurrentAlphaTargetService } from '../modules/v1-pilot/alpha/current-alpha-target.service';
 import { HuggingFaceSemanticEvidenceIngestService } from '../modules/v1-pilot/alpha/huggingface-semantic-evidence-ingest.service';
 import { LlmAlphaService } from '../modules/v1-pilot/alpha/llm-alpha.service';
 import { LlmEventFeatureService } from '../modules/v1-pilot/alpha/llm-event-feature.service';
@@ -162,6 +163,10 @@ export async function createLinceiRuntime(
   );
   const llmAlphaService = new LlmAlphaService(repo(AlphaDecision));
   const metaAlphaService = new MetaAlphaService(repo(AlphaDecision));
+  const currentAlphaTargetService = new CurrentAlphaTargetService(
+    repo(AlphaDecision),
+    repo(PortfolioTargetSnapshot),
+  );
   const leanLocalSimulatorService = new LeanLocalSimulatorService();
   const leanCliRunner = new LeanCliRunner();
   const leanRunImportService = new LeanRunImportService(
@@ -191,6 +196,7 @@ export async function createLinceiRuntime(
   const leanPaperBridgeService = new LeanPaperBridgeService(
     controlPlaneService,
     leanRunImportService,
+    currentAlphaTargetService,
     repo(PortfolioTargetSnapshot),
     repo(PaperOrderPlan),
   );
@@ -205,7 +211,7 @@ export async function createLinceiRuntime(
   );
   const liveShadowService = new LiveShadowService(
     leanRunImportService,
-    repo(PortfolioTargetSnapshot),
+    currentAlphaTargetService,
     repo(LiveShadowRecord),
   );
   const tossWriteBrokerAdapter = new TossWriteBrokerAdapter();

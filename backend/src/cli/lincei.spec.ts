@@ -15,6 +15,7 @@ describe('lincei CLI', () => {
 
     expect(exitCode).toBe(0);
     expect(lines.join('\n')).toContain('capital run');
+    expect(lines.join('\n')).toContain('capital triage');
     expect(lines.join('\n')).toContain('Hugging Face FOMC text evidence');
   });
 });

@@ -27,6 +27,7 @@ import { BrokerOrderStatusRecord } from '../../entities/broker-order-status.enti
 import { ExecutionControlState } from '../../entities/execution-control-state.entity';
 import { ControlPlaneModule } from '../control-plane/control-plane.module';
 import { FeatureSnapshotService } from './alpha/feature-snapshot.service';
+import { CurrentAlphaTargetService } from './alpha/current-alpha-target.service';
 import { LlmEventFeatureService } from './alpha/llm-event-feature.service';
 import { NumericAlphaService } from './alpha/numeric-alpha.service';
 import { LlmAlphaService } from './alpha/llm-alpha.service';
@@ -95,6 +96,7 @@ import { CapitalEvidenceSliceService } from './research/capital-evidence-slice.s
     MlBaselineInferenceService,
     LlmAlphaService,
     MetaAlphaService,
+    CurrentAlphaTargetService,
     LeanLocalSimulatorService,
     LeanDailyDataExportService,
     LeanDataPreparationService,

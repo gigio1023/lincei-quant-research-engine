@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { LiveShadowRecord } from '../../../entities/live-shadow-record.entity';
-import { PortfolioTargetSnapshot } from '../../../entities/portfolio-target-snapshot.entity';
 import { hashObject } from '../../../shared/hash.util';
+import { CurrentAlphaTargetService } from '../alpha/current-alpha-target.service';
 import { assessLeanRunArtifacts } from '../lean/lean-run-acceptance';
 import { LeanRunImportService } from '../lean/lean-run-import.service';
 
@@ -11,8 +11,7 @@ import { LeanRunImportService } from '../lean/lean-run-import.service';
 export class LiveShadowService {
   constructor(
     private readonly leanRunImportService: LeanRunImportService,
-    @InjectRepository(PortfolioTargetSnapshot)
-    private readonly targetRepository: Repository<PortfolioTargetSnapshot>,
+    private readonly currentAlphaTargetService: CurrentAlphaTargetService,
     @InjectRepository(LiveShadowRecord)
     private readonly liveShadowRepository: Repository<LiveShadowRecord>,
   ) {}
@@ -37,13 +36,7 @@ export class LiveShadowService {
     }
 
     const snapshot = latestRun
-      ? (
-          await this.targetRepository.find({
-            where: { leanRunId: latestRun.runId },
-            order: { asOf: 'DESC' },
-            take: 1,
-          })
-        )[0]
+      ? await this.currentTargetSnapshot(latestRun, blockers)
       : undefined;
     if (!snapshot?.targets.length) {
       blockers.push(
@@ -109,6 +102,26 @@ export class LiveShadowService {
       take: 1,
     });
     return records[0] ?? null;
+  }
+
+  private async currentTargetSnapshot(
+    latestRun: NonNullable<
+      Awaited<ReturnType<LeanRunImportService['getLatestStrategyRun']>>
+    >,
+    blockers: string[],
+  ) {
+    try {
+      return await this.currentAlphaTargetService.ensureCurrentTargetSnapshot(
+        latestRun,
+      );
+    } catch (error) {
+      blockers.push(
+        error instanceof Error
+          ? error.message
+          : 'Current alpha target generation failed.',
+      );
+      return undefined;
+    }
   }
 
   private isCurrentTargetSnapshot(

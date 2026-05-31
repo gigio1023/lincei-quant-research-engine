@@ -11,6 +11,7 @@ import { PaperOrderPlan } from '../../../entities/paper-order-plan.entity';
 import { LeanRunImportService } from '../lean/lean-run-import.service';
 import type { PortfolioTargetItemContract } from '../contracts/v1-pilot.contracts';
 import { assessLeanRunArtifacts } from '../lean/lean-run-acceptance';
+import { CurrentAlphaTargetService } from '../alpha/current-alpha-target.service';
 
 type PaperBridgeMode = 'current-paper-cycle' | 'historical-target-replay';
 
@@ -25,6 +26,7 @@ export class LeanPaperBridgeService {
   constructor(
     private readonly controlPlaneService: ControlPlaneService,
     private readonly leanRunImportService: LeanRunImportService,
+    private readonly currentAlphaTargetService: CurrentAlphaTargetService,
     @InjectRepository(PortfolioTargetSnapshot)
     private readonly targetRepository: Repository<PortfolioTargetSnapshot>,
     @InjectRepository(PaperOrderPlan)
@@ -66,12 +68,12 @@ export class LeanPaperBridgeService {
       );
     }
 
-    const target = await this.targetRepository.find({
-      where: { leanRunId: latestRun.runId },
-      order: { asOf: 'DESC' },
-      take: 1,
-    });
-    const snapshot = target[0];
+    const snapshot =
+      mode === 'current-paper-cycle'
+        ? await this.currentAlphaTargetService.ensureCurrentTargetSnapshot(
+            latestRun,
+          )
+        : await this.latestHistoricalTargetSnapshot(latestRun.runId);
     if (!snapshot?.targets.length) {
       throw new Error('Latest LEAN run has no portfolio targets.');
     }
@@ -106,29 +108,56 @@ export class LeanPaperBridgeService {
       scopedIdempotencyKey,
     );
     await this.ensureBrokerSnapshot(paperAccount.id);
+    const now = new Date().toISOString();
+    const marketDataTimestamp =
+      mode === 'historical-target-replay'
+        ? now
+        : (this.currentAlphaTargetService.currentTargetMarketDataTimestamp(
+            snapshot,
+          ) ?? snapshot.asOf);
     const researchRun = await this.controlPlaneService.createResearchRun({
       budgetEnvelopeId: budget.id,
       objective:
         mode === 'historical-target-replay'
           ? 'V1 LEAN historical target paper replay'
-          : 'V1 LEAN portfolio target paper cycle',
+          : 'V1 current alpha target paper cycle',
       strategyFamily: 'aggressive_llm_momentum',
       hypothesis:
         mode === 'historical-target-replay'
           ? 'Historical LEAN targets can exercise the paper execution plumbing without becoming broker-write pre-trade risk check artifacts.'
-          : 'Imported LEAN targets can execute in paper mode.',
+          : 'Fresh alpha decisions can create current-market paper targets without becoming broker writes.',
       datasetRefs: [
         {
-          id: 'lean-run',
-          source: 'lean',
-          windowStart: latestRun.startedAt.toISOString(),
-          windowEnd: latestRun.completedAt.toISOString(),
-          availabilityTimestamp: latestRun.completedAt.toISOString(),
-          marketDataTimestamp: latestRun.completedAt.toISOString(),
+          id:
+            mode === 'historical-target-replay'
+              ? 'lean-run'
+              : 'current-alpha-target',
+          source:
+            mode === 'historical-target-replay'
+              ? 'lean'
+              : 'alpha-decision-ledger',
+          windowStart:
+            mode === 'historical-target-replay'
+              ? latestRun.startedAt.toISOString()
+              : marketDataTimestamp,
+          windowEnd:
+            mode === 'historical-target-replay'
+              ? latestRun.completedAt.toISOString()
+              : marketDataTimestamp,
+          availabilityTimestamp:
+            mode === 'historical-target-replay'
+              ? latestRun.completedAt.toISOString()
+              : snapshot.asOf,
+          marketDataTimestamp,
         },
       ],
       featureRefs: ['v1-feature-snapshot'],
-      timestampLagRules: ['Use LEAN run completion timestamp only.'],
+      timestampLagRules:
+        mode === 'historical-target-replay'
+          ? ['Use LEAN run completion timestamp only.']
+          : [
+              'Use alpha decision availableAt as marketDataTimestamp; portfolio target asOf is generation time only.',
+            ],
       noLookaheadChecked: true,
       benchmark: 'SPY',
       costModel: 'paper-sim-v1',
@@ -148,14 +177,13 @@ export class LeanPaperBridgeService {
               'Paper replay uses historical target timestamps and is not a current-market artifact.',
               'The live-preflight legacy command must ignore paper-replay evidence refs.',
             ]
-          : ['Paper bridge depends on LEAN target import.'],
+          : [
+              'Current paper cycle depends on fresh alpha decisions and remains broker-write disabled.',
+              'Latest LEAN/Cloud run is validation evidence, not the source of current target timestamps.',
+            ],
     });
 
     const orders = this.buildOrders(snapshot.targets);
-    const now = new Date().toISOString();
-    // Historical replay must carry an explicit paper-replay evidence ref; the live-preflight legacy command rejects it so a fresh replay timestamp cannot masquerade as a current-market artifact.
-    const marketDataTimestamp =
-      mode === 'historical-target-replay' ? now : snapshot.asOf;
     const proposal = await this.controlPlaneService.createProposal({
       budgetEnvelopeId: budget.id,
       researchRunId: researchRun.id,
@@ -174,7 +202,7 @@ export class LeanPaperBridgeService {
       thesis:
         mode === 'historical-target-replay'
           ? `Historical paper replay from LEAN targets as of ${snapshot.asOf}; not broker-write pre-trade risk check evidence.`
-          : 'Paper cycle from latest LEAN portfolio targets.',
+          : `Current paper cycle from alpha-derived targets generated at ${snapshot.asOf}.`,
       evidenceRefs: [
         leanRunEvidenceRef,
         targetEvidenceRef,
@@ -225,6 +253,20 @@ export class LeanPaperBridgeService {
     return this.controlPlaneService.reconcilePaperOrderPlan(plan.id, {
       notes: ['Auto-reconciled by V1 LEAN paper bridge.'],
     });
+  }
+
+  private async latestHistoricalTargetSnapshot(
+    leanRunId: string,
+  ): Promise<PortfolioTargetSnapshot | undefined> {
+    const candidates = await this.targetRepository.find({
+      where: { leanRunId },
+      order: { asOf: 'DESC' },
+      take: 20,
+    });
+    return candidates.find(
+      (snapshot) =>
+        !this.currentAlphaTargetService.isCurrentAlphaTarget(snapshot),
+    );
   }
 
   private async ensureBudget() {
