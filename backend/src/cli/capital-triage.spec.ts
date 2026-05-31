@@ -2,7 +2,7 @@ import { V1PilotSystemStatus } from '../modules/v1-pilot/v1-pilot-status.types';
 import { buildCapitalTriage } from './capital-triage';
 
 describe('buildCapitalTriage', () => {
-  it('returns one bounded capital run action for broker-boundary blockers', () => {
+  it('routes broker read-only blockers to read-only broker commands', () => {
     const result = buildCapitalTriage(
       statusFixture({
         key: 'broker_read_only',
@@ -10,9 +10,9 @@ describe('buildCapitalTriage', () => {
       }),
     );
 
-    expect(result.recommendedAction.key).toBe('capital-run');
-    expect(result.recommendedAction.command).toContain('capital run');
-    expect(result.recommendedAction.command).toContain('--step-timeout-ms');
+    expect(result.recommendedAction.key).toBe('broker-read-only');
+    expect(result.recommendedAction.command).toContain('broker status');
+    expect(result.recommendedAction.command).not.toContain('&&');
     expect(result.blockers).toEqual([
       'Broker read-only snapshot is simulated.',
     ]);

@@ -35,7 +35,11 @@ describe('CurrentAlphaTargetService', () => {
 
     const snapshot = await service.ensureCurrentTargetSnapshot({
       runId: 'qc-import-test',
-      parameters: { 'alpha-mode': 'numeric-only' },
+      parameters: {
+        'alpha-mode': 'numeric-only',
+        'universe-profile': 'self_funded_etf_baseline',
+        'universe-symbols': 'SPY,QQQ,TLT,IEF',
+      },
     } as never);
 
     expect(snapshot.id).toMatch(
@@ -50,6 +54,7 @@ describe('CurrentAlphaTargetService', () => {
           'current_alpha_target',
           'alpha-source:numeric',
           'market-data-timestamp:2026-05-28T22:00:00.000Z',
+          'validated-universe-profile:self_funded_etf_baseline',
           'long-only',
         ]),
       }),
@@ -94,6 +99,34 @@ describe('CurrentAlphaTargetService', () => {
       } as never),
     ).rejects.toThrow(
       'No orderable current meta alpha decisions are available for paper trading.',
+    );
+  });
+
+  it('blocks when current alpha symbols are outside the validated run universe', async () => {
+    const service = new CurrentAlphaTargetService(
+      {
+        find: jest.fn().mockResolvedValue([
+          alphaDecision({
+            id: 'numeric-spy',
+            symbol: 'SPY',
+            expectedReturnBps: 90,
+            confidence: 0.6,
+          }),
+        ]),
+      } as never,
+      { create: jest.fn(), upsert: jest.fn() } as never,
+    );
+
+    await expect(
+      service.ensureCurrentTargetSnapshot({
+        runId: 'qc-import-quality',
+        parameters: {
+          'alpha-mode': 'numeric-only',
+          'universe-symbols': 'AMD,NVDA,MRVL',
+        },
+      } as never),
+    ).rejects.toThrow(
+      'Current alpha target symbols are outside the validated LEAN run universe: SPY.',
     );
   });
 });

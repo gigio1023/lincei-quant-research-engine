@@ -77,6 +77,12 @@ describe('ResearchFactoryService', () => {
     expect(result.blockers).toContain(
       'No passed ablation, backtest, or Cloud-import variant is recorded.',
     );
+    expect(result.blockers).toContain(
+      'No retained backtest variant is recorded; ablation records alone are not promotion evidence.',
+    );
+    expect(result.blockers).toContain(
+      'No retained Cloud-import variant is recorded; promotion needs imported Cloud artifacts by variant.',
+    );
     expect(await jobRepository.countBy({ jobType: 'promotion-check' })).toBe(1);
   });
 
@@ -84,6 +90,7 @@ describe('ResearchFactoryService', () => {
     await jobRepository.save([
       makeVariantJob('job-backtest-1', 'backtest', 'passed'),
       makeVariantJob('job-backtest-2', 'backtest', 'blocked'),
+      makeVariantJob('job-cloud-1', 'cloud-import', 'blocked'),
       makeVariantJob('job-ablation-1', 'ablation', 'failed'),
     ]);
 
@@ -94,9 +101,11 @@ describe('ResearchFactoryService', () => {
 
     expect(result).toMatchObject({
       status: 'passed',
-      attemptedVariantCount: 3,
+      attemptedVariantCount: 4,
       passedVariantCount: 1,
-      failedOrBlockedVariantCount: 2,
+      failedOrBlockedVariantCount: 3,
+      retainedBacktestVariantCount: 2,
+      retainedCloudImportVariantCount: 1,
     });
   });
 });

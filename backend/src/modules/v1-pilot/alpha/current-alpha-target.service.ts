@@ -43,6 +43,7 @@ export class CurrentAlphaTargetService {
         `No orderable current ${alphaSource} alpha decisions are available for paper trading.`,
       );
     }
+    this.assertValidatedUniverseCoverage(leanRun, selected);
 
     const marketDataTimestamp = this.latestTimestamp(
       selected.map((decision) => decision.availableAt),
@@ -61,6 +62,7 @@ export class CurrentAlphaTargetService {
         `alpha-available-at:${decision.availableAt}`,
         `market-data-timestamp:${marketDataTimestamp}`,
         `linked-lean-run:${leanRun.runId}`,
+        ...this.validatedUniverseNotes(leanRun),
         'long-only',
         'broker-write-disabled',
       ],
@@ -217,6 +219,55 @@ export class CurrentAlphaTargetService {
       return 'llm';
     }
     return 'meta';
+  }
+
+  private assertValidatedUniverseCoverage(
+    leanRun: LeanRun,
+    decisions: OrderableAlphaDecision[],
+  ): void {
+    const universe = this.validatedUniverseSymbols(leanRun);
+    if (!universe.size) {
+      return;
+    }
+
+    const outsideUniverse = decisions
+      .map((decision) => decision.symbol)
+      .filter((symbol) => !universe.has(symbol.toUpperCase()));
+    if (outsideUniverse.length) {
+      throw new Error(
+        `Current alpha target symbols are outside the validated LEAN run universe: ${Array.from(new Set(outsideUniverse)).join(', ')}.`,
+      );
+    }
+  }
+
+  private validatedUniverseNotes(leanRun: LeanRun): string[] {
+    const notes: string[] = [];
+    const profile = leanRun.parameters['universe-profile'];
+    const symbols = this.validatedUniverseSymbols(leanRun);
+
+    if (profile) {
+      notes.push(`validated-universe-profile:${String(profile)}`);
+    }
+    if (symbols.size) {
+      notes.push(`validated-universe-hash:${hashObject([...symbols].sort())}`);
+    }
+    return notes;
+  }
+
+  private validatedUniverseSymbols(leanRun: LeanRun): Set<string> {
+    const raw =
+      leanRun.parameters['universe-symbols'] ??
+      leanRun.parameters['universe'] ??
+      '';
+    if (typeof raw !== 'string') {
+      return new Set();
+    }
+    return new Set(
+      raw
+        .split(',')
+        .map((symbol) => symbol.trim().toUpperCase())
+        .filter(Boolean),
+    );
   }
 
   private shortHash(hash: string): string {

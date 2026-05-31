@@ -13,6 +13,10 @@ import {
   CapitalEvidenceRunOptions,
 } from '../modules/v1-pilot/research/capital-evidence-slice.service';
 import { buildCapitalTriage } from './capital-triage';
+import {
+  readBrokerFillImportFile,
+  readBrokerSnapshotImportFile,
+} from './broker-import-files';
 
 type CommandHandlerResult = {
   result?: unknown;
@@ -118,6 +122,96 @@ async function dispatchCommand(
     case 'capital status':
     case 'status':
       return { result: await runtime.statusService.getStatus() };
+    case 'broker status':
+      return {
+        result: runtime.tossReadOnlyBrokerService.getAdapterStatus(
+          runtime.brokerAdapterReadinessService.getStatus(),
+        ),
+      };
+    case 'broker poll-read-only':
+      return runBlockedAware(
+        () => runtime.tossReadOnlyBrokerService.pollReadOnlySnapshot('cli'),
+        {
+          fallbackBlocker: 'Broker read-only snapshot polling is blocked.',
+        },
+      );
+    case 'broker poll-fills':
+      return runBlockedAware(
+        () => runtime.tossReadOnlyBrokerService.pollReadOnlyFills('cli'),
+        {
+          fallbackBlocker: 'Broker read-only fill polling is blocked.',
+        },
+      );
+    case 'broker import-snapshot':
+      return {
+        result: await runtime.controlPlaneService.importBrokerSnapshot(
+          readBrokerSnapshotImportFile(requiredArgValue(rest, '--file')),
+        ),
+      };
+    case 'broker import-fills': {
+      const paperOrderPlanId = strictNumericArgValue(
+        rest,
+        '--paper-order-plan-id',
+      );
+      const tolerance = strictNumericArgValue(rest, '--tolerance');
+      const requests = readBrokerFillImportFile(
+        requiredArgValue(rest, '--file'),
+      );
+      const fills: unknown[] = [];
+      for (const request of requests) {
+        const imported =
+          await runtime.controlPlaneService.importBrokerFill(request);
+        fills.push(
+          paperOrderPlanId
+            ? await runtime.controlPlaneService.reconcileBrokerFill(
+                imported.id,
+                {
+                  paperOrderPlanId,
+                  tolerance,
+                  notes: ['Reconciled through lincei broker import-fills.'],
+                },
+              )
+            : imported,
+        );
+      }
+      return {
+        result: {
+          status: 'imported',
+          imported: fills.length,
+          fills,
+          brokerExecutionEnabled: false,
+          liveTradingEnabled: false,
+        },
+      };
+    }
+    case 'broker reconcile-snapshot': {
+      const snapshotId =
+        strictNumericArgValue(rest, '--snapshot-id') ??
+        strictNumericArgValue(rest, '--id');
+      const paperAccountId = strictNumericArgValue(rest, '--paper-account-id');
+      const tolerance = strictNumericArgValue(rest, '--tolerance');
+      const maxAgeMinutes = strictNumericArgValue(rest, '--max-age-minutes');
+      return runBlockedAware(
+        async () => {
+          const resolvedSnapshotId =
+            snapshotId ??
+            (await runtime.controlPlaneService.getLatestBrokerSnapshot()).id;
+          return runtime.controlPlaneService.reconcileBrokerSnapshot(
+            resolvedSnapshotId,
+            {
+              paperAccountId,
+              tolerance,
+              maxAgeMinutes,
+              notes: ['Reconciled through lincei broker reconcile-snapshot.'],
+            },
+          );
+        },
+        {
+          fallbackBlocker:
+            'Broker read-only snapshot reconciliation is blocked.',
+        },
+      );
+    }
     case 'research corpus':
     case 'build-hypothesis-registry':
       return {
@@ -548,6 +642,14 @@ function argValue(args: string[], name: string): string | undefined {
   return value && !value.startsWith('--') ? value : undefined;
 }
 
+function requiredArgValue(args: string[], name: string): string {
+  const value = argValue(args, name);
+  if (!value) {
+    throw new Error(`Missing required argument: ${name}`);
+  }
+  return value;
+}
+
 function numericArgValue(args: string[], name: string): number | undefined {
   const value = argValue(args, name);
   if (!value) {
@@ -555,6 +657,25 @@ function numericArgValue(args: string[], name: string): number | undefined {
   }
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function strictNumericArgValue(
+  args: string[],
+  name: string,
+): number | undefined {
+  const index = args.indexOf(name);
+  if (index < 0) {
+    return undefined;
+  }
+  const value = args[index + 1];
+  if (!value || value.startsWith('--')) {
+    throw new Error(`Missing numeric value for ${name}`);
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(`Invalid numeric value for ${name}: ${value}`);
+  }
+  return parsed;
 }
 
 function csvArgValue(args: string[], name: string): string[] | undefined {
@@ -635,6 +756,12 @@ Core commands:
   shadow run                          Record shadow trading would-have-traded state
   learning run                        Label outcomes and record promotion decision
   preflight run                       Run broker-write pre-trade risk check
+  broker status                       Show broker adapter and read-only polling status
+  broker poll-read-only               Poll read-only account and holdings snapshot
+  broker poll-fills                   Poll read-only fills when enabled
+  broker import-snapshot --file FILE   Import manual read-only account snapshot
+  broker import-fills --file FILE      Import manual read-only fill records
+  broker reconcile-snapshot           Reconcile latest or --snapshot-id against paper state
 
 Legacy script command names remain accepted during migration.`;
 }

@@ -127,15 +127,20 @@ function actionForStage(
           'Open-order state is part of the fail-closed pre-trade risk check.',
       };
     case 'broker_read_only':
+      return {
+        key: 'broker-read-only',
+        label: 'Inspect broker read-only state',
+        command: 'bun --cwd=backend run lincei -- broker status --json',
+        reason:
+          'The active blocker is broker-read-only evidence, so inspect credential, schema, and polling readiness before rerunning pre-trade risk checks.',
+      };
     case 'live_preflight':
       return {
-        key: 'capital-run',
-        label:
-          'Refresh broker-excluded evidence while broker boundary stays blocked',
-        command:
-          'bun --cwd=backend run lincei -- capital run --max-backtest-workers 1 --step-timeout-ms 60000 --json',
+        key: 'pre-trade-risk-check',
+        label: 'Run broker read-only status before pre-trade risk check',
+        command: 'bun --cwd=backend run lincei -- broker status --json',
         reason:
-          'The remaining blocker is broker-read-only or broker-write readiness, so the safe next action is to refresh non-broker promotion, paper trading, shadow trading, reconciliation, and learning artifacts.',
+          'The pre-trade risk check is blocked by broker-read-only or broker-write readiness, so inspect broker state before refreshing non-broker evidence.',
       };
     default:
       return {

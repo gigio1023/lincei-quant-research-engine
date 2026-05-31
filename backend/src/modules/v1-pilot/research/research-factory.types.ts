@@ -49,6 +49,8 @@ export interface SelectedRunBiasCheckResult {
   attemptedVariantCount: number;
   passedVariantCount: number;
   failedOrBlockedVariantCount: number;
+  retainedBacktestVariantCount: number;
+  retainedCloudImportVariantCount: number;
   minVariantCount: number;
   jobRefs: string[];
   blockers: string[];

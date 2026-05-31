@@ -239,10 +239,15 @@ flowchart TD
 Recommended safe next action from triage:
 
 ```bash
-bun --cwd=backend run lincei -- capital run --max-backtest-workers 1 --step-timeout-ms 60000 --json
+bun --cwd=backend run lincei -- broker status --json
 ```
 
-Why this is the recommendation: the remaining blocker is broker-read-only or broker-write readiness, so the safe action is to keep refreshing non-broker promotion evidence, paper trading artifacts, shadow trading records, reconciliation, and learning artifacts.
+Why this is the recommendation: the active blocker is broker-read-only evidence. `broker status` shows whether credentials, schema verification, read-only polling, fill polling, and credential custody are ready. If provider API onboarding is blocked by login/certificate issues, use manual read-only file import instead:
+
+```bash
+bun --cwd=backend run lincei -- broker import-snapshot --file /path/to/snapshot.csv --json
+bun --cwd=backend run lincei -- broker import-fills --file /path/to/fills.csv --json
+```
 
 ## 7. What Is Done Versus Not Done
 
@@ -259,7 +264,9 @@ Why this is the recommendation: the remaining blocker is broker-read-only or bro
 | Shadow trading | implemented | Live-data decisions can be recorded without broker writes. |
 | Learning / promotion ledger | implemented | Promotion decisions can be accepted or blocked from artifacts. |
 | Capital triage CLI | implemented | One next safe operator action can be derived from status. |
-| Broker read-only integration | blocked | No matched real broker snapshot is available yet. |
+| Broker read-only CLI | implemented | Read-only status, snapshot poll, manual snapshot/fill file import, fill poll, and reconciliation are available through `lincei broker ...`. |
+| Provider API-backed broker read-only integration | blocked | KIS/Toss/other provider onboarding and schema verification are not complete yet. |
+| Manual broker read-only import | implemented | Exported CSV/JSON account snapshots and fills can be imported without broker writes. |
 | Broker-write path | not implemented | Needs explicit user-approved broker-write spec before code. |
 | Darwinex/Zero | deferred | Should follow self-funded track record, not precede it. |
 
@@ -291,6 +298,11 @@ Use these commands to inspect the current state:
 ```bash
 bun --cwd=backend run lincei -- capital triage --json
 bun --cwd=backend run lincei -- capital status --json
+bun --cwd=backend run lincei -- broker status --json
+bun --cwd=backend run lincei -- broker poll-read-only --json
+bun --cwd=backend run lincei -- broker import-snapshot --file /path/to/snapshot.csv --json
+bun --cwd=backend run lincei -- broker import-fills --file /path/to/fills.csv --json
+bun --cwd=backend run lincei -- broker reconcile-snapshot --json
 bun --cwd=backend run lincei -- capital run --max-backtest-workers 1 --step-timeout-ms 60000 --json
 ```
 

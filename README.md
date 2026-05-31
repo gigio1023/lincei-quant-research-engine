@@ -130,7 +130,7 @@ The corpus contains 40 sourced articles with metadata and content hashes. It is 
 
 ## Implementation Status
 
-Implemented in the current branch:
+Implemented in the current implementation:
 
 - durable research hypothesis registry and parallel research job ledger;
 - Alpha Architect corpus-to-hypothesis ingestion script with idempotent job records;
@@ -140,6 +140,7 @@ Implemented in the current branch:
 - paginated Cloud insights/orders import with Cloud id preservation;
 - paper replay separated from current paper trading/shadow trading readiness;
 - backtest-cycle dashboard;
+- first-class broker read-only status, polling, manual file import, fill-polling, and reconciliation commands through `lincei broker ...`;
 - Alpha Architect corpus with 40 sourced articles and self-funded capital strategy review;
 - long-term specs for self-funded capital priority, Darwinex/Zero deferral, and parallel research pipeline.
 
@@ -148,7 +149,7 @@ Not implemented yet:
 - broad research universe profiles separate from the current theme universe;
 - complete vintage-data store for restatable sources;
 - simple trend/momentum/daily-return baselines with promotion evidence;
-- broker-read-only reconciliation;
+- provider API-backed broker-read-only polling and reconciliation;
 - broker-write adapter;
 - Darwinex/Zero execution or track-record adapter.
 
@@ -212,7 +213,29 @@ bun --cwd=backend run lincei -- paper replay
 bun --cwd=backend run lincei -- shadow run
 bun --cwd=backend run lincei -- learning run
 bun --cwd=backend run lincei -- preflight run
+
+# Broker read-only observation before any broker writes
+bun --cwd=backend run lincei -- broker status --json
+bun --cwd=backend run lincei -- broker poll-read-only --json
+bun --cwd=backend run lincei -- broker poll-fills --json
+bun --cwd=backend run lincei -- broker import-snapshot --file /path/to/snapshot.csv --json
+bun --cwd=backend run lincei -- broker import-fills --file /path/to/fills.csv --json
+bun --cwd=backend run lincei -- broker reconcile-snapshot --json
 ```
+
+Manual broker snapshot CSV columns:
+
+```text
+asOf,currency,cash,equity,symbol,assetClass,quantity,marketValue,weightPct,averagePrice
+```
+
+Manual broker fills CSV columns:
+
+```text
+brokerFillRef,filledAt,symbol,side,quantity,fillPrice,fee,currency
+```
+
+Manual imports are read-only evidence. They never claim provider API readiness and never submit broker orders.
 
 The old `./scripts/*` operational wrappers are compatibility surfaces during migration; new operator commands should go through `lincei`.
 

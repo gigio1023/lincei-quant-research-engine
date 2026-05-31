@@ -166,6 +166,12 @@ export class ResearchFactoryService {
     const failedOrBlockedVariantCount = jobs.filter(
       (job) => job.status === 'failed' || job.status === 'blocked',
     ).length;
+    const retainedBacktestVariantCount = jobs.filter(
+      (job) => job.jobType === 'backtest',
+    ).length;
+    const retainedCloudImportVariantCount = jobs.filter(
+      (job) => job.jobType === 'cloud-import',
+    ).length;
     const blockers = [
       jobs.length < minVariantCount
         ? `Only ${jobs.length} variant jobs are recorded; at least ${minVariantCount} are required.`
@@ -175,6 +181,12 @@ export class ResearchFactoryService {
         : '',
       failedOrBlockedVariantCount === 0
         ? 'No failed or blocked variant is recorded; multiple-testing bias protection needs rejected artifacts too.'
+        : '',
+      retainedBacktestVariantCount === 0
+        ? 'No retained backtest variant is recorded; ablation records alone are not promotion evidence.'
+        : '',
+      retainedCloudImportVariantCount === 0
+        ? 'No retained Cloud-import variant is recorded; promotion needs imported Cloud artifacts by variant.'
         : '',
     ].filter(Boolean);
     const checkedAt = new Date().toISOString();
@@ -193,6 +205,8 @@ export class ResearchFactoryService {
       attemptedVariantCount: jobs.length,
       passedVariantCount,
       failedOrBlockedVariantCount,
+      retainedBacktestVariantCount,
+      retainedCloudImportVariantCount,
       minVariantCount,
       jobRefs: [...variantJobRefs, `research-job:${checkJobId}`],
       blockers,

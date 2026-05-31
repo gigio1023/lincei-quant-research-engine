@@ -1,6 +1,8 @@
 # Capital Evidence Work Plan
 
-Status: supporting implementation plan.
+Status: superseded supporting implementation plan.
+
+Superseded by [Capital Loop Hardening Plan](capital-loop-hardening-plan.md). This file remains as the implementation note for the bounded `capital run` and `capital triage` slice that has already been merged.
 
 This plan covers the next broker-excluded evidence slice. It does not approve broker writes, broker API integration, Darwinex/Zero implementation, leverage, derivatives, or capital-limit changes.
 

@@ -27,8 +27,7 @@
     "test:all": "bun run test && bun run test:e2e",
     "lincei": "ts-node -r tsconfig-paths/register src/cli/lincei.ts",
     "start:hono": "ts-node -r tsconfig-paths/register src/http/hono-app.ts",
-    "v1:cli": "ts-node -r tsconfig-paths/register src/cli/lincei.ts",
-    "v1:cli:legacy": "bunx ts-node -r tsconfig-paths/register src/cli/v1-pilot-cli.ts"
+    "v1:cli": "ts-node -r tsconfig-paths/register src/cli/lincei.ts"
   },
   "keywords": [
     "nestjs",

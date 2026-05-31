@@ -35,9 +35,11 @@ import { ResearchJobRecord } from '../entities/research-job-record.entity';
 import { ResearchRun } from '../entities/research-run.entity';
 import { RiskEvaluation } from '../entities/risk-evaluation.entity';
 import { databaseEntities, databaseMigrations } from '../data-source';
+import { BrokerAdapterReadinessService } from '../modules/control-plane/broker-adapter-readiness.service';
 import { MarketDataIngestionService } from '../modules/control-plane/market-data-ingestion.service';
 import { StooqMarketDataService } from '../modules/control-plane/stooq-market-data.service';
 import { ControlPlaneService } from '../modules/control-plane/control-plane.service';
+import { TossReadOnlyBrokerService } from '../modules/control-plane/toss-read-only-broker.service';
 import { RiskGateService } from '../modules/risk-gate/risk-gate.service';
 import { FeatureSnapshotService } from '../modules/v1-pilot/alpha/feature-snapshot.service';
 import { CurrentAlphaTargetService } from '../modules/v1-pilot/alpha/current-alpha-target.service';
@@ -82,6 +84,8 @@ export interface LinceiRuntimeOptions {
 export interface LinceiRuntime {
   dataSource: DataSource;
   controlPlaneService: ControlPlaneService;
+  brokerAdapterReadinessService: BrokerAdapterReadinessService;
+  tossReadOnlyBrokerService: TossReadOnlyBrokerService;
   marketDataIngestionService: MarketDataIngestionService;
   orchestrator: V1PilotOrchestratorService;
   statusService: V1PilotStatusService;
@@ -106,6 +110,7 @@ export async function createLinceiRuntime(
     dataSource.getRepository(target);
 
   const riskGateService = new RiskGateService();
+  const brokerAdapterReadinessService = new BrokerAdapterReadinessService();
   const stooqMarketDataService = new StooqMarketDataService();
   const controlPlaneService = new ControlPlaneService(
     repo(BudgetEnvelope),
@@ -134,6 +139,9 @@ export async function createLinceiRuntime(
     repo(MarketDataIngestionRun),
     controlPlaneService,
     stooqMarketDataService,
+  );
+  const tossReadOnlyBrokerService = new TossReadOnlyBrokerService(
+    controlPlaneService,
   );
 
   const mlModelRegistryService = new MlModelRegistryService();
@@ -277,6 +285,8 @@ export async function createLinceiRuntime(
   return {
     dataSource,
     controlPlaneService,
+    brokerAdapterReadinessService,
+    tossReadOnlyBrokerService,
     marketDataIngestionService,
     orchestrator,
     statusService,
